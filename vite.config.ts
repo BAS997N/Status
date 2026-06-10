@@ -19,3 +19,5 @@ export default defineConfig({
     watch: process.env.DISABLE_HMR === 'true' ? null : {},
   },
 });
+npm install
+npm run build
