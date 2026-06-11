@@ -1,0 +1,10 @@
+{
+  "name": "מערכת נוכחות לחיילים",
+  "description": "אפליקציית דיווח וניהול נוכחות לחיילי צה״ל ולמפקדים בזמן אמת, כולל אימות שעה ומיקום.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
