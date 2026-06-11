@@ -1,6 +1,0 @@
-{
-  "name": "תאג״ד 997 - מערכת נוכחות ובקרה",
-  "description": "Real-time attendance reporting and management application for soldiers and commanders.",
-  "requestFramePermissions": ["geolocation"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
