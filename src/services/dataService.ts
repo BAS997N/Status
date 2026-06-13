@@ -404,7 +404,11 @@ export const dataService = {
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
           const docSnap = querySnapshot.docs[0];
-          return { userId: docSnap.id, ...docSnap.data() } as UserProfile;
+          const data = docSnap.data() as UserProfile;
+          return {
+           ...data,
+          userId: docSnap.id,
+         } as UserProfile;
         }
       } catch (error) {
         console.error("Error finding profile by personalId in firestore:", error);
