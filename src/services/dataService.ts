@@ -416,7 +416,7 @@ export const dataService = {
   const profiles: UserProfile[] = JSON.parse(localStorage.getItem("idf_profiles") || "[]");
   const foundLocal = profiles.find(p => p.personalId === cleanId);
   return foundLocal || null;
-}
+},
 
   async saveUserProfile(profile: UserProfile): Promise<void> {
     if (!isFirebaseActive()) {
