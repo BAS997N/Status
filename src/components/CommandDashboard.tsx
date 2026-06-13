@@ -233,9 +233,16 @@ export default function CommandDashboard({
     }
   };
 
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const getTodayLocalDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayLocalDate());
   useEffect(() => {
-  setSelectedDate(new Date().toISOString().split('T')[0]);
+  setSelectedDate(getTodayLocalDate());
 }, []);
 
   // Updated date comparison helper
