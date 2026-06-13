@@ -154,6 +154,7 @@ export default function App() {
         const profiles = await dataService.getAllUsers();
         console.log("profiles count =", profiles.length);
         console.log("profiles =", profiles);
+        console.log("profile userIds =", profiles.map(p => p.userId));
         setAllUsers(profiles);
 
         if (storedActiveId) {
