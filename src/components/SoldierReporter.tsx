@@ -45,7 +45,7 @@ export default function SoldierReporter({
 
   // Auto set default locations based on status selection
   useEffect(() => {
-    if (!location || location === "בסיס 105" || location === "בית" || location === "שטח" || location === "מרפאה" || location === "בא"פ לכיש") {
+    if (!location || location === "בסיס 105" || location === "בית" || location === "שטח" || location === "מרפאה" || location === "באפ לכיש") {
       if (status === "base") setLocation("בסיס 105");
       else if (status === "home") setLocation("בית");
       else if (status === "field") setLocation("שטח אימונים");
