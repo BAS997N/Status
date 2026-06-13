@@ -248,7 +248,10 @@ export default function CommandDashboard({
     return activeSoldiers.map(soldier => {
       // Find reports of this soldier sorted by time descending
       const soldierReports = reports
-  .filter(r => r.userId === soldier.userId)
+  .filter(r =>
+  r.userId === soldier.userId ||
+  (r as any).personalId === soldier.personalId
+)
   .sort(
     (a, b) =>
       new Date(b.timestamp).getTime() -
@@ -294,7 +297,10 @@ const latestReport = soldierReports[0]; // most recent report
   
   const listCommandsWithStatus = commandStaffProfiles.map(soldier => {
     const soldierReports = reports
-  .filter(r => r.userId === soldier.userId)
+  .filter(r =>
+  r.userId === soldier.userId ||
+  (r as any).personalId === soldier.personalId
+)
   .sort(
     (a, b) =>
       new Date(b.timestamp).getTime() -
