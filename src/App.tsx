@@ -152,11 +152,7 @@ export default function App() {
         const storedActiveId = localStorage.getItem("idf_active_user_id");
         const storedPersonalId =
   localStorage.getItem("idf_active_personal_id");
-        console.log("storedActiveId =", storedActiveId);
         const profiles = await dataService.getAllUsers();
-        console.log("profiles count =", profiles.length);
-        console.log("profiles =", profiles);
-        console.log("profile userIds =", profiles.map(p => p.userId));
         setAllUsers(profiles);
 
         if (storedActiveId) {
@@ -165,7 +161,6 @@ export default function App() {
   profiles.find(
     p => p.personalId === storedPersonalId
   );
-          console.log("Found profile =", profile);
           if (!profile && isFirebaseActive()) {
             profile = await dataService.getCurrentUserProfile(storedActiveId);
           }
@@ -178,12 +173,11 @@ export default function App() {
             setNotifications(nots);
             
            if (profile.role === "commander" || profile.role === "adjutant_officer") {
-  setActiveTab("reporter");
+  setActiveTab("dashboard");
 } else {
   setActiveTab("reporter");
 }
           } else {
-            console.warn("Stored user not found, clearing old session:", storedActiveId);
              localStorage.removeItem("idf_active_user_id");
             localStorage.removeItem("idf_active_personal_id");
           }
