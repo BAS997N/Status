@@ -388,34 +388,35 @@ export const dataService = {
   },
 
   async findProfileByPersonalId(personalId: string): Promise<UserProfile | null> {
-    const cleanId = personalId.trim();
-    // 1. Search in local simulation database profiles first
-    const profiles: UserProfile[] = JSON.parse(localStorage.getItem("idf_profiles") || "[]");
-    const foundLocal = profiles.find(p => p.personalId === cleanId);
-    if (foundLocal) {
-      return foundLocal;
+  const cleanId = personalId.trim();
+
+  // אם Firebase פעיל — מחפשים קודם רק ב-Firebase
+  if (isFirebaseActive() && db) {
+    try {
+      const q = query(collection(db, "users"), where("personalId", "==", cleanId));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const docSnap = querySnapshot.docs[0];
+        const data = docSnap.data() as UserProfile;
+
+        return {
+          ...data,
+          userId: docSnap.id,
+        } as UserProfile;
+      }
+    } catch (error) {
+      console.error("Error finding profile by personalId in firestore:", error);
     }
 
-    // 2. Search in Firebase Firestore profiles if Firebase is active
-    if (isFirebaseActive() && db) {
-      const path = "users (query by personalId)";
-      try {
-        const q = query(collection(db, "users"), where("personalId", "==", cleanId));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          const docSnap = querySnapshot.docs[0];
-          const data = docSnap.data() as UserProfile;
-          return {
-           ...data,
-          userId: docSnap.id,
-         } as UserProfile;
-        }
-      } catch (error) {
-        console.error("Error finding profile by personalId in firestore:", error);
-      }
-    }
     return null;
-  },
+  }
+
+  // רק אם Firebase לא פעיל — להשתמש בסימולציה
+  const profiles: UserProfile[] = JSON.parse(localStorage.getItem("idf_profiles") || "[]");
+  const foundLocal = profiles.find(p => p.personalId === cleanId);
+  return foundLocal || null;
+}
 
   async saveUserProfile(profile: UserProfile): Promise<void> {
     if (!isFirebaseActive()) {
