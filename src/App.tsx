@@ -437,18 +437,29 @@ export default function App() {
     if (!userProfile) return;
 
     const reportPayload = {
-      userId: userProfile.userId,
-      userName: userProfile.fullName,
-      unit: userProfile.unit,
-      status,
-      location,
-      note,
-      timestamp: new Date().toISOString(), // Server time / exact signature stamp
-      latitude: coords?.lat,
-      longitude: coords?.lng,
-      verifiedBy: (userProfile.role === "commander" || userProfile.role === "adjutant_officer") ? userProfile.userId : undefined,
-      verifiedAt: (userProfile.role === "commander" || userProfile.role === "adjutant_officer") ? new Date().toISOString() : undefined
-    };
+  userId: userProfile.userId,
+  userName: userProfile.fullName,
+  unit: userProfile.unit,
+  status,
+  location,
+  note,
+  timestamp: new Date().toISOString(),
+
+  ...(coords
+    ? {
+        latitude: coords.lat,
+        longitude: coords.lng,
+      }
+    : {}),
+
+  ...(userProfile.role === "commander" ||
+  userProfile.role === "adjutant_officer"
+    ? {
+        verifiedBy: userProfile.userId,
+        verifiedAt: new Date().toISOString(),
+      }
+    : {}),
+};
 
     await dataService.createAttendanceReport(reportPayload);
     await refreshReports();
