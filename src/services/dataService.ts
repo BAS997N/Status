@@ -516,7 +516,7 @@ export const dataService = {
     const path = "attendance";
     try {
       const q = query(collection(db, "attendance"), orderBy("timestamp", "desc"));
-      const querySnapshot = await getDocsFromServer(q);
+      const querySnapshot = await getDocs(q);
       const list: AttendanceReport[] = [];
       querySnapshot.forEach((docSnap) => {
         list.push({ reportId: docSnap.id, ...docSnap.data() } as AttendanceReport);
