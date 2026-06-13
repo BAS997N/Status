@@ -843,18 +843,19 @@ export default function App() {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.15 }}
             >
-              <CommandDashboard
-                currentUser={userProfile}
-                reports={reports}
-                attendanceLogs={attendanceLogs}
-                allSoldiers={allUsers}
-                onVerifyReport={handleVerifyReport}
-                onAdminUpdateSoldier={handleAdminUpdateSoldier}
-                onAdminSaveReport={handleAdminSaveReport}
-                medicalUnits={medicalUnits}
-                customRoles={customRoles}
-                onUpdateMedicalSettings={handleUpdateMedicalSettings}
-              />
+             <CommandDashboard
+  currentUser={userProfile}
+  reports={reports}
+  attendanceLogs={attendanceLogs}
+  allSoldiers={allUsers}
+  onVerifyReport={handleVerifyReport}
+  onAdminUpdateSoldier={handleAdminUpdateSoldier}
+  onAdminSaveReport={handleAdminSaveReport}
+  onDeleteSoldier={handleDeleteSoldier}
+  medicalUnits={medicalUnits}
+  customRoles={customRoles}
+  onUpdateMedicalSettings={handleUpdateMedicalSettings}
+/>
             </motion.div>
           )}
         </AnimatePresence>
