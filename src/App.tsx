@@ -158,6 +158,7 @@ export default function App() {
 
         if (storedActiveId) {
           let profile = profiles.find(p => p.userId === storedActiveId);
+          console.log("Found profile =", profile);
           if (!profile && isFirebaseActive()) {
             profile = await dataService.getCurrentUserProfile(storedActiveId);
           }
