@@ -171,11 +171,11 @@ export default function App() {
             setReports(reps);
             setNotifications(nots);
             
-            if (profile.role === "commander" || profile.role === "adjutant_officer") {
-              setActiveTab("dashboard");
-            } else {
-              setActiveTab("reporter");
-            }
+           if (profile.role === "commander" || profile.role === "adjutant_officer") {
+  setActiveTab("reporter");
+} else {
+  setActiveTab("reporter");
+}
           } else {
             console.warn("Stored user not found, clearing old session:", storedActiveId);
              localStorage.removeItem("idf_active_user_id");
