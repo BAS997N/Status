@@ -150,6 +150,7 @@ export default function App() {
       setLoading(true);
       try {
         const storedActiveId = localStorage.getItem("idf_active_user_id");
+        console.log("storedActiveId =", storedActiveId);
         const profiles = await dataService.getAllUsers();
         console.log("profiles count =", profiles.length);
         console.log("profiles =", profiles);
