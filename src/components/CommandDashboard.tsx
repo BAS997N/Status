@@ -127,7 +127,7 @@ export default function CommandDashboard({
       : defaultShortUnits
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (medicalUnits.length > 0) {
       setSelectedUnitsForTrend(medicalUnits.map(u => u.split(" - ")[0]));
     }
