@@ -490,8 +490,12 @@ export const dataService = {
       const querySnapshot = await getDocs(collection(db, "users"));
       const list: UserProfile[] = [];
       querySnapshot.forEach((docSnap) => {
-        list.push(docSnap.data() as UserProfile);
-      });
+  const data = docSnap.data() as UserProfile;
+  list.push({
+    ...data,
+    userId: data.userId || docSnap.id,
+  });
+});
       return list;
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, path);
