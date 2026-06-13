@@ -566,11 +566,17 @@ export const dataService = {
 
   async createAttendanceReport(reportData: Omit<AttendanceReport, "reportId">): Promise<string> {
     const reportPayload: AttendanceReport = {
-      ...reportData,
-      reportId: "", // will be set correctly after document creation
-      verifiedBy: reportData.verifiedBy || "SYSTEM_AUTO",
-      verifiedAt: reportData.verifiedAt || new Date().toISOString()
-    };
+  ...reportData,
+  reportId: "",
+  verifiedBy: reportData.verifiedBy || "SYSTEM_AUTO",
+  verifiedAt: reportData.verifiedAt || new Date().toISOString()
+};
+
+Object.keys(reportPayload).forEach((key) => {
+  if ((reportPayload as any)[key] === undefined) {
+    delete (reportPayload as any)[key];
+  }
+});
     const isAlert = reportPayload.status !== "base";
     const statusLabel = ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label || reportPayload.status;
     const notificationMsg = `החייל/ת ${reportPayload.userName} דיווח/ה על סטטוס ${statusLabel} מחוץ לבסיס במיקום: ${reportPayload.location}`;
