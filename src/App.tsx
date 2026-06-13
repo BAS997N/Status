@@ -177,6 +177,7 @@ export default function App() {
               setActiveTab("reporter");
             }
           } else {
+            console.warn("Stored user not found, clearing old session:", storedActiveId);
              localStorage.removeItem("idf_active_user_id");
           }
         }
