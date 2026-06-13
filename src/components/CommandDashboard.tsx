@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Users, 
   MapPin, 
@@ -234,6 +234,9 @@ export default function CommandDashboard({
   };
 
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  useEffect(() => {
+  setSelectedDate(new Date().toISOString().split('T')[0]);
+}, []);
 
   // Updated date comparison helper
   const isDate = (timestampStr: string, dateStr: string) => {
