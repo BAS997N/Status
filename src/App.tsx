@@ -150,6 +150,8 @@ export default function App() {
       setLoading(true);
       try {
         const storedActiveId = localStorage.getItem("idf_active_user_id");
+        const storedPersonalId =
+  localStorage.getItem("idf_active_personal_id");
         console.log("storedActiveId =", storedActiveId);
         const profiles = await dataService.getAllUsers();
         console.log("profiles count =", profiles.length);
@@ -158,7 +160,11 @@ export default function App() {
         setAllUsers(profiles);
 
         if (storedActiveId) {
-          let profile = profiles.find(p => p.userId === storedActiveId);
+          let profile =
+  profiles.find(p => p.userId === storedActiveId) ||
+  profiles.find(
+    p => p.personalId === storedPersonalId
+  );
           console.log("Found profile =", profile);
           if (!profile && isFirebaseActive()) {
             profile = await dataService.getCurrentUserProfile(storedActiveId);
@@ -179,6 +185,7 @@ export default function App() {
           } else {
             console.warn("Stored user not found, clearing old session:", storedActiveId);
              localStorage.removeItem("idf_active_user_id");
+            localStorage.removeItem("idf_active_personal_id");
           }
         }
       } catch (err) {
@@ -336,6 +343,10 @@ export default function App() {
       const foundProfile = await dataService.findProfileByPersonalId(cleanId);
       if (foundProfile) {
         localStorage.setItem("idf_active_user_id", foundProfile.userId);
+        localStorage.setItem(
+  "idf_active_personal_id",
+  foundProfile.personalId || cleanId
+);
         setUserProfile(foundProfile);
         
         // Load active database info
