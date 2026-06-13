@@ -489,11 +489,11 @@ export const dataService = {
     try {
       const querySnapshot = await getDocs(collection(db, "users"));
       const list: UserProfile[] = [];
-      querySnapshot.forEach((docSnap) => {
+     querySnapshot.forEach((docSnap) => {
   const data = docSnap.data() as UserProfile;
   list.push({
     ...data,
-    userId: data.userId || docSnap.id,
+    userId: docSnap.id,
   });
 });
       return list;
