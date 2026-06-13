@@ -70,7 +70,6 @@ interface CommandDashboardProps {
   }) => Promise<void>;
   medicalUnits?: string[];
   customRoles?: string[];
-  onDeleteSoldier={handleDeleteSoldier}
   onUpdateMedicalSettings?: (newUnits: string[], newRoles: string[]) => void;
   attendanceLogs: any[];
 }
