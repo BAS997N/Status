@@ -206,7 +206,18 @@ export default function App() {
     await dataService.clearAllNotifications();
     await refreshNotifications();
   };
+    const handleDeleteSoldier = async (userId: string) => {
+    try {
+    await dataService.deleteUserProfile(userId);
 
+    const updatedUsers = await dataService.getAllUsers();
+    setAllUsers(updatedUsers);
+  } catch (error) {
+    console.error("Failed deleting soldier:", error);
+    alert("אירעה שגיאה במחיקת החייל");
+  }
+};
+  
   // Poll reports and notifications every 4 seconds in commander/adjutant mode to pop up real-time soldier reports
   useEffect(() => {
     const poll = async () => {
