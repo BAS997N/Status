@@ -429,7 +429,8 @@ export default function App() {
 
   // Submit presence report (by active user)
   const handleSubmitReport = async (
-    status: AttendanceStatus, 
+    status: AttendanceStatus,
+    personalId: userProfile.personalId,
     location: string, 
     note: string, 
     coords?: { lat: number; lng: number }
@@ -438,6 +439,7 @@ export default function App() {
 
     const reportPayload = {
   userId: userProfile.userId,
+  personalId: userProfile.personalId,
   userName: userProfile.fullName,
   unit: userProfile.unit,
   status,
