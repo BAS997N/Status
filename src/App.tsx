@@ -172,7 +172,7 @@ export default function App() {
               setActiveTab("reporter");
             }
           } else {
-            console.warn("User profile not found, keeping stored session:", storedActiveId);
+             localStorage.removeItem("idf_active_user_id");
           }
         }
       } catch (err) {
