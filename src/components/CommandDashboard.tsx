@@ -247,8 +247,15 @@ export default function CommandDashboard({
     const activeSoldiers = allSoldiers.filter(s => !s.isDischarged);
     return activeSoldiers.map(soldier => {
       // Find reports of this soldier sorted by time descending
-      const soldierReports = reports.filter(r => r.userId === soldier.userId);
-      const latestReport = soldierReports[0]; // first report
+      const soldierReports = reports
+  .filter(r => r.userId === soldier.userId)
+  .sort(
+    (a, b) =>
+      new Date(b.timestamp).getTime() -
+      new Date(a.timestamp).getTime()
+  );
+
+const latestReport = soldierReports[0]; // most recent report
       const latestTodayReport = latestReport && isDate(latestReport.timestamp, selectedDate) ? latestReport : undefined;
 
       return {
@@ -286,8 +293,15 @@ export default function CommandDashboard({
   const commandStaffProfiles = allSoldiers.filter(s => !s.isDischarged && (s.role === "commander" || s.unit === "סגל ופיקוד גדוד"));
   
   const listCommandsWithStatus = commandStaffProfiles.map(soldier => {
-    const soldierReports = reports.filter(r => r.userId === soldier.userId);
-    const latestReport = soldierReports[0];
+    const soldierReports = reports
+  .filter(r => r.userId === soldier.userId)
+  .sort(
+    (a, b) =>
+      new Date(b.timestamp).getTime() -
+      new Date(a.timestamp).getTime()
+  );
+
+const latestReport = soldierReports[0];
     const latestTodayReport = latestReport && isDate(latestReport.timestamp, selectedDate) ? latestReport : undefined;
     
     const currentStatus = latestTodayReport ? latestTodayReport.status : "unreported";
