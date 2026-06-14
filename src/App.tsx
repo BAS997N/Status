@@ -353,14 +353,13 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
 const cleanRegCode = regPersonalCode.trim();
 
-if (!/^\d{6}$/.test(cleanRegCode)) {
+if (!/^\d{6}$/.test(cleanCode)) {
   setLoginError("קוד אישי חייב להכיל 6 ספרות");
   return;
 }
 
     setLoading(true);
     try {
-      const authPassword = cleanCode;
   const foundProfile = await dataService.findProfileByPersonalId(cleanId);
 
   if (!foundProfile) {
@@ -420,7 +419,9 @@ if (!/^\d{6}$/.test(cleanRegCode)) {
       setLoginError("נא למלא את כל השדות החיוניים (כולל שם מלא ומספר טלפון)");
       return;
     }
-    if (!/^\d{6}$/.test(cleanCode)) {
+   const cleanRegCode = regPersonalCode.trim();
+
+if (!/^\d{6}$/.test(cleanRegCode)) {
   setLoginError("קוד אישי חייב להכיל 6 ספרות");
   return;
 }
@@ -456,7 +457,7 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
   const userCredential = await createUserWithEmailAndPassword(
     auth,
     authEmail,
-    authPassword
+    cleanRegCode
   );
 
   newProfile.userId = userCredential.user.uid;
