@@ -5,9 +5,10 @@ import { Clock, FileText, User, Calendar } from "lucide-react";
 interface HistoryViewProps {
   logs: any[];
   reports: AttendanceReport[];
+  onDeleteReport?: (reportId: string) => Promise<void>;
 }
 
-export default function HistoryView({ logs, reports }: HistoryViewProps) {
+export default function HistoryView({ logs, reports, onDeleteReport }: HistoryViewProps) {
   const [filterDate, setFilterDate] = useState("");
 
   const filteredLogs = logs.filter(log => !filterDate || log.updatedAt.startsWith(filterDate));
@@ -30,10 +31,26 @@ export default function HistoryView({ logs, reports }: HistoryViewProps) {
             {filteredReports.length === 0 ? <p className="text-sm text-slate-500">אין דיווחים</p> : (
               <div className="space-y-2">
                 {filteredReports.map(rep => (
-                  <div key={rep.reportId} className="p-3 border rounded text-sm">
-                    <strong>{rep.userName}</strong>: {rep.status} - {rep.location} ({new Date(rep.timestamp).toLocaleString()})
-                  </div>
-                ))}
+  <div key={rep.reportId} className="p-3 border rounded text-sm flex items-center justify-between gap-3">
+    <div>
+      <strong>{rep.userName}</strong>: {rep.status} - {rep.location} ({new Date(rep.timestamp).toLocaleString()})
+    </div>
+
+    {onDeleteReport && (
+      <button
+        type="button"
+        onClick={async () => {
+          if (window.confirm("האם למחוק את הדיווח הזה לצמיתות?")) {
+            await onDeleteReport(rep.reportId);
+          }
+        }}
+        className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-bold"
+      >
+        מחק
+      </button>
+    )}
+  </div>
+))}
               </div>
             )}
           </section>
