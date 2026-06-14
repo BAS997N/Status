@@ -396,6 +396,15 @@ if (!/^\d{4,6}$/.test(cleanCode)) {
       setLoginError("נא למלא את כל השדות החיוניים (כולל שם מלא ומספר טלפון)");
       return;
     }
+    if (!/^\d{4,6}$/.test(regPersonalCode.trim())) {
+  setLoginError("קוד אישי חייב להכיל 4 עד 6 ספרות");
+  return;
+}
+
+if (regPersonalCode !== regPersonalCodeConfirm) {
+  setLoginError("אימות הקוד האישי אינו תואם");
+  return;
+}
 
     if (regRole === "commander" || regRole === "adjutant_officer") {
   setLoginError("לא ניתן להירשם עצמאית כמפקד או קצין שלישות. יש לפנות למנהל המערכת.");
@@ -692,6 +701,10 @@ if (!/^\d{4,6}$/.test(cleanCode)) {
                     disabled={loading}
                   />
                 </div>
+
+                <label className="block text-xs font-bold text-slate-200">
+  מספר טלפון נייד
+</label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-1">
                   <div className="space-y-1.5">
