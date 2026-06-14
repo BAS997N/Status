@@ -44,16 +44,32 @@ export default function SoldierReporter({
   const latestReport = userReports[0]; // sorted desc
 
   // Auto set default locations based on status selection
-  useEffect(() => {
-    if (!location || location === "בסיס 105" || location === "בית" || location === "שטח" || location === "מרפאה" || location === 'בא"פ לכיש') {
-      if (status === "base") setLocation("בסיס 105");
-      else if (status === "home") setLocation("בית");
-      else if (status === "field") setLocation("שטח אימונים");
-      else if (status === "sick") setLocation("בית - גימלים");
-      else if (status === "course") setLocation("בה״ד - בסיס הדרכה");
-      else setLocation("");
-    }
-  }, [status]);
+useEffect(() => {
+  switch (status) {
+    case "base":
+      setLocation("בסיס 105");
+      break;
+
+    case "home":
+      setLocation("בית");
+      break;
+
+    case "field":
+      setLocation("שטח אימונים");
+      break;
+
+    case "sick":
+      setLocation("בית - גימלים");
+      break;
+
+    case "course":
+      setLocation("בא״פ לכיש - בסיס הדרכה");
+      break;
+
+    default:
+      setLocation("");
+  }
+}, [status]);
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
@@ -71,7 +87,7 @@ export default function SoldierReporter({
         setGeoState("success");
         
         // Populate standard coordinates or reverse info
-        if (location === "מחנה עופר" || location === "בית" || !location) {
+        if (location === "בסיס 105" || location === "בית" || !location) {
           setLocation((prev) => `${prev} (GPS מאומת)`);
         }
       },
