@@ -83,6 +83,7 @@ export default function CommandDashboard({
   onVerifyReport,
   onAdminUpdateSoldier,
   onDeleteSoldier,
+  onDeleteReport,
   onAdminSaveReport,
   medicalUnits = [],
   customRoles = [],
