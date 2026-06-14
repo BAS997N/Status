@@ -350,7 +350,6 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       setLoginError("מספר זיהוי קצר מדי (מינימום 5 ספרות)");
       return;
     }
-    const cleanCode = personalCodeInput.trim();
 
 if (!/^\d{6}$/.test(cleanCode)) {
   setLoginError("קוד אישי חייב להכיל 6 ספרות");
