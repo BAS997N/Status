@@ -358,13 +358,23 @@ if (!/^\d{4,6}$/.test(cleanCode)) {
 
     setLoading(true);
     try {
-      if (isFirebaseActive() && auth) {
-  const authEmail = buildAuthEmail(cleanId);
-  const authPassword = cleanCode;
+  const foundProfile = await dataService.findProfileByPersonalId(cleanId);
 
-  await signInWithEmailAndPassword(auth, authEmail, authPassword);
-}
-      const foundProfile = await dataService.findProfileByPersonalId(cleanId);
+  if (!foundProfile) {
+    setRegPersonalId(cleanId);
+    setRegName("");
+    setRegUnit(IDF_UNITS[0]);
+    setRegRole("soldier");
+    setIsRegisteringId(true);
+    return;
+  }
+
+  if (isFirebaseActive() && auth) {
+    const authEmail = buildAuthEmail(cleanId);
+    const authPassword = cleanCode;
+
+    await signInWithEmailAndPassword(auth, authEmail, authPassword);
+  }
       if (foundProfile) {
         localStorage.setItem("idf_active_user_id", foundProfile.userId);
         localStorage.setItem(
