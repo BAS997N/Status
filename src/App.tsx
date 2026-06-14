@@ -388,14 +388,9 @@ export default function App() {
       return;
     }
 
-    if (regRole === "commander" && regPasscode.trim() !== "avi8057") {
-      setLoginError("קוד אימות מפקד שגוי!");
-      return;
-    }
-    
-    if (regRole === "adjutant_officer" && regPasscode.trim() !== "denise997") {
-      setLoginError("קוד אימות קצינת שלישות שגוי!");
-      return;
+    if (regRole === "commander" || regRole === "adjutant_officer") {
+  setLoginError("לא ניתן להירשם עצמאית כמפקד או קצין שלישות. יש לפנות למנהל המערכת.");
+  return;
     }
 
     setLoading(true);
