@@ -351,7 +351,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     }
     const cleanCode = personalCodeInput.trim();
 
-if (!/^\d{6}$/.test(regPersonalCode.trim())) {
+if (!/^\d{6}$/.test(cleanCode)) {
   setLoginError("קוד אישי חייב להכיל 6 ספרות");
   return;
 }
