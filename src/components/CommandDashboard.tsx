@@ -1173,6 +1173,7 @@ const latestReport = soldierReports[0];
                     />
                   </PieChart>
                 </ResponsiveContainer>
+                  </div>
               )}
             </div>
           )}
