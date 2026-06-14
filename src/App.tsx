@@ -358,6 +358,12 @@ if (!/^\d{4,6}$/.test(cleanCode)) {
 
     setLoading(true);
     try {
+      if (isFirebaseActive() && auth) {
+  const authEmail = buildAuthEmail(cleanId);
+  const authPassword = cleanCode;
+
+  await signInWithEmailAndPassword(auth, authEmail, authPassword);
+}
       const foundProfile = await dataService.findProfileByPersonalId(cleanId);
       if (foundProfile) {
         localStorage.setItem("idf_active_user_id", foundProfile.userId);
