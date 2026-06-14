@@ -49,6 +49,9 @@ import {
 
 export default function App() {
   // Auth & Profile states
+  const buildAuthEmail = (personalId: string) => {
+  return `${personalId.trim()}@idf.local`;
+};
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
