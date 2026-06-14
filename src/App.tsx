@@ -224,6 +224,16 @@ export default function App() {
     alert("אירעה שגיאה במחיקת החייל");
   }
 };
+  const handleDeleteReport = async (reportId: string) => {
+  try {
+    await dataService.deleteAttendanceReport(reportId);
+    await refreshReports();
+    await refreshNotifications();
+  } catch (error) {
+    console.error("Failed deleting report:", error);
+    alert("אירעה שגיאה במחיקת הדיווח");
+  }
+};
   
   // Poll reports and notifications every 4 seconds in commander/adjutant mode to pop up real-time soldier reports
   useEffect(() => {
