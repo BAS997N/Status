@@ -59,6 +59,7 @@ interface CommandDashboardProps {
   onVerifyReport: (reportId: string) => Promise<void>;
   onAdminUpdateSoldier: (profile: UserProfile) => Promise<void>;
   onDeleteSoldier?: (userId: string) => Promise<void>;
+  onDeleteReport?: (reportId: string) => Promise<void>;
   onAdminSaveReport?: (reportData: {
     reportId?: string;
     userId: string;
