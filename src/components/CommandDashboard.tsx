@@ -924,7 +924,7 @@ const latestReport = soldierReports[0];
           </div>
         </div>
       ) : dashboardTab === "history" ? (
-        <HistoryView logs={attendanceLogs} reports={reports} />
+        <HistoryView logs={attendanceLogs} reports={reports} onDeleteReport={onDeleteReport}/>
       ) : dashboardTab === "attendance" ? (
         <>
           <div className="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs">
