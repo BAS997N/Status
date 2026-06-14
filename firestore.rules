@@ -52,8 +52,10 @@ service cloud.firestore {
 
       allow list: if isStaffReader();
 
-      allow create: if isSignedIn() &&
-        request.resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+  && request.resource.data.userId == request.auth.uid
+  && hasUserDoc()
+  && currentUser().role != "adjutant_officer";
 
       allow update: if isCommander();
       allow delete: if isCommander();
