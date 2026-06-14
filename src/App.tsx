@@ -351,7 +351,9 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       return;
     }
 
-if (!/^\d{6}$/.test(cleanCode)) {
+const cleanRegCode = regPersonalCode.trim();
+
+if (!/^\d{6}$/.test(cleanRegCode)) {
   setLoginError("קוד אישי חייב להכיל 6 ספרות");
   return;
 }
@@ -423,7 +425,7 @@ if (!/^\d{6}$/.test(cleanCode)) {
   return;
 }
 
-if (regPersonalCode !== regPersonalCodeConfirm) {
+if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
   setLoginError("אימות הקוד האישי אינו תואם");
   return;
 }
@@ -450,7 +452,6 @@ if (regPersonalCode !== regPersonalCodeConfirm) {
     try {
       if (isFirebaseActive() && auth) {
   const authEmail = buildAuthEmail(regPersonalId.trim());
-  const authPassword = regPersonalCode.trim();
 
   const userCredential = await createUserWithEmailAndPassword(
     auth,
