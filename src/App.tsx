@@ -407,7 +407,7 @@ if (!/^\d{6}$/.test(cleanRegCode)) {
       }
     } catch (error) {
       console.error("Login verification error:", error);
-      setLoginError("שגיאה בתהליך האימות. נא לנסות שנית.");
+     setLoginError("המשתמש קיים במערכת אך עדיין לא הוגדר לו קוד אישי. יש לבצע איפוס/הגדרת קוד דרך מנהל המערכת.");
     } finally {
       setLoading(false);
     }
