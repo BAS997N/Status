@@ -59,6 +59,7 @@ export default function App() {
 
   // ID-based login states
   const [personalIdInput, setPersonalIdInput] = useState("");
+  const [personalCodeInput, setPersonalCodeInput] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isRegisteringId, setIsRegisteringId] = useState(false);
   const [regPersonalId, setRegPersonalId] = useState("");
@@ -67,6 +68,8 @@ export default function App() {
   const [regRole, setRegRole] = useState<UserRole>("soldier");
   const [regPhoneNumber, setRegPhoneNumber] = useState("");
   const [regPasscode, setRegPasscode] = useState("");
+  const [regPersonalCode, setRegPersonalCode] = useState("");
+const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
   // Notifications & Toast states
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -341,6 +344,12 @@ export default function App() {
       setLoginError("מספר זיהוי קצר מדי (מינימום 5 ספרות)");
       return;
     }
+    const cleanCode = personalCodeInput.trim();
+
+if (!/^\d{4,6}$/.test(cleanCode)) {
+  setLoginError("קוד אישי חייב להכיל 4 עד 6 ספרות");
+  return;
+}
 
     setLoading(true);
     try {
@@ -604,6 +613,21 @@ export default function App() {
                       <KeyRound className="w-4 h-4" />
                     </div>
                   </div>
+                  <div className="space-y-1.5">
+  <label className="block text-xs font-bold text-slate-200">
+    קוד אישי
+  </label>
+
+  <input
+    type="password"
+    required
+    placeholder="4-6 ספרות"
+    value={personalCodeInput}
+    onChange={(e) => setPersonalCodeInput(e.target.value)}
+    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-3 focus:border-emerald-500 text-sm focus:ring-1 focus:ring-emerald-500 outline-none text-left tracking-widest font-black text-white transition-all shadow-inner"
+    disabled={loading}
+  />
+</div>
                 </div>
 
                 {loginError && (
