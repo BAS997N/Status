@@ -1144,8 +1144,9 @@ const latestReport = soldierReports[0];
               {presenceDistributionData.length === 0 ? (
                 <span className="text-xs text-slate-400">אין נתוני דיווח קיימים</span>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                <div className="w-full h-[260px] min-h-[260px]">
+  <ResponsiveContainer width="100%" height="100%">
+    <PieChart>
                     <Pie
                       data={presenceDistributionData}
                       cx="50%"
