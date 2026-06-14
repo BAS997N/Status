@@ -2,7 +2,6 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import firebaseConfig from "./firebase-applet-config.json";
-console.log("Firebase Config:", firebaseConfig);
 // Check if Firebase is provisioned with real credentials (not placeholders)
 export const firebaseState = {
   isActive: firebaseConfig && 
