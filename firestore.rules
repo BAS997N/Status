@@ -1,8 +1,71 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function hasUserDoc() {
+      return isSignedIn() && exists(userPath());
+    }
+
+    function currentUser() {
+      return get(userPath()).data;
+    }
+
+    function isCommander() {
+      return hasUserDoc() && currentUser().role == "commander";
+    }
+
+    function isAdjutant() {
+      return hasUserDoc() && currentUser().role == "adjutant_officer";
+    }
+
+    function isStaffReader() {
+      return isCommander() || isAdjutant();
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isStaffReader();
+      allow list: if isStaffReader();
+
+      allow create: if isOwner(userId)
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.role == "soldier";
+
+      allow update: if isCommander() || isOwner(userId);
+      allow delete: if isCommander();
+    }
+
+    match /attendance/{reportId} {
+      allow get: if isSignedIn() &&
+        (resource.data.userId == request.auth.uid || isStaffReader());
+
+      allow list: if isStaffReader();
+
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid;
+
+      allow update: if isCommander();
+      allow delete: if isCommander();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isStaffReader();
+      allow create, update, delete: if isCommander();
+    }
+
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }
