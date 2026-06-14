@@ -358,6 +358,21 @@ const initSimStorage = () => {
 initSimStorage();
 
 export const dataService = {
+  async deleteAttendanceReport(reportId: string): Promise<void> {
+  if (!isFirebaseActive()) {
+    const reports: AttendanceReport[] = JSON.parse(localStorage.getItem("idf_reports") || "[]");
+    const filtered = reports.filter(r => r.reportId !== reportId);
+    localStorage.setItem("idf_reports", JSON.stringify(filtered));
+    return;
+  }
+
+  const path = `attendance/${reportId}`;
+  try {
+    await deleteDoc(doc(db, "attendance", reportId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+},
   // --- USER AUTHENTICATION & PROFILE METHODS ---
   
   async getCurrentUserProfile(testUserId?: string): Promise<UserProfile | null> {
