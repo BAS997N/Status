@@ -886,6 +886,7 @@ export default function App() {
   onAdminUpdateSoldier={handleAdminUpdateSoldier}
   onAdminSaveReport={handleAdminSaveReport}
   onDeleteSoldier={handleDeleteSoldier}
+  onDeleteReport={handleDeleteReport}             
   medicalUnits={medicalUnits}
   customRoles={customRoles}
   onUpdateMedicalSettings={handleUpdateMedicalSettings}
