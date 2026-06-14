@@ -95,6 +95,7 @@ export default function CommandDashboard({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [chartsReady, setChartsReady] = useState(false);
 
   // Collapsible States
   const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
@@ -134,6 +135,10 @@ export default function CommandDashboard({
       setSelectedUnitsForTrend(medicalUnits.map(u => u.split(" - ")[0]));
     }
   }, [medicalUnits]);
+  useEffect(() => {
+  const timer = setTimeout(() => setChartsReady(true), 100);
+  return () => clearTimeout(timer);
+}, []);
 
   // Add / Edit Soldier Modals and Form states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -1139,7 +1144,7 @@ const latestReport = soldierReports[0];
               {isPieChartCollapsed ? "הצג [+" : "מזער [-]"}
             </button>
           </div>
-          {!isPieChartCollapsed && (
+          {chartsReady && !isPieChartCollapsed && (
             <div className="h-[280px] min-h-[280px] mt-4 flex items-center justify-center">
               {presenceDistributionData.length === 0 ? (
                 <span className="text-xs text-slate-400">אין נתוני דיווח קיימים</span>
@@ -1193,7 +1198,7 @@ const latestReport = soldierReports[0];
               {isBarChartCollapsed ? "הצג [+" : "מזער [-]"}
             </button>
           </div>
-          {!isBarChartCollapsed && (
+          {chartsReady && !isBarChartCollapsed && (
             <div className="h-56 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -1393,7 +1398,7 @@ const latestReport = soldierReports[0];
           </div>
         </div>
 
-        {!isLineChartCollapsed && (
+        {chartsReady && !isLineChartCollapsed && (
           <div className="h-64 mt-2">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
