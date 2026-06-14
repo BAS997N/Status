@@ -335,6 +335,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     e.preventDefault();
     setLoginError("");
     const cleanId = personalIdInput.trim();
+    const cleanCode = personalCodeInput.trim();
     if (!cleanId) {
       setLoginError("נא להזין מספר אישי או תעודת זהות תקינה");
       return;
@@ -358,6 +359,7 @@ if (!/^\d{6}$/.test(cleanCode)) {
 
     setLoading(true);
     try {
+      const authPassword = cleanCode;
   const foundProfile = await dataService.findProfileByPersonalId(cleanId);
 
   if (!foundProfile) {
