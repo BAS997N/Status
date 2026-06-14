@@ -1140,11 +1140,11 @@ const latestReport = soldierReports[0];
             </button>
           </div>
           {!isPieChartCollapsed && (
-            <div className="h-56 mt-4 flex items-center justify-center">
+            <div className="h-[280px] min-h-[280px] mt-4 flex items-center justify-center">
               {presenceDistributionData.length === 0 ? (
                 <span className="text-xs text-slate-400">אין נתוני דיווח קיימים</span>
               ) : (
-                <div className="w-full h-[260px] min-h-[260px]">
+                <div className="w-full h-full min-h-[260px]">
   <ResponsiveContainer width="100%" height="100%">
     <PieChart>
                     <Pie
