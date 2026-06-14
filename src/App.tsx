@@ -736,9 +736,37 @@ if (regPersonalCode !== regPersonalCodeConfirm) {
                   />
                 </div>
 
-                <label className="block text-xs font-bold text-slate-200">
-  מספר טלפון נייד
-</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  <div className="space-y-1.5">
+    <label className="block text-xs font-bold text-slate-200">
+      קוד אישי
+    </label>
+    <input
+      type="password"
+      required
+      placeholder="4-6 ספרות"
+      value={regPersonalCode}
+      onChange={(e) => setRegPersonalCode(e.target.value)}
+      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2.5 focus:border-emerald-500 text-xs focus:ring-1 focus:ring-emerald-500 outline-none text-white font-medium text-center tracking-widest"
+      disabled={loading}
+    />
+  </div>
+
+  <div className="space-y-1.5">
+    <label className="block text-xs font-bold text-slate-200">
+      אימות קוד אישי
+    </label>
+    <input
+      type="password"
+      required
+      placeholder="הזן שוב את הקוד"
+      value={regPersonalCodeConfirm}
+      onChange={(e) => setRegPersonalCodeConfirm(e.target.value)}
+      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2.5 focus:border-emerald-500 text-xs focus:ring-1 focus:ring-emerald-500 outline-none text-white font-medium text-center tracking-widest"
+      disabled={loading}
+    />
+  </div>
+</div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-1">
                   <div className="space-y-1.5">
