@@ -431,6 +431,19 @@ if (regPersonalCode !== regPersonalCodeConfirm) {
     };
 
     try {
+      if (isFirebaseActive() && auth) {
+  const authEmail = buildAuthEmail(regPersonalId.trim());
+  const authPassword = regPersonalCode.trim();
+
+  const userCredential = await createUserWithEmailAndPassword(
+    auth,
+    authEmail,
+    authPassword
+  );
+
+  newProfile.userId = userCredential.user.uid;
+  newProfile.email = authEmail;
+}
       await dataService.saveUserProfile(newProfile);
       localStorage.setItem("idf_active_user_id", newProfile.userId);
       setUserProfile(newProfile);
