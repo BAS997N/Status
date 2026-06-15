@@ -318,8 +318,15 @@ const latestTodayReport = soldierReports.find(report =>
     other: reportedTodayList.filter(s => s.latestTodayReport?.status === "other").length,
   };
 
-  const presentCount = statusStats.base + statusStats.field + statusStats.course;
-  const absentCount = statusStats.home + statusStats.sick + statusStats.cut_order + statusStats.other;
+  const presentCount =
+  statusStats.base +
+  statusStats.field;
+
+const absentCount =
+  statusStats.home +
+  statusStats.sick +
+  statusStats.course +
+  statusStats.other;
   const pendingVerificationCount = reportedTodayList.filter(s => s.latestTodayReport && !s.latestTodayReport.verifiedBy).length;
 
   // Command Staff calculation
@@ -980,7 +987,7 @@ const latestTodayReport = soldierReports.find(report =>
         {/* Present Status */}
         <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-400 font-bold block">בנוכחות (בסיס/שטח/בה״ד)</span>
+            <span className="text-xs text-slate-400 font-bold block">זמינים לפעילות (בסיס/שטח)</span>
             <span className="text-2xl font-black text-emerald-600 tracking-tight mt-1 block">
               {presentCount} 
               <span className="text-xs text-slate-400 font-normal pr-1.5">
