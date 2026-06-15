@@ -30,11 +30,17 @@ export default function SoldierReporter({
   reports, 
   onSubmitReport 
 }: SoldierReporterProps) {
+  const getTodayLocalDate = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
   const [status, setStatus] = useState<AttendanceStatus>("base");
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
-  const [reportDate, setReportDate] = useState(
-  new Date().toISOString().split("T")[0]
+  const [reportDate, setReportDate] = useState(getTodayLocalDate());
 );
 
 const [cutOrderStartDate, setCutOrderStartDate] = useState("");
