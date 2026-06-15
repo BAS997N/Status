@@ -30,13 +30,74 @@ export default function HistoryView({ logs, reports, onDeleteReport }: HistoryVi
         <div className="space-y-6">
           <section>
             <h3 className="text-md font-bold mb-2 flex items-center gap-2"><Clock className="w-4 h-4"/> דיווחים מקוריים ליום זה</h3>
-            {filteredReports.length === 0 ? <p className="text-sm text-slate-500">אין דיווחים</p> : (
-              <div className="space-y-2">
-                {filteredReports.map(rep => (
-  <div key={rep.reportId} className="p-3 border rounded text-sm flex items-center justify-between gap-3">
-    <div>
-      <strong>{rep.userName}</strong>: {rep.status} - {rep.location} ({new Date(rep.timestamp).toLocaleString()})
-    </div>
+            {filteredReports.length === 0 ? (
+  <p className="text-sm text-slate-500">אין דיווחים</p>
+) : (
+  <div className="overflow-x-auto border border-slate-200 rounded-xl">
+    <table className="w-full text-xs text-right">
+      <thead className="bg-slate-100 text-slate-600 font-black">
+        <tr>
+          <th className="p-3">שם חייל</th>
+          <th className="p-3">סטטוס</th>
+          <th className="p-3">מיקום החתמה</th>
+          <th className="p-3">תאריך</th>
+          <th className="p-3">שעה</th>
+          <th className="p-3">מי ביצע דיווח</th>
+          <th className="p-3">נערך/אומת ע״י</th>
+          <th className="p-3 text-center">פעולות</th>
+        </tr>
+      </thead>
+
+      <tbody className="divide-y divide-slate-100">
+        {filteredReports.map(rep => {
+          const dateObj = new Date(rep.timestamp);
+          const relatedLog = filteredLogs.find(log => log.reportId === rep.reportId);
+
+          const statusLabel =
+            rep.status === "base" ? "בבסיס" :
+            rep.status === "home" ? "בית / אפטר" :
+            rep.status === "field" ? "שטח / אימון" :
+            rep.status === "sick" ? "גימלים" :
+            rep.status === "course" ? "קורס / הכשרה" :
+            "אחר";
+
+          return (
+            <tr key={rep.reportId} className="hover:bg-slate-50 transition">
+              <td className="p-3 font-bold text-slate-800">{rep.userName}</td>
+              <td className="p-3">
+                <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold">
+                  {statusLabel}
+                </span>
+              </td>
+              <td className="p-3 text-slate-700">{rep.location || "לא צוין"}</td>
+              <td className="p-3 text-slate-600">{dateObj.toLocaleDateString("he-IL")}</td>
+              <td className="p-3 text-slate-600">{dateObj.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</td>
+              <td className="p-3 text-slate-700">
+                {(rep as any).createdByName || rep.userName || "לא ידוע"}
+              </td>
+              <td className="p-3 text-slate-500">
+                {relatedLog
+                  ? ((relatedLog as any).updatedByName || relatedLog.updatedBy || "מפקד")
+                  : "לא נערך"}
+              </td>
+              <td className="p-3 text-center">
+                {onDeleteReport && (
+                  <button
+                    type="button"
+                    onClick={() => setReportToDelete(rep)}
+                    className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold"
+                  >
+                    מחק
+                  </button>
+                )}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+)}
 
     {onDeleteReport && (
       <button
