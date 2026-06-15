@@ -227,6 +227,35 @@ useEffect(() => {
                 })}
               </div>
             </div>
+            {status === "cut_order" && (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+    <div>
+      <label className="block text-sm font-bold text-slate-700 mb-2">
+        מתאריך
+      </label>
+
+      <input
+        type="date"
+        value={cutOrderStartDate}
+        onChange={(e) => setCutOrderStartDate(e.target.value)}
+        className="w-full border border-slate-200 rounded-lg px-3 py-2"
+      />
+    </div>
+
+    <div>
+      <label className="block text-sm font-bold text-slate-700 mb-2">
+        עד תאריך
+      </label>
+
+      <input
+        type="date"
+        value={cutOrderEndDate}
+        onChange={(e) => setCutOrderEndDate(e.target.value)}
+        className="w-full border border-slate-200 rounded-lg px-3 py-2"
+      />
+    </div>
+  </div>
+)}
 
             {/* 2. Location Input with GPS validation */}
             <div>
