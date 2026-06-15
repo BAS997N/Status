@@ -55,22 +55,18 @@ export default function HistoryView({ logs, reports, onDeleteReport }: HistoryVi
             ) : (
               <div className="overflow-x-auto border border-slate-200 rounded-xl">
                 <table className="w-full text-xs text-right">
-                 <thead className="bg-slate-100 text-slate-600 font-black">
-  <tr>
-    <th className="p-3">שם חייל</th>
-    <th className="p-3">סטטוס</th>
-    <th className="p-3">מיקום</th>
-    <th className="p-3">תאריך</th>
-    <th className="p-3">שעה</th>
-    <th className="p-3">דווח ע״י</th>
-    <th className="p-3">נערך ע״י</th>
-    <th className="p-3 text-center">פעולות</th>
-  </tr>
-</thead>
-                      <th className="p-3">נערך/אומת ע״י</th>
-                      <th className="p-3 text-center">פעולות</th>
-                    </tr>
-                  </thead>
+  <thead className="bg-slate-100 text-slate-600 font-black">
+    <tr>
+      <th className="p-3">שם חייל</th>
+      <th className="p-3">סטטוס</th>
+      <th className="p-3">מיקום</th>
+      <th className="p-3">תאריך</th>
+      <th className="p-3">שעה</th>
+      <th className="p-3">דווח ע״י</th>
+      <th className="p-3">נערך ע״י</th>
+      <th className="p-3 text-center">פעולות</th>
+    </tr>
+  </thead>
 
                   <tbody className="divide-y divide-slate-100">
                     {filteredReports.map((rep) => {
