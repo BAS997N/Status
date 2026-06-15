@@ -585,14 +585,18 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
 );
     } else {
       await dataService.createAttendanceReport({
-        userId: reportData.userId,
-        userName: reportData.userName,
-        unit: reportData.unit,
-        status: reportData.status,
-        location: reportData.location,
-        note: reportData.note || "",
-        timestamp: new Date().toISOString()
-      });
+  userId: reportData.userId,
+  userName: reportData.userName,
+  unit: reportData.unit,
+  status: reportData.status,
+  location: reportData.location,
+  note: reportData.note || "",
+  timestamp: new Date().toISOString(),
+
+  createdBy: userProfile?.userId || "unknown",
+  createdByName: userProfile?.name || "לא ידוע",
+  createdByRole: userProfile?.role || "unknown",
+});
     }
     await refreshReports();
     await refreshNotifications();
