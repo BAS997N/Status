@@ -253,11 +253,20 @@ export default function CommandDashboard({
 }, []);
 
   // Updated date comparison helper
-  const isDate = (timestampStr: string, dateStr: string) => {
-    const targetDate = new Date(dateStr);
-    const checkDate = new Date(timestampStr);
-    return targetDate.toDateString() === checkDate.toDateString();
-  };
+  const getLocalDateString = (timestamp?: string) => {
+  if (!timestamp) return "";
+
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const isDate = (timestampStr: string, dateStr: string) => {
+  return getLocalDateString(timestampStr) === dateStr;
+};
 
   // Compile today's latest reports for all active soldiers
   const getSoldiersLatestStatus = () => {
