@@ -393,45 +393,49 @@ Object.keys(reportPayload).forEach((key) => {
     }
   },
 
-  async updateAttendanceReport(reportId: string, reportData: Partial<AttendanceReport>): Promise<void> {
-    console.log("Updating report:", reportId, reportData);
-    
-    // Log the change
-    const updateLog = {
-      reportId,
-      oldData: {}, // Simplified: I won't fetch old data now to keep it lean. I will just log the change.
-      newData: reportData,
-      updatedAt: new Date().toISOString(),
-      updatedBy: auth?.currentUser?.uid || "unknown"
-    };
+  async updateAttendanceReport(
+  reportId: string,
+  reportData: Partial<AttendanceReport>,
+  updatedByProfile?: UserProfile
+): Promise<void> {
+  console.log("Updating report:", reportId, reportData);
 
-    if (!isFirebaseActive()) {
-      const reports: AttendanceReport[] = JSON.parse(localStorage.getItem("idf_reports") || "[]");
-      const index = reports.findIndex(r => r.reportId === reportId);
-      if (index > -1) {
-        reports[index] = { ...reports[index], ...reportData };
-        localStorage.setItem("idf_reports", JSON.stringify(reports));
-        
-        // Log in localStorage
-        const logs: any[] = JSON.parse(localStorage.getItem("idf_attendance_logs") || "[]");
-        logs.unshift(updateLog);
-        localStorage.setItem("idf_attendance_logs", JSON.stringify(logs));
-      }
-      return;
+  const updateLog = {
+    reportId,
+    oldData: {},
+    newData: reportData,
+    updatedAt: new Date().toISOString(),
+    updatedBy: updatedByProfile?.userId || auth?.currentUser?.uid || "unknown",
+    updatedByName: updatedByProfile?.name || "לא ידוע",
+    updatedByRole: updatedByProfile?.role || "unknown",
+  };
+
+  if (!isFirebaseActive()) {
+    const reports: AttendanceReport[] = JSON.parse(localStorage.getItem("idf_reports") || "[]");
+    const index = reports.findIndex(r => r.reportId === reportId);
+
+    if (index > -1) {
+      reports[index] = { ...reports[index], ...reportData };
+      localStorage.setItem("idf_reports", JSON.stringify(reports));
+
+      const logs: any[] = JSON.parse(localStorage.getItem("idf_attendance_logs") || "[]");
+      logs.unshift(updateLog);
+      localStorage.setItem("idf_attendance_logs", JSON.stringify(logs));
     }
 
-    const path = `attendance/${reportId}`;
-    console.log("Updating Firestore report:", path, reportData);
-    try {
-      await updateDoc(doc(db, "attendance", reportId), reportData);
-      
-      // Log in Firestore
-      await addDoc(collection(db, "attendance_logs"), updateLog);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
-    }
-  },
+    return;
+  }
 
+  const path = `attendance/${reportId}`;
+  console.log("Updating Firestore report:", path, reportData);
+
+  try {
+    await updateDoc(doc(db, "attendance", reportId), reportData);
+    await addDoc(collection(db, "attendance_logs"), updateLog);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+},
   async fetchAttendanceLogs(): Promise<any[]> {
     if (!isFirebaseActive()) {
       return JSON.parse(localStorage.getItem("idf_attendance_logs") || "[]");
