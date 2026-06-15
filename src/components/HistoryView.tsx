@@ -13,8 +13,24 @@ export default function HistoryView({ logs, reports, onDeleteReport }: HistoryVi
   const [reportToDelete, setReportToDelete] = useState<AttendanceReport | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const filteredLogs = logs.filter(log => !filterDate || log.updatedAt?.startsWith(filterDate));
-  const filteredReports = reports.filter(rep => !filterDate || rep.timestamp?.startsWith(filterDate));
+  const getLocalDateString = (timestamp?: string) => {
+  if (!timestamp) return "";
+
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const filteredLogs = logs.filter(log =>
+  !filterDate || getLocalDateString(log.updatedAt) === filterDate
+);
+
+const filteredReports = reports.filter(rep =>
+  !filterDate || getLocalDateString(rep.timestamp) === filterDate
+);
 
   const getStatusLabel = (status: string) => {
     if (status === "base") return "בבסיס";
