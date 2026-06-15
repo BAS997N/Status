@@ -1199,7 +1199,7 @@ const latestReport = soldierReports[0];
             </button>
           </div>
           {chartsReady && !isBarChartCollapsed && (
-            <div className="h-56 mt-4">
+            <div className="w-full min-h-[260px] h-[260px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={detailedStatusData}
@@ -1399,7 +1399,7 @@ const latestReport = soldierReports[0];
         </div>
 
         {chartsReady && !isLineChartCollapsed && (
-          <div className="h-64 mt-2">
+          <div className="w-full min-h-[260px] h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={weeklyTrendData}
@@ -1541,7 +1541,7 @@ const latestReport = soldierReports[0];
             </div>
 
             {/* Comparative Line Chart */}
-            <div className="h-64 mt-2">
+            <div className="w-full min-h-[260px] h-[260px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={unitWeeklyTrendData}
