@@ -32,6 +32,12 @@ export default function SoldierReporter({
   const [status, setStatus] = useState<AttendanceStatus>("base");
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
+  const [reportDate, setReportDate] = useState(
+  new Date().toISOString().split("T")[0]
+);
+
+const [cutOrderStartDate, setCutOrderStartDate] = useState("");
+const [cutOrderEndDate, setCutOrderEndDate] = useState("");
   
   // Geolocation states
   const [coords, setCoords] = useState<{ lat: number; lng: number } | undefined>(undefined);
