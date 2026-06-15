@@ -38,6 +38,7 @@ const filteredReports = reports.filter(rep =>
     if (status === "field") return "שטח / אימון";
     if (status === "sick") return "גימלים";
     if (status === "course") return "קורס / הכשרה";
+    if (status === "cut_order") return "חיתוך צו";
     return "אחר";
   };
 
