@@ -14,7 +14,7 @@ export interface UserProfile {
   medicalRole?: string; // Custom medical role (doctor, medic, paramedic, etc)
 }
 
-export type AttendanceStatus = "base" | "home" | "field" | "sick" | "course" | "other";
+export type AttendanceStatus = "base" | "home" | "field" | "sick" | "course" | "other"| "cut_order";
 
 export interface AttendanceReport {
   reportId: string;
@@ -50,6 +50,12 @@ export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, { label: string;
   field: { label: "פעילות שטח / אימון", color: "text-amber-700 dark:text-amber-300", bg: "bg-amber-50 dark:bg-amber-950/40", border: "border-amber-200 dark:border-amber-800/60" },
   sick: { label: "גימלים / חולים", color: "text-rose-700 dark:text-rose-300", bg: "bg-rose-50 dark:bg-rose-950/40", border: "border-rose-200 dark:border-rose-800/60" },
   course: { label: "קורס / הכשרה", color: "text-cyan-700 dark:text-cyan-300", bg: "bg-cyan-50 dark:bg-cyan-950/40", border: "border-cyan-200 dark:border-cyan-800/60" },
+  cut_order: {
+  label: "חיתוך צו",
+  color: "text-red-700",
+  bg: "bg-red-50",
+  border: "border-red-200"
+},
   other: { label: "אחר (ראה הערה)", color: "text-slate-600 dark:text-slate-300", bg: "bg-slate-50 dark:bg-slate-950/40", border: "border-slate-200 dark:border-slate-800/60" },
 };
 
