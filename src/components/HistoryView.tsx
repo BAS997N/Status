@@ -105,11 +105,10 @@ export default function HistoryView({ logs, reports, onDeleteReport }: HistoryVi
                           </td>
 
                           <td className="p-3 text-slate-500">
-                            {relatedLog
-                              ? ((relatedLog as any).updatedByName || relatedLog.updatedBy || "מפקד")
-                              : "לא נערך"}
-                          </td>
-
+  {relatedLog
+    ? `נערך ע״י ${(relatedLog as any).updatedByName || "מפקד"}`
+    : "לא נערך"}
+</td>
                           <td className="p-3 text-center">
                             {onDeleteReport && (
                               <button
