@@ -584,7 +584,7 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
   userProfile || undefined
 );
     } else {
-      await dataService.createAttendanceReport({
+     await dataService.createAttendanceReport({
   userId: reportData.userId,
   userName: reportData.userName,
   unit: reportData.unit,
