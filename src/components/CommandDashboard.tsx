@@ -1239,7 +1239,6 @@ const latestReport = soldierReports[0];
 </div>
                             )}
             </div>
-          )}
 
         {/* Card 3: Base vs. Outside-Base Comparative Visual Card */}
         <div id="base-vs-outside-chart-card" className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between transition-all duration-200">
@@ -1459,7 +1458,6 @@ const latestReport = soldierReports[0];
 </div>
                             )}
             </div>
-          )}
 
       {/* Line Chart: Unit Specific Attendance Averages Over Week */}
       <div id="unit-attendance-comparison-card" className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm text-right transition-all duration-200" dir="rtl">
@@ -1600,9 +1598,6 @@ const latestReport = soldierReports[0];
               </ResponsiveContainer>
              </div>
 </div>
-                            )}
-            </div>
-          )}
 
             {/* Operational Intelligence Summary panel */}
             <div className="mt-4 border-t border-slate-100 pt-3 bg-indigo-50/20 rounded-lg p-3 border border-indigo-50/60 leading-relaxed text-right">
