@@ -1596,20 +1596,20 @@ const latestTodayReport = soldierReports.find(report =>
                             <button
                               onClick={() => {
                                 setEditingReportData({
-                                  reportId: latestTodayReport?.reportId,
-                                  userId: profile.userId,
-                                  userName: profile.fullName,
-                                  unit: profile.unit,
-                                  status: latestTodayReport ? latestTodayReport.status : "base",
-                                  location: latestTodayReport ? latestTodayReport.location : "בסיס קבע",
-                                  note: latestTodayReport ? latestTodayReport.note : ""
-                                });
+  reportId: latestTodayReport?.reportId,
+  userId: profile.userId,
+  userName: profile.fullName,
+  unit: profile.unit,
+  status: latestTodayReport?.status || "base",
+  location: latestTodayReport?.location || "בסיס קבע",
+  note: latestTodayReport?.note || ""
+});
                                 setIsReportModalOpen(true);
                               }}
                               className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-1 px-2 rounded-md transition cursor-pointer border border-slate-200/60 inline-flex items-center justify-center gap-1 shadow-xs"
                             >
                               <FileText className="w-3 h-3 text-slate-500" />
-                              ערוך דיווח
+                              {latestTodayReport ? "ערוך דיווח" : "צור דיווח"}
                             </button>
                           )}
                         </div>
