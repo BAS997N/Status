@@ -489,59 +489,103 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
 
   // Submit presence report (by active user)
   const handleSubmitReport = async (
-    status: AttendanceStatus,
-    personalId: userProfile.personalId,
-    location: string, 
-    note: string, 
-    coords?: { lat: number; lng: number }
-  ) => {
-    if (!userProfile) return;
+  status: AttendanceStatus,
+  location: string,
+  note: string,
+  coords?: { lat: number; lng: number },
+  reportDate?: string,
+  cutOrderStartDate?: string,
+  cutOrderEndDate?: string
+) => {
+  if (!userProfile) return;
 
-    const reportPayload = {
-  userId: userProfile.userId,
-  personalId: userProfile.personalId,
-  userName: userProfile.fullName,
-  unit: userProfile.unit,
-  status,
-  location,
-  note,
-  timestamp: new Date().toISOString(),
-
-  ...(coords
-    ? {
-        latitude: coords.lat,
-        longitude: coords.lng,
-      }
-    : {}),
-
-  ...(userProfile.role === "commander" ||
-  userProfile.role === "adjutant_officer"
-    ? {
-        verifiedBy: userProfile.userId,
-        verifiedAt: new Date().toISOString(),
-      }
-    : {}),
-};
-
-    await dataService.createAttendanceReport(reportPayload);
-    await refreshReports();
-    await refreshNotifications();
-
-    if (status !== "base") {
-      const labelObj = ATTENDANCE_STATUS_LABELS[status] || { label: status };
-      const localToast: ToastMessage = {
-        id: `toast_${Date.now()}`,
-        title: `דיווח חריג נשלח בהצלחה`,
-        message: `דיווחת על מיקום חריג (${labelObj.label}). מפקד היחידה קיבל התראה על כך.`,
-        status: status
-      };
-      setToasts(current => [localToast, ...current]);
-      setTimeout(() => {
-        setToasts(current => current.filter(t => t.id !== localToast.id));
-      }, 6000);
-    }
+  const createTimestampForDate = (dateStr?: string) => {
+    const selectedDate = dateStr || new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const timePart = now.toTimeString().split(" ")[0];
+    return new Date(`${selectedDate}T${timePart}`).toISOString();
   };
 
+  const buildReportPayload = (dateStr?: string) => ({
+    userId: userProfile.userId,
+    personalId: userProfile.personalId,
+    userName: userProfile.fullName,
+    unit: userProfile.unit,
+    status,
+    location,
+    note,
+    timestamp: createTimestampForDate(dateStr),
+
+    createdBy: userProfile.userId,
+    createdByName: userProfile.fullName,
+    createdByRole: userProfile.role,
+
+    ...(coords
+      ? {
+          latitude: coords.lat,
+          longitude: coords.lng,
+        }
+      : {}),
+
+    ...(userProfile.role === "commander" ||
+    userProfile.role === "adjutant_officer"
+      ? {
+          verifiedBy: userProfile.userId,
+          verifiedAt: new Date().toISOString(),
+        }
+      : {}),
+  });
+
+  if (status === "cut_order") {
+    if (!cutOrderStartDate || !cutOrderEndDate) {
+      alert("יש לבחור תאריך התחלה ותאריך סיום לחיתוך צו");
+      return;
+    }
+
+    const start = new Date(cutOrderStartDate);
+    const end = new Date(cutOrderEndDate);
+
+    if (end < start) {
+      alert("תאריך הסיום לא יכול להיות לפני תאריך ההתחלה");
+      return;
+    }
+
+    const current = new Date(start);
+
+    while (current <= end) {
+      const dateStr = current.toISOString().split("T")[0];
+
+      await dataService.createAttendanceReport({
+        ...buildReportPayload(dateStr),
+        note: note || `חיתוך צו מתאריך ${cutOrderStartDate} עד ${cutOrderEndDate}`,
+      });
+
+      current.setDate(current.getDate() + 1);
+    }
+  } else {
+    await dataService.createAttendanceReport(buildReportPayload(reportDate));
+  }
+
+  await refreshReports();
+  await refreshNotifications();
+
+  if (status !== "base") {
+    const labelObj = ATTENDANCE_STATUS_LABELS[status] || { label: status };
+    const localToast: ToastMessage = {
+      id: `toast_${Date.now()}`,
+      title: `דיווח חריג נשלח בהצלחה`,
+      message: `דיווחת על מיקום חריג (${labelObj.label}). מפקד היחידה קיבל התראה על כך.`,
+      status: status
+    };
+
+    setToasts(current => [localToast, ...current]);
+    setTimeout(() => {
+      setToasts(current => current.filter(t => t.id !== localToast.id));
+    }, 6000);
+  }
+};
+
+  
   // Verify/Acknowledge report (by Commander)
   const handleVerifyReport = async (reportId: string) => {
     if (!userProfile) return;
