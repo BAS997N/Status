@@ -101,8 +101,16 @@ export default function HistoryView({ logs, reports, onDeleteReport }: HistoryVi
                           </td>
 
                           <td className="p-3 text-slate-700">
-                            {(rep as any).createdByName || rep.userName || "לא ידוע"}
-                          </td>
+  {(rep as any).createdByName
+    ? `${(rep as any).createdByName} ${
+        (rep as any).createdByRole === "commander"
+          ? "(מפקד)"
+          : (rep as any).createdByRole === "adjutant_officer"
+          ? "(שליש)"
+          : "(חייל)"
+      }`
+    : "דיווח ישן / לא ידוע"}
+</td>
 
                           <td className="p-3 text-slate-500">
   {relatedLog
