@@ -187,6 +187,18 @@ useEffect(() => {
           </div>
 
           <form onSubmit={handleFormSubmit} className="space-y-5">
+            <div>
+  <label className="block text-sm font-bold text-slate-700 mb-2">
+    תאריך דיווח
+  </label>
+
+  <input
+    type="date"
+    value={reportDate}
+    onChange={(e) => setReportDate(e.target.value)}
+    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:ring-1 focus:ring-military-400 outline-none"
+  />
+</div>
             {/* 1. Status Selection */}
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2.5">
