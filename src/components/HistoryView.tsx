@@ -62,7 +62,7 @@ export default function HistoryView({ logs, reports, onDeleteReport }: HistoryVi
                       <th className="p-3">מיקום החתמה</th>
                       <th className="p-3">תאריך</th>
                       <th className="p-3">שעה</th>
-                      <td className="p-3 text-slate-700">
+                      <th className="p-3">מי ביצע דיווח</th>
   {(rep as any).createdByName
     ? `${(rep as any).createdByName} ${
         (rep as any).createdByRole === "commander"
