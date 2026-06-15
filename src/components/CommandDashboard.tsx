@@ -284,8 +284,11 @@ const isDate = (timestampStr: string, dateStr: string) => {
       new Date(a.timestamp).getTime()
   );
 
-const latestReport = soldierReports[0]; // most recent report
-      const latestTodayReport = latestReport && isDate(latestReport.timestamp, selectedDate) ? latestReport : undefined;
+const latestReport = soldierReports[0];
+
+const latestTodayReport = soldierReports.find(report =>
+  isDate(report.timestamp, selectedDate)
+);
 
       return {
         profile: soldier,
@@ -334,7 +337,10 @@ const latestReport = soldierReports[0]; // most recent report
   );
 
 const latestReport = soldierReports[0];
-    const latestTodayReport = latestReport && isDate(latestReport.timestamp, selectedDate) ? latestReport : undefined;
+
+const latestTodayReport = soldierReports.find(report =>
+  isDate(report.timestamp, selectedDate)
+);
     
     const currentStatus = latestTodayReport ? latestTodayReport.status : "unreported";
     const isPresent = latestTodayReport ? ["base", "field", "course"].includes(latestTodayReport.status) : false;
