@@ -1150,7 +1150,8 @@ const latestReport = soldierReports[0];
                 <span className="text-xs text-slate-400">אין נתוני דיווח קיימים</span>
               ) : (
                 <div className="w-full min-h-[260px] h-[260px]">
-  <ResponsiveContainer width="100%" height={260}>
+  <div style={{ width: "100%", height: 260, minWidth: 1, minHeight: 260 }}>   
+    <ResponsiveContainer width="100%" height="100%">
     <PieChart>
                     <Pie
                       data={presenceDistributionData}
@@ -1200,7 +1201,8 @@ const latestReport = soldierReports[0];
           </div>
           {chartsReady && !isBarChartCollapsed && (
             <div className="w-full min-h-[260px] h-[260px]">
-             <ResponsiveContainer width="100%" height={260}>
+             <div style={{ width: "100%", height: 260, minWidth: 1, minHeight: 260 }}>  
+               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={detailedStatusData}
                   margin={{ top: 15, right: 10, left: -25, bottom: 5 }}
@@ -1400,7 +1402,8 @@ const latestReport = soldierReports[0];
 
         {chartsReady && !isLineChartCollapsed && (
           <div className="w-full min-h-[260px] h-[260px]">
-            <ResponsiveContainer width="100%" height={260}>
+            <div style={{ width: "100%", height: 260, minWidth: 1, minHeight: 260 }}>   
+              <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={weeklyTrendData}
                 margin={{ top: 10, right: 15, left: -25, bottom: 5 }}
@@ -1542,7 +1545,8 @@ const latestReport = soldierReports[0];
 
             {/* Comparative Line Chart */}
             <div className="w-full min-h-[260px] h-[260px]">
-              <ResponsiveContainer width="100%" height={260}>
+              <div style={{ width: "100%", height: 260, minWidth: 1, minHeight: 260 }}>   
+                <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={unitWeeklyTrendData}
                   margin={{ top: 10, right: 15, left: -25, bottom: 5 }}
