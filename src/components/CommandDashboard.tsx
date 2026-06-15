@@ -1150,39 +1150,41 @@ const latestReport = soldierReports[0];
                 <span className="text-xs text-slate-400">אין נתוני דיווח קיימים</span>
               ) : (
                 <div className="w-full min-h-[260px] h-[260px]">
-  <div style={{ width: "100%", height: 260, minWidth: 1, minHeight: 260 }}>   
+  <div style={{ width: "100%", height: 260, minWidth: 1, minHeight: 260 }}>
     <ResponsiveContainer width="100%" height="100%">
-    <PieChart>
-                    <Pie
-                      data={presenceDistributionData}
-                      cx="50%"
-                      cy="45%"
-                      innerRadius={50}
-                      outerRadius={70}
-                      paddingAngle={4}
-                      dataKey="value"
-                    >
-                      {presenceDistributionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(value) => [`${value} חיילים`, 'כמות']}
-                      contentStyle={{ direction: 'rtl', textAlign: 'right', borderRadius: '8px', fontSize: '11px' }}
-                    />
-                    <Legend 
-                      verticalAlign="bottom" 
-                      height={36} 
-                      iconSize={8}
-                      iconType="circle"
-                      formatter={(value) => <span className="text-[11.5px] font-bold text-slate-600">{value}</span>}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                  </div>
-              )}
-            </div>
-        </div>
+      <PieChart>
+        <Pie
+          data={presenceDistributionData}
+          cx="50%"
+          cy="45%"
+          innerRadius={50}
+          outerRadius={70}
+          paddingAngle={4}
+          dataKey="value"
+        >
+          {presenceDistributionData.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={entry.color} />
+          ))}
+        </Pie>
+
+        <Tooltip
+          formatter={(value) => [`${value} חיילים`, "כמות"]}
+          contentStyle={{ direction: "rtl", textAlign: "right", borderRadius: "8px", fontSize: "11px" }}
+        />
+
+        <Legend
+          verticalAlign="bottom"
+          height={36}
+          iconSize={8}
+          iconType="circle"
+          formatter={(value) => (
+            <span className="text-[11.5px] font-bold text-slate-600">{value}</span>
+          )}
+        />
+      </PieChart>
+    </ResponsiveContainer>
+  </div>
+</div>
 
         {/* Bar Chart: Detailed Status */}
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between transition-all duration-200">
