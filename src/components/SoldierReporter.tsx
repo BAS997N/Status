@@ -21,7 +21,8 @@ import { motion } from "motion/react";
 interface SoldierReporterProps {
   currentUser: UserProfile;
   reports: AttendanceReport[];
-  onSubmitReport: (status: AttendanceStatus, location: string, note: string, coords?: { lat: number; lng: number }) => Promise<void>;
+  onSubmitReport: (status: AttendanceStatus, location: string, note: string, coords?: { lat: number; lng: number },
+                   reportDate?: string, cutOrderStartDate?: string, cutOrderEndDate?: string) => Promise<void>;
 }
 
 export default function SoldierReporter({ 
@@ -118,7 +119,7 @@ useEffect(() => {
 
     setIsSubmitting(true);
     try {
-      await onSubmitReport(status, location, note, coords);
+      await onSubmitReport(status, location, note, coords, reportDate, cutOrderStartDate, cutOrderEndDate);
       setNote("");
       setCoords(undefined);
       setGeoState("idle");
