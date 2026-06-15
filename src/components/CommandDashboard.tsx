@@ -1182,7 +1182,6 @@ const latestReport = soldierReports[0];
                   </div>
               )}
             </div>
-          )}
         </div>
 
         {/* Bar Chart: Detailed Status */}
