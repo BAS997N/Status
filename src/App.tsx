@@ -573,12 +573,16 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
     note?: string;
   }) => {
     if (reportData.reportId) {
-      await dataService.updateAttendanceReport(reportData.reportId, {
-        status: reportData.status,
-        location: reportData.location,
-        note: reportData.note || "",
-        timestamp: new Date().toISOString()
-      });
+      await dataService.updateAttendanceReport(
+  reportData.reportId,
+  {
+    status: reportData.status,
+    location: reportData.location,
+    note: reportData.note || "",
+    timestamp: new Date().toISOString()
+  },
+  userProfile || undefined
+);
     } else {
       await dataService.createAttendanceReport({
         userId: reportData.userId,
