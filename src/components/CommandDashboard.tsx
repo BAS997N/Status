@@ -963,7 +963,7 @@ const latestTodayReport = soldierReports.find(report =>
           </div>
           
           {!isStatsCollapsed && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
         
         {/* Total Soldiers */}
         <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
@@ -1010,7 +1010,27 @@ const latestTodayReport = soldierReports.find(report =>
             <RefreshCw className="w-5 h-5" />
           </div>
         </div>
+{/* Cut Order Status */}
+<div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+  <div>
+    <span className="text-xs text-slate-400 font-bold block">
+      חיתוך צו / משוחרר זמנית
+    </span>
+    <span className="text-2xl font-black text-red-600 tracking-tight mt-1 block">
+      {statusStats.cut_order}
+      <span className="text-xs text-slate-400 font-normal pr-1.5">
+        ({totalSoldiersCount > 0 ? Math.round((statusStats.cut_order / totalSoldiersCount) * 100) : 0}%)
+      </span>
+    </span>
+    <span className="text-[10px] text-slate-500 font-medium">
+      חיילים שאינם זמינים בסד״כ זמנית
+    </span>
+  </div>
 
+  <div className="p-3 bg-red-50 rounded-lg text-red-600">
+    <FileText className="w-5 h-5" />
+  </div>
+</div>
         {/* Unreported Today */}
         <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
