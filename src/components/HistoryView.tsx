@@ -63,16 +63,18 @@ export default function HistoryView({ logs, reports, onDeleteReport }: HistoryVi
                       <th className="p-3">תאריך</th>
                       <th className="p-3">שעה</th>
                       <th className="p-3">מי ביצע דיווח</th>
-  {(rep as any).createdByName
-    ? `${(rep as any).createdByName} ${
-        (rep as any).createdByRole === "commander"
-          ? "(מפקד)"
-          : (rep as any).createdByRole === "adjutant_officer"
-          ? "(שליש)"
-          : "(חייל)"
-      }`
-    : "דיווח ישן / לא ידוע"}
-</td>
+  <thead className="bg-slate-100 text-slate-600 font-black">
+  <tr>
+    <th className="p-3">שם חייל</th>
+    <th className="p-3">סטטוס</th>
+    <th className="p-3">מיקום החתמה</th>
+    <th className="p-3">תאריך</th>
+    <th className="p-3">שעה</th>
+    <th className="p-3">מי ביצע דיווח</th>
+    <th className="p-3">נערך/אומת ע״י</th>
+    <th className="p-3 text-center">פעולות</th>
+  </tr>
+</thead>
                       <th className="p-3">נערך/אומת ע״י</th>
                       <th className="p-3 text-center">פעולות</th>
                     </tr>
