@@ -41,7 +41,6 @@ export default function SoldierReporter({
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [reportDate, setReportDate] = useState(getTodayLocalDate());
-);
 
 const [cutOrderStartDate, setCutOrderStartDate] = useState("");
 const [cutOrderEndDate, setCutOrderEndDate] = useState("");
