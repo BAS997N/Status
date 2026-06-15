@@ -634,7 +634,6 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
     status: reportData.status,
     location: reportData.location,
     note: reportData.note || "",
-    timestamp: new Date().toISOString()
   },
   userProfile || undefined
 );
