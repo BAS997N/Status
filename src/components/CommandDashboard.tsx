@@ -1184,8 +1184,10 @@ const latestReport = soldierReports[0];
       </PieChart>
     </ResponsiveContainer>
   </div>
-                  )}
 </div>
+                            )}
+            </div>
+          )}
 
         {/* Bar Chart: Detailed Status */}
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between transition-all duration-200">
