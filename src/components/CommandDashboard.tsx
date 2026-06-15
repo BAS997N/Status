@@ -314,11 +314,12 @@ const latestTodayReport = soldierReports.find(report =>
     course: reportedTodayList.filter(s => s.latestTodayReport?.status === "course").length,
     sick: reportedTodayList.filter(s => s.latestTodayReport?.status === "sick").length,
     home: reportedTodayList.filter(s => s.latestTodayReport?.status === "home").length,
+    cut_order: reportedTodayList.filter(s => s.latestTodayReport?.status === "cut_order").length,
     other: reportedTodayList.filter(s => s.latestTodayReport?.status === "other").length,
   };
 
   const presentCount = statusStats.base + statusStats.field + statusStats.course;
-  const absentCount = statusStats.home + statusStats.sick + statusStats.other;
+  const absentCount = statusStats.home + statusStats.sick + statusStats.cut_order + statusStats.other;
   const pendingVerificationCount = reportedTodayList.filter(s => s.latestTodayReport && !s.latestTodayReport.verifiedBy).length;
 
   // Command Staff calculation
