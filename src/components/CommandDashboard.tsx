@@ -300,6 +300,13 @@ const latestTodayReport = soldierReports.find(report =>
   };
 
   const statusList = getSoldiersLatestStatus();
+  console.log("DASHBOARD DATE DEBUG", {
+  selectedDate,
+  statusListCount: statusList.length,
+  reportedTodayListCount: statusList.filter(s => s.latestTodayReport).length,
+  reportsCount: reports.length,
+  firstReport: reports[0],
+});
 
   // Statistics Computations (Specifically for Today: June 10, 2026)
   const totalSoldiersCount = allSoldiers.filter(s => s.role !== "commander" && s.role !== "adjutant_officer" && !s.isDischarged).length;
