@@ -1156,7 +1156,7 @@ const latestTodayReport = soldierReports.find(report =>
       </div>
 
       {/* Collapsible Visual Analytics Header */}
-<div className="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs mt-4">
+      <div className="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs mt-4">
         <span className="text-xs font-bold text-slate-655 flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0 animate-pulse"></span>
           ניתוח גרפי של נוכחות וסד״כ גדודי · מגמות שבועיות וחתכים מהירים
@@ -1173,7 +1173,7 @@ const latestTodayReport = soldierReports.find(report =>
         <>
           {/* Recharts Visual Analytics Section */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" dir="rtl">
-        
+
         {/* Pie Chart: Presence Summary */}
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between transition-all duration-200">
           <div className="flex items-center justify-between border-b border-slate-100/60 pb-2 mb-2">
@@ -1194,66 +1194,38 @@ const latestTodayReport = soldierReports.find(report =>
                 <span className="text-xs text-slate-400">אין נתוני דיווח קיימים</span>
               ) : (
                 <div className="w-full min-h-[260px] h-[260px]">
-  <div style={{ width: "100%", height: 260, minWidth: 1, minHeight: 260 }}>
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie
-          data={presenceDistributionData}
-          cx="50%"
-          cy="45%"
-          innerRadius={50}
-          outerRadius={70}
-          paddingAngle={4}
-          dataKey="value"
-        >
-          {presenceDistributionData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.color} />
-          ))}
-        </Pie>
-
-        <Tooltip
-          formatter={(value) => [`${value} חיילים`, "כמות"]}
-          contentStyle={{ direction: "rtl", textAlign: "right", borderRadius: "8px", fontSize: "11px" }}
-        />
-
-        <Legend
-          verticalAlign="bottom"
-          height={36}
-          iconSize={8}
-          iconType="circle"
-          formatter={(value) => (
-            <span className="text-[11.5px] font-bold text-slate-600">{value}</span>
-          )}
-        />
-      </PieChart>
-    </ResponsiveContainer>
-  </div>
-</div>
-                            )}
-            </div>
-          )}
-
-        {/* Bar Chart: Detailed Status */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between transition-all duration-200">
-          <div className="flex items-center justify-between border-b border-slate-100/60 pb-2 mb-2">
-            <div>
-              <h4 className="text-xs font-bold text-slate-500 mb-1">דיאגרמת עמודות - פילוח קטגוריות</h4>
-              <p className="text-[10px] text-slate-400">כמות דיווחים לפי סיווג סטטוס נוכחי</p>
-            </div>
-            <button
-              onClick={() => setIsBarChartCollapsed(!isBarChartCollapsed)}
-              className="text-[10px] text-slate-500 hover:text-slate-800 font-extrabold cursor-pointer hover:bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/50 transition shrink-0"
-            >
-              {isBarChartCollapsed ? "הצג [+" : "מזער [-]"}
-            </button>
+  <ResponsiveContainer width="100%" height="100%">
+  <ResponsiveContainer width="100%" height={260}>
+    <PieChart>
+                    <Pie
+                      data={presenceDistributionData}
+@@ -1200,7 +1200,7 @@
           </div>
           {chartsReady && !isBarChartCollapsed && (
             <div className="w-full min-h-[260px] h-[260px]">
-             <div style={{ width: "100%", height: 260, minWidth: 1, minHeight: 260 }}>  
-               <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%">
+             <ResponsiveContainer width="100%" height={260}>
                 <BarChart
                   data={detailedStatusData}
                   margin={{ top: 15, right: 10, left: -25, bottom: 5 }}
+@@ -1400,7 +1400,7 @@
+
+        {chartsReady && !isLineChartCollapsed && (
+          <div className="w-full min-h-[260px] h-[260px]">
+            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart
+                data={weeklyTrendData}
+                margin={{ top: 10, right: 15, left: -25, bottom: 5 }}
+@@ -1542,91 +1542,91 @@
+
+            {/* Comparative Line Chart */}
+            <div className="w-full min-h-[260px] h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart
+                  data={unitWeeklyTrendData}
+                  margin={{ top: 10, right: 15, left: -25, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis 
@@ -1263,155 +1235,74 @@ const latestTodayReport = soldierReports.find(report =>
                     tickLine={false}
                   />
                   <YAxis 
-                    allowDecimals={false}
+                    domain={[0, 100]}
+                    ticks={[0, 20, 40, 60, 80, 100]}
+                    tickFormatter={(val) => `${val}%`}
                     tick={{ fill: '#94a3b8', fontSize: 9 }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <Tooltip 
-                    formatter={(value) => [`${value} חיילים`, 'כמות']}
-                    contentStyle={{ direction: 'rtl', textAlign: 'right', borderRadius: '8px', fontSize: '11px' }}
+                    formatter={(value: any, name: any) => [`${value}% ממוצע נוכחות`, name]}
+                    contentStyle={{ direction: 'rtl', textAlign: 'right', borderRadius: '8px', fontSize: '11px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
-                  <Bar dataKey="כמות" radius={[4, 4, 0, 0]}>
-                    {detailedStatusData.map((entry, index) => (
-                      <Cell key={`cell-bar-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
+                  <Legend 
+                    verticalAlign="top" 
+                    height={36} 
+                    iconType="circle"
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: '10px', fontWeight: 700, paddingBottom: '10px' }}
+                  />
+                  {selectedUnitsForTrend.map((unitName) => (
+                    <Line
+                      key={unitName}
+                      type="monotone"
+                      dataKey={unitName}
+                      stroke={unitColors[unitName]}
+                      strokeWidth={2.5}
+                      dot={{ r: 3, stroke: unitColors[unitName], strokeWidth: 1.5, fill: '#fff' }}
+                      activeDot={{ r: 5 }}
+                    />
+                  ))}
+                </LineChart>
               </ResponsiveContainer>
-             </div>
-</div>
-                            )}
             </div>
 
-        {/* Card 3: Base vs. Outside-Base Comparative Visual Card */}
-        <div id="base-vs-outside-chart-card" className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between transition-all duration-200">
-          <div className="flex items-center justify-between border-b border-slate-100/60 pb-2 mb-2">
-            <div className="flex items-center gap-2">
-              <div className="p-1 px-1.5 bg-emerald-50 text-emerald-600 rounded">
-                <Building2 className="w-3.5 h-3.5" />
+            {/* Operational Intelligence Summary panel */}
+            <div className="mt-4 border-t border-slate-100 pt-3 bg-indigo-50/20 rounded-lg p-3 border border-indigo-50/60 leading-relaxed text-right">
+              <div className="flex gap-2">
+                <span className="text-sm">💡</span>
+                <div className="space-y-1">
+                  <h5 className="text-[11px] font-black text-indigo-900">זיהוי מגמות סד״כ ודפוסי היעדרות שבועיים:</h5>
+                  <p className="text-[10px] text-slate-500 leading-relaxed text-right">
+                    • <strong>דפוס ימי חמישי (פיזור סופ״ש):</strong> יחידות השטח והפלוגות הלוחמות מציגות ירידה ממוצעת של כ-20% בנוכחות הפעילה כבר ביום חמישי עקב שחרורים לפסי אימון, סופ״ש ארוך או בישומי משימה.
+                    <br />
+                    • <strong>יציבות סגל ומפקדה:</strong> יחידת המפקדה, הרפואה וסגל הפיקוד שומרים על נוכחות ורבלית קבועה של למעלה מ-90% בכל ימי השבוע הרגילים (א׳-ה׳).
+                    <br />
+                    • <strong>הערכת כשירות:</strong> ניתן להיעזר בגרף על מנת לוודא שלא נוצרים פערי כוחות קריטיים בפלוגות המבצעיות בימי החילופין (א׳ ו-ה׳).
+                  </p>
+                </div>
               </div>
-              <div className="text-right">
-                <h4 className="text-xs font-bold text-slate-700 mb-0.5">נוכחות בבסיס לעומת מחוץ לבסיס</h4>
-                <p className="text-[10px] text-slate-400">פילוח שליטה מהיר ליחס המשרתים פיזית ביחידה</p>
-              </div>
             </div>
-            <button
-              onClick={() => setIsBaseVsOutsideCardCollapsed(!isBaseVsOutsideCardCollapsed)}
-              className="text-[10px] text-slate-500 hover:text-slate-800 font-extrabold cursor-pointer hover:bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/50 transition shrink-0"
-            >
-              {isBaseVsOutsideCardCollapsed ? "הצג [+" : "מזער [-]"}
-            </button>
-          </div>
-
-          {!isBaseVsOutsideCardCollapsed && (
-            <div className="space-y-4">
-              {/* Circular Gauge Indicators */}
-              {(() => {
-                const inBaseCount = statusStats.base;
-                const outsideBaseCount = totalSoldiersCount - inBaseCount;
-                const inBasePercentage = totalSoldiersCount > 0 ? Math.round((inBaseCount / totalSoldiersCount) * 100) : 0;
-                const outsideBasePercentage = totalSoldiersCount > 0 ? 100 - inBasePercentage : 0;
-
-                const radius = 32;
-                const circumference = 2 * Math.PI * radius;
-                const strokeDashoffsetIn = circumference - (inBasePercentage / 100) * circumference;
-                const strokeDashoffsetOut = circumference - (outsideBasePercentage / 100) * circumference;
-
-                return (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-around py-2">
-                      {/* Ring 1 - In Base */}
-                      <div className="flex flex-col items-center gap-1.5">
-                        <div className="relative w-20 h-20 flex items-center justify-center">
-                          <svg className="w-full h-full transform -rotate-90">
-                            <circle
-                              cx="40"
-                              cy="40"
-                              r={radius}
-                              className="stroke-slate-100"
-                              strokeWidth="6"
-                              fill="transparent"
-                            />
-                            <circle
-                              cx="40"
-                              cy="40"
-                              r={radius}
-                              className="stroke-emerald-500 transition-all duration-500 ease-out"
-                              strokeWidth="6"
-                              fill="transparent"
-                              strokeDasharray={circumference}
-                              strokeDashoffset={strokeDashoffsetIn}
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                          <span className="absolute text-sm font-black text-slate-800">{inBasePercentage}%</span>
-                        </div>
-                        <span className="text-xs font-bold text-slate-700">בתוך הבסיס</span>
-                        <span className="text-[10px] text-slate-400 font-bold">({inBaseCount} מתוך {totalSoldiersCount})</span>
-                      </div>
-
-                      {/* Ring 2 - Outside Base */}
-                      <div className="flex flex-col items-center gap-1.5">
-                        <div className="relative w-20 h-20 flex items-center justify-center">
-                          <svg className="w-full h-full transform -rotate-90">
-                            <circle
-                              cx="40"
-                              cy="40"
-                              r={radius}
-                              className="stroke-slate-100"
-                              strokeWidth="6"
-                              fill="transparent"
-                            />
-                            <circle
-                              cx="40"
-                              cy="40"
-                              r={radius}
-                              className="stroke-indigo-500 transition-all duration-500 ease-out"
-                              strokeWidth="6"
-                              fill="transparent"
-                              strokeDasharray={circumference}
-                              strokeDashoffset={strokeDashoffsetOut}
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                          <span className="absolute text-sm font-black text-slate-800">{outsideBasePercentage}%</span>
-                        </div>
-                        <span className="text-xs font-bold text-slate-700">מחוץ לבסיס</span>
-                        <span className="text-[10px] text-slate-400 font-bold">({outsideBaseCount} מתוך {totalSoldiersCount})</span>
-                      </div>
-                    </div>
-
-                    {/* Bullet points detailing categorization */}
-                    <div className="space-y-2 border-t border-slate-100 pt-3 text-[11px] font-medium leading-relaxed text-slate-500 text-right">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                          <span>בבסיס (בסיס קבע):</span>
-                        </div>
-                        <span className="font-bold text-slate-800">{inBaseCount} חיילים</span>
-                      </div>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-1"></span>
-                          <div className="space-y-0.5">
-                            <span>מחוץ לבסיס ובמשימות:</span>
-                            <span className="block text-[9px] text-slate-400 leading-tight">
-                              כולל {statusStats.field} בשטח, {statusStats.home} בבית, {statusStats.course} בקורס, {statusStats.sick} בגימלים, ו-{unreportedCount} טרם דיווחו.
-                            </span>
-                          </div>
-                        </div>
-                        <span className="font-bold text-slate-800 shrink-0">{outsideBaseCount} חיילים</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-        </div>
-
+          </>
+        )}
       </div>
+
+      {/* Ratios Distribution Bar */}
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-sm">
+        <h4 className="text-xs font-bold text-slate-500 mb-2.5">יחסי נוכחות מהירים פלוגתיים (היום)</h4>
+        <div className="w-full flex h-6 rounded-full overflow-hidden border border-slate-100 bg-slate-100 text-[10px] font-bold text-white text-center">
+          {statusStats.base > 0 && <div style={{ width: `${(statusStats.base/reportedTodayCount)*100}%` }} className="bg-emerald-600 flex items-center justify-center font-bold" title="בבסיס">{statusStats.base} בסיס</div>}
+          {statusStats.field > 0 && <div style={{ width: `${(statusStats.field/reportedTodayCount)*100}%` }} className="bg-amber-600 flex items-center justify-center border-r border-amber-700/20 font-bold" title="שטח">{statusStats.field} שטח</div>}
+          {statusStats.course > 0 && <div style={{ width: `${(statusStats.course/reportedTodayCount)*100}%` }} className="bg-cyan-600 flex items-center justify-center border-r border-cyan-700/20 font-bold" title="קורס">{statusStats.course} קורס</div>}
+          {statusStats.sick > 0 && <div style={{ width: `${(statusStats.sick/reportedTodayCount)*100}%` }} className="bg-rose-500 flex items-center justify-center border-r border-rose-600/20 font-bold" title="גימלים">{statusStats.sick} גימלים</div>}
+          {statusStats.home > 0 && <div style={{ width: `${(statusStats.home/reportedTodayCount)*100}%` }} className="bg-indigo-500 flex items-center justify-center border-r border-indigo-600/20 font-bold" title="בית">{statusStats.home} בית</div>}
+          {statusStats.other > 0 && <div style={{ width: `${(statusStats.other/reportedTodayCount)*100}%` }} className="bg-slate-500 flex items-center justify-center border-r border-slate-600/20 font-bold" title="אחר">{statusStats.other} אחר</div>}
+          {reportedTodayCount === 0 && <div className="w-full bg-slate-200 text-slate-400 flex items-center justify-center font-normal">לא התקבלו דיווחים להיום עדיין</div>}
+        </div>
+      </div>
+      </>
+    )}
 
       {/* Line Chart: Weekly Attendance Trend */}
       <div id="weekly-attendance-trend-card" className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm text-right transition-all duration-200" dir="rtl">
