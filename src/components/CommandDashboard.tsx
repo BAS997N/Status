@@ -382,6 +382,7 @@ const latestTodayReport = soldierReports.find(report =>
   const presenceDistributionData = [
   { name: "נוכחים ביחידה / במשימה", value: presentCount, color: "#10b981" },
   { name: "מחוץ ליחידה / גימלים", value: absentCount, color: "#06b6d4" },
+  { name: "חיתוך צו / משוחרר זמנית", value: statusStats.cut_order, color: "#dc2626" },
   { name: "טרם ביצעו דיווח היום", value: unreportedCount, color: "#ef4444" }
 ].filter(d => d.value > 0);
 
