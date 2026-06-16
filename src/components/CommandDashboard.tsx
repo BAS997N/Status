@@ -367,10 +367,16 @@ const latestTodayReport = soldierReports.find(report =>
 
   // Recharts data sets for the visual distribution dashboards
   const presenceDistributionData = [
-    { name: "נוכחים ביחידה / במשימה", value: presentCount, color: "#10b981" },
-    { name: "מחוץ ליחידה / גימלים", value: absentCount, color: "#06b6d4" },
-    { name: "טרם ביצעו דיווח היום", value: unreportedCount, color: "#ef4444" }
-  ];
+    console.log("GRAPH DEBUG", {
+  presentCount,
+  absentCount,
+  unreportedCount,
+  statusStats,
+});
+  { name: "נוכחים ביחידה / במשימה", value: presentCount, color: "#10b981" },
+  { name: "מחוץ ליחידה / גימלים", value: absentCount, color: "#06b6d4" },
+  { name: "טרם ביצעו דיווח היום", value: unreportedCount, color: "#ef4444" }
+].filter(d => d.value > 0);
 
   const detailedStatusData = [
     { name: "בבסיס", כמות: statusStats.base, fill: "#10b981" },
