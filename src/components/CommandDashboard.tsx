@@ -1161,9 +1161,35 @@ const latestTodayReport = soldierReports.find(report =>
     <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
     ניתוח גרפי של נוכחות וסד״כ גדודי
   </span>
-  <span className="text-[10px] text-slate-400 font-bold">
-    הגרפים הוסתרו זמנית
-  </span>
+</div>
+
+<div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm mt-4">
+  <h4 className="text-sm font-bold text-slate-700 mb-4">
+    התפלגות נוכחות
+  </h4>
+
+  <div style={{ width: "100%", height: 320 }}>
+    <ResponsiveContainer width="100%" height="100%">
+      <PieChart>
+        <Pie
+          data={presenceDistributionData}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          outerRadius={90}
+          label
+        >
+          {presenceDistributionData.map((entry, index) => (
+            <Cell key={index} fill={entry.color} />
+          ))}
+        </Pie>
+
+        <Tooltip />
+        <Legend />
+      </PieChart>
+    </ResponsiveContainer>
+  </div>
 </div>
       
 
