@@ -626,6 +626,7 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
     status: AttendanceStatus;
     location: string;
     note?: string;
+    reportDate?: string;
   }) => {
     if (reportData.reportId) {
       await dataService.updateAttendanceReport(
@@ -645,7 +646,7 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
   status: reportData.status,
   location: reportData.location,
   note: reportData.note || "",
-  timestamp: new Date().toISOString(),
+  timestamp: new Date(`${reportData.reportDate || new Date().toISOString().split("T")[0]}T12:00:00`).toISOString(),
 
   createdBy: userProfile?.userId || "unknown",
   createdByName: userProfile?.name || "לא ידוע",
