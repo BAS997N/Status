@@ -68,6 +68,7 @@ interface CommandDashboardProps {
     status: AttendanceStatus;
     location: string;
     note?: string;
+    reportDate?: string;
   }) => Promise<void>;
   medicalUnits?: string[];
   customRoles?: string[];
@@ -1603,6 +1604,7 @@ const latestTodayReport = soldierReports.find(report =>
   status: latestTodayReport?.status || "base",
   location: latestTodayReport?.location || "בסיס קבע",
   note: latestTodayReport?.note || ""
+  reportDate: selectedDate,
 });
                                 setIsReportModalOpen(true);
                               }}
