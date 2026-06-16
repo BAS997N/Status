@@ -1242,6 +1242,29 @@ const latestTodayReport = soldierReports.find(report =>
         </div>
       )}
     </div>
+    {/* Bar Chart: Detailed Status */}
+<div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between transition-all duration-200">
+  <div className="flex items-center justify-between border-b border-slate-100/60 pb-2 mb-2">
+    <div>
+      <h4 className="text-xs font-bold text-slate-500 mb-1">דיאגרמת עמודות - פילוח קטגוריות</h4>
+      <p className="text-[10px] text-slate-400">כמות דיווחים לפי סיווג סטטוס נוכחי</p>
+    </div>
+  </div>
+
+  <div className="w-full flex justify-center mt-4">
+    <BarChart width={380} height={260} data={detailedStatusData} margin={{ top: 15, right: 10, left: -25, bottom: 5 }}>
+      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+      <XAxis dataKey="name" tick={{ fill: "#475569", fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
+      <YAxis allowDecimals={false} tick={{ fill: "#94a3b8", fontSize: 9 }} axisLine={false} tickLine={false} />
+      <Tooltip formatter={(value) => [`${value} חיילים`, "כמות"]} contentStyle={{ direction: "rtl", textAlign: "right", borderRadius: "8px", fontSize: "11px" }} />
+      <Bar dataKey="כמות" radius={[4, 4, 0, 0]}>
+        {detailedStatusData.map((entry, index) => (
+          <Cell key={`cell-bar-${index}`} fill={entry.fill} />
+        ))}
+      </Bar>
+    </BarChart>
+  </div>
+</div>
   </div>
 )}
 
