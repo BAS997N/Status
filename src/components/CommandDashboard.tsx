@@ -1168,9 +1168,8 @@ const latestTodayReport = soldierReports.find(report =>
     התפלגות נוכחות
   </h4>
 
-  <div style={{ width: "100%", height: 320 }}>
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
+ <div className="w-full flex justify-center">
+  <PieChart width={360} height={320}>
         <Pie
           data={presenceDistributionData}
           dataKey="value"
@@ -1188,8 +1187,7 @@ const latestTodayReport = soldierReports.find(report =>
         <Tooltip />
         <Legend />
       </PieChart>
-    </ResponsiveContainer>
-  </div>
+</div>
 </div>
       
 
