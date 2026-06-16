@@ -391,6 +391,7 @@ const latestTodayReport = soldierReports.find(report =>
     { name: "בקורס/אימון", כמות: statusStats.course, fill: "#06b6d4" },
     { name: "בגימלים", כמות: statusStats.sick, fill: "#ef4444" },
     { name: "בבית/אפטר", כמות: statusStats.home, fill: "#6366f1" },
+    { name: "חיתוך צו / משוחרר זמנית", value: statusStats.cut_order, color: "#dc2626" },
     { name: "אחר/מיוחד", כמות: statusStats.other, fill: "#64748b" },
     { name: "לא דיווח", כמות: unreportedCount, fill: "#94a3b8" }
   ];
