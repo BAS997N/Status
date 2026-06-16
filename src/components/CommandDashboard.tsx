@@ -1517,7 +1517,7 @@ const latestTodayReport = soldierReports.find(report =>
         )}
 
       </div>
-    </>
+    </div>
   ) : dashboardTab === "directory" ? (
     <div id="commander-directory-panel" className="space-y-6 text-right animate-fade-in animate-duration-200" dir="rtl">
       
