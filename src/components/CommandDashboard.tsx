@@ -328,12 +328,7 @@ const absentCount =
   statusStats.sick +
   statusStats.course +
   statusStats.other;
-  {
-  presentCount,
-  absentCount,
-  unreportedCount,
-  statusStats,
-});
+  
   const pendingVerificationCount = reportedTodayList.filter(s => s.latestTodayReport && !s.latestTodayReport.verifiedBy).length;
 
   // Command Staff calculation
