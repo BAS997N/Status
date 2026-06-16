@@ -366,13 +366,13 @@ const latestTodayReport = soldierReports.find(report =>
   const absentCommandStaff = listCommandsWithStatus.filter(item => !item.isPresent);
 
   // Recharts data sets for the visual distribution dashboards
-  const presenceDistributionData = [
-    console.log("GRAPH DEBUG", {
+  console.log("GRAPH DEBUG", {
   presentCount,
   absentCount,
   unreportedCount,
   statusStats,
 });
+  const presenceDistributionData = [
   { name: "נוכחים ביחידה / במשימה", value: presentCount, color: "#10b981" },
   { name: "מחוץ ליחידה / גימלים", value: absentCount, color: "#06b6d4" },
   { name: "טרם ביצעו דיווח היום", value: unreportedCount, color: "#ef4444" }
