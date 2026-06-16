@@ -2200,7 +2200,24 @@ const latestTodayReport = soldierReports.find(report =>
                   <label className="block text-xs font-bold text-slate-500">סטטוס נוכחות מדווח</label>
                   <select
                     value={editingReportData.status}
-                    onChange={(e) => setEditingReportData({ ...editingReportData, status: e.target.value as AttendanceStatus })}
+                    onChange={(e) => {
+  const newStatus = e.target.value as AttendanceStatus;
+
+  const defaultLocation =
+    newStatus === "base" ? "בסיס קבע" :
+    newStatus === "home" ? "בית" :
+    newStatus === "field" ? "שטח / אימון" :
+    newStatus === "sick" ? "בית - גימלים" :
+    newStatus === "course" ? "קורס / הכשרה" :
+    newStatus === "cut_order" ? "חיתוך צו" :
+    "לא צוין";
+
+  setEditingReportData({
+    ...editingReportData,
+    status: newStatus,
+    location: defaultLocation,
+  });
+}}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 text-xs font-bold focus:bg-white focus:ring-2 focus:ring-military-400 outline-none transition cursor-pointer text-slate-800"
                   >
                     {(Object.keys(ATTENDANCE_STATUS_LABELS) as AttendanceStatus[]).map(st => (
