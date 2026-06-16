@@ -335,6 +335,12 @@ const absentCount =
   statusStats.sick +
   statusStats.course +
   statusStats.other;
+  console.log("GRAPH DEBUG", {
+  presentCount,
+  absentCount,
+  unreportedCount,
+  statusStats,
+});
   const pendingVerificationCount = reportedTodayList.filter(s => s.latestTodayReport && !s.latestTodayReport.verifiedBy).length;
 
   // Command Staff calculation
@@ -373,12 +379,6 @@ const latestTodayReport = soldierReports.find(report =>
   const absentCommandStaff = listCommandsWithStatus.filter(item => !item.isPresent);
 
   // Recharts data sets for the visual distribution dashboards
-  console.log("GRAPH DEBUG", {
-  presentCount,
-  absentCount,
-  unreportedCount,
-  statusStats,
-});
   const presenceDistributionData = [
   { name: "נוכחים ביחידה / במשימה", value: presentCount, color: "#10b981" },
   { name: "מחוץ ליחידה / גימלים", value: absentCount, color: "#06b6d4" },
