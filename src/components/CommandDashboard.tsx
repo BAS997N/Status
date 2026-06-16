@@ -1603,7 +1603,7 @@ const latestTodayReport = soldierReports.find(report =>
   unit: profile.unit,
   status: latestTodayReport?.status || "base",
   location: latestTodayReport?.location || "בסיס קבע",
-  note: latestTodayReport?.note || ""
+  note: latestTodayReport?.note || "",
   reportDate: selectedDate,
 });
                                 setIsReportModalOpen(true);
