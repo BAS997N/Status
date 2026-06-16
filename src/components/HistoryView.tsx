@@ -167,9 +167,9 @@ const filteredReports = reports.filter(rep =>
                 {filteredLogs.map((log, idx) => (
                   <div key={idx} className="p-3 border border-slate-200 rounded-lg text-sm bg-slate-50">
                     <div className="font-bold text-slate-700">
-                      דיווח {log.reportId} עודכן ב־
-                      {new Date(log.updatedAt).toLocaleString("he-IL")}
-                    </div>
+  דיווח של {log.newData?.userName || "חייל"} עודכן ב־
+  {new Date(log.updatedAt).toLocaleString("he-IL")}
+</div>
                     <div className="text-xs text-slate-500 mt-1">
                       עודכן ע״י: {(log as any).updatedByName || log.updatedBy || "לא ידוע"}
                     </div>
