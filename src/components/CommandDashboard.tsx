@@ -1162,43 +1162,93 @@ const latestTodayReport = soldierReports.find(report =>
       </div>
 
       {/* Collapsible Visual Analytics Header */}
-     <div className="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs mt-4">
+<div className="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs mt-4">
   <span className="text-xs font-bold text-slate-655 flex items-center gap-1.5">
-    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
-    ניתוח גרפי של נוכחות וסד״כ גדודי
+    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0 animate-pulse"></span>
+    ניתוח גרפי של נוכחות וסד״כ גדודי · מגמות שבועיות וחתכים מהירים
   </span>
+  <button
+    onClick={() => setIsChartsCollapsed(!isChartsCollapsed)}
+    className="text-xs text-indigo-650 hover:text-indigo-800 font-bold transition flex items-center gap-1 bg-indigo-50/70 hover:bg-indigo-100 rounded-md px-2.5 py-1.5 cursor-pointer border-none font-black"
+  >
+    <span>{isChartsCollapsed ? "הצג גרפים וניתוח [+" : "מזער גרפים וניתוח [-]"}</span>
+  </button>
 </div>
-<div className="text-red-600 font-bold">
-  {JSON.stringify(presenceDistributionData)}
-</div>
-<div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm mt-4">
-  <h4 className="text-sm font-bold text-slate-700 mb-4">
-    התפלגות נוכחות
-  </h4>
 
- <div className="w-full flex justify-center">
-  <PieChart width={360} height={320}>
-        <Pie
-          data={presenceDistributionData}
-          dataKey="value"
-          nameKey="name"
-          cx="50%"
-          cy="50%"
-          outerRadius={90}
-          label
+{!isChartsCollapsed && (
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4" dir="rtl">
+    {/* Pie Chart: Presence Summary */}
+    <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between transition-all duration-200">
+      <div className="flex items-center justify-between border-b border-slate-100/60 pb-2 mb-2">
+        <div>
+          <h4 className="text-xs font-bold text-slate-500 mb-1">
+            פרופיל סטטוס פלוגתי (נוכח מול מחוץ ליחידה)
+          </h4>
+          <p className="text-[10px] text-slate-400">
+            פילוח כולל של הסד״כ המדווח והממתין
+          </p>
+        </div>
+
+        <button
+          onClick={() => setIsPieChartCollapsed(!isPieChartCollapsed)}
+          className="text-[10px] text-slate-500 hover:text-slate-800 font-extrabold cursor-pointer hover:bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/50 transition shrink-0"
         >
-          {presenceDistributionData.map((entry, index) => (
-            <Cell key={index} fill={entry.color} />
-          ))}
-        </Pie>
+          {isPieChartCollapsed ? "הצג [+" : "מזער [-]"}
+        </button>
+      </div>
 
-        <Tooltip />
-        <Legend />
-      </PieChart>
-</div>
-</div>
+      {chartsReady && !isPieChartCollapsed && (
+        <div className="h-[280px] min-h-[280px] mt-4 flex items-center justify-center">
+          {presenceDistributionData.length === 0 ? (
+            <span className="text-xs text-slate-400">
+              אין נתוני דיווח קיימים
+            </span>
+          ) : (
+            <PieChart width={360} height={260}>
+              <Pie
+                data={presenceDistributionData}
+                cx="50%"
+                cy="45%"
+                innerRadius={50}
+                outerRadius={70}
+                paddingAngle={4}
+                dataKey="value"
+              >
+                {presenceDistributionData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
 
-      {/* ATTENDANCE REPORTS CENTRAL GRID */}
+              <Tooltip
+                formatter={(value) => [`${value} חיילים`, "כמות"]}
+                contentStyle={{
+                  direction: "rtl",
+                  textAlign: "right",
+                  borderRadius: "8px",
+                  fontSize: "11px",
+                }}
+              />
+
+              <Legend
+                verticalAlign="bottom"
+                height={36}
+                iconSize={8}
+                iconType="circle"
+                formatter={(value) => (
+                  <span className="text-[11.5px] font-bold text-slate-600">
+                    {value}
+                  </span>
+                )}
+              />
+            </PieChart>
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
+{/* ATTENDANCE REPORTS CENTRAL GRID */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 flex-wrap gap-2 text-right" dir="rtl">
           <div className="flex items-center gap-2">
