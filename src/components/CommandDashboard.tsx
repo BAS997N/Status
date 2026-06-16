@@ -2171,19 +2171,30 @@ const latestTodayReport = soldierReports.find(report =>
 
               {/* Form Input Container */}
               <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!onAdminSaveReport) return;
-                  try {
-                    await onAdminSaveReport(editingReportData);
-                    console.log("Report saved successfully:", editingReportData);
-                    setIsReportModalOpen(false);
-                  } catch (err) {
-                    console.error("Failed saving attendance report:", err);
-                  }
-                }}
-                className="p-5 space-y-4 font-sans"
-              >
+  onSubmit={async (e) => {
+    e.preventDefault();
+
+    if (!onAdminSaveReport || !editingReportData) return;
+
+    try {
+      const dataToSave = {
+        ...editingReportData,
+        location: editingReportData.location?.trim() || "לא צוין",
+        note: editingReportData.note || "",
+      };
+
+      await onAdminSaveReport(dataToSave);
+
+      console.log("Report saved successfully:", dataToSave);
+
+      setIsReportModalOpen(false);
+      setEditingReportData(null);
+    } catch (err) {
+      console.error("Failed saving attendance report:", err);
+    }
+  }}
+  className="p-5 space-y-4 font-sans"
+>
                 {/* Status selector */}
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-slate-500">סטטוס נוכחות מדווח</label>
