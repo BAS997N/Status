@@ -406,7 +406,7 @@ Object.keys(reportPayload).forEach((key) => {
     newData: reportData,
     updatedAt: new Date().toISOString(),
     updatedBy: updatedByProfile?.userId || auth?.currentUser?.uid || "unknown",
-    updatedByName: updatedByProfile?.name || "לא ידוע",
+    updatedByName: updatedByProfile?.fullName || (updatedByProfile as any)?.name || "לא ידוע",
     updatedByRole: updatedByProfile?.role || "unknown",
   };
 
