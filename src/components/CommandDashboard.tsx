@@ -1162,7 +1162,9 @@ const latestTodayReport = soldierReports.find(report =>
     ניתוח גרפי של נוכחות וסד״כ גדודי
   </span>
 </div>
-
+<div className="text-red-600 font-bold">
+  {JSON.stringify(presenceDistributionData)}
+</div>
 <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm mt-4">
   <h4 className="text-sm font-bold text-slate-700 mb-4">
     התפלגות נוכחות
