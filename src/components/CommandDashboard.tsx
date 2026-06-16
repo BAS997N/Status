@@ -300,7 +300,7 @@ const latestTodayReport = soldierReports.find(report =>
   };
 
   const statusList = getSoldiersLatestStatus();
-  console.log("DASHBOARD DATE DEBUG", {
+   {
   selectedDate,
   statusListCount: statusList.length,
   reportedTodayListCount: statusList.filter(s => s.latestTodayReport).length,
@@ -335,7 +335,7 @@ const absentCount =
   statusStats.sick +
   statusStats.course +
   statusStats.other;
-  console.log("GRAPH DEBUG", {
+  {
   presentCount,
   absentCount,
   unreportedCount,
