@@ -1254,14 +1254,23 @@ const latestTodayReport = soldierReports.find(report =>
   <div className="w-full flex justify-center mt-4">
     <BarChart width={380} height={260} data={detailedStatusData} margin={{ top: 15, right: 10, left: -25, bottom: 5 }}>
       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-      <XAxis dataKey="name" tick={{ fill: "#475569", fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
+      <XAxis
+  dataKey="name"
+  interval={0}
+  angle={-20}
+  textAnchor="end"
+  height={55}
+  tick={{ fill: "#475569", fontSize: 10, fontWeight: 700 }}
+  axisLine={false}
+  tickLine={false}
+/>
       <YAxis allowDecimals={false} tick={{ fill: "#94a3b8", fontSize: 9 }} axisLine={false} tickLine={false} />
       <Tooltip formatter={(value) => [`${value} חיילים`, "כמות"]} contentStyle={{ direction: "rtl", textAlign: "right", borderRadius: "8px", fontSize: "11px" }} />
-      <Bar dataKey="כמות" radius={[4, 4, 0, 0]}>
-        {detailedStatusData.map((entry, index) => (
-          <Cell key={`cell-bar-${index}`} fill={entry.fill} />
-        ))}
-      </Bar>
+      <Bar dataKey="כמות" radius={[4, 4, 0, 0]} label={{ position: "top", fontSize: 11, fill: "#334155" }}>
+  {detailedStatusData.map((entry, index) => (
+    <Cell key={`cell-bar-${index}`} fill={entry.fill} />
+  ))}
+</Bar>
     </BarChart>
   </div>
 </div>
