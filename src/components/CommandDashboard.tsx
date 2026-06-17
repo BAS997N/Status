@@ -93,7 +93,7 @@ export default function CommandDashboard({
   onUpdateMedicalSettings
 }: CommandDashboardProps) {
   const [dashboardTab, setDashboardTab] = useState<
-  "attendance" | "directory" | "summary" | "settings" | "history"
+  "attendance" | "directory" | "summary" | "settings" | "history" | "systemlogs"
 >("attendance");
   const [directorySearchQuery, setDirectorySearchQuery] = useState("");
   const [directorySelectedUnit, setDirectorySelectedUnit] = useState<string>("all");
@@ -923,6 +923,16 @@ const handleExportSummaryCSV = () => {
 </button>
       )}
         {currentUser.role !== "adjutant_officer" && (
+      <button
+  onClick={() => setDashboardTab("systemlogs")}
+  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+    dashboardTab === "systemlogs"
+      ? "bg-slate-800 text-white shadow-sm"
+      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
+  }`}
+>
+  <span>יומן מערכת</span>
+</button>
           <button
             onClick={() => setDashboardTab("settings")}
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1128,6 +1138,53 @@ const handleExportSummaryCSV = () => {
         />
       </div>
     </div>
+
+    ) : dashboardTab === "systemlogs" ? (
+  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-right" dir="rtl">
+    <div className="p-5 border-b border-slate-100">
+      <h2 className="text-lg font-black text-slate-800">יומן מערכת</h2>
+      <p className="text-xs text-slate-500 font-semibold mt-1">
+        תיעוד פעולות ניהול שבוצעו במערכת
+      </p>
+    </div>
+
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs text-right">
+        <thead className="bg-slate-50 text-slate-600 font-black">
+          <tr>
+            <th className="px-4 py-3">תאריך ושעה</th>
+            <th className="px-4 py-3">מבצע הפעולה</th>
+            <th className="px-4 py-3">פעולה</th>
+            <th className="px-4 py-3">יעד</th>
+            <th className="px-4 py-3">פירוט</th>
+          </tr>
+        </thead>
+
+        <tbody className="divide-y divide-slate-100">
+          {systemLogs.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="px-4 py-8 text-center text-slate-400 font-bold">
+                אין פעולות ביומן עדיין
+              </td>
+            </tr>
+          ) : (
+            systemLogs.map((log) => (
+              <tr key={log.logId} className="hover:bg-slate-50">
+                <td className="px-4 py-3 font-bold text-slate-700">
+                  {log.timestamp ? new Date(log.timestamp).toLocaleString("he-IL") : "—"}
+                </td>
+                <td className="px-4 py-3">{log.actorName || "—"}</td>
+                <td className="px-4 py-3 font-black text-slate-800">{log.action || "—"}</td>
+                <td className="px-4 py-3">{log.targetName || "—"}</td>
+                <td className="px-4 py-3 text-slate-500">{log.details || "—"}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+    
  <div className="flex flex-wrap justify-end gap-2 mt-3">
 
   <button
