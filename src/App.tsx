@@ -402,22 +402,16 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
   setLoading(true);
 
   try {
+    if (isFirebaseActive() && auth) {
+      const authEmail = buildAuthEmail(cleanId);
+      await signInWithEmailAndPassword(auth, authEmail, cleanCode);
+    }
+
     const foundProfile = await dataService.findProfileByPersonalId(cleanId);
 
     if (!foundProfile) {
-      setRegPersonalId(cleanId);
-      setRegName("");
-      setRegUnit(IDF_UNITS[0]);
-      setRegRole("soldier");
-      setIsRegisteringId(true);
+      setLoginError("התחברת בהצלחה, אך לא נמצא פרופיל משתמש במערכת. פנה למנהל המערכת.");
       return;
-    }
-
-    if (isFirebaseActive() && auth) {
-      const authEmail = buildAuthEmail(cleanId);
-      const authPassword = cleanCode;
-
-      await signInWithEmailAndPassword(auth, authEmail, authPassword);
     }
 
     localStorage.setItem("idf_active_user_id", foundProfile.userId);
@@ -436,11 +430,14 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
     } else {
       setActiveTab("reporter");
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Login verification error:", error);
-    setLoginError(
-      "המשתמש קיים במערכת אך הקוד האישי שגוי או שעדיין לא הוגדר לו קוד אישי."
-    );
+
+    if (error?.code === "auth/invalid-credential") {
+      setLoginError("מספר אישי או קוד אישי שגויים.");
+    } else {
+      setLoginError("ההתחברות נכשלה. נא לנסות שוב.");
+    }
   } finally {
     setLoading(false);
   }
