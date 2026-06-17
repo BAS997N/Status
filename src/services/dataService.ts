@@ -210,7 +210,47 @@ export const dataService = {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   },
+async createSystemLog(logData: {
+  action:
+    | "add_soldier"
+    | "edit_soldier"
+    | "delete_soldier"
+    | "create_report"
+    | "edit_report"
+    | "delete_report"
+    | "reset_report";
+  actorUserId: string;
+  actorName: string;
+  targetUserId?: string;
+  targetName?: string;
+  details?: string;
+}): Promise<void> {
+  const payload = {
+    ...logData,
+    timestamp: new Date().toISOString(),
+  };
 
+  if (!isFirebaseActive()) {
+    const logs = JSON.parse(localStorage.getItem("idf_system_logs") || "[]");
+    logs.unshift({
+      logId: `log_${Date.now()}`,
+      ...payload,
+    });
+    localStorage.setItem("idf_system_logs", JSON.stringify(logs));
+    return;
+  }
+
+  try {
+    const logRef = doc(collection(db, "system_logs"));
+    await setDoc(logRef, {
+      logId: logRef.id,
+      ...payload,
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, "system_logs");
+  }
+},
+  
   async deleteUserProfile(userId: string): Promise<void> {
     if (!isFirebaseActive()) {
       const profiles: UserProfile[] = JSON.parse(localStorage.getItem("idf_profiles") || "[]");
