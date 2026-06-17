@@ -254,7 +254,7 @@ if (!editingSoldier && !/^\d{6}$/.test(formPersonalCode.trim())) {
   } else {
     setFormError("שגיאה בשמירת הנתונים. נסה שנית.");
   }
-}
+};
 
   const getTodayLocalDate = () => {
   const now = new Date();
