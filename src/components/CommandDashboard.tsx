@@ -108,6 +108,10 @@ export default function CommandDashboard({
   const [isUnitComparisonCollapsed, setIsUnitComparisonCollapsed] = useState(false);
   const [isAttendanceGridCollapsed, setIsAttendanceGridCollapsed] = useState(false);
   const [soldierToDelete, setSoldierToDelete] = useState<UserProfile | null>(null);
+  const [reportToReset, setReportToReset] = useState<{
+  reportId: string;
+  soldierName: string;
+} | null>(null);
 
   // Edit Roster Report State
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -1741,22 +1745,20 @@ const latestTodayReport = soldierReports.find(report =>
                               {latestTodayReport ? "ערוך דיווח" : "צור דיווח"}
                             </button>
                       )}
-                      {latestTodayReport && onDeleteReport && (
+                     {latestTodayReport && onDeleteReport && (
   <button
-    onClick={() => {
-      if (
-        window.confirm(
-          `האם לאפס את הדיווח של ${profile.fullName}?\n\nהחייל יסומן כ"טרם דיווח היום" ויידרש לדווח מחדש.`
-        )
-      ) {
-        onDeleteReport(latestTodayReport.reportId);
-      }
-    }}
+    onClick={() =>
+      setReportToReset({
+        reportId: latestTodayReport.reportId,
+        soldierName: profile.fullName,
+      })
+    }
     className="text-[10px] bg-red-50 hover:bg-red-100 text-red-700 font-bold py-1 px-2 rounded-md transition cursor-pointer border border-red-200 inline-flex items-center justify-center gap-1 shadow-xs"
   >
     אפס דיווח
   </button>
 )}
+ 
                           
                         </div>
                       </td>
@@ -2418,8 +2420,74 @@ const latestTodayReport = soldierReports.find(report =>
           </motion.div>
         )}
       </AnimatePresence>
+      
+      
 
-      {/* CUSTOM CONFIRMATION DELETE SOLDIER MODAL */}
+      {/* CUSTOM CONFIRMATION RESET REPORT MODAL */}
+<AnimatePresence>
+  {reportToReset && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[11000] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+    >
+      <motion.div
+        initial={{ scale: 0.95, y: 15 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.95, y: 15 }}
+        className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden text-right"
+        dir="rtl"
+      >
+        <div className="bg-rose-900 text-white p-4 flex items-center gap-2 justify-between">
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-5 h-5 text-rose-200" />
+            <h3 className="text-sm font-black tracking-tight">אישור איפוס דיווח</h3>
+          </div>
+          <button
+            onClick={() => setReportToReset(null)}
+            className="text-white opacity-80 hover:opacity-100 cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-3">
+          <p className="text-xs text-slate-700 font-bold leading-relaxed">
+            האם לאפס את הדיווח של{" "}
+            <span className="text-rose-600 font-extrabold">
+              {reportToReset.soldierName}
+            </span>
+            ?
+          </p>
+          <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
+            החייל יסומן כ־“טרם דיווח היום” ויידרש לדווח מחדש.
+          </p>
+        </div>
+
+        <div className="bg-slate-50 p-4 border-t border-slate-100 flex items-center justify-end gap-3">
+          <button
+            onClick={() => setReportToReset(null)}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold text-xs rounded-lg border border-slate-200 transition cursor-pointer"
+          >
+            בטל פעולה
+          </button>
+
+          <button
+            onClick={async () => {
+              if (!onDeleteReport || !reportToReset) return;
+              await onDeleteReport(reportToReset.reportId);
+              setReportToReset(null);
+            }}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg border-none transition cursor-pointer shadow-sm"
+          >
+            אישור ואיפוס דיווח
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
       <AnimatePresence>
         {soldierToDelete && (
           <motion.div
