@@ -1740,6 +1740,7 @@ const latestTodayReport = soldierReports.find(report =>
                               <FileText className="w-3 h-3 text-slate-500" />
                               {latestTodayReport ? "ערוך דיווח" : "צור דיווח"}
                             </button>
+                      )}
                       {latestTodayReport && onDeleteReport && (
   <button
     onClick={() => {
