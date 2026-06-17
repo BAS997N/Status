@@ -1757,7 +1757,7 @@ const latestTodayReport = soldierReports.find(report =>
     אפס דיווח
   </button>
 )}
-                          )}
+                          
                         </div>
                       </td>
                     </tr>
