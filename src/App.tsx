@@ -12,6 +12,7 @@ import React, { useState, useEffect } from "react";
 import { 
   isFirebaseActive, 
   auth, 
+  secondaryAuth,
   db 
 } from "./firebase";
 import { 
@@ -657,10 +658,12 @@ setUserProfile(newProfile);
       const authPassword = profile.personalCode || "";
 
       const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        authEmail,
-        authPassword
-      );
+  secondaryAuth,
+  authEmail,
+  authPassword
+);
+
+await signOut(secondaryAuth);
 
       profileToSave = {
         ...profileToSave,
