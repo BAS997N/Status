@@ -1183,7 +1183,12 @@ const handleExportSummaryCSV = () => {
   >
     חודש נוכחי
   </button>
-
+<button
+  onClick={handleExportSummaryCSV}
+  className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition cursor-pointer"
+>
+  ייצוא לאקסל
+</button>
 </div>
 
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
