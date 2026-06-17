@@ -769,7 +769,91 @@ const latestTodayReport = soldierReports.find(report =>
     link.click();
     document.body.removeChild(link);
   };
+const handleExportSummaryCSV = () => {
+  const headers = [
+    "שם חייל",
+    "יחידה",
+    "מספר אישי",
+    "תאריך",
+    "שעה",
+    "סטטוס",
+    "מיקום",
+    "הערה"
+  ];
 
+  const rows = reports
+    .filter((report) => {
+      const reportDate = report.timestamp?.split("T")[0];
+
+      if (summaryStartDate && reportDate < summaryStartDate) return false;
+      if (summaryEndDate && reportDate > summaryEndDate) return false;
+
+      return true;
+    })
+    .map((report) => {
+      const soldier = allSoldiers.find(
+        (s) =>
+          s.userId === report.userId ||
+          s.personalId === (report as any).personalId
+      );
+
+      const reportDate = report.timestamp
+        ? new Date(report.timestamp).toLocaleDateString("he-IL")
+        : "—";
+
+      const reportTime = report.timestamp
+        ? new Date(report.timestamp).toLocaleTimeString("he-IL", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "—";
+
+      const statusLabel =
+        ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status;
+
+      return [
+        soldier?.fullName || report.userName || "—",
+        soldier?.unit || report.unit || "—",
+        soldier?.personalId || (report as any).personalId || "—",
+        reportDate,
+        reportTime,
+        statusLabel,
+        report.location || "—",
+        report.note || "—",
+      ];
+    });
+
+  const csvContent = [
+    headers.join(","),
+    ...rows.map((row) =>
+      row.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(",")
+    ),
+  ].join("\n");
+
+  const blob = new Blob(["\uFEFF" + csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+
+  const dateToday = new Date().toLocaleDateString("he-IL").replace(/\//g, "-");
+
+  const rangeText =
+    summaryStartDate || summaryEndDate
+      ? `_${summaryStartDate || "התחלה"}_עד_${summaryEndDate || "סוף"}`
+      : "";
+
+  link.setAttribute(
+    "download",
+    `סיכום_נוכחות_חיילים${rangeText}_${dateToday}.csv`
+  );
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
   return (
     <div id="commander-dashboard" className="space-y-6">
       
