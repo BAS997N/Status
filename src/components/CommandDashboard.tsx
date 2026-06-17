@@ -1042,6 +1042,17 @@ const latestTodayReport = soldierReports.find(report =>
         />
       </div>
     </div>
+    <div className="flex justify-end mt-3">
+  <button
+    onClick={() => {
+      setSummaryStartDate("");
+      setSummaryEndDate("");
+    }}
+    className="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-lg transition cursor-pointer"
+  >
+    אפס סינון
+  </button>
+</div>
   </div>
 
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
@@ -1050,7 +1061,7 @@ const latestTodayReport = soldierReports.find(report =>
         <tr>
           <th className="px-4 py-3">שם חייל</th>
           <th className="px-4 py-3">יחידה</th>
-          <th className="px-4 py-3">סה״כ</th>
+          <th className="px-4 py-3">סה״כ ימים</th>
           <th className="px-4 py-3">בבסיס</th>
           <th className="px-4 py-3">בבית / אפטר</th>
           <th className="px-4 py-3">שטח / אימון</th>
