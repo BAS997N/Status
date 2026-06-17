@@ -222,7 +222,10 @@ export default function CommandDashboard({
     }
 
     const baseEmail = `${formPersonalId.trim()}@idf.il`;
-
+if (!editingSoldier && !/^\d{6}$/.test(formPersonalCode.trim())) {
+  setFormError("בהוספת חייל חדש חובה להזין קוד אישי בן 6 ספרות");
+  return;
+}
     const profileToSave: UserProfile = {
       userId: editingSoldier ? editingSoldier.userId : `user_${Date.now()}`,
       fullName: formFullName.trim(),
@@ -234,6 +237,7 @@ export default function CommandDashboard({
       isDischarged: formIsDischarged,
       email: editingSoldier ? editingSoldier.email : baseEmail,
       createdAt: editingSoldier ? editingSoldier.createdAt : new Date().toISOString()
+      personalCode: formPersonalCode.trim()
     };
 
     try {
