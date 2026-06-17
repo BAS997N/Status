@@ -2582,5 +2582,7 @@ const latestTodayReport = soldierReports.find(report =>
       </AnimatePresence>
 
 </div>
-  );
-}
+    );
+};
+
+export default CommandDashboard;
