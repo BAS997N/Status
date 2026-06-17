@@ -61,6 +61,7 @@ export default function App() {
   // App reports state
   const [reports, setReports] = useState<AttendanceReport[]>([]);
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
+  const [systemLogs, setSystemLogs] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"reporter" | "dashboard">("reporter");
 
   // ID-based login states
@@ -246,6 +247,8 @@ useEffect(() => {
 
   const updatedLogs = await dataService.fetchAttendanceLogs();
   setAttendanceLogs(updatedLogs);
+    const updatedSystemLogs = await dataService.getSystemLogs();
+setSystemLogs(updatedSystemLogs);
 };
 
   useEffect(() => {
@@ -1134,6 +1137,7 @@ await signOut(secondaryAuth);
   currentUser={userProfile}
   reports={reports}
   attendanceLogs={attendanceLogs}
+  systemLogs={systemLogs}
   allSoldiers={allUsers}
   onVerifyReport={handleVerifyReport}
   onAdminUpdateSoldier={handleAdminUpdateSoldier}
