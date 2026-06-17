@@ -646,17 +646,44 @@ setUserProfile(newProfile);
   };
 
   // Admin update or add soldier
-  const handleAdminUpdateSoldier = async (profile: UserProfile) => {
-    await dataService.adminSaveUserProfile(profile);
-    // Reload users of IDF
+ const handleAdminUpdateSoldier = async (profile: UserProfile & { personalCode?: string }) => {
+  let profileToSave: UserProfile = { ...profile };
+
+  try {
+    const isNewSoldier = profile.userId.startsWith("user_");
+
+    if (isNewSoldier && isFirebaseActive() && auth) {
+      const authEmail = buildAuthEmail(profile.personalId || "");
+      const authPassword = profile.personalCode || "";
+
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        authEmail,
+        authPassword
+      );
+
+      profileToSave = {
+        ...profileToSave,
+        userId: userCredential.user.uid,
+        email: authEmail
+      };
+    }
+
+    delete (profileToSave as any).personalCode;
+
+    await dataService.adminSaveUserProfile(profileToSave);
+
     const users = await dataService.getAllUsers();
     setAllUsers(users);
-    
-    // If we updated our own profile, update state
-    if (userProfile && userProfile.userId === profile.userId) {
-      setUserProfile(profile);
+
+    if (userProfile && userProfile.userId === profileToSave.userId) {
+      setUserProfile(profileToSave);
     }
-  };
+  } catch (err) {
+    console.error("Admin save soldier error:", err);
+    throw err;
+  }
+};
 
   // Admin save or create report on behalf of a soldier
   const handleAdminSaveReport = async (reportData: {
