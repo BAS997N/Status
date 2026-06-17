@@ -495,9 +495,12 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
   newProfile.userId = userCredential.user.uid;
   newProfile.email = authEmail;
 }
-      await dataService.saveUserProfile(newProfile);
-      localStorage.setItem("idf_active_user_id", newProfile.userId);
-      setUserProfile(newProfile);
+     await dataService.saveUserProfile(newProfile);
+
+localStorage.setItem("idf_active_user_id", newProfile.userId);
+localStorage.setItem("idf_active_personal_id", newProfile.personalId || regPersonalId.trim());
+
+setUserProfile(newProfile);
       setIsRegisteringId(false);
       
       const users = await dataService.getAllUsers();
@@ -511,9 +514,17 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
       } else {
         setActiveTab("reporter");
       }
-    } catch (err) {
-      console.error("Error creating new ID account:", err);
-      setLoginError("יצירת החשבון נכשלה. נא לנסות שנית.");
+    } } catch (err: any) {
+  console.error("Error creating new ID account:", err);
+
+  if (err?.code === "auth/email-already-in-use") {
+    setLoginError("המספר האישי הזה כבר רשום במערכת. נסה להתחבר במקום להירשם.");
+  } else if (err?.code === "auth/weak-password") {
+    setLoginError("הקוד האישי חלש מדי. יש להזין קוד בן 6 ספרות.");
+  } else {
+    setLoginError("יצירת החשבון נכשלה. נא לנסות שנית.");
+  }
+}
     } finally {
       setLoading(false);
     }
