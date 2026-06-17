@@ -1983,7 +1983,7 @@ const latestTodayReport = soldierReports.find(report =>
           <span>נמצאו {filteredSoldiersStatus.length} רשומות רלוונטיות</span>
           <span>מפקד מאשר נוכחי: {currentUser.fullName} ({currentUser.unit})</span>
                </div>
-  </div>
+
 </>
 ) : dashboardTab === "directory" ? (
     <div id="commander-directory-panel" className="space-y-6 text-right animate-fade-in animate-duration-200" dir="rtl">
