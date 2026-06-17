@@ -90,7 +90,9 @@ export default function CommandDashboard({
   customRoles = [],
   onUpdateMedicalSettings
 }: CommandDashboardProps) {
-  const [dashboardTab, setDashboardTab] = useState<"attendance" | "directory" | "settings" | "history">("attendance");
+  const [dashboardTab, setDashboardTab] = useState<
+  "attendance" | "directory" | "summary" | "settings" | "history"
+>("attendance");
   const [directorySearchQuery, setDirectorySearchQuery] = useState("");
   const [directorySelectedUnit, setDirectorySelectedUnit] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -806,6 +808,30 @@ const latestTodayReport = soldierReports.find(report =>
             <span>היסטוריית דיווחים</span>
           </button>
         )}
+        <button
+  onClick={() => setDashboardTab("summary")}
+  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+    dashboardTab === "summary"
+      ? "bg-slate-800 text-white shadow-sm"
+      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
+  }`}
+>
+  <svg
+    className="w-4 h-4 text-emerald-500"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M9 17v-6m3 6V7m3 10v-4m3 8H6a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2z"
+    />
+  </svg>
+
+  <span>סיכום נוכחות חיילים</span>
+</button>
         {currentUser.role !== "adjutant_officer" && (
           <button
             onClick={() => setDashboardTab("settings")}
@@ -983,9 +1009,18 @@ const latestTodayReport = soldierReports.find(report =>
           </div>
         </div>
       ) : dashboardTab === "history" ? (
-        <HistoryView logs={attendanceLogs} reports={reports} onDeleteReport={onDeleteReport}/>
-      ) : dashboardTab === "attendance" ? (
-        <>
+  <HistoryView logs={attendanceLogs} reports={reports} onDeleteReport={onDeleteReport}/>
+) : dashboardTab === "summary" ? (
+  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 text-right" dir="rtl">
+    <h2 className="text-lg font-black text-slate-800 mb-2">
+      סיכום נוכחות חיילים
+    </h2>
+    <p className="text-xs text-slate-500 font-semibold">
+      כאן תופיע טבלת סיכום לפי חייל, סטטוסים וטווח תאריכים.
+    </p>
+  </div>
+) : dashboardTab === "attendance" ? (
+  <>
           <div className="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs">
             <span className="text-xs font-bold text-slate-650 flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
