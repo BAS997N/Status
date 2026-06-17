@@ -365,9 +365,12 @@ Object.keys(reportPayload).forEach((key) => {
 
     const path = "attendance";
     try {
-      const docRef = await addDoc(collection(db, "attendance"), reportPayload);
-      // Update reportId after creation so it contains real Firestore doc ID
-      await updateDoc(docRef, { reportId: docRef.id });
+     const docRef = doc(collection(db, "attendance"));
+
+await setDoc(docRef, {
+  ...reportPayload,
+  reportId: docRef.id
+});
 
       // Generate Firestore notification
       if (isAlert) {
@@ -382,8 +385,12 @@ Object.keys(reportPayload).forEach((key) => {
           isRead: false,
           message: notificationMsg
         };
-        const notRef = await addDoc(collection(db, "notifications"), notPayload);
-        await updateDoc(notRef, { notificationId: notRef.id });
+        const notRef = doc(collection(db, "notifications"));
+
+await setDoc(notRef, {
+  ...notPayload,
+  notificationId: notRef.id
+});
       }
 
       return docRef.id;
