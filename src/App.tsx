@@ -653,7 +653,7 @@ setUserProfile(newProfile);
   try {
     const isNewSoldier = profile.userId.startsWith("user_");
 
-    if (isNewSoldier && isFirebaseActive() && auth) {
+    if (isNewSoldier && isFirebaseActive() && secondaryAuth) {
       const authEmail = buildAuthEmail(profile.personalId || "");
       const authPassword = profile.personalCode || "";
 
