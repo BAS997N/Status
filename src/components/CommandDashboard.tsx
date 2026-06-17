@@ -860,10 +860,10 @@ const handleExportSummaryCSV = () => {
     <div id="commander-dashboard" className="space-y-6">
       
       {/* Sub-Dashboard Tab Selection */}
-      <div className="flex bg-slate-100 p-1 rounded-xl max-w-md border border-slate-200 shadow-sm mr-auto gap-1" dir="rtl">
+      <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-sm mr-auto gap-1 w-full" dir="rtl">
         <button
           onClick={() => setDashboardTab("attendance")}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+          className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
             dashboardTab === "attendance"
               ? "bg-slate-800 text-white shadow-sm"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
@@ -874,7 +874,7 @@ const handleExportSummaryCSV = () => {
         </button>
         <button
           onClick={() => setDashboardTab("directory")}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+          className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
             dashboardTab === "directory"
               ? "bg-slate-800 text-white shadow-sm"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
@@ -886,7 +886,7 @@ const handleExportSummaryCSV = () => {
         {currentUser.role !== "adjutant_officer" && (
           <button
             onClick={() => setDashboardTab("history")}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+            className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
               dashboardTab === "history"
                 ? "bg-slate-800 text-white shadow-sm"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
@@ -899,7 +899,7 @@ const handleExportSummaryCSV = () => {
         {currentUser.role !== "adjutant_officer" && (
         <button
   onClick={() => setDashboardTab("summary")}
-  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+  className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
     dashboardTab === "summary"
       ? "bg-slate-800 text-white shadow-sm"
       : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
@@ -925,7 +925,7 @@ const handleExportSummaryCSV = () => {
         {currentUser.role !== "adjutant_officer" && (
       <button
   onClick={() => setDashboardTab("systemlogs")}
-  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+  className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
     dashboardTab === "systemlogs"
       ? "bg-slate-800 text-white shadow-sm"
       : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
@@ -937,7 +937,7 @@ const handleExportSummaryCSV = () => {
 {currentUser.role !== "adjutant_officer" && (
   <button
             onClick={() => setDashboardTab("settings")}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+            className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
               dashboardTab === "settings"
                 ? "bg-slate-800 text-white shadow-sm"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
