@@ -524,7 +524,6 @@ setUserProfile(newProfile);
   } else {
     setLoginError("יצירת החשבון נכשלה. נא לנסות שנית.");
   }
-}
     } finally {
       setLoading(false);
     }
