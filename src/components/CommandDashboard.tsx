@@ -1168,6 +1168,7 @@ const latestTodayReport = soldierReports.find(report =>
       </tbody>
     </table>
   </div>
+    </div>
 </div>
 ) : dashboardTab === "attendance" ? (
   <>
