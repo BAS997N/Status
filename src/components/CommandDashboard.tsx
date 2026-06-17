@@ -236,7 +236,7 @@ if (!editingSoldier && !/^\d{6}$/.test(formPersonalCode.trim())) {
       medicalRole: formMedicalRole,
       isDischarged: formIsDischarged,
       email: editingSoldier ? editingSoldier.email : baseEmail,
-      createdAt: editingSoldier ? editingSoldier.createdAt : new Date().toISOString()
+      createdAt: editingSoldier ? editingSoldier.createdAt : new Date().toISOString(),
       personalCode: formPersonalCode.trim()
     };
 
