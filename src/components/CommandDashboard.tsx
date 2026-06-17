@@ -203,56 +203,67 @@ export default function CommandDashboard({
     }
   };
 
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError("");
-    setFormSuccess("");
+const handleFormSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setFormError("");
+  setFormSuccess("");
 
-    if (!formFullName.trim()) {
-      setFormError("נא להזין שם מלא");
-      return;
+  if (!formFullName.trim()) {
+    setFormError("נא להזין שם מלא");
+    return;
+  }
+
+  if (!formPersonalId.trim()) {
+    setFormError("נא להזין מספר אישי או ת.ז");
+    return;
+  }
+
+  if (!formPhoneNumber.trim()) {
+    setFormError("נא להזין מספר טלפון");
+    return;
+  }
+
+  if (!editingSoldier && !/^\d{6}$/.test(formPersonalCode.trim())) {
+    setFormError("בהוספת חייל חדש חובה להזין קוד אישי בן 6 ספרות");
+    return;
+  }
+
+  const baseEmail = `${formPersonalId.trim()}@idf.il`;
+
+  const profileToSave = {
+    userId: editingSoldier ? editingSoldier.userId : `user_${Date.now()}`,
+    fullName: formFullName.trim(),
+    personalId: formPersonalId.trim(),
+    phoneNumber: formPhoneNumber.trim(),
+    unit: formUnit,
+    role: formRole,
+    medicalRole: formMedicalRole,
+    isDischarged: formIsDischarged,
+    email: editingSoldier ? editingSoldier.email : baseEmail,
+    createdAt: editingSoldier ? editingSoldier.createdAt : new Date().toISOString(),
+    personalCode: formPersonalCode.trim()
+  } as UserProfile & { personalCode?: string };
+
+  try {
+    await onAdminUpdateSoldier(profileToSave);
+
+    setFormSuccess(
+      editingSoldier
+        ? "פרטי החייל עודכנו בהצלחה!"
+        : "החייל נוסף בהצלחה למאגר!"
+    );
+
+    setTimeout(() => {
+      setIsEditModalOpen(false);
+    }, 1000);
+  } catch (err: any) {
+    console.error("Soldier form save error:", err);
+
+    if (err?.code === "auth/email-already-in-use") {
+      setFormError("המספר האישי הזה כבר קיים במערכת. לא ניתן ליצור אותו שוב.");
+    } else {
+      setFormError("שגיאה בשמירת הנתונים. נסה שנית.");
     }
-    if (!formPersonalId.trim()) {
-      setFormError("נא להזין מספר אישי או ת.ז");
-      return;
-    }
-    if (!formPhoneNumber.trim()) {
-      setFormError("נא להזין מספר טלפון");
-      return;
-    }
-
-    const baseEmail = `${formPersonalId.trim()}@idf.il`;
-if (!editingSoldier && !/^\d{6}$/.test(formPersonalCode.trim())) {
-  setFormError("בהוספת חייל חדש חובה להזין קוד אישי בן 6 ספרות");
-  return;
-}
-   const profileToSave = {
-      userId: editingSoldier ? editingSoldier.userId : `user_${Date.now()}`,
-      fullName: formFullName.trim(),
-      personalId: formPersonalId.trim(),
-      phoneNumber: formPhoneNumber.trim(),
-      unit: formUnit,
-      role: formRole,
-      medicalRole: formMedicalRole,
-      isDischarged: formIsDischarged,
-      email: editingSoldier ? editingSoldier.email : baseEmail,
-      createdAt: editingSoldier ? editingSoldier.createdAt : new Date().toISOString(),
-      personalCode: formPersonalCode.trim()
-    } as UserProfile & { personalCode?: string };
-
-    try {
-      await onAdminUpdateSoldier(profileToSave);
-      setFormSuccess(editingSoldier ? "פרטי החייל עודכנו בהצלחה!" : "החייל נוסף בהצלחה למאגר!");
-      setTimeout(() => {
-        setIsEditModalOpen(false);
-      }, 1000);
-   } catch (err: any) {
-  console.error("Soldier form save error:", err);
-
-  if (err?.code === "auth/email-already-in-use") {
-    setFormError("המספר האישי הזה כבר קיים במערכת. לא ניתן ליצור אותו שוב.");
-  } else {
-    setFormError("שגיאה בשמירת הנתונים. נסה שנית.");
   }
 };
 
