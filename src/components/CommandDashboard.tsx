@@ -226,7 +226,7 @@ if (!editingSoldier && !/^\d{6}$/.test(formPersonalCode.trim())) {
   setFormError("בהוספת חייל חדש חובה להזין קוד אישי בן 6 ספרות");
   return;
 }
-    const profileToSave: UserProfile = {
+   const profileToSave = {
       userId: editingSoldier ? editingSoldier.userId : `user_${Date.now()}`,
       fullName: formFullName.trim(),
       personalId: formPersonalId.trim(),
@@ -238,7 +238,7 @@ if (!editingSoldier && !/^\d{6}$/.test(formPersonalCode.trim())) {
       email: editingSoldier ? editingSoldier.email : baseEmail,
       createdAt: editingSoldier ? editingSoldier.createdAt : new Date().toISOString(),
       personalCode: formPersonalCode.trim()
-    };
+    } as UserProfile & { personalCode?: string };
 
     try {
       await onAdminUpdateSoldier(profileToSave);
