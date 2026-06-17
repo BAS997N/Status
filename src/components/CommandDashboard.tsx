@@ -1268,20 +1268,38 @@ const handleExportSummaryCSV = () => {
           {allSoldiers
             .filter((soldier) => !soldier.isDischarged)
             .map((soldier) => {
-              const soldierReports = reports.filter((report) => {
-                const sameSoldier =
-                  report.userId === soldier.userId ||
-                  (report as any).personalId === soldier.personalId;
+              const filteredReports = reports.filter((report) => {
+  const sameSoldier =
+    report.userId === soldier.userId ||
+    (report as any).personalId === soldier.personalId;
 
-                if (!sameSoldier) return false;
+  if (!sameSoldier) return false;
 
-                const reportDate = report.timestamp?.split("T")[0];
+  const reportDate = report.timestamp?.split("T")[0];
 
-                if (summaryStartDate && reportDate < summaryStartDate) return false;
-                if (summaryEndDate && reportDate > summaryEndDate) return false;
+  if (summaryStartDate && reportDate < summaryStartDate) return false;
+  if (summaryEndDate && reportDate > summaryEndDate) return false;
 
-                return true;
-              });
+  return true;
+});
+
+const latestReportByDate = new Map<string, AttendanceReport>();
+
+filteredReports.forEach((report) => {
+  const reportDate = report.timestamp?.split("T")[0];
+  if (!reportDate) return;
+
+  const existing = latestReportByDate.get(reportDate);
+
+  if (
+    !existing ||
+    new Date(report.timestamp).getTime() > new Date(existing.timestamp).getTime()
+  ) {
+    latestReportByDate.set(reportDate, report);
+  }
+});
+
+const soldierReports = Array.from(latestReportByDate.values());
 
               const counts = {
                 base: soldierReports.filter((r) => r.status === "base").length,
