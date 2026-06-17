@@ -277,6 +277,8 @@ const handleFormSubmit = async (e: React.FormEvent) => {
   return `${year}-${month}-${day}`;
 };
   const [selectedDate, setSelectedDate] = useState<string>(getTodayLocalDate());
+  const [summaryStartDate, setSummaryStartDate] = useState("");
+const [summaryEndDate, setSummaryEndDate] = useState("");
   useEffect(() => {
   setSelectedDate(getTodayLocalDate());
 }, []);
