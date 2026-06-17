@@ -1767,8 +1767,8 @@ const latestTodayReport = soldierReports.find(report =>
                               {latestTodayReport ? "ערוך דיווח" : "צור דיווח"}
                             </button>
                       )}
-                     {latestTodayReport && onDeleteReport && (
- {currentUser.role === "commander" && (
+                     
+ {latestTodayReport && onDeleteReport && currentUser.role === "commander" && (
   <button
     onClick={() =>
       setReportToReset({
