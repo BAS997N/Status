@@ -56,6 +56,7 @@ interface CommandDashboardProps {
   currentUser: UserProfile;
   reports: AttendanceReport[];
   allSoldiers: UserProfile[];
+  systemLogs: any[];
   onVerifyReport: (reportId: string) => Promise<void>;
   onAdminUpdateSoldier: (profile: UserProfile) => Promise<void>;
   onDeleteSoldier?: (userId: string) => Promise<void>;
@@ -80,6 +81,7 @@ export default function CommandDashboard({
   currentUser, 
   reports, 
   attendanceLogs,
+  systemLogs,
   allSoldiers, 
   onVerifyReport,
   onAdminUpdateSoldier,
