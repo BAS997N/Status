@@ -675,7 +675,14 @@ await signOut(secondaryAuth);
     delete (profileToSave as any).personalCode;
 
     await dataService.adminSaveUserProfile(profileToSave);
-
+ await dataService.createSystemLog({
+  action: isNewSoldier ? "add_soldier" : "edit_soldier",
+  actorUserId: userProfile?.userId || "unknown",
+  actorName: userProfile?.fullName || "משתמש לא ידוע",
+  targetUserId: profileToSave.userId,
+  targetName: profileToSave.fullName,
+  details: isNewSoldier ? "הוספת חייל חדש למערכת" : "עריכת פרטי חייל",
+});
     const users = await dataService.getAllUsers();
     setAllUsers(users);
 
@@ -688,14 +695,6 @@ await signOut(secondaryAuth);
   }
 };
 
-  await dataService.createSystemLog({
-  action: isNewSoldier ? "add_soldier" : "edit_soldier",
-  actorUserId: userProfile?.userId || "unknown",
-  actorName: userProfile?.fullName || "משתמש לא ידוע",
-  targetUserId: profileToSave.userId,
-  targetName: profileToSave.fullName,
-  details: isNewSoldier ? "הוספת חייל חדש למערכת" : "עריכת פרטי חייל",
-});
   // Admin save or create report on behalf of a soldier
   const handleAdminSaveReport = async (reportData: {
     reportId?: string;
