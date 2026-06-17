@@ -152,58 +152,87 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     setNotifications(updated);
   };
 
-  // 1. Manage Authentication Lifecycle (using stored ID session or Firebase)
-  useEffect(() => {
-    const loadSession = async () => {
-     if (isFirebaseActive() && !auth?.currentUser) {
-  setUserProfile(null);
-  setLoading(false);
-  return;
-}
-      try {
-        const storedActiveId =
-  auth?.currentUser?.uid ||
-  localStorage.getItem("idf_active_user_id");
-        const storedPersonalId =
-  localStorage.getItem("idf_active_personal_id");
-        const profiles = await dataService.getAllUsers();
-        setAllUsers(profiles);
+  // 1. Manage Authentication Lifecycle with Firebase Auth persistence
+useEffect(() => {
+  let unsubscribe: (() => void) | undefined;
 
-        if (storedActiveId) {
-          let profile =
-  profiles.find(p => p.userId === storedActiveId) ||
-  profiles.find(
-    p => p.personalId === storedPersonalId
-  );
-          if (!profile && isFirebaseActive()) {
-            profile = await dataService.getCurrentUserProfile(storedActiveId);
-          }
-          
-          if (profile) {
-            setUserProfile(profile);
-            const reps = await dataService.fetchAllReports();
-            const nots = await dataService.fetchNotifications();
-            setReports(reps);
-            setNotifications(nots);
-            
-           if (profile.role === "commander" || profile.role === "adjutant_officer") {
-  setActiveTab("dashboard");
-} else {
-  setActiveTab("reporter");
-}
-          } else {
-             localStorage.removeItem("idf_active_user_id");
-            localStorage.removeItem("idf_active_personal_id");
-          }
-        }
-      } catch (err) {
-        console.error("Error loading simulation or database session:", err);
-      } finally {
+  const loadSession = async (firebaseUid?: string | null) => {
+    setLoading(true);
+
+    try {
+      const storedActiveId =
+        firebaseUid ||
+        localStorage.getItem("idf_active_user_id");
+
+      const storedPersonalId =
+        localStorage.getItem("idf_active_personal_id");
+
+      if (isFirebaseActive() && !storedActiveId) {
+        setUserProfile(null);
         setLoading(false);
+        return;
       }
-    };
+
+      const profiles = await dataService.getAllUsers();
+      setAllUsers(profiles);
+
+      if (storedActiveId) {
+        let profile =
+          profiles.find(p => p.userId === storedActiveId) ||
+          profiles.find(p => p.personalId === storedPersonalId);
+
+        if (!profile && isFirebaseActive()) {
+          profile = await dataService.getCurrentUserProfile(storedActiveId);
+        }
+
+        if (profile) {
+          setUserProfile(profile);
+
+          localStorage.setItem("idf_active_user_id", profile.userId);
+          if (profile.personalId) {
+            localStorage.setItem("idf_active_personal_id", profile.personalId);
+          }
+
+          const reps = await dataService.fetchAllReports();
+          const nots = await dataService.fetchNotifications();
+
+          setReports(reps);
+          setNotifications(nots);
+
+          if (profile.role === "commander" || profile.role === "adjutant_officer") {
+            setActiveTab("dashboard");
+          } else {
+            setActiveTab("reporter");
+          }
+        } else {
+          setUserProfile(null);
+          localStorage.removeItem("idf_active_user_id");
+          localStorage.removeItem("idf_active_personal_id");
+        }
+      } else {
+        setUserProfile(null);
+      }
+    } catch (err) {
+      console.error("Error loading simulation or database session:", err);
+      setUserProfile(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (isFirebaseActive()) {
+    unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setFirebaseUser(firebaseUser);
+      await loadSession(firebaseUser?.uid || null);
+    });
+  } else {
     loadSession();
-  }, [simCounter]);
+  }
+
+  return () => {
+    if (unsubscribe) unsubscribe();
+  };
+}, [simCounter]);
 
   // Read updates of reports whenever actions complete
   const refreshReports = async () => {
