@@ -370,86 +370,79 @@ useEffect(() => {
   };
 
   // ID-based Login and Registration controllers
-  const handleIdLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError("");
-    const cleanId = personalIdInput.trim();
-    const cleanCode = personalCodeInput.trim();
-    if (!cleanId) {
-      setLoginError("נא להזין מספר אישי או תעודת זהות תקינה");
-      return;
-    }
-    
-    if (!/^\d+$/.test(cleanId)) {
-      setLoginError("מספר זיהוי חייב להכיל ספרות בלבד");
-      return;
-    }
+const handleIdLoginSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoginError("");
 
-    if (cleanId.length < 5) {
-      setLoginError("מספר זיהוי קצר מדי (מינימום 5 ספרות)");
-      return;
-    }
+  const cleanId = personalIdInput.trim();
+  const cleanCode = personalCodeInput.trim();
 
-const cleanRegCode = regPersonalCode.trim();
-
-if (!/^\d{6}$/.test(cleanCode)) {
-  setLoginError("קוד אישי חייב להכיל 6 ספרות");
-  return;
-}
-
-    setLoading(true);
-    try {
-  const foundProfile = await dataService.findProfileByPersonalId(cleanId);
-
-  if (!foundProfile) {
-    setRegPersonalId(cleanId);
-    setRegName("");
-    setRegUnit(IDF_UNITS[0]);
-    setRegRole("soldier");
-    setIsRegisteringId(true);
+  if (!cleanId) {
+    setLoginError("נא להזין מספר אישי או תעודת זהות תקינה");
     return;
   }
 
-  if (isFirebaseActive() && auth) {
-    const authEmail = buildAuthEmail(cleanId);
-    const authPassword = cleanCode;
-
-    await signInWithEmailAndPassword(auth, authEmail, authPassword);
+  if (!/^\d+$/.test(cleanId)) {
+    setLoginError("מספר זיהוי חייב להכיל ספרות בלבד");
+    return;
   }
-      if (foundProfile) {
-        localStorage.setItem("idf_active_user_id", foundProfile.userId);
-        localStorage.setItem(
-  "idf_active_personal_id",
-  foundProfile.personalId || cleanId
-);
-        setUserProfile(foundProfile);
-        
-        // Load active database info
-        const reps = await dataService.fetchAllReports();
-        const nots = await dataService.fetchNotifications();
-        setReports(reps);
-        setNotifications(nots);
 
-        if (foundProfile.role === "commander" || foundProfile.role === "adjutant_officer") {
-          setActiveTab("dashboard");
-        } else {
-          setActiveTab("reporter");
-        }
-      } else {
-        // Offer registration for this ID!
-        setRegPersonalId(cleanId);
-        setRegName("");
-        setRegUnit(IDF_UNITS[0]);
-        setRegRole("soldier");
-        setIsRegisteringId(true);
-      }
-    } catch (error) {
-      console.error("Login verification error:", error);
-     setLoginError("המשתמש קיים במערכת אך עדיין לא הוגדר לו קוד אישי. יש לבצע איפוס/הגדרת קוד דרך מנהל המערכת.");
-    } finally {
-      setLoading(false);
+  if (cleanId.length < 5) {
+    setLoginError("מספר זיהוי קצר מדי (מינימום 5 ספרות)");
+    return;
+  }
+
+  if (!/^\d{6}$/.test(cleanCode)) {
+    setLoginError("קוד אישי חייב להכיל 6 ספרות");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const foundProfile = await dataService.findProfileByPersonalId(cleanId);
+
+    if (!foundProfile) {
+      setRegPersonalId(cleanId);
+      setRegName("");
+      setRegUnit(IDF_UNITS[0]);
+      setRegRole("soldier");
+      setIsRegisteringId(true);
+      return;
     }
-  };
+
+    if (isFirebaseActive() && auth) {
+      const authEmail = buildAuthEmail(cleanId);
+      const authPassword = cleanCode;
+
+      await signInWithEmailAndPassword(auth, authEmail, authPassword);
+    }
+
+    localStorage.setItem("idf_active_user_id", foundProfile.userId);
+    localStorage.setItem("idf_active_personal_id", foundProfile.personalId || cleanId);
+
+    setUserProfile(foundProfile);
+
+    const reps = await dataService.fetchAllReports();
+    const nots = await dataService.fetchNotifications();
+
+    setReports(reps);
+    setNotifications(nots);
+
+    if (foundProfile.role === "commander" || foundProfile.role === "adjutant_officer") {
+      setActiveTab("dashboard");
+    } else {
+      setActiveTab("reporter");
+    }
+  } catch (error) {
+    console.error("Login verification error:", error);
+    setLoginError(
+      "המשתמש קיים במערכת אך הקוד האישי שגוי או שעדיין לא הוגדר לו קוד אישי."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleIdRegistrationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
