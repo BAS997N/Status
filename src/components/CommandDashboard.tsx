@@ -1508,14 +1508,13 @@ const latestTodayReport = soldierReports.find(report =>
           </table>
         </div>
         
-        {/* Table footer with summary count info */}
+               {/* Table footer with summary count info */}
         <div className="p-4 bg-slate-50/50 border-t border-slate-100 text-[11px] text-slate-400 font-semibold flex items-center justify-between">
           <span>נמצאו {filteredSoldiersStatus.length} רשומות רלוונטיות</span>
           <span>מפקד מאשר נוכחי: {currentUser.fullName} ({currentUser.unit})</span>
         </div>
-
-            </>
-    )
+      </div>
+    </>
   ) : dashboardTab === "directory" ? (
     <div id="commander-directory-panel" className="space-y-6 text-right animate-fade-in animate-duration-200" dir="rtl">
       
