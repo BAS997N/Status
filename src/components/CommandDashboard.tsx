@@ -1513,7 +1513,6 @@ const latestTodayReport = soldierReports.find(report =>
           <span>נמצאו {filteredSoldiersStatus.length} רשומות רלוונטיות</span>
           <span>מפקד מאשר נוכחי: {currentUser.fullName} ({currentUser.unit})</span>
         </div>
-        )}
 
       </div>
     </div>
