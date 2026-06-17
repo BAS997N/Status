@@ -1740,6 +1740,22 @@ const latestTodayReport = soldierReports.find(report =>
                               <FileText className="w-3 h-3 text-slate-500" />
                               {latestTodayReport ? "ערוך דיווח" : "צור דיווח"}
                             </button>
+                      {latestTodayReport && onDeleteReport && (
+  <button
+    onClick={() => {
+      if (
+        window.confirm(
+          `האם לאפס את הדיווח של ${profile.fullName}?\n\nהחייל יסומן כ"טרם דיווח היום" ויידרש לדווח מחדש.`
+        )
+      ) {
+        onDeleteReport(latestTodayReport.reportId);
+      }
+    }}
+    className="text-[10px] bg-red-50 hover:bg-red-100 text-red-700 font-bold py-1 px-2 rounded-md transition cursor-pointer border border-red-200 inline-flex items-center justify-center gap-1 shadow-xs"
+  >
+    אפס דיווח
+  </button>
+)}
                           )}
                         </div>
                       </td>
