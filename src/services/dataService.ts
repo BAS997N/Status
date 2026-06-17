@@ -210,6 +210,34 @@ export const dataService = {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   },
+  async getSystemLogs(): Promise<any[]> {
+  if (!isFirebaseActive()) {
+    return JSON.parse(
+      localStorage.getItem("idf_system_logs") || "[]"
+    );
+  }
+
+  try {
+    const snapshot = await getDocs(
+      query(
+        collection(db, "system_logs"),
+        orderBy("timestamp", "desc")
+      )
+    );
+
+    return snapshot.docs.map((doc) => ({
+      ...doc.data(),
+      logId: doc.id,
+    }));
+  } catch (error) {
+    handleFirestoreError(
+      error,
+      OperationType.READ,
+      "system_logs"
+    );
+    return [];
+  }
+},
 async createSystemLog(logData: {
   action:
     | "add_soldier"
