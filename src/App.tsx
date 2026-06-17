@@ -155,9 +155,15 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   // 1. Manage Authentication Lifecycle (using stored ID session or Firebase)
   useEffect(() => {
     const loadSession = async () => {
-      setLoading(true);
+     if (isFirebaseActive() && !auth?.currentUser) {
+  setUserProfile(null);
+  setLoading(false);
+  return;
+}
       try {
-        const storedActiveId = localStorage.getItem("idf_active_user_id");
+        const storedActiveId =
+  auth?.currentUser?.uid ||
+  localStorage.getItem("idf_active_user_id");
         const storedPersonalId =
   localStorage.getItem("idf_active_personal_id");
         const profiles = await dataService.getAllUsers();
