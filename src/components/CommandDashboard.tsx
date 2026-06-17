@@ -2594,6 +2594,5 @@ const latestTodayReport = soldierReports.find(report =>
 
 </div>
     );
-};
+}
 
-export default CommandDashboard;
