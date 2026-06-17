@@ -167,11 +167,13 @@ useEffect(() => {
       const storedPersonalId =
         localStorage.getItem("idf_active_personal_id");
 
-      if (isFirebaseActive() && !storedActiveId) {
-        setUserProfile(null);
-        setLoading(false);
-        return;
-      }
+     if (isFirebaseActive() && !storedActiveId) {
+  setUserProfile(null);
+  localStorage.removeItem("idf_active_user_id");
+  localStorage.removeItem("idf_active_personal_id");
+  setLoading(false);
+  return;
+}
 
       const profiles = await dataService.getAllUsers();
       setAllUsers(profiles);
