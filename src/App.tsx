@@ -514,7 +514,7 @@ setUserProfile(newProfile);
       } else {
         setActiveTab("reporter");
       }
-    } } catch (err: any) {
+     } catch (err: any) {
   console.error("Error creating new ID account:", err);
 
   if (err?.code === "auth/email-already-in-use") {
