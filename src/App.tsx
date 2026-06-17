@@ -236,15 +236,19 @@ useEffect(() => {
 
   // Read updates of reports whenever actions complete
   const refreshReports = async () => {
-    const updatedReports = await dataService.fetchAllReports();
-    setReports(updatedReports);
-    const updatedLogs = await dataService.fetchAttendanceLogs();
-    setAttendanceLogs(updatedLogs);
-  };
+  if (isFirebaseActive() && !auth?.currentUser) return;
+
+  const updatedReports = await dataService.fetchAllReports();
+  setReports(updatedReports);
+
+  const updatedLogs = await dataService.fetchAttendanceLogs();
+  setAttendanceLogs(updatedLogs);
+};
 
   useEffect(() => {
-    refreshReports();
-  }, []);
+  if (!userProfile) return;
+  refreshReports();
+}, [userProfile]);
 
   // Notification actions
   const handleMarkNotificationRead = async (id: string) => {
