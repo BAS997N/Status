@@ -151,6 +151,7 @@ export default function CommandDashboard({
   const [editingSoldier, setEditingSoldier] = useState<UserProfile | null>(null);
   const [formFullName, setFormFullName] = useState("");
   const [formPersonalId, setFormPersonalId] = useState("");
+  const [formPersonalCode, setFormPersonalCode] = useState("");
   const [formPhoneNumber, setFormPhoneNumber] = useState("");
   const [formUnit, setFormUnit] = useState((medicalUnits && medicalUnits.length > 0) ? medicalUnits[0] : IDF_UNITS[0]);
   const [formRole, setFormRole] = useState<UserRole>("soldier");
@@ -179,6 +180,7 @@ export default function CommandDashboard({
     setIsAddingNew(true);
     setFormFullName("");
     setFormPersonalId("");
+    setFormPersonalCode("");
     setFormPhoneNumber("");
     setFormUnit((medicalUnits && medicalUnits.length > 0) ? medicalUnits[0] : IDF_UNITS[0]);
     setFormRole("soldier");
@@ -2191,6 +2193,20 @@ const latestTodayReport = soldierReports.find(report =>
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:ring-2 focus:ring-military-400 outline-none transition disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
+                  <div>
+  <label className="block text-xs font-bold text-slate-600 mb-1">
+    קוד אישי (6 ספרות)
+  </label>
+
+  <input
+    type="password"
+    required={!editingSoldier}
+    value={formPersonalCode}
+    onChange={(e) => setFormPersonalCode(e.target.value)}
+    maxLength={6}
+    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:ring-2 focus:ring-military-400 outline-none transition"
+  />
+</div>
 
                   <div className="space-y-1">
                     <label className="block text-xs font-bold text-slate-500">מספר טלפון</label>
