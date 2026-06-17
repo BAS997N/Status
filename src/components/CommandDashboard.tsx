@@ -810,6 +810,7 @@ const latestTodayReport = soldierReports.find(report =>
             <span>היסטוריית דיווחים</span>
           </button>
         )}
+        {currentUser.role !== "adjutant_officer" && (
         <button
   onClick={() => setDashboardTab("summary")}
   className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -834,6 +835,7 @@ const latestTodayReport = soldierReports.find(report =>
 
   <span>סיכום נוכחות חיילים</span>
 </button>
+      )}
         {currentUser.role !== "adjutant_officer" && (
           <button
             onClick={() => setDashboardTab("settings")}
@@ -1012,15 +1014,103 @@ const latestTodayReport = soldierReports.find(report =>
         </div>
       ) : dashboardTab === "history" ? (
   <HistoryView logs={attendanceLogs} reports={reports} onDeleteReport={onDeleteReport}/>
-) : dashboardTab === "summary" ? (
-  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 text-right" dir="rtl">
+) : dashboardTab === "summary" && currentUser.role !== "adjutant_officer" ? (
+  <div className="space-y-4 text-right" dir="rtl">
+  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
     <h2 className="text-lg font-black text-slate-800 mb-2">
       סיכום נוכחות חיילים
     </h2>
-    <p className="text-xs text-slate-500 font-semibold">
-      כאן תופיע טבלת סיכום לפי חייל, סטטוסים וטווח תאריכים.
-    </p>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+      <div>
+        <label className="block text-xs font-bold text-slate-600 mb-1">מתאריך</label>
+        <input
+          type="date"
+          value={summaryStartDate}
+          onChange={(e) => setSummaryStartDate(e.target.value)}
+          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold"
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-bold text-slate-600 mb-1">עד תאריך</label>
+        <input
+          type="date"
+          value={summaryEndDate}
+          onChange={(e) => setSummaryEndDate(e.target.value)}
+          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold"
+        />
+      </div>
+    </div>
   </div>
+
+  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+    <table className="w-full text-right border-collapse text-xs">
+      <thead className="bg-slate-50 text-slate-600 font-black">
+        <tr>
+          <th className="px-4 py-3">שם חייל</th>
+          <th className="px-4 py-3">יחידה</th>
+          <th className="px-4 py-3">סה״כ</th>
+          <th className="px-4 py-3">בבסיס</th>
+          <th className="px-4 py-3">בבית / אפטר</th>
+          <th className="px-4 py-3">שטח / אימון</th>
+          <th className="px-4 py-3">גימלים</th>
+          <th className="px-4 py-3">קורס</th>
+          <th className="px-4 py-3">חיתוך צו</th>
+          <th className="px-4 py-3">אחר</th>
+        </tr>
+      </thead>
+
+      <tbody className="divide-y divide-slate-100">
+        {allSoldiers
+          .filter((soldier) => !soldier.isDischarged)
+          .map((soldier) => {
+            const soldierReports = reports.filter((report) => {
+              const sameSoldier =
+                report.userId === soldier.userId ||
+                (report as any).personalId === soldier.personalId;
+
+              if (!sameSoldier) return false;
+
+              const reportDate = report.timestamp?.split("T")[0];
+
+              if (summaryStartDate && reportDate < summaryStartDate) return false;
+              if (summaryEndDate && reportDate > summaryEndDate) return false;
+
+              return true;
+            });
+
+            const counts = {
+              base: soldierReports.filter((r) => r.status === "base").length,
+              home: soldierReports.filter((r) => r.status === "home").length,
+              field: soldierReports.filter((r) => r.status === "field").length,
+              sick: soldierReports.filter((r) => r.status === "sick").length,
+              course: soldierReports.filter((r) => r.status === "course").length,
+              cut_order: soldierReports.filter((r) => r.status === "cut_order").length,
+              other: soldierReports.filter((r) => r.status === "other").length,
+            };
+
+            const total = soldierReports.length;
+
+            return (
+              <tr key={soldier.userId} className="hover:bg-slate-50">
+                <td className="px-4 py-3 font-bold text-slate-800">{soldier.fullName}</td>
+                <td className="px-4 py-3 text-slate-500">{soldier.unit}</td>
+                <td className="px-4 py-3 font-black text-slate-800">{total}</td>
+                <td className="px-4 py-3 text-emerald-700 font-bold">{counts.base}</td>
+                <td className="px-4 py-3 text-indigo-700 font-bold">{counts.home}</td>
+                <td className="px-4 py-3 text-amber-700 font-bold">{counts.field}</td>
+                <td className="px-4 py-3 text-rose-700 font-bold">{counts.sick}</td>
+                <td className="px-4 py-3 text-cyan-700 font-bold">{counts.course}</td>
+                <td className="px-4 py-3 text-red-700 font-bold">{counts.cut_order}</td>
+                <td className="px-4 py-3 text-slate-600 font-bold">{counts.other}</td>
+              </tr>
+            );
+          })}
+      </tbody>
+    </table>
+  </div>
+</div>
 ) : dashboardTab === "attendance" ? (
   <>
           <div className="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs">
