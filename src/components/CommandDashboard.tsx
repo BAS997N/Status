@@ -2331,7 +2331,7 @@ const latestTodayReport = soldierReports.find(report =>
         </div>
       </div>
     </div>
-  ) : null}
+  )} 
 
       {/* EDIT/ADD SOLDIER MODAL */}
       <AnimatePresence>
