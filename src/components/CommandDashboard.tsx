@@ -1042,7 +1042,8 @@ const latestTodayReport = soldierReports.find(report =>
         />
       </div>
     </div>
-    <div className="flex justify-end mt-3">
+ <div className="flex flex-wrap justify-end gap-2 mt-3">
+
   <button
     onClick={() => {
       setSummaryStartDate("");
@@ -1052,8 +1053,54 @@ const latestTodayReport = soldierReports.find(report =>
   >
     אפס סינון
   </button>
+
+  <button
+    onClick={() => {
+      const today = new Date();
+      const past = new Date();
+      past.setDate(today.getDate() - 7);
+
+      setSummaryStartDate(past.toISOString().split("T")[0]);
+      setSummaryEndDate(today.toISOString().split("T")[0]);
+    }}
+    className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition cursor-pointer"
+  >
+    7 ימים אחרונים
+  </button>
+
+  <button
+    onClick={() => {
+      const today = new Date();
+      const past = new Date();
+      past.setDate(today.getDate() - 30);
+
+      setSummaryStartDate(past.toISOString().split("T")[0]);
+      setSummaryEndDate(today.toISOString().split("T")[0]);
+    }}
+    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition cursor-pointer"
+  >
+    30 ימים אחרונים
+  </button>
+
+  <button
+    onClick={() => {
+      const today = new Date();
+
+      const firstDay = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        1
+      );
+
+      setSummaryStartDate(firstDay.toISOString().split("T")[0]);
+      setSummaryEndDate(today.toISOString().split("T")[0]);
+    }}
+    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition cursor-pointer"
+  >
+    חודש נוכחי
+  </button>
+
 </div>
-  </div>
 
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
     <table className="w-full text-right border-collapse text-xs">
