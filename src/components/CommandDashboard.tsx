@@ -933,7 +933,9 @@ const handleExportSummaryCSV = () => {
 >
   <span>יומן מערכת</span>
 </button>
-          <button
+)}
+{currentUser.role !== "adjutant_officer" && (
+  <button
             onClick={() => setDashboardTab("settings")}
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
               dashboardTab === "settings"
