@@ -1450,6 +1450,90 @@ const latestTodayReport = soldierReports.find(report =>
       </div>
     )}
 
+          {!isChartsCollapsed && (
+  <div
+    id="weekly-attendance-trend-card"
+    className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm text-right transition-all duration-200 mt-4"
+    dir="rtl"
+  >
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-4">
+      <div className="space-y-1">
+        <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          <span>📈 מגמת נוכחות גדודית שבועית (שינויים לאורך 7 הימים האחרונים)</span>
+        </h4>
+        <p className="text-[10px] text-slate-400 leading-relaxed">
+          גרף השוואתי של יציאות ונוכחות בזמן אמת לזיהוי חריגות, דפוסי היעדרות ושיעור משמעת דיווח
+        </p>
+      </div>
+
+      <button
+        onClick={() => setIsLineChartCollapsed(!isLineChartCollapsed)}
+        className="text-[10px] text-slate-500 hover:text-slate-800 font-extrabold cursor-pointer hover:bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/50 transition shrink-0"
+      >
+        {isLineChartCollapsed ? "הצג גרף [+" : "מזער גרף [-]"}
+      </button>
+    </div>
+
+    {chartsReady && !isLineChartCollapsed && (
+      <div className="w-full h-[280px] min-h-[280px]">
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart
+            data={weeklyTrendData}
+            margin={{ top: 10, right: 15, left: -25, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <XAxis
+              dataKey="name"
+              tick={{ fill: "#475569", fontSize: 10, fontWeight: 700 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              allowDecimals={false}
+              tick={{ fill: "#94a3b8", fontSize: 9 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip
+              contentStyle={{
+                direction: "rtl",
+                textAlign: "right",
+                borderRadius: "8px",
+                fontSize: "11px",
+                boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+              }}
+            />
+            <Line
+              type="monotone"
+              dataKey="נוכחים בבסיס ובמשימות"
+              stroke="#10b981"
+              strokeWidth={3}
+              activeDot={{ r: 6 }}
+              dot={{ stroke: "#10b981", strokeWidth: 2, fill: "#fff" }}
+            />
+            <Line
+              type="monotone"
+              dataKey="מחוץ לבסיס וחופשות"
+              stroke="#6366f1"
+              strokeWidth={2.5}
+              dot={{ stroke: "#6366f1", strokeWidth: 1.5, fill: "#fff" }}
+            />
+            <Line
+              type="monotone"
+              dataKey="טרם דיווחו"
+              stroke="#f43f5e"
+              strokeWidth={2}
+              strokeDasharray="4 4"
+              dot={{ stroke: "#f43f5e", strokeWidth: 1, fill: "#fff" }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    )}
+  </div>
+)}
+          
 {/* ATTENDANCE REPORTS CENTRAL GRID */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 flex-wrap gap-2 text-right" dir="rtl">
