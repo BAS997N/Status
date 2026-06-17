@@ -1290,6 +1290,163 @@ const latestTodayReport = soldierReports.find(report =>
             </div>
           )}
                 </div>
+    {/* Card 3: Base vs. Outside-Base Comparative Visual Card */}
+<div
+  id="base-vs-outside-chart-card"
+  className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between transition-all duration-200"
+>
+  <div className="flex items-center justify-between border-b border-slate-100/60 pb-2 mb-2">
+    <div className="flex items-center gap-2">
+      <div className="p-1 px-1.5 bg-emerald-50 text-emerald-600 rounded">
+        <Building2 className="w-3.5 h-3.5" />
+      </div>
+      <div className="text-right">
+        <h4 className="text-xs font-bold text-slate-700 mb-0.5">
+          נוכחות בבסיס לעומת מחוץ לבסיס
+        </h4>
+        <p className="text-[10px] text-slate-400">
+          פילוח שליטה מהיר ליחס המשרתים פיזית ביחידה
+        </p>
+      </div>
+    </div>
+
+    <button
+      onClick={() =>
+        setIsBaseVsOutsideCardCollapsed(!isBaseVsOutsideCardCollapsed)
+      }
+      className="text-[10px] text-slate-500 hover:text-slate-800 font-extrabold cursor-pointer hover:bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/50 transition shrink-0"
+    >
+      {isBaseVsOutsideCardCollapsed ? "הצג [+" : "מזער [-]"}
+    </button>
+  </div>
+
+  {!isBaseVsOutsideCardCollapsed && (
+    <div className="space-y-4">
+      {(() => {
+        const inBaseCount = statusStats.base;
+        const outsideBaseCount = totalSoldiersCount - inBaseCount;
+        const inBasePercentage =
+          totalSoldiersCount > 0
+            ? Math.round((inBaseCount / totalSoldiersCount) * 100)
+            : 0;
+        const outsideBasePercentage =
+          totalSoldiersCount > 0 ? 100 - inBasePercentage : 0;
+
+        const radius = 32;
+        const circumference = 2 * Math.PI * radius;
+        const strokeDashoffsetIn =
+          circumference - (inBasePercentage / 100) * circumference;
+        const strokeDashoffsetOut =
+          circumference - (outsideBasePercentage / 100) * circumference;
+
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-around py-2">
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r={radius}
+                      className="stroke-slate-100"
+                      strokeWidth="6"
+                      fill="transparent"
+                    />
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r={radius}
+                      className="stroke-emerald-500 transition-all duration-500 ease-out"
+                      strokeWidth="6"
+                      fill="transparent"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={strokeDashoffsetIn}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <span className="absolute text-sm font-black text-slate-800">
+                    {inBasePercentage}%
+                  </span>
+                </div>
+                <span className="text-xs font-bold text-slate-700">
+                  בתוך הבסיס
+                </span>
+                <span className="text-[10px] text-slate-400 font-bold">
+                  ({inBaseCount} מתוך {totalSoldiersCount})
+                </span>
+              </div>
+
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r={radius}
+                      className="stroke-slate-100"
+                      strokeWidth="6"
+                      fill="transparent"
+                    />
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r={radius}
+                      className="stroke-indigo-500 transition-all duration-500 ease-out"
+                      strokeWidth="6"
+                      fill="transparent"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={strokeDashoffsetOut}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <span className="absolute text-sm font-black text-slate-800">
+                    {outsideBasePercentage}%
+                  </span>
+                </div>
+                <span className="text-xs font-bold text-slate-700">
+                  מחוץ לבסיס
+                </span>
+                <span className="text-[10px] text-slate-400 font-bold">
+                  ({outsideBaseCount} מתוך {totalSoldiersCount})
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2 border-t border-slate-100 pt-3 text-[11px] font-medium leading-relaxed text-slate-500 text-right">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                  <span>בבסיס:</span>
+                </div>
+                <span className="font-bold text-slate-800">
+                  {inBaseCount} חיילים
+                </span>
+              </div>
+
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-1"></span>
+                  <div className="space-y-0.5">
+                    <span>מחוץ לבסיס / לא זמינים:</span>
+                    <span className="block text-[9px] text-slate-400 leading-tight">
+                      כולל {statusStats.field} בשטח, {statusStats.home} בבית,
+                      {statusStats.course} בקורס, {statusStats.sick} בגימלים,
+                      {statusStats.cut_order} בחיתוך צו, ו־{unreportedCount} טרם דיווחו.
+                    </span>
+                  </div>
+                </div>
+                <span className="font-bold text-slate-800 shrink-0">
+                  {outsideBaseCount} חיילים
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  )}
+</div>
       </div>
     )}
 
