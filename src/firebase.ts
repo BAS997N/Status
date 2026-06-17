@@ -21,20 +21,15 @@ let secondaryFirebaseAuth: any = null;
 
 if (firebaseState.isActive) {
   try {
-    firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    firebaseApp = getApps().find((app) => app.name === "[DEFAULT]")
+      ? getApp()
+      : initializeApp(firebaseConfig);
 
-    secondaryFirebaseApp =
-      getApps().find((app) => app.name === "Secondary") ||
-      initializeApp(firebaseConfig, "Secondary");
+    secondaryFirebaseApp = getApps().find((app) => app.name === "Secondary");
 
-    /*
-    if (typeof window !== "undefined") {
-      initializeAppCheck(firebaseApp, {
-        provider: new ReCaptchaV3Provider("6LfORx8tAAAAAAizvhqfKM-XGfzZyGGBUEVDOgr9"),
-        isTokenAutoRefreshEnabled: true,
-      });
+    if (!secondaryFirebaseApp) {
+      secondaryFirebaseApp = initializeApp(firebaseConfig, "Secondary");
     }
-    */
 
     firestoreDb = getFirestore(firebaseApp);
     firebaseAuth = getAuth(firebaseApp);
