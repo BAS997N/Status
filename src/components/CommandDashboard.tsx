@@ -246,10 +246,15 @@ if (!editingSoldier && !/^\d{6}$/.test(formPersonalCode.trim())) {
       setTimeout(() => {
         setIsEditModalOpen(false);
       }, 1000);
-    } catch (err: any) {
-      setFormError("שגיאה בשמירת הנתונים. נסה שנית.");
-    }
-  };
+   } catch (err: any) {
+  console.error("Soldier form save error:", err);
+
+  if (err?.code === "auth/email-already-in-use") {
+    setFormError("המספר האישי הזה כבר קיים במערכת. לא ניתן ליצור אותו שוב.");
+  } else {
+    setFormError("שגיאה בשמירת הנתונים. נסה שנית.");
+  }
+}
 
   const getTodayLocalDate = () => {
   const now = new Date();
