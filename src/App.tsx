@@ -264,11 +264,25 @@ useEffect(() => {
     await refreshNotifications();
   };
     const handleDeleteSoldier = async (userId: string) => {
-    try {
+  try {
+    const soldierToDelete = allUsers.find(
+      (u) => u.userId === userId
+    );
+
     await dataService.deleteUserProfile(userId);
+
+    await dataService.createSystemLog({
+      action: "delete_soldier",
+      actorUserId: userProfile?.userId || "unknown",
+      actorName: userProfile?.fullName || "משתמש לא ידוע",
+      targetUserId: userId,
+      targetName: soldierToDelete?.fullName || "לא ידוע",
+      details: "מחיקת חייל מהמערכת",
+    });
 
     const updatedUsers = await dataService.getAllUsers();
     setAllUsers(updatedUsers);
+
   } catch (error) {
     console.error("Failed deleting soldier:", error);
     alert("אירעה שגיאה במחיקת החייל");
