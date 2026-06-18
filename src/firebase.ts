@@ -35,10 +35,7 @@ if (firebaseState.isActive) {
     firebaseAuth = getAuth(firebaseApp);
     secondaryFirebaseAuth = getAuth(secondaryFirebaseApp);
 
-    console.log(
-      "Firebase initialized successfully with project ID:",
-      firebaseConfig.projectId
-    );
+   
   } catch (error) {
     console.error(
       "Failed to initialize Firebase with configured credentials, falling back to simulation mode:",
@@ -47,7 +44,7 @@ if (firebaseState.isActive) {
     firebaseState.isActive = false;
   }
 } else {
-  console.log("Using IDF Attendance Simulation Mode (Firebase project not fully configured yet).");
+ 
 }
 
 export const db = firestoreDb;
