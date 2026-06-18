@@ -473,7 +473,7 @@ await setDoc(notRef, {
   reportData: Partial<AttendanceReport>,
   updatedByProfile?: UserProfile
 ): Promise<void> {
-  console.log("Updating report:", reportId, reportData);
+ 
 
   const updateLog = {
     reportId,
@@ -502,8 +502,7 @@ await setDoc(notRef, {
   }
 
   const path = `attendance/${reportId}`;
-  console.log("Updating Firestore report:", path, reportData);
-
+ 
   try {
     await updateDoc(doc(db, "attendance", reportId), reportData);
     await addDoc(collection(db, "attendance_logs"), updateLog);
