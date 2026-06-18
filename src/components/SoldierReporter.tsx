@@ -152,11 +152,12 @@ useEffect(() => {
             <h2 className="text-lg font-bold text-slate-800">שלום, {currentUser.fullName}</h2>
            <p className="text-xs text-slate-500 font-medium">
   שייך ל: <span className="text-military-700">{currentUser.unit}</span> · תפקיד:{" "}
-  {currentUser.role === "commander"
-    ? "מפקד / מנהל"
-    : currentUser.role === "adjutant_officer"
-    ? "שליש / צפייה"
-    : "חייל מדווח"}
+  {currentUser.medicalRole ||
+    (currentUser.role === "commander"
+      ? "מפקד / מנהל"
+      : currentUser.role === "adjutant_officer"
+      ? "שליש / צפייה"
+      : "חייל מדווח")}
 </p>
           </div>
         </div>
