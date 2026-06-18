@@ -1981,7 +1981,7 @@ const soldierReports = Array.from(latestReportByDate.values());
         {!isAttendanceGridCollapsed && (
           <>
             <div className="overflow-x-auto">
-            <table className="w-full text-right border-collapse text-xs">
+  <table className="min-w-[1200px] text-right border-collapse" dir="rtl">
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 font-bold bg-slate-50/40">
                   <th className="px-5 py-3.5">שם מלא</th>
