@@ -2325,26 +2325,43 @@ const soldierReports = Array.from(latestReportByDate.values());
           <table className="w-full text-right border-collapse" dir="rtl">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 text-xs font-black">
-                <th onClick={() => handleDirectorySort("fullName")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap">
-  שם החייל / פירוט סגל {directorySortField === "fullName" ? (directorySortDirection === "asc" ? "▲" : "▼") : ""}
+                <th onClick={() => handleDirectorySort("fullName")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
+  שם החייל / פירוט סגל{" "}
+  <span className="text-slate-400">
+    {directorySortField === "fullName" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
+  </span>
 </th>
 
-<th onClick={() => handleDirectorySort("unit")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap">
-  פלוגה / מחלקה {directorySortField === "unit" ? (directorySortDirection === "asc" ? "▲" : "▼") : ""}
+<th onClick={() => handleDirectorySort("unit")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
+  פלוגה / מחלקה{" "}
+  <span className="text-slate-400">
+    {directorySortField === "unit" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
+  </span>
 </th>
 
-<th onClick={() => handleDirectorySort("personalId")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap">
-  מספר אישי / ת.ז {directorySortField === "personalId" ? (directorySortDirection === "asc" ? "▲" : "▼") : ""}
+<th onClick={() => handleDirectorySort("personalId")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
+  מספר אישי / ת.ז{" "}
+  <span className="text-slate-400">
+    {directorySortField === "personalId" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
+  </span>
 </th>
 
-<th className="px-5 py-3.5 whitespace-nowrap">מספר טלפון</th>
-
-<th onClick={() => handleDirectorySort("medicalRole")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap">
-  תפקיד סגל ורפואה {directorySortField === "medicalRole" ? (directorySortDirection === "asc" ? "▲" : "▼") : ""}
+<th className="px-5 py-3.5 whitespace-nowrap">
+  מספר טלפון
 </th>
 
-<th onClick={() => handleDirectorySort("role")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap">
-  סוג תפקיד {directorySortField === "role" ? (directorySortDirection === "asc" ? "▲" : "▼") : ""}
+<th onClick={() => handleDirectorySort("medicalRole")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
+  תפקיד סגל ורפואה{" "}
+  <span className="text-slate-400">
+    {directorySortField === "medicalRole" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
+  </span>
+</th>
+
+<th onClick={() => handleDirectorySort("role")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
+  סוג תפקיד{" "}
+  <span className="text-slate-400">
+    {directorySortField === "role" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
+  </span>
 </th>
                 <th className="px-5 py-3.5 text-left pl-10">פעולה / יצירת קשר מהירה</th>
               </tr>
