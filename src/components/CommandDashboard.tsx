@@ -119,6 +119,7 @@ export default function CommandDashboard({
   const [directorySortField, setDirectorySortField] = useState<
   "fullName" | "unit" | "medicalRole" | "role" | "personalId"
 >("fullName");
+  const [directorySortDirection, setDirectorySortDirection] = useState<"asc" | "desc">("asc");
   const handleDirectorySort = (
   field: "fullName" | "unit" | "medicalRole" | "role" | "personalId"
 ) => {
@@ -132,7 +133,6 @@ export default function CommandDashboard({
   }
 };
 
-const [directorySortDirection, setDirectorySortDirection] = useState<"asc" | "desc">("asc");
 
   // Edit Roster Report State
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
