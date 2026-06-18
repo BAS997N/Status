@@ -2716,7 +2716,7 @@ const soldierReports = Array.from(latestReportByDate.values());
 
       await onAdminSaveReport(dataToSave);
 
-      console.log("Report saved successfully:", dataToSave);
+    
 
       setIsReportModalOpen(false);
       setEditingReportData(null);
