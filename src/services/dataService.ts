@@ -232,7 +232,7 @@ export const dataService = {
   } catch (error) {
     handleFirestoreError(
       error,
-      OperationType.READ,
+      OperationType.LIST,
       "system_logs"
     );
     return [];
