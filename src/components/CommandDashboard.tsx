@@ -931,6 +931,7 @@ const handleExportSummaryCSV = () => {
       : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
   }`}
 >
+  <Shield className="w-4 h-4 text-red-500" />
   <span>יומן מערכת</span>
 </button>
 )}
