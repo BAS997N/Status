@@ -557,15 +557,6 @@ setUserProfile(newProfile);
   cutOrderEndDate?: string
 ) => {
   if (!userProfile) return;
-    console.log("SUBMIT REPORT DEBUG", {
-  status,
-  location,
-  note,
-  reportDate,
-  cutOrderStartDate,
-  cutOrderEndDate,
-  userProfile
-});
 
   const createTimestampForDate = (dateStr?: string) => {
     const selectedDate = dateStr || new Date().toISOString().split("T")[0];
@@ -627,13 +618,13 @@ setUserProfile(newProfile);
         ...buildReportPayload(dateStr),
         note: note || `חיתוך צו מתאריך ${cutOrderStartDate} עד ${cutOrderEndDate}`,
       });
-      console.log("CUT ORDER REPORT CREATED FOR", dateStr);
+    
 
       current.setDate(current.getDate() + 1);
     }
   } else {
     await dataService.createAttendanceReport(buildReportPayload(reportDate));
-    console.log("REGULAR REPORT CREATED");
+   
   }
 
   await refreshReports();
@@ -747,7 +738,7 @@ await signOut(secondaryAuth);
   createdByName: userProfile?.name || "לא ידוע",
   createdByRole: userProfile?.role || "unknown",
 });
-      console.log("OTHER REPORT CREATED");
+      
     }
     await refreshReports();
     await refreshNotifications();
