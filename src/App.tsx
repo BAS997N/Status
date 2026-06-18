@@ -794,12 +794,12 @@ await signOut(secondaryAuth);
               >
                 <div className="bg-slate-900/60 p-4 border border-slate-800 rounded-xl text-xs text-slate-300 leading-relaxed space-y-1.5 shadow-inner">
                   <span className="font-bold text-emerald-400 block mb-1 text-sm">הזדהות בסגל הרפואי:</span>
-                  <p>• התחברות באמצעות הזנת **מספר אישי** או **תעודת זהות** שנקבעו עבורך על ידי מנהלי המערכת.</p>
+                  <p>• התחברות באמצעות הזנת **מספר אישי** שנקבעו עבורך על ידי מנהלי המערכת.</p>
                   <p>• כניסה מוגנת וקבועה – המכשיר הנוכחי יישאר מחובר ומאובטח לעמוד האישי שלך!</p>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-200">מספר זיהוי (מספר אישי או ת.ז)</label>
+                  <label className="block text-xs font-bold text-slate-200">מספר זיהוי (מספר אישי)</label>
                   <div className="relative">
                     <input
                       type="text"
