@@ -2402,7 +2402,7 @@ const soldierReports = Array.from(latestReportByDate.values());
                       </td>
 
                       {/* Role */}
-                      <td className="px-5 py-4">
+                      <td className="min-w-[120px] px-3">
                         {soldier.role === "commander" ? (
                           <span className="px-2 py-0.5 rounded text-[9px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
                             מפקד / מנהל
