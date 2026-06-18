@@ -2318,7 +2318,33 @@ const soldierReports = Array.from(latestReportByDate.values());
           </button>
         )}
       </div>
+<div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-2 text-right" dir="rtl">
+  <select
+    value={directorySortField}
+    onChange={(e) =>
+      setDirectorySortField(
+        e.target.value as "fullName" | "unit" | "medicalRole" | "role" | "personalId"
+      )
+    }
+    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold"
+  >
+    <option value="fullName">מיון לפי שם</option>
+    <option value="unit">מיון לפי פלוגה / מחלקה</option>
+    <option value="personalId">מיון לפי מספר אישי</option>
+    <option value="medicalRole">מיון לפי תפקיד סגל ורפואה</option>
+    <option value="role">מיון לפי סוג תפקיד</option>
+  </select>
 
+  <button
+    onClick={() =>
+      setDirectorySortDirection(directorySortDirection === "asc" ? "desc" : "asc")
+    }
+    className="bg-slate-800 text-white rounded-lg px-3 py-2 text-xs font-bold"
+  >
+    {directorySortDirection === "asc" ? "סדר עולה ▲" : "סדר יורד ▼"}
+  </button>
+</div>
+      
       {/* Directory Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
