@@ -116,6 +116,23 @@ export default function CommandDashboard({
   reportId: string;
   soldierName: string;
 } | null>(null);
+  const [directorySortField, setDirectorySortField] = useState<
+  "fullName" | "unit" | "medicalRole" | "role" | "personalId"
+>("fullName");
+  const handleDirectorySort = (
+  field: "fullName" | "unit" | "medicalRole" | "role" | "personalId"
+) => {
+  if (directorySortField === field) {
+    setDirectorySortDirection(
+      directorySortDirection === "asc" ? "desc" : "asc"
+    );
+  } else {
+    setDirectorySortField(field);
+    setDirectorySortDirection("asc");
+  }
+};
+
+const [directorySortDirection, setDirectorySortDirection] = useState<"asc" | "desc">("asc");
 
   // Edit Roster Report State
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -2308,28 +2325,56 @@ const soldierReports = Array.from(latestReportByDate.values());
           <table className="w-full text-right border-collapse" dir="rtl">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 text-xs font-black">
-                <th className="px-5 py-3.5">שם החייל / פירוט סגל</th>
-                <th className="px-5 py-3.5">פלוגה / מחלקה</th>
-                <th className="px-5 py-3.5">מספר אישי / ת.ז</th>
-                <th className="px-5 py-3.5">מספר טלפון</th>
-                <th className="px-5 py-3.5">תפקיד סגל ורפואה</th>
-                <th className="px-5 py-3.5">סוג תפקיד</th>
+                <th onClick={() => handleDirectorySort("fullName")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap">
+  שם החייל / פירוט סגל {directorySortField === "fullName" ? (directorySortDirection === "asc" ? "▲" : "▼") : ""}
+</th>
+
+<th onClick={() => handleDirectorySort("unit")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap">
+  פלוגה / מחלקה {directorySortField === "unit" ? (directorySortDirection === "asc" ? "▲" : "▼") : ""}
+</th>
+
+<th onClick={() => handleDirectorySort("personalId")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap">
+  מספר אישי / ת.ז {directorySortField === "personalId" ? (directorySortDirection === "asc" ? "▲" : "▼") : ""}
+</th>
+
+<th className="px-5 py-3.5 whitespace-nowrap">מספר טלפון</th>
+
+<th onClick={() => handleDirectorySort("medicalRole")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap">
+  תפקיד סגל ורפואה {directorySortField === "medicalRole" ? (directorySortDirection === "asc" ? "▲" : "▼") : ""}
+</th>
+
+<th onClick={() => handleDirectorySort("role")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap">
+  סוג תפקיד {directorySortField === "role" ? (directorySortDirection === "asc" ? "▲" : "▼") : ""}
+</th>
                 <th className="px-5 py-3.5 text-left pl-10">פעולה / יצירת קשר מהירה</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {(() => {
-                const filtered = allSoldiers.filter(s => {
-                  const matchesSearch = 
-                    s.fullName.toLowerCase().includes(directorySearchQuery.toLowerCase()) ||
-                    (s.personalId && s.personalId.includes(directorySearchQuery)) ||
-                    (s.phoneNumber && s.phoneNumber.includes(directorySearchQuery)) ||
-                    s.unit.toLowerCase().includes(directorySearchQuery.toLowerCase());
-                    
-                  const matchesUnit = directorySelectedUnit === "all" || s.unit === directorySelectedUnit;
-                  
-                  return matchesSearch && matchesUnit;
-                });
+                const filtered = allSoldiers
+  .filter(s => {
+    const query = directorySearchQuery.toLowerCase();
+
+    const matchesSearch =
+      s.fullName.toLowerCase().includes(query) ||
+      (s.personalId && s.personalId.includes(directorySearchQuery)) ||
+      (s.phoneNumber && s.phoneNumber.includes(directorySearchQuery)) ||
+      s.unit.toLowerCase().includes(query) ||
+      (s.medicalRole && s.medicalRole.toLowerCase().includes(query));
+
+    const matchesUnit =
+      directorySelectedUnit === "all" || s.unit === directorySelectedUnit;
+
+    return matchesSearch && matchesUnit;
+  })
+  .sort((a, b) => {
+    const aValue = String((a as any)[directorySortField] || "");
+    const bValue = String((b as any)[directorySortField] || "");
+
+    return directorySortDirection === "asc"
+      ? aValue.localeCompare(bValue, "he")
+      : bValue.localeCompare(aValue, "he");
+  });
 
                 if (filtered.length === 0) {
                   return (
