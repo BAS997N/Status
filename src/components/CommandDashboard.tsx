@@ -2121,9 +2121,9 @@ const soldierReports = Array.from(latestReportByDate.values());
   <button
     onClick={() =>
       setReportToReset({
-        reportId: latestTodayReport.reportId,
-        soldierName: profile.fullName,
-      })
+  reportId: latestTodayReport.reportId || (latestTodayReport as any).id,
+  soldierName: profile.fullName,
+})
     }
     className="text-[10px] bg-red-50 hover:bg-red-100 text-red-700 font-bold py-1 px-2 rounded-md transition cursor-pointer border border-red-200 inline-flex items-center justify-center gap-1 shadow-xs"
   >
@@ -2862,7 +2862,12 @@ const soldierReports = Array.from(latestReportByDate.values());
           <button
             onClick={async () => {
               if (!onDeleteReport || !reportToReset) return;
-              await onDeleteReport(reportToReset.reportId);
+             if (!reportToReset.reportId) {
+  alert("לא נמצא מזהה דיווח למחיקה");
+  return;
+}
+
+await onDeleteReport(reportToReset.reportId);
               setReportToReset(null);
             }}
             className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg border-none transition cursor-pointer shadow-sm"
