@@ -436,8 +436,6 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
     await signInWithEmailAndPassword(auth, authEmail, cleanCode);
   }
 
-  localStorage.setItem("idf_active_user_id", foundProfile.userId);return;
-    }
 
     localStorage.setItem("idf_active_user_id", foundProfile.userId);
     localStorage.setItem("idf_active_personal_id", foundProfile.personalId || cleanId);
