@@ -398,7 +398,7 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
   const cleanCode = personalCodeInput.trim();
 
   if (!cleanId) {
-    setLoginError("נא להזין מספר אישי או תעודת זהות תקינה");
+    setLoginError("נא להזין מספר אישי תקין");
     return;
   }
 
