@@ -420,18 +420,23 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
   setLoading(true);
 
   try {
-    if (isFirebaseActive() && auth) {
-      const authEmail = buildAuthEmail(cleanId);
-      await signInWithEmailAndPassword(auth, authEmail, cleanCode);
-    }
+  const foundProfile = await dataService.findProfileByPersonalId(cleanId);
 
-    const foundProfile = await dataService.findProfileByPersonalId(cleanId);
+  if (!foundProfile) {
+    setRegPersonalId(cleanId);
+    setPersonalIdInput(cleanId);
+    setLoginError("");
+    setIsRegisteringId(true);
+    setLoading(false);
+    return;
+  }
 
-    if (!foundProfile) {
-  setRegPersonalId(personalId.trim());
-  setLoginError("");
-  setIsRegistering(true);
-  return;
+  if (isFirebaseActive() && auth) {
+    const authEmail = buildAuthEmail(cleanId);
+    await signInWithEmailAndPassword(auth, authEmail, cleanCode);
+  }
+
+  localStorage.setItem("idf_active_user_id", foundProfile.userId);return;
     }
 
     localStorage.setItem("idf_active_user_id", foundProfile.userId);
