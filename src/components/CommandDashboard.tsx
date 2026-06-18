@@ -2019,7 +2019,7 @@ const soldierReports = Array.from(latestReportByDate.values());
                       {/* תפקיד - medicalRole */}
                       <td className="px-5 py-4">
                         {profile.medicalRole ? (
-                          <span className="px-2 py-1 bg-slate-100 border border-slate-200 text-xs font-bold rounded text-slate-800">
+                          <className="inline-flex items-center justify-center min-w-[95px] px-2 py-1 text-[11px] font-black leading-tight text-center whitespace-nowrap rounded-md">
                             {profile.medicalRole}
                           </span>
                         ) : (
