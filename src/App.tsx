@@ -428,8 +428,10 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
     const foundProfile = await dataService.findProfileByPersonalId(cleanId);
 
     if (!foundProfile) {
-      setLoginError("התחברת בהצלחה, אך לא נמצא פרופיל משתמש במערכת. פנה למנהל המערכת.");
-      return;
+  setRegPersonalId(personalId.trim());
+  setLoginError("");
+  setIsRegistering(true);
+  return;
     }
 
     localStorage.setItem("idf_active_user_id", foundProfile.userId);
