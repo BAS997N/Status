@@ -122,6 +122,17 @@ const [showOnlyMissingReports, setShowOnlyMissingReports] = useState(false);
   "fullName" | "unit" | "medicalRole" | "role" | "personalId"
 >("fullName");
   const [directorySortDirection, setDirectorySortDirection] = useState<"asc" | "desc">("asc");
+  const [summarySortField, setSummarySortField] = useState<"fullName" | "medicalRole">("fullName");
+const [summarySortDirection, setSummarySortDirection] = useState<"asc" | "desc">("asc");
+
+const handleSummarySort = (field: "fullName" | "medicalRole") => {
+  if (summarySortField === field) {
+    setSummarySortDirection(summarySortDirection === "asc" ? "desc" : "asc");
+  } else {
+    setSummarySortField(field);
+    setSummarySortDirection("asc");
+  }
+};
   const handleDirectorySort = (
   field: "fullName" | "unit" | "medicalRole" | "role" | "personalId"
 ) => {
@@ -1271,8 +1282,21 @@ const handleExportSummaryCSV = () => {
       <table className="w-full text-right border-collapse text-xs">
         <thead className="bg-slate-50 text-slate-600 font-black">
           <tr>
-            <th className="px-4 py-3">שם חייל</th>
-            <th className="px-4 py-3">יחידה</th>
+            <th
+  onClick={() => handleSummarySort("fullName")}
+  className="px-4 py-3 cursor-pointer whitespace-nowrap"
+>
+  שם חייל {summarySortField === "fullName" ? (summarySortDirection === "asc" ? "▲" : "▼") : "↕"}
+</th>
+
+<th
+  onClick={() => handleSummarySort("medicalRole")}
+  className="px-4 py-3 cursor-pointer whitespace-nowrap"
+>
+  תפקיד {summarySortField === "medicalRole" ? (summarySortDirection === "asc" ? "▲" : "▼") : "↕"}
+</th>
+
+<th className="px-4 py-3">יחידה</th>
             <th className="px-4 py-3">סה״כ ימים</th>
             <th className="px-4 py-3">בבסיס</th>
             <th className="px-4 py-3">בבית / אפטר</th>
@@ -1286,8 +1310,23 @@ const handleExportSummaryCSV = () => {
 
         <tbody className="divide-y divide-slate-100">
           {allSoldiers
-            .filter((soldier) => !soldier.isDischarged)
-            .map((soldier) => {
+  .filter((soldier) => !soldier.isDischarged)
+  .sort((a, b) => {
+    const aValue =
+      summarySortField === "medicalRole"
+        ? a.medicalRole || ""
+        : a.fullName || "";
+
+    const bValue =
+      summarySortField === "medicalRole"
+        ? b.medicalRole || ""
+        : b.fullName || "";
+
+    return summarySortDirection === "asc"
+      ? aValue.localeCompare(bValue, "he")
+      : bValue.localeCompare(aValue, "he");
+  })
+  .map((soldier) => {
               const filteredReports = reports.filter((report) => {
   const sameSoldier =
     report.userId === soldier.userId ||
@@ -1336,7 +1375,8 @@ const soldierReports = Array.from(latestReportByDate.values());
               return (
                 <tr key={soldier.userId} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-bold text-slate-800">{soldier.fullName}</td>
-                  <td className="px-4 py-3 text-slate-500">{soldier.unit}</td>
+<td className="px-4 py-3 text-slate-600 font-bold">{soldier.medicalRole || "—"}</td>
+<td className="px-4 py-3 text-slate-500">{soldier.unit}</td>
                   <td className="px-4 py-3 font-black text-slate-800">{total}</td>
                   <td className="px-4 py-3 text-emerald-700 font-bold">{counts.base}</td>
                   <td className="px-4 py-3 text-indigo-700 font-bold">{counts.home}</td>
