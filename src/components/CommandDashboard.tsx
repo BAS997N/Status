@@ -1313,10 +1313,12 @@ const handleExportSummaryCSV = () => {
   .sort((a, b) => {
   if (summarySortField === "medicalRole") {
     const normalizeRole = (role: string = "") =>
-      role.replace(/[״"]/g, '"').trim();
+      role
+        .replace(/[״"׳']/g, "")
+        .trim();
 
     const roleOrder: Record<string, number> = {
-      'מ"פ רפואה': 1,
+      "מפ רפואה": 1,
       "מפקד/ת תאגד": 2,
       "רופא/ה": 3,
       "פרמדיק/ית": 4,
@@ -1326,20 +1328,24 @@ const handleExportSummaryCSV = () => {
       "חייל/ת מדווח/ת": 8,
     };
 
-    const aOrder = roleOrder[normalizeRole(a.medicalRole || "")] ?? 999;
-    const bOrder = roleOrder[normalizeRole(b.medicalRole || "")] ?? 999;
+    const aRole = normalizeRole(a.medicalRole || "");
+    const bRole = normalizeRole(b.medicalRole || "");
 
-    return summarySortDirection === "asc"
-      ? aOrder - bOrder
-      : bOrder - aOrder;
+    const aOrder = roleOrder[aRole] ?? 999;
+    const bOrder = roleOrder[bRole] ?? 999;
+
+    if (aOrder !== bOrder) {
+      return summarySortDirection === "asc"
+        ? aOrder - bOrder
+        : bOrder - aOrder;
+    }
+
+    return (a.fullName || "").localeCompare(b.fullName || "", "he");
   }
 
-  const aValue = a.fullName || "";
-  const bValue = b.fullName || "";
-
   return summarySortDirection === "asc"
-    ? aValue.localeCompare(bValue, "he")
-    : bValue.localeCompare(aValue, "he");
+    ? (a.fullName || "").localeCompare(b.fullName || "", "he")
+    : (b.fullName || "").localeCompare(a.fullName || "", "he");
 })
   .map((soldier) => {
     const filteredReports = reports.filter((report) => {
