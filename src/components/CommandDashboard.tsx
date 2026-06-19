@@ -1310,35 +1310,37 @@ const handleExportSummaryCSV = () => {
 
         <tbody className="divide-y divide-slate-100">
           {allSoldiers
-  .filter((soldier) => !soldier.isDischarged)
   .sort((a, b) => {
-    if (summarySortField === "medicalRole") {
-      const roleOrder: Record<string, number> = {
-  "מ"פ רפואה": 1,
-  "מפקד/ת תאגד": 2,
-  "רופא/ה": 3,
-  "פרמדיק/ית": 4,
-  "מנהל אירוע": 5,
-  "חובש/ת": 6,
-  "נהג/ת אמבולנס": 7,
-  "חייל/ת מדווח/ת": 8,
-};
+  if (summarySortField === "medicalRole") {
+    const normalizeRole = (role: string = "") =>
+      role.replace(/[״"]/g, '"').trim();
 
-      const aOrder = roleOrder[a.medicalRole || ""] ?? 999;
-      const bOrder = roleOrder[b.medicalRole || ""] ?? 999;
+    const roleOrder: Record<string, number> = {
+      'מ"פ רפואה': 1,
+      "מפקד/ת תאגד": 2,
+      "רופא/ה": 3,
+      "פרמדיק/ית": 4,
+      "מנהל אירוע": 5,
+      "חובש/ת": 6,
+      "נהג/ת אמבולנס": 7,
+      "חייל/ת מדווח/ת": 8,
+    };
 
-      return summarySortDirection === "asc"
-        ? aOrder - bOrder
-        : bOrder - aOrder;
-    }
-
-    const aValue = a.fullName || "";
-    const bValue = b.fullName || "";
+    const aOrder = roleOrder[normalizeRole(a.medicalRole || "")] ?? 999;
+    const bOrder = roleOrder[normalizeRole(b.medicalRole || "")] ?? 999;
 
     return summarySortDirection === "asc"
-      ? aValue.localeCompare(bValue, "he")
-      : bValue.localeCompare(aValue, "he");
-  })
+      ? aOrder - bOrder
+      : bOrder - aOrder;
+  }
+
+  const aValue = a.fullName || "";
+  const bValue = b.fullName || "";
+
+  return summarySortDirection === "asc"
+    ? aValue.localeCompare(bValue, "he")
+    : bValue.localeCompare(aValue, "he");
+})
   .map((soldier) => {
     const filteredReports = reports.filter((report) => {
       const sameSoldier =
