@@ -1314,15 +1314,15 @@ const handleExportSummaryCSV = () => {
   .sort((a, b) => {
     if (summarySortField === "medicalRole") {
       const roleOrder: Record<string, number> = {
-        "מ״פ רפואה": 1,
-        "מפקד/ת תאג״ד": 2,
-        "רופא/ה צבאי/ת": 3,
-        "פרמדיק/ית": 4,
-        "מנהל אירוע": 5,
-        "חובש/ת": 6,
-        "נהג/ת אמבולנס": 7,
-        "חייל/ת מדווח/ת": 8,
-      };
+  "מפ רפואה": 1,
+  "מפקד/ת תאגד": 2,
+  "רופא/ה": 3,
+  "פרמדיק/ית": 4,
+  "מנהל אירוע": 5,
+  "חובש/ת": 6,
+  "נהג/ת אמבולנס": 7,
+  "חייל/ת מדווח/ת": 8,
+};
 
       const aOrder = roleOrder[a.medicalRole || ""] ?? 999;
       const bOrder = roleOrder[b.medicalRole || ""] ?? 999;
