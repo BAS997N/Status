@@ -95,59 +95,119 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const [customRoles, setCustomRoles] = useState<string[]>([]);
 
   useEffect(() => {
+  const loadMedicalSettings = async () => {
     const unitsKey = "idf_medical_units_list";
     const rolesKey = "idf_custom_roles_list";
-    
-    let storedUnits = localStorage.getItem(unitsKey);
-    let storedRoles = localStorage.getItem(rolesKey);
-    
-    let finalUnits = [];
-    let finalRoles = [];
-    
-    if (!storedUnits) {
-      finalUnits = [
-        "חוליית רפואה גדודית",
-        "מחלקת פינוי וטראומה",
-        "צוות טיפול נמרץ",
-        "מרפאת בסיס קדמית",
-        "סגל ופיקוד רפואי",
-        "חוליית אפידמיולוגיה",
-        "בית חולים שדה"
-      ];
-      localStorage.setItem(unitsKey, JSON.stringify(finalUnits));
-    } else {
-      finalUnits = JSON.parse(storedUnits);
-    }
-    
-    if (!storedRoles) {
-      finalRoles = [
-        "רופא/ה צבאי/ת",
-        "פרמדיק/ית",
-        "חובש/ת",
-        "סניטר/ית",
-        "נהג/ת אמבולנס",
-        "אח/ות צבאי/ת",
-        "מפקד/ת תאג״ד",
-        "חייל/ת מדווח/ת"
-      ];
-      localStorage.setItem(rolesKey, JSON.stringify(finalRoles));
-    } else {
-      finalRoles = JSON.parse(storedRoles);
-    }
-    
-    setMedicalUnits(finalUnits);
-    setCustomRoles(finalRoles);
-    if (finalUnits.length > 0) {
-      setRegUnit(finalUnits[0]);
-    }
-  }, []);
 
-  const handleUpdateMedicalSettings = (newUnits: string[], newRoles: string[]) => {
+    const defaultUnits = [
+      "חוליית רפואה גדודית",
+      "מחלקת פינוי וטראומה",
+      "צוות טיפול נמרץ",
+      "מרפאת בסיס קדמית",
+      "סגל ופיקוד רפואי",
+      "חוליית אפידמיולוגיה",
+      "בית חולים שדה",
+    ];
+
+    const defaultRoles = [
+      "רופא/ה צבאי/ת",
+      "פרמדיק/ית",
+      "חובש/ת",
+      "סניטר/ית",
+      "נהג/ת אמבולנס",
+      "אח/ות צבאי/ת",
+      "מפקד/ת תאג״ד",
+      "חייל/ת מדווח/ת",
+    ];
+
+    try {
+      if (isFirebaseActive() && db) {
+        const snap = await getDoc(doc(db, "settings", "medical_config"));
+
+        if (snap.exists()) {
+          const data = snap.data();
+
+          const finalUnits =
+            Array.isArray(data.medicalUnits) && data.medicalUnits.length > 0
+              ? data.medicalUnits
+              : defaultUnits;
+
+          const finalRoles =
+            Array.isArray(data.customRoles) && data.customRoles.length > 0
+              ? data.customRoles
+              : defaultRoles;
+
+          setMedicalUnits(finalUnits);
+          setCustomRoles(finalRoles);
+
+          if (finalUnits.length > 0) {
+            setRegUnit(finalUnits[0]);
+          }
+
+          return;
+        }
+
+        await setDoc(doc(db, "settings", "medical_config"), {
+          medicalUnits: defaultUnits,
+          customRoles: defaultRoles,
+          updatedAt: new Date().toISOString(),
+        });
+
+        setMedicalUnits(defaultUnits);
+        setCustomRoles(defaultRoles);
+        setRegUnit(defaultUnits[0]);
+        return;
+      }
+
+      const storedUnits = localStorage.getItem(unitsKey);
+      const storedRoles = localStorage.getItem(rolesKey);
+
+      const finalUnits = storedUnits ? JSON.parse(storedUnits) : defaultUnits;
+      const finalRoles = storedRoles ? JSON.parse(storedRoles) : defaultRoles;
+
+      localStorage.setItem(unitsKey, JSON.stringify(finalUnits));
+      localStorage.setItem(rolesKey, JSON.stringify(finalRoles));
+
+      setMedicalUnits(finalUnits);
+      setCustomRoles(finalRoles);
+
+      if (finalUnits.length > 0) {
+        setRegUnit(finalUnits[0]);
+      }
+    } catch (error) {
+      console.error("Failed loading medical settings:", error);
+
+      setMedicalUnits(defaultUnits);
+      setCustomRoles(defaultRoles);
+      setRegUnit(defaultUnits[0]);
+    }
+  };
+
+  loadMedicalSettings();
+}, []);
+
+ const handleUpdateMedicalSettings = async (
+  newUnits: string[],
+  newRoles: string[]
+) => {
+  if (isFirebaseActive() && db) {
+    await setDoc(
+      doc(db, "settings", "medical_config"),
+      {
+        medicalUnits: newUnits,
+        customRoles: newRoles,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } else {
     localStorage.setItem("idf_medical_units_list", JSON.stringify(newUnits));
     localStorage.setItem("idf_custom_roles_list", JSON.stringify(newRoles));
-    setMedicalUnits(newUnits);
-    setCustomRoles(newRoles);
-  };
+  }
+
+  setMedicalUnits(newUnits);
+  setCustomRoles(newRoles);
+};
 
   const refreshNotifications = async () => {
     const updated = await dataService.fetchNotifications();
