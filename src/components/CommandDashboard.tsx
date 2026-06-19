@@ -1312,35 +1312,47 @@ const handleExportSummaryCSV = () => {
           {allSoldiers
   .filter((soldier) => !soldier.isDischarged)
   .sort((a, b) => {
-    const aValue =
-      summarySortField === "medicalRole"
-        ? a.medicalRole || ""
-        : a.fullName || "";
+    if (summarySortField === "medicalRole") {
+      const roleOrder: Record<string, number> = {
+        "מפקד/ת תאג״ד": 1,
+        "רופא/ה צבאי/ת": 2,
+        "פרמדיק/ית": 3,
+        "מנהל/ת אירוע": 4,
+        "חובש/ת": 5,
+        "נהג/ת אמבולנס": 6,
+        "חייל/ת מדווח/ת": 7,
+      };
 
-    const bValue =
-      summarySortField === "medicalRole"
-        ? b.medicalRole || ""
-        : b.fullName || "";
+      const aOrder = roleOrder[a.medicalRole || ""] ?? 999;
+      const bOrder = roleOrder[b.medicalRole || ""] ?? 999;
+
+      return summarySortDirection === "asc"
+        ? aOrder - bOrder
+        : bOrder - aOrder;
+    }
+
+    const aValue = a.fullName || "";
+    const bValue = b.fullName || "";
 
     return summarySortDirection === "asc"
       ? aValue.localeCompare(bValue, "he")
       : bValue.localeCompare(aValue, "he");
   })
   .map((soldier) => {
-              const filteredReports = reports.filter((report) => {
-  const sameSoldier =
-    report.userId === soldier.userId ||
-    (report as any).personalId === soldier.personalId;
+    const filteredReports = reports.filter((report) => {
+      const sameSoldier =
+        report.userId === soldier.userId ||
+        (report as any).personalId === soldier.personalId;
 
-  if (!sameSoldier) return false;
+      if (!sameSoldier) return false;
 
-  const reportDate = report.timestamp?.split("T")[0];
+      const reportDate = report.timestamp?.split("T")[0];
 
-  if (summaryStartDate && reportDate < summaryStartDate) return false;
-  if (summaryEndDate && reportDate > summaryEndDate) return false;
+      if (summaryStartDate && reportDate < summaryStartDate) return false;
+      if (summaryEndDate && reportDate > summaryEndDate) return false;
 
-  return true;
-});
+      return true;
+    });
 
 const latestReportByDate = new Map<string, AttendanceReport>();
 
