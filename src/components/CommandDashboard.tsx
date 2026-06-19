@@ -1314,7 +1314,7 @@ const handleExportSummaryCSV = () => {
   .sort((a, b) => {
     if (summarySortField === "medicalRole") {
       const roleOrder: Record<string, number> = {
-  "מפ רפואה": 1,
+  "מ"פ רפואה": 1,
   "מפקד/ת תאגד": 2,
   "רופא/ה": 3,
   "פרמדיק/ית": 4,
