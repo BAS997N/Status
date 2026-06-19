@@ -111,6 +111,8 @@ export default function CommandDashboard({
   const [isLineChartCollapsed, setIsLineChartCollapsed] = useState(false);
   const [isUnitComparisonCollapsed, setIsUnitComparisonCollapsed] = useState(false);
   const [isAttendanceGridCollapsed, setIsAttendanceGridCollapsed] = useState(false);
+  const [attendanceSearchQuery, setAttendanceSearchQuery] = useState("");
+const [showOnlyMissingReports, setShowOnlyMissingReports] = useState(false);
   const [soldierToDelete, setSoldierToDelete] = useState<UserProfile | null>(null);
   const [reportToReset, setReportToReset] = useState<{
   reportId: string;
@@ -1937,6 +1939,24 @@ const soldierReports = Array.from(latestReportByDate.values());
             </h3>
           </div>
           <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3 mr-3">
+  <input
+    type="text"
+    placeholder="חיפוש לפי שם, מספר אישי או תפקיד..."
+    value={attendanceSearchQuery}
+    onChange={(e) => setAttendanceSearchQuery(e.target.value)}
+    className="border border-slate-300 rounded-md px-2 py-1 text-xs w-56"
+  />
+
+  <label className="flex items-center gap-1 text-xs font-bold text-slate-600">
+    <input
+      type="checkbox"
+      checked={showOnlyMissingReports}
+      onChange={(e) => setShowOnlyMissingReports(e.target.checked)}
+    />
+    רק מי שלא דיווח היום
+  </label>
+</div>
             <input 
               type="date" 
               value={selectedDate} 
@@ -2000,7 +2020,22 @@ const soldierReports = Array.from(latestReportByDate.values());
                   </td>
                 </tr>
               ) : (
-                filteredSoldiersStatus.map(({ profile, latestTodayReport }) => {
+                filteredSoldiersStatus
+  .filter(({ profile, latestTodayReport }) => {
+    const query = attendanceSearchQuery.toLowerCase();
+
+    const matchesSearch =
+      !query ||
+      profile.fullName.toLowerCase().includes(query) ||
+      profile.personalId?.includes(attendanceSearchQuery) ||
+      profile.medicalRole?.toLowerCase().includes(query);
+
+    const matchesMissing =
+      !showOnlyMissingReports || !latestTodayReport;
+
+    return matchesSearch && matchesMissing;
+  })
+  .map(({ profile, latestTodayReport }) => {
                   
                   // Detail for status label
                   const hasReportedToday = !!latestTodayReport;
