@@ -965,19 +965,11 @@ const handleExportSummaryCSV = () => {
   }`}
 >
   <Shield className="w-4 h-4 text-red-500" />
-  <span>יומן מערכת</span>
+ <span>יומן מערכת</span>
 </button>
 )}
+
 {currentUser.role !== "adjutant_officer" && (
-  <button
-            onClick={() => setDashboardTab("settings")}
-            className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
-              dashboardTab === "settings"
-                ? "bg-slate-800 text-white shadow-sm"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
-            }`}
-          >
-    {currentUser.role !== "adjutant_officer" && (
   <button
     onClick={() => setDashboardTab("notifications")}
     className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -990,12 +982,22 @@ const handleExportSummaryCSV = () => {
     <span>היסטוריית התראות</span>
   </button>
 )}
-            <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-            </svg>
-            <span>ערוך הגדרות שיוך</span>
-          </button>
-        )}
+
+{currentUser.role !== "adjutant_officer" && (
+  <button
+    onClick={() => setDashboardTab("settings")}
+    className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+      dashboardTab === "settings"
+        ? "bg-slate-800 text-white shadow-sm"
+        : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
+    }`}
+  >
+    <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+    </svg>
+    <span>ערוך הגדרות שיוך</span>
+  </button>
+)}
       </div>
 
       {dashboardTab === "settings" ? (
