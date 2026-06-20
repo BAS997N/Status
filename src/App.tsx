@@ -1194,6 +1194,7 @@ await signOut(secondaryAuth);
   reports={reports}
   attendanceLogs={attendanceLogs}
   systemLogs={systemLogs}
+  notifications={notifications}
   allSoldiers={allUsers}
   onVerifyReport={handleVerifyReport}
   onAdminUpdateSoldier={handleAdminUpdateSoldier}
