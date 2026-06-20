@@ -1146,6 +1146,93 @@ const handleExportSummaryCSV = () => {
         </div>
       ) : dashboardTab === "history" ? (
   <HistoryView logs={attendanceLogs} reports={reports} onDeleteReport={onDeleteReport}/>
+      ) : dashboardTab === "notifications" && currentUser.role !== "adjutant_officer" ? (
+  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-right" dir="rtl">
+    <div className="p-5 border-b border-slate-100">
+      <h2 className="text-lg font-black text-slate-800">היסטוריית התראות</h2>
+      <p className="text-xs text-slate-500 font-semibold mt-1">
+        כל ההתראות שנוצרו בעקבות דיווחי נוכחות חריגים
+      </p>
+    </div>
+
+    <div className="overflow-x-auto">
+      <table className="min-w-[900px] w-full text-xs text-right">
+        <thead className="bg-slate-50 text-slate-600 font-black">
+          <tr>
+            <th className="px-4 py-3">תאריך ושעה</th>
+            <th className="px-4 py-3">חייל</th>
+            <th className="px-4 py-3">יחידה</th>
+            <th className="px-4 py-3">סטטוס</th>
+            <th className="px-4 py-3">מיקום</th>
+            <th className="px-4 py-3">הודעה</th>
+            <th className="px-4 py-3">נקרא</th>
+          </tr>
+        </thead>
+
+        <tbody className="divide-y divide-slate-100">
+          {notifications.length === 0 ? (
+            <tr>
+              <td colSpan={7} className="px-4 py-8 text-center text-slate-400 font-bold">
+                אין התראות להצגה
+              </td>
+            </tr>
+          ) : (
+            notifications.map((notification) => {
+              const statusInfo = ATTENDANCE_STATUS_LABELS[notification.status];
+
+              return (
+                <tr key={notification.notificationId} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-bold text-slate-700">
+                    {notification.timestamp
+                      ? new Date(notification.timestamp).toLocaleString("he-IL")
+                      : "—"}
+                  </td>
+
+                  <td className="px-4 py-3 font-black text-slate-800">
+                    {notification.soldierName || "—"}
+                  </td>
+
+                  <td className="px-4 py-3 text-slate-500">
+                    {notification.unit || "—"}
+                  </td>
+
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full border text-[10px] font-bold ${
+                      statusInfo
+                        ? `${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`
+                        : "bg-slate-50 text-slate-600 border-slate-200"
+                    }`}>
+                      {statusInfo?.label || notification.status || "—"}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-3 text-slate-500">
+                    {notification.location || "—"}
+                  </td>
+
+                  <td className="px-4 py-3 text-slate-600 max-w-[360px]">
+                    {notification.message || "—"}
+                  </td>
+
+                  <td className="px-4 py-3">
+                    {notification.isRead ? (
+                      <span className="text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-md font-bold">
+                        נקרא
+                      </span>
+                    ) : (
+                      <span className="text-rose-700 bg-rose-50 border border-rose-100 px-2 py-1 rounded-md font-bold">
+                        לא נקרא
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
 ) : dashboardTab === "systemlogs" && currentUser.role !== "adjutant_officer" ? (
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-right" dir="rtl">
     <div className="p-5 border-b border-slate-100">
