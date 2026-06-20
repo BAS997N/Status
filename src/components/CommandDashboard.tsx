@@ -31,6 +31,7 @@ import {
   UserRole,
   AttendanceReport, 
   AttendanceStatus, 
+  AppNotification,
   ATTENDANCE_STATUS_LABELS, 
   IDF_UNITS 
 } from "../types";
@@ -57,6 +58,7 @@ interface CommandDashboardProps {
   reports: AttendanceReport[];
   allSoldiers: UserProfile[];
   systemLogs: any[];
+  notifications: AppNotification[];
   onVerifyReport: (reportId: string) => Promise<void>;
   onAdminUpdateSoldier: (profile: UserProfile) => Promise<void>;
   onDeleteSoldier?: (userId: string) => Promise<void>;
@@ -82,6 +84,7 @@ export default function CommandDashboard({
   reports, 
   attendanceLogs,
   systemLogs,
+  notifications,
   allSoldiers, 
   onVerifyReport,
   onAdminUpdateSoldier,
@@ -93,7 +96,7 @@ export default function CommandDashboard({
   onUpdateMedicalSettings
 }: CommandDashboardProps) {
   const [dashboardTab, setDashboardTab] = useState<
-  "attendance" | "directory" | "summary" | "settings" | "history" | "systemlogs"
+  "attendance" | "directory" | "summary" | "settings" | "history" | "systemlogs" | "notifications"
 >("attendance");
   const [directorySearchQuery, setDirectorySearchQuery] = useState("");
   const [directorySelectedUnit, setDirectorySelectedUnit] = useState<string>("all");
@@ -1996,7 +1999,7 @@ const soldierReports = Array.from(latestReportByDate.values());
             <Users className="w-4 h-4 text-military-600" />
             <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
               <span>רשימת נוכחות תאג"ד</span>
-              <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md text-[10px] font-black">({filteredSoldiersStatus.length} חיילים בסגל)</span>
+              <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md text-[10px] font-black">({filteredSoldiersStatus.length} חיילים במצבה)</span>
             </h3>
           </div>
           <div className="flex items-center gap-2">
