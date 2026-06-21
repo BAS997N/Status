@@ -340,7 +340,7 @@ setSystemLogs(updatedSystemLogs);
       actorName: userProfile?.fullName || "משתמש לא ידוע",
       targetUserId: userId,
       targetName: soldierToDelete?.fullName || "לא ידוע",
-      details: "מחיקת חייל מהמערכת",
+      details: `נמחק חייל מהמערכת (${soldierToDelete?.medicalRole || "ללא תפקיד"})`,
     });
 
     const updatedUsers = await dataService.getAllUsers();
@@ -754,7 +754,9 @@ await signOut(secondaryAuth);
   actorName: userProfile?.fullName || "משתמש לא ידוע",
   targetUserId: profileToSave.userId,
   targetName: profileToSave.fullName,
-  details: isNewSoldier ? "הוספת חייל חדש למערכת" : "עריכת פרטי חייל",
+  details: isNewSoldier
+  ? `נוסף חייל חדש (${profileToSave.medicalRole || "ללא תפקיד"})`
+  : `עודכנו פרטי חייל (${profileToSave.medicalRole || "ללא תפקיד"})`,
 });
     const users = await dataService.getAllUsers();
     setAllUsers(users);
