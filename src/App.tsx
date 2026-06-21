@@ -725,6 +725,31 @@ setUserProfile(newProfile);
 
   try {
     const isNewSoldier = profile.userId.startsWith("user_");
+    const oldSoldier = allUsers.find((u) => u.userId === profile.userId);
+
+const changes: string[] = [];
+
+if (!isNewSoldier && oldSoldier) {
+  if (oldSoldier.fullName !== profileToSave.fullName) {
+    changes.push(`שם שונה מ-${oldSoldier.fullName} ל-${profileToSave.fullName}`);
+  }
+
+  if (oldSoldier.phoneNumber !== profileToSave.phoneNumber) {
+    changes.push(`טלפון שונה מ-${oldSoldier.phoneNumber || "לא צוין"} ל-${profileToSave.phoneNumber || "לא צוין"}`);
+  }
+
+  if (oldSoldier.unit !== profileToSave.unit) {
+    changes.push(`שיוך שונה מ-${oldSoldier.unit || "לא צוין"} ל-${profileToSave.unit || "לא צוין"}`);
+  }
+
+  if (oldSoldier.medicalRole !== profileToSave.medicalRole) {
+    changes.push(`תפקיד שונה מ-${oldSoldier.medicalRole || "לא צוין"} ל-${profileToSave.medicalRole || "לא צוין"}`);
+  }
+
+  if (oldSoldier.role !== profileToSave.role) {
+    changes.push(`סוג משתמש שונה מ-${oldSoldier.role || "לא צוין"} ל-${profileToSave.role || "לא צוין"}`);
+  }
+}
 
     if (isNewSoldier && isFirebaseActive() && secondaryAuth) {
       const authEmail = buildAuthEmail(profile.personalId || "");
@@ -756,6 +781,8 @@ await signOut(secondaryAuth);
   targetName: profileToSave.fullName,
   details: isNewSoldier
   ? `נוסף חייל חדש (${profileToSave.medicalRole || "ללא תפקיד"})`
+  : changes.length > 0
+  ? changes.join(" | ")
   : `עודכנו פרטי חייל (${profileToSave.medicalRole || "ללא תפקיד"})`,
 });
     const users = await dataService.getAllUsers();
