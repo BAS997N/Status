@@ -1283,7 +1283,17 @@ const handleExportSummaryCSV = () => {
                   {log.timestamp ? new Date(log.timestamp).toLocaleString("he-IL") : "—"}
                 </td>
                 <td className="px-4 py-3">{log.actorName || "—"}</td>
-                <td className="px-4 py-3 font-black text-slate-800">{log.action || "—"}</td>
+                <td className="px-4 py-3 font-black text-slate-800">
+  {{
+    add_soldier: "הוספת חייל",
+    edit_soldier: "עריכת חייל",
+    delete_soldier: "מחיקת חייל",
+    create_report: "יצירת דיווח",
+    edit_report: "עריכת דיווח",
+    delete_report: "מחיקת דיווח",
+    reset_report: "איפוס דיווח"
+  }[log.action] || log.action}
+</td>
                 <td className="px-4 py-3">{log.targetName || "—"}</td>
                 <td className="px-4 py-3 text-slate-500">{log.details || "—"}</td>
               </tr>
