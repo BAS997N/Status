@@ -747,7 +747,19 @@ if (!isNewSoldier && oldSoldier) {
   }
 
   if (oldSoldier.role !== profileToSave.role) {
-    changes.push(`סוג משתמש שונה מ-${oldSoldier.role || "לא צוין"} ל-${profileToSave.role || "לא צוין"}`);
+    const roleLabels: Record<string, string> = {
+  soldier: "חייל/ת",
+  commander: "מפקד/ת",
+  adjutant_officer: "קצין/ת שלישות"
+};
+
+changes.push(
+  `סוג משתמש שונה מ-${
+    roleLabels[oldSoldier.role] || oldSoldier.role
+  } ל-${
+    roleLabels[profileToSave.role] || profileToSave.role
+  }`
+);
   }
 }
 
