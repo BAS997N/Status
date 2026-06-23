@@ -268,8 +268,19 @@ useEffect(() => {
     דיווח לטווח תאריכים
   </label>
 )}
-           {(status === "cut_order" || (["base", "home"].includes(status) && isDateRangeReport)) && (
+          {(status === "cut_order" || (["base", "home"].includes(status) && isDateRangeReport)) && (
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+
+    {status === "base" && (
+      <div className="md:col-span-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 font-medium">
+        ℹ️ בדיווח "בבסיס" לטווח תאריכים:
+        <br />
+        היום הראשון יסומן כחזרה לבסיס.
+        <br />
+        היום האחרון יסומן כיום יציאה לבית.
+      </div>
+    )}
+
     <div>
       <label className="block text-sm font-bold text-slate-700 mb-2">
         מתאריך
