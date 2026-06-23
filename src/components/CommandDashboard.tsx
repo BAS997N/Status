@@ -1655,7 +1655,7 @@ const soldierReports = Array.from(latestReportByDate.values());
   </div>
 
   <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
-   <Home className="w-5 h-5" />
+   <Users className="w-5 h-5" />
   </div>
 </div>
               
