@@ -374,6 +374,14 @@ const latestTodayReport = soldierReports.find(report =>
   
   const unreportedCount = totalSoldiersCount - reportedTodayCount;
 
+  const returnToBaseTodayCount = reportedTodayList.filter(
+  (s) => s.latestTodayReport?.dayMarker === "return_to_base"
+).length;
+
+const exitHomeTodayCount = reportedTodayList.filter(
+  (s) => s.latestTodayReport?.dayMarker === "exit_home"
+).length;
+
   const statusStats = {
     base: reportedTodayList.filter(s => s.latestTodayReport?.status === "base").length,
     field: reportedTodayList.filter(s => s.latestTodayReport?.status === "field").length,
@@ -1993,6 +2001,26 @@ const soldierReports = Array.from(latestReportByDate.values());
                   {inBaseCount} חיילים
                 </span>
               </div>
+
+              <div className="flex items-center justify-between">
+  <div className="flex items-center gap-1.5">
+    <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+    <span>חוזרים לבסיס היום:</span>
+  </div>
+  <span className="font-bold text-slate-800">
+    {returnToBaseTodayCount} חיילים
+  </span>
+</div>
+
+<div className="flex items-center justify-between">
+  <div className="flex items-center gap-1.5">
+    <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
+    <span>יוצאים לבית היום:</span>
+  </div>
+  <span className="font-bold text-slate-800">
+    {exitHomeTodayCount} חיילים
+  </span>
+</div>
 
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-1.5">
