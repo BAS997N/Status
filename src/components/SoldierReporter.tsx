@@ -44,6 +44,7 @@ export default function SoldierReporter({
 
 const [cutOrderStartDate, setCutOrderStartDate] = useState("");
 const [cutOrderEndDate, setCutOrderEndDate] = useState("");
+const [cutOrderStartDate, setCutOrderStartDate] = useState("");
   
   // Geolocation states
   const [coords, setCoords] = useState<{ lat: number; lng: number } | undefined>(undefined);
@@ -128,7 +129,19 @@ useEffect(() => {
 
     setIsSubmitting(true);
     try {
-      await onSubmitReport(status, location, note, coords, reportDate, cutOrderStartDate, cutOrderEndDate);
+      await onSubmitReport(
+  status,
+  location,
+  note,
+  coords,
+  reportDate,
+  status === "cut_order" || isDateRangeReport
+    ? cutOrderStartDate
+    : undefined,
+  status === "cut_order" || isDateRangeReport
+    ? cutOrderEndDate
+    : undefined
+);
       setNote("");
       setCoords(undefined);
       setGeoState("idle");
@@ -245,7 +258,17 @@ useEffect(() => {
                 })}
               </div>
             </div>
-           {["cut_order", "base", "home"].includes(status) && (
+            {["base", "home"].includes(status) && (
+  <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+    <input
+      type="checkbox"
+      checked={isDateRangeReport}
+      onChange={(e) => setIsDateRangeReport(e.target.checked)}
+    />
+    דיווח לטווח תאריכים
+  </label>
+)}
+           {(status === "cut_order" || (["base", "home"].includes(status) && isDateRangeReport)) && (
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
     <div>
       <label className="block text-sm font-bold text-slate-700 mb-2">
