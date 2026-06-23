@@ -859,7 +859,7 @@ await signOut(secondaryAuth);
   timestamp: new Date(`${reportData.reportDate || new Date().toISOString().split("T")[0]}T12:00:00`).toISOString(),
 
   createdBy: userProfile?.userId || "unknown",
-  createdByName: userProfile?.name || "לא ידוע",
+  createdByName: userProfile?.fullName || "לא ידוע",
   createdByRole: userProfile?.role || "unknown",
 });
       
