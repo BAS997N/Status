@@ -660,9 +660,9 @@ setUserProfile(newProfile);
       : {}),
   });
 
-  if (status === "cut_order") {
+  if (["cut_order", "base", "home"].includes(status)) {
     if (!cutOrderStartDate || !cutOrderEndDate) {
-      alert("יש לבחור תאריך התחלה ותאריך סיום לחיתוך צו");
+      alert("יש לבחור תאריך התחלה ותאריך סיום לדיווח");
       return;
     }
 
@@ -681,7 +681,11 @@ setUserProfile(newProfile);
 
       await dataService.createAttendanceReport({
         ...buildReportPayload(dateStr),
-        note: note || `חיתוך צו מתאריך ${cutOrderStartDate} עד ${cutOrderEndDate}`,
+        note:
+  note ||
+  (status === "cut_order"
+    ? `חיתוך צו מתאריך ${cutOrderStartDate} עד ${cutOrderEndDate}`
+    : `דיווח מתאריך ${cutOrderStartDate} עד ${cutOrderEndDate}`),
       });
     
 
