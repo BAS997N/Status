@@ -660,7 +660,12 @@ setUserProfile(newProfile);
       : {}),
   });
 
-  if (["cut_order", "base", "home"].includes(status)) {
+  const isRangeReport =
+  !!cutOrderStartDate &&
+  !!cutOrderEndDate &&
+  ["cut_order", "base", "home"].includes(status);
+
+if (isRangeReport) {
     if (!cutOrderStartDate || !cutOrderEndDate) {
       alert("יש לבחור תאריך התחלה ותאריך סיום לדיווח");
       return;
