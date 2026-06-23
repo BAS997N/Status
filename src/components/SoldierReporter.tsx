@@ -241,8 +241,8 @@ useEffect(() => {
                 })}
               </div>
             </div>
-            {status === "cut_order" && (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+           {["cut_order", "base", "home"].includes(status) && (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
     <div>
       <label className="block text-sm font-bold text-slate-700 mb-2">
         מתאריך
