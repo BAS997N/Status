@@ -2429,9 +2429,15 @@ const soldierReports = Array.from(latestReportByDate.values());
                       )}
                           {!latestTodayReport && profile.phoneNumber && currentUser.role !== "adjutant_officer" && (
   <a
-    href={`https://wa.me/972${profile.phoneNumber.replace(/\D/g, "").replace(/^0/, "")}?text=${encodeURIComponent(
-      `שלום ${profile.fullName}, טרם ביצעת דיווח נוכחות להיום. נא להיכנס למערכת ולדווח.`
-    )}`}
+    href={`https://wa.me/972${profile.phoneNumber
+  .replace(/\D/g, "")
+  .replace(/^0/, "")}?text=${encodeURIComponent(
+  `שלום ${profile.fullName},
+טרם ביצעת דיווח נוכחות להיום.
+
+נא להיכנס למערכת ולדווח:
+https://bas997n.github.io/Status/`
+)}`}
     target="_blank"
     rel="noopener noreferrer"
     className="text-[10px] bg-green-50 hover:bg-green-100 text-green-700 font-bold py-1 px-2 rounded-md transition cursor-pointer border border-green-200 inline-flex items-center justify-center gap-1 shadow-xs"
