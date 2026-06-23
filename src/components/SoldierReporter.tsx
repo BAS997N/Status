@@ -78,6 +78,10 @@ useEffect(() => {
       setLocation("בא״פ לכיש - בסיס הדרכה");
       break;
 
+      case "cut_order":
+  setLocation("חיתוך צו");
+  break;
+
     default:
       setLocation("");
   }
