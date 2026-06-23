@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AttendanceReport } from "../types";
+import { AttendanceReport, ATTENDANCE_STATUS_LABELS } from "../types";
 import { Clock, FileText, Trash2, X } from "lucide-react";
 
 interface HistoryViewProps {
@@ -97,10 +97,22 @@ const filteredReports = reports.filter(rep =>
                           </td>
 
                           <td className="p-3">
-                            <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold whitespace-nowrap">
-                              {getStatusLabel(rep.status)}
-                            </span>
-                          </td>
+  {(() => {
+    const statusInfo = ATTENDANCE_STATUS_LABELS[rep.status];
+
+    return (
+      <span
+        className={`px-2 py-1 rounded-full font-bold whitespace-nowrap border ${
+          statusInfo
+            ? `${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`
+            : "bg-slate-50 text-slate-600 border-slate-200"
+        }`}
+      >
+        {statusInfo?.label || getStatusLabel(rep.status)}
+      </span>
+    );
+  })()}
+</td>
 
                           <td className="p-3 text-slate-700">
                             {rep.location || "לא צוין"}
