@@ -44,7 +44,7 @@ export default function SoldierReporter({
 
 const [cutOrderStartDate, setCutOrderStartDate] = useState("");
 const [cutOrderEndDate, setCutOrderEndDate] = useState("");
-const [cutOrderStartDate, setCutOrderStartDate] = useState("");
+const [isDateRangeReport, setIsDateRangeReport] = useState(false);
   
   // Geolocation states
   const [coords, setCoords] = useState<{ lat: number; lng: number } | undefined>(undefined);
