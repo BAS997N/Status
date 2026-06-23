@@ -676,16 +676,26 @@ setUserProfile(newProfile);
 
     const current = new Date(start);
 
+    const firstDate = cutOrderStartDate;
+    const lastDate = cutOrderEndDate;
+
     while (current <= end) {
       const dateStr = current.toISOString().split("T")[0];
 
       await dataService.createAttendanceReport({
-        ...buildReportPayload(dateStr),
-        note:
-  note
-    ? `${note} | ${cutOrderStartDate} עד ${cutOrderEndDate}`
-    : `${cutOrderStartDate} עד ${cutOrderEndDate}`,
-      });
+  ...buildReportPayload(dateStr),
+
+  dayMarker:
+    status === "base"
+      ? dateStr === firstDate
+        ? "return_to_base"
+        : dateStr === lastDate
+        ? "exit_home"
+        : undefined
+      : undefined,
+
+  note,
+});
     
 
       current.setDate(current.getDate() + 1);
