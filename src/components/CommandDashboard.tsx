@@ -1741,15 +1741,18 @@ const soldierReports = Array.from(latestReportByDate.values());
                   let badgeColor = "bg-rose-100/80 text-rose-800";
                   let statusText = "טרם דיווח";
                   if (item.status === "home") {
-                    badgeColor = "bg-indigo-100/80 text-indigo-800";
-                    statusText = "בבית";
-                  } else if (item.status === "sick") {
-                    badgeColor = "bg-rose-100/80 text-rose-800";
-                    statusText = "גימלים";
-                  } else if (item.status === "other") {
-                    badgeColor = "bg-slate-100 text-slate-700";
-                    statusText = "אחר";
-                  }
+  badgeColor = "bg-indigo-100/80 text-indigo-800";
+  statusText = "בבית";
+} else if (item.status === "sick") {
+  badgeColor = "bg-rose-100/80 text-rose-800";
+  statusText = "גימלים";
+} else if (item.status === "cut_order") {
+  badgeColor = "bg-red-100/80 text-red-800";
+  statusText = "חיתוך צו";
+} else if (item.status === "other") {
+  badgeColor = "bg-slate-100 text-slate-700";
+  statusText = "אחר";
+}
                   return (
                     <div key={item.profile.userId} className="flex items-center justify-between py-1.5 text-xs">
                       <div className="flex items-center gap-2">
