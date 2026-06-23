@@ -2366,13 +2366,13 @@ const soldierReports = Array.from(latestReportByDate.values());
                       </td>
 
                       {/* Day Marker */}
-<td className="px-5 py-4">
+<td className="px-5 py-4 min-w-[130px]">
   {latestTodayReport?.dayMarker === "return_to_base" ? (
-    <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">
+    <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold whitespace-nowrap">
       ↩️ חזרה לבסיס
     </span>
   ) : latestTodayReport?.dayMarker === "exit_home" ? (
-    <span className="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
+    <span className="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold whitespace-nowrap">
       🏠 יציאה לבית
     </span>
   ) : (
