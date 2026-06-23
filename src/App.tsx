@@ -681,11 +681,7 @@ setUserProfile(newProfile);
 
       await dataService.createAttendanceReport({
         ...buildReportPayload(dateStr),
-        note:
-  note ||
-  (status === "cut_order"
-    ? `חיתוך צו מתאריך ${cutOrderStartDate} עד ${cutOrderEndDate}`
-    : `דיווח מתאריך ${cutOrderStartDate} עד ${cutOrderEndDate}`),
+        note: note || `${cutOrderStartDate} עד ${cutOrderEndDate}`,
       });
     
 
