@@ -2185,13 +2185,14 @@ const soldierReports = Array.from(latestReportByDate.values());
                   <th className="px-5 py-3.5">דיווח ליום {new Date(selectedDate).toLocaleDateString('he-IL', { day: '2-digit', month: 'long', year: 'numeric' })}</th>
                   <th className="px-5 py-3.5">מיקום ושעת חתימה</th>
                   <th className="px-5 py-3.5">הערות דיווח</th>
+                  <th className="px-5 py-3.5">סימון יום</th>
                   <th className="px-5 py-3.5 text-left">סטטוס אישור ופעולות מפקד</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
               {filteredSoldiersStatus.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-slate-400">
+                  <td colSpan={7} className="px-5 py-12 text-center text-slate-400">
                     לא נמצאו חיילים העונים לקריטריוני החיפוש והסינון.
                   </td>
                 </tr>
@@ -2296,6 +2297,21 @@ const soldierReports = Array.from(latestReportByDate.values());
                           <span className="text-slate-400 font-normal italic">אין הערה</span>
                         )}
                       </td>
+
+                      {/* Day Marker */}
+<td className="px-5 py-4">
+  {latestTodayReport?.dayMarker === "return_to_base" ? (
+    <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">
+      ↩️ חזרה לבסיס
+    </span>
+  ) : latestTodayReport?.dayMarker === "exit_home" ? (
+    <span className="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
+      🏠 יציאה לבית
+    </span>
+  ) : (
+    <span className="text-slate-400">—</span>
+  )}
+</td>
 
                       {/* Commander verification and reporting actions */}
                       <td className="px-5 py-4 text-left">
@@ -2633,7 +2649,7 @@ const soldierReports = Array.from(latestReportByDate.values());
                 if (filtered.length === 0) {
                   return (
                     <tr>
-                      <td colSpan={6} className="px-5 py-12 text-center text-slate-450 font-bold bg-slate-50/20 italic">
+                      <td colSpan={7} className="px-5 py-12 text-center text-slate-450 font-bold bg-slate-50/20 italic">
                         לא נמצאו משרתים התואמים את סינוני החיפוש הנוכחיים.
                       </td>
                     </tr>
