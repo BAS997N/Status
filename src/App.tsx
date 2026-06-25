@@ -828,56 +828,54 @@ await signOut(secondaryAuth);
 };
 
   // Admin save or create report on behalf of a soldier
-  const handleAdminSaveReport = async (reportData: {
-    reportId?: string;
-    userId: string;
-    userName: string;
-    unit: string;
-    status: AttendanceStatus;
-    location: string;
-    note?: string;
-    reportDate?: string;
-  }) => {
-    if (reportData.reportId) {
-      await dataService.updateAttendanceReport(
-  reportData.reportId,
-  {
-    status: reportData.status,
-    location: reportData.location,
-    note: reportData.note || "",
-  },
-  userProfile || undefined
-);
-    } else {
-     await dataService.createAttendanceReport({
-  userId: reportData.userId,
-  userName: reportData.userName,
-  unit: reportData.unit,
-  status: reportData.status,
-  location: reportData.location,
-  note: reportData.note || "",
-  timestamp: new Date(`${reportData.reportDate || new Date().toISOString().split("T")[0]}T12:00:00`).toISOString(),
-
-  createdBy: userProfile?.userId || "unknown",
-  createdByName: userProfile?.fullName || "לא ידוע",
-  createdByRole: userProfile?.role || "unknown",
-});
-      
-    }
-    await refreshReports();
-    await refreshNotifications();
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-military-50 flex flex-col items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-military-600 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-sm font-bold text-military-800">טוען מערכת קשר ודיווח...</span>
-        </div>
-      </div>
+const handleAdminSaveReport = async (reportData: {
+  reportId?: string;
+  userId: string;
+  userName: string;
+  unit: string;
+  status: AttendanceStatus;
+  location: string;
+  note?: string;
+  reportDate?: string;
+  dayMarker?: "return_to_base" | "exit_home" | "return_home" | "after_hours";
+  afterHours?: number;
+}) => {
+  if (reportData.reportId) {
+    await dataService.updateAttendanceReport(
+      reportData.reportId,
+      {
+        status: reportData.status,
+        location: reportData.location,
+        note: reportData.note || "",
+        dayMarker: reportData.dayMarker,
+        afterHours: reportData.dayMarker === "after_hours" ? reportData.afterHours : undefined,
+      },
+      userProfile || undefined
     );
+  } else {
+    await dataService.createAttendanceReport({
+      userId: reportData.userId,
+      userName: reportData.userName,
+      unit: reportData.unit,
+      status: reportData.status,
+      location: reportData.location,
+      note: reportData.note || "",
+      timestamp: new Date(
+        `${reportData.reportDate || new Date().toISOString().split("T")[0]}T12:00:00`
+      ).toISOString(),
+
+      dayMarker: reportData.dayMarker,
+      afterHours: reportData.dayMarker === "after_hours" ? reportData.afterHours : undefined,
+
+      createdBy: userProfile?.userId || "unknown",
+      createdByName: userProfile?.fullName || "לא ידוע",
+      createdByRole: userProfile?.role || "unknown",
+    });
   }
+
+  await refreshReports();
+  await refreshNotifications();
+};
 
   // IDF Military and National ID Sign-in Gateway screen
   if (!userProfile) {
