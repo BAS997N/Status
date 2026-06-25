@@ -152,18 +152,20 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
 
   // Edit Roster Report State
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [editingReportData, setEditingReportData] = useState<{
-    reportId?: string;
-    userId: string;
-    userName: string;
-    unit: string;
-    status: AttendanceStatus;
-    location: string;
-    note?: string;
-  } | null>(null);
+ const [editingReportData, setEditingReportData] = useState<{
+  reportId?: string;
+  userId: string;
+  userName: string;
+  unit: string;
+  status: AttendanceStatus;
+  location: string;
+  note?: string;
+  reportDate?: string;
+  dayMarker?: "return_to_base" | "exit_home" | "return_home" | "after_hours";
+  afterHours?: number;
+} | null>(null);
 
-  const defaultShortUnits = [
-    "פלוגה א׳", "פלוגה ב׳", "פלוגה ג׳", "מפקדה", "מפקדת גדוד", "קשר", "רפואה", "טנ״א"
+ const defaultShortUnits = ["תאג״ד"];
   ];
 
   const [selectedUnitsForTrend, setSelectedUnitsForTrend] = useState<string[]>(
