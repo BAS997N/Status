@@ -29,7 +29,8 @@ export interface AttendanceReport {
   note?: string;
   verifiedBy?: string; // commander UID who acknowledged
   verifiedAt?: string;
-  dayMarker?: "return_to_base" | "exit_home";
+  dayMarker?: "return_to_base" | "exit_home" | "return_home" | "after_hours";
+afterHours?: number;
 }
 
 export interface AppNotification {
