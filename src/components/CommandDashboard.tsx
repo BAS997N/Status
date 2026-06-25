@@ -166,7 +166,6 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
 } | null>(null);
 
  const defaultShortUnits = ["תאג״ד"];
-  ];
 
   const [selectedUnitsForTrend, setSelectedUnitsForTrend] = useState<string[]>(
     medicalUnits.length > 0 
@@ -3165,6 +3164,51 @@ https://bas997n.github.io/Status/`
                   </select>
                 </div>
 
+                {/* Day Marker selector */}
+<div className="space-y-1">
+  <label className="block text-xs font-bold text-slate-500">סימון יום</label>
+
+  <select
+    value={editingReportData.dayMarker || ""}
+    onChange={(e) =>
+      setEditingReportData({
+        ...editingReportData,
+        dayMarker: e.target.value
+          ? (e.target.value as "return_to_base" | "exit_home" | "return_home" | "after_hours")
+          : undefined,
+        afterHours: e.target.value === "after_hours" ? editingReportData.afterHours || 4 : undefined,
+      })
+    }
+    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 text-xs font-bold"
+  >
+    <option value="">ללא סימון</option>
+    <option value="return_to_base">חזרה לבסיס</option>
+    <option value="exit_home">יציאה לבית</option>
+    <option value="return_home">חזרה לבית</option>
+    <option value="after_hours">אפטר לכמה שעות</option>
+  </select>
+</div>
+
+{editingReportData.dayMarker === "after_hours" && (
+  <div className="space-y-1">
+    <label className="block text-xs font-bold text-slate-500">משך אפטר בשעות</label>
+
+    <input
+      type="number"
+      min={1}
+      max={24}
+      value={editingReportData.afterHours || 4}
+      onChange={(e) =>
+        setEditingReportData({
+          ...editingReportData,
+          afterHours: Number(e.target.value),
+        })
+      }
+      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold"
+    />
+  </div>
+)}
+                
                 {/* Location text input */}
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-slate-500">מיקום מדויק</label>
