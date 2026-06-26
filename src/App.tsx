@@ -906,10 +906,6 @@ const handleAdminSaveReport = async (reportData: {
   await refreshNotifications();
 };
 
-  await refreshReports();
-  await refreshNotifications();
-};
-
   // IDF Military and National ID Sign-in Gateway screen
   if (!userProfile) {
     return (
