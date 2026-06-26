@@ -226,6 +226,11 @@ useEffect(() => {
       const storedActiveId =
         firebaseUid ||
         localStorage.getItem("idf_active_user_id");
+      console.log("LOAD SESSION:", {
+  firebaseUid,
+  storedActiveId,
+  currentUser: auth?.currentUser?.uid,
+});
 
       const storedPersonalId =
         localStorage.getItem("idf_active_personal_id");
@@ -288,9 +293,11 @@ useEffect(() => {
 
   if (isFirebaseActive()) {
     unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setFirebaseUser(firebaseUser);
-      await loadSession(firebaseUser?.uid || null);
-    });
+  console.log("AUTH STATE:", firebaseUser?.uid || null);
+
+  setFirebaseUser(firebaseUser);
+  await loadSession(firebaseUser?.uid || null);
+});
   } else {
     loadSession();
   }
