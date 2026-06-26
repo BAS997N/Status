@@ -161,6 +161,8 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   location: string;
   note?: string;
   reportDate?: string;
+  rangeStartDate?: string;
+  rangeEndDate?: string;
   dayMarker?: "return_to_base" | "exit_home" | "return_home" | "after_hours";
   afterHours?: number;
 } | null>(null);
