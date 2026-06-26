@@ -286,13 +286,14 @@ useEffect(() => {
     }
   };
 
+  if (isFirebaseActive()) {
   unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-  setFirebaseUser(firebaseUser);
-  await loadSession(firebaseUser?.uid || null);
-});
-  } else {
-    loadSession();
-  }
+    setFirebaseUser(firebaseUser);
+    await loadSession(firebaseUser?.uid || null);
+  });
+} else {
+  loadSession();
+}
 
   return () => {
     if (unsubscribe) unsubscribe();
