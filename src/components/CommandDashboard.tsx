@@ -2418,7 +2418,7 @@ const soldierReports = Array.from(latestReportByDate.values());
                             )
                           ) : null}
 
-                          {currentUser.role !== "adjutant_officer" && (
+                          {currentUser.role === "commander" && (
                             <button
                               onClick={() => {
                                 setEditingReportData({
