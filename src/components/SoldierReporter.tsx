@@ -237,7 +237,9 @@ useEffect(() => {
               </label>
               
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {(Object.keys(ATTENDANCE_STATUS_LABELS) as AttendanceStatus[]).map((st) => {
+                {(Object.keys(ATTENDANCE_STATUS_LABELS) as AttendanceStatus[])
+  .filter(st => st !== "not_on_order")
+  .map((st) => {
                   const item = ATTENDANCE_STATUS_LABELS[st];
                   const isSelected = status === st;
                   return (
