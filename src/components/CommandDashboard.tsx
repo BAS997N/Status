@@ -3111,27 +3111,28 @@ https://bas997n.github.io/Status/`
                 </button>
               </div>
 
-              {/* Form Input Container */}
-              <form
+             {/* Form Input Container */}
+<form
   onSubmit={async (e) => {
     e.preventDefault();
 
     if (!onAdminSaveReport || !editingReportData) return;
 
-   try {
-  const dataToSave = {
-    ...editingReportData,
-    location: editingReportData.location?.trim() || "לא צוין",
-    note: editingReportData.note || "",
-  };
+    try {
+      const dataToSave = {
+        ...editingReportData,
+        location: editingReportData.location?.trim() || "לא צוין",
+        note: editingReportData.note || "",
+      };
 
-  setIsReportModalOpen(false);
-  setEditingReportData(null);
+      setIsReportModalOpen(false);
+      setEditingReportData(null);
 
-  await onAdminSaveReport(dataToSave);
-} catch (err) {
-  console.error("Failed saving attendance report:", err);
-}
+      await onAdminSaveReport(dataToSave);
+    } catch (err) {
+      console.error("Failed saving attendance report:", err);
+    }
+  }}
   className="p-5 space-y-4 font-sans"
 >
                 {/* Status selector */}
