@@ -311,6 +311,19 @@ useEffect(() => {
 setSystemLogs(updatedSystemLogs);
 };
 
+  if (loading) {
+  return (
+    <div className="min-h-screen bg-military-50 flex flex-col items-center justify-center p-4">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-military-600 border-t-transparent rounded-full animate-spin"></div>
+        <span className="text-sm font-bold text-military-800">
+          טוען מערכת קשר ודיווח...
+        </span>
+      </div>
+    </div>
+  );
+}
+
   useEffect(() => {
   if (!userProfile) return;
   refreshReports();
