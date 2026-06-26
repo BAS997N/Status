@@ -23,7 +23,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteField } from "firebase/firestore";
 import { 
   UserProfile, 
   AttendanceReport, 
@@ -889,9 +889,16 @@ const handleAdminSaveReport = async (reportData: {
 if (reportData.dayMarker) {
   updatePayload.dayMarker = reportData.dayMarker;
 }
+    else {
+  updatePayload.dayMarker = deleteField();
+  updatePayload.afterHours = deleteField();
+}
 
 if (reportData.dayMarker === "after_hours") {
   updatePayload.afterHours = reportData.afterHours || 4;
+}
+    else if (reportData.dayMarker) {
+  updatePayload.afterHours = deleteField();
 }
 
 await dataService.updateAttendanceReport(
