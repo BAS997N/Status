@@ -163,7 +163,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   reportDate?: string;
   rangeStartDate?: string;
   rangeEndDate?: string;
-  dayMarker?: "return_to_base" | "exit_home" | "return_home" | "after_hours";
+  dayMarker?: "return_to_base" | "exit_home" | "after_hours";
   afterHours?: number;
 } | null>(null);
 
@@ -2381,10 +2381,6 @@ const soldierReports = Array.from(latestReportByDate.values());
     <span className="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold whitespace-nowrap">
       🏠 יציאה לבית
     </span>
-  ) : latestTodayReport?.dayMarker === "return_home" ? (
-    <span className="px-2 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold whitespace-nowrap">
-      🔙 חזרה לבית
-    </span>
   ) : latestTodayReport?.dayMarker === "after_hours" ? (
     <span className="px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold whitespace-nowrap">
       ⏱️ אפטר {latestTodayReport.afterHours || ""} שעות
@@ -3184,7 +3180,7 @@ https://bas997n.github.io/Status/`
       setEditingReportData({
         ...editingReportData,
         dayMarker: e.target.value
-          ? (e.target.value as "return_to_base" | "exit_home" | "return_home" | "after_hours")
+          ? (e.target.value as "return_to_base" | "exit_home" | "after_hours")
           : undefined,
         afterHours: e.target.value === "after_hours" ? editingReportData.afterHours || 4 : undefined,
       })
@@ -3194,7 +3190,6 @@ https://bas997n.github.io/Status/`
     <option value="">ללא סימון</option>
     <option value="return_to_base">חזרה לבסיס</option>
     <option value="exit_home">יציאה לבית</option>
-    <option value="return_home">חזרה לבית</option>
     <option value="after_hours">אפטר לכמה שעות</option>
   </select>
 </div>
