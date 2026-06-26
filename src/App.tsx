@@ -856,7 +856,7 @@ const handleAdminSaveReport = async (reportData: {
   reportDate?: string;
   rangeStartDate?: string;
   rangeEndDate?: string;
-  dayMarker?: "return_to_base" | "exit_home" | "return_home" | "after_hours";
+  dayMarker?: "return_to_base" | "exit_home" | "after_hours";
   afterHours?: number;
 }) => {
   const buildPayload = (dateStr: string) => ({
