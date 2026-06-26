@@ -56,7 +56,7 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
   
   // App reports state
@@ -226,11 +226,6 @@ useEffect(() => {
       const storedActiveId =
         firebaseUid ||
         localStorage.getItem("idf_active_user_id");
-      console.log("LOAD SESSION:", {
-  firebaseUid,
-  storedActiveId,
-  currentUser: auth?.currentUser?.uid,
-});
 
       const storedPersonalId =
         localStorage.getItem("idf_active_personal_id");
@@ -291,10 +286,7 @@ useEffect(() => {
     }
   };
 
-  if (isFirebaseActive()) {
-    unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-  console.log("AUTH STATE:", firebaseUser?.uid || null);
-
+  unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
   setFirebaseUser(firebaseUser);
   await loadSession(firebaseUser?.uid || null);
 });
