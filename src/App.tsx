@@ -311,19 +311,6 @@ useEffect(() => {
 setSystemLogs(updatedSystemLogs);
 };
 
-  if (loading) {
-  return (
-    <div className="min-h-screen bg-military-50 flex flex-col items-center justify-center p-4">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-military-600 border-t-transparent rounded-full animate-spin"></div>
-        <span className="text-sm font-bold text-military-800">
-          טוען מערכת קשר ודיווח...
-        </span>
-      </div>
-    </div>
-  );
-}
-
   useEffect(() => {
   if (!userProfile) return;
   refreshReports();
@@ -375,6 +362,7 @@ setSystemLogs(updatedSystemLogs);
   }
 };
   
+  
   // Poll reports and notifications every 4 seconds in commander/adjutant mode to pop up real-time soldier reports
   useEffect(() => {
     const poll = async () => {
@@ -415,6 +403,19 @@ setSystemLogs(updatedSystemLogs);
     const interval = setInterval(poll, 4000);
     return () => clearInterval(interval);
   }, [userProfile]);
+
+  if (loading) {
+  return (
+    <div className="min-h-screen bg-military-50 flex flex-col items-center justify-center p-4">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-military-600 border-t-transparent rounded-full animate-spin"></div>
+        <span className="text-sm font-bold text-military-800">
+          טוען מערכת קשר ודיווח...
+        </span>
+      </div>
+    </div>
+  );
+}
 
   // Switch persona (for quick simulation testing in live preview)
   const handleSwitchUser = async (userId: string) => {
