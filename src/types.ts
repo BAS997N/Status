@@ -14,7 +14,7 @@ export interface UserProfile {
   medicalRole?: string; // Custom medical role (doctor, medic, paramedic, etc)
 }
 
-export type AttendanceStatus = "base" | "home" | "field" | "sick" | "course" | "other"| "cut_order";
+export type AttendanceStatus = "base" | "home" | "field" | "sick" | "course" | "other"| "cut_order" | "not_on_order";
 
 export interface AttendanceReport {
   reportId: string;
@@ -57,6 +57,12 @@ export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, { label: string;
   color: "text-red-700",
   bg: "bg-red-50",
   border: "border-red-200"
+},
+  not_on_order: {
+  label: "לא בצו",
+  color: "text-orange-700",
+  bg: "bg-orange-50",
+  border: "border-orange-200",
 },
   other: { label: "אחר (ראה הערה)", color: "text-slate-600 dark:text-slate-300", bg: "bg-slate-50 dark:bg-slate-950/40", border: "border-slate-200 dark:border-slate-800/60" },
 };
