@@ -880,18 +880,25 @@ const handleAdminSaveReport = async (reportData: {
   });
 
   if (reportData.reportId) {
-    await dataService.updateAttendanceReport(
-      reportData.reportId,
-      {
-        status: reportData.status,
-        location: reportData.location,
-        note: reportData.note || "",
-        dayMarker: reportData.dayMarker,
-        afterHours:
-          reportData.dayMarker === "after_hours"
-            ? reportData.afterHours
-            : undefined,
-      },
+    const updatePayload: any = {
+  status: reportData.status,
+  location: reportData.location,
+  note: reportData.note || "",
+};
+
+if (reportData.dayMarker) {
+  updatePayload.dayMarker = reportData.dayMarker;
+}
+
+if (reportData.dayMarker === "after_hours") {
+  updatePayload.afterHours = reportData.afterHours || 4;
+}
+
+await dataService.updateAttendanceReport(
+  reportData.reportId,
+  updatePayload,
+  userProfile || undefined
+);
       userProfile || undefined
     );
   } else {
