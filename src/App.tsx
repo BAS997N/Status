@@ -235,6 +235,7 @@ useEffect(() => {
   localStorage.removeItem("idf_active_user_id");
   localStorage.removeItem("idf_active_personal_id");
   setLoading(false);
+       setAuthChecked(true);
   return;
 }
 
