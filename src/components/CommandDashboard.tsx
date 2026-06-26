@@ -3218,6 +3218,38 @@ https://bas997n.github.io/Status/`
     />
   </div>
 )}
+                {/* Date Range for Commander Report */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  <div className="space-y-1">
+    <label className="block text-xs font-bold text-slate-500">מתאריך</label>
+    <input
+      type="date"
+      value={editingReportData.rangeStartDate || editingReportData.reportDate || ""}
+      onChange={(e) =>
+        setEditingReportData({
+          ...editingReportData,
+          rangeStartDate: e.target.value,
+        })
+      }
+      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold"
+    />
+  </div>
+
+  <div className="space-y-1">
+    <label className="block text-xs font-bold text-slate-500">עד תאריך</label>
+    <input
+      type="date"
+      value={editingReportData.rangeEndDate || ""}
+      onChange={(e) =>
+        setEditingReportData({
+          ...editingReportData,
+          rangeEndDate: e.target.value,
+        })
+      }
+      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold"
+    />
+  </div>
+</div>
                 
                 {/* Location text input */}
                 <div className="space-y-1">
