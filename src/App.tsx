@@ -899,8 +899,6 @@ await dataService.updateAttendanceReport(
   updatePayload,
   userProfile || undefined
 );
-      userProfile || undefined
-    );
   } else {
     const startDate =
       reportData.rangeStartDate ||
