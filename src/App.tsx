@@ -56,7 +56,7 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   
   // App reports state
   const [reports, setReports] = useState<AttendanceReport[]>([]);
