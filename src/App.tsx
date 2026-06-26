@@ -57,6 +57,7 @@ export default function App() {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   
   // App reports state
   const [reports, setReports] = useState<AttendanceReport[]>([]);
@@ -404,7 +405,7 @@ setSystemLogs(updatedSystemLogs);
     return () => clearInterval(interval);
   }, [userProfile]);
 
-  if (loading) {
+  if (loading || !authChecked) {
   return (
     <div className="min-h-screen bg-military-50 flex flex-col items-center justify-center p-4">
       <div className="flex flex-col items-center gap-4">
@@ -537,6 +538,7 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
     }
   } finally {
     setLoading(false);
+setAuthChecked(true);
   }
 };
 
