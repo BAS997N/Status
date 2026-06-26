@@ -3118,23 +3118,20 @@ https://bas997n.github.io/Status/`
 
     if (!onAdminSaveReport || !editingReportData) return;
 
-    try {
-      const dataToSave = {
-        ...editingReportData,
-        location: editingReportData.location?.trim() || "לא צוין",
-        note: editingReportData.note || "",
-      };
+   try {
+  const dataToSave = {
+    ...editingReportData,
+    location: editingReportData.location?.trim() || "לא צוין",
+    note: editingReportData.note || "",
+  };
 
-      await onAdminSaveReport(dataToSave);
+  setIsReportModalOpen(false);
+  setEditingReportData(null);
 
-    
-
-      setIsReportModalOpen(false);
-      setEditingReportData(null);
-    } catch (err) {
-      console.error("Failed saving attendance report:", err);
-    }
-  }}
+  await onAdminSaveReport(dataToSave);
+} catch (err) {
+  console.error("Failed saving attendance report:", err);
+}
   className="p-5 space-y-4 font-sans"
 >
                 {/* Status selector */}
