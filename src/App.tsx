@@ -405,7 +405,7 @@ setSystemLogs(updatedSystemLogs);
     return () => clearInterval(interval);
   }, [userProfile]);
 
-  if (loading || !authChecked) {
+  if (loading) {
   return (
     <div className="min-h-screen bg-military-50 flex flex-col items-center justify-center p-4">
       <div className="flex flex-col items-center gap-4">
