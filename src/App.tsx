@@ -837,9 +837,31 @@ const handleAdminSaveReport = async (reportData: {
   location: string;
   note?: string;
   reportDate?: string;
+  rangeStartDate?: string;
+  rangeEndDate?: string;
   dayMarker?: "return_to_base" | "exit_home" | "return_home" | "after_hours";
   afterHours?: number;
 }) => {
+  const buildPayload = (dateStr: string) => ({
+    userId: reportData.userId,
+    userName: reportData.userName,
+    unit: reportData.unit,
+    status: reportData.status,
+    location: reportData.location,
+    note: reportData.note || "",
+    timestamp: new Date(`${dateStr}T12:00:00`).toISOString(),
+
+    dayMarker: reportData.dayMarker,
+    afterHours:
+      reportData.dayMarker === "after_hours"
+        ? reportData.afterHours
+        : undefined,
+
+    createdBy: userProfile?.userId || "unknown",
+    createdByName: userProfile?.fullName || "לא ידוע",
+    createdByRole: userProfile?.role || "unknown",
+  });
+
   if (reportData.reportId) {
     await dataService.updateAttendanceReport(
       reportData.reportId,
@@ -848,30 +870,41 @@ const handleAdminSaveReport = async (reportData: {
         location: reportData.location,
         note: reportData.note || "",
         dayMarker: reportData.dayMarker,
-        afterHours: reportData.dayMarker === "after_hours" ? reportData.afterHours : undefined,
+        afterHours:
+          reportData.dayMarker === "after_hours"
+            ? reportData.afterHours
+            : undefined,
       },
       userProfile || undefined
     );
   } else {
-    await dataService.createAttendanceReport({
-      userId: reportData.userId,
-      userName: reportData.userName,
-      unit: reportData.unit,
-      status: reportData.status,
-      location: reportData.location,
-      note: reportData.note || "",
-      timestamp: new Date(
-        `${reportData.reportDate || new Date().toISOString().split("T")[0]}T12:00:00`
-      ).toISOString(),
+    const startDate =
+      reportData.rangeStartDate ||
+      reportData.reportDate ||
+      new Date().toISOString().split("T")[0];
 
-      dayMarker: reportData.dayMarker,
-      afterHours: reportData.dayMarker === "after_hours" ? reportData.afterHours : undefined,
+    const endDate = reportData.rangeEndDate || startDate;
 
-      createdBy: userProfile?.userId || "unknown",
-      createdByName: userProfile?.fullName || "לא ידוע",
-      createdByRole: userProfile?.role || "unknown",
-    });
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (end < start) {
+      alert("תאריך הסיום לא יכול להיות לפני תאריך ההתחלה");
+      return;
+    }
+
+    const current = new Date(start);
+
+    while (current <= end) {
+      const dateStr = current.toISOString().split("T")[0];
+      await dataService.createAttendanceReport(buildPayload(dateStr));
+      current.setDate(current.getDate() + 1);
+    }
   }
+
+  await refreshReports();
+  await refreshNotifications();
+};
 
   await refreshReports();
   await refreshNotifications();
