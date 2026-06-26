@@ -924,8 +924,21 @@ const handleAdminSaveReport = async (reportData: {
 };
 
   // IDF Military and National ID Sign-in Gateway screen
-  if (!userProfile) {
+ if (!userProfile) {
+  if (auth?.currentUser) {
     return (
+      <div className="min-h-screen bg-military-50 flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-military-600 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-sm font-bold text-military-800">
+            טוען מערכת קשר ודיווח...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
       <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden" dir="rtl">
         {/* Ambient background decoration */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-700/10 rounded-full blur-3xl pointer-events-none"></div>
