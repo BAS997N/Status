@@ -1445,6 +1445,7 @@ const handleExportSummaryCSV = () => {
             <th className="px-4 py-3">גימלים</th>
             <th className="px-4 py-3">קורס</th>
             <th className="px-4 py-3">חיתוך צו</th>
+            <th className="px-4 py-3">לא בצו</th>
             <th className="px-4 py-3">אחר</th>
           </tr>
         </thead>
