@@ -353,6 +353,10 @@ setSystemLogs(updatedSystemLogs);
     alert("אירעה שגיאה במחיקת החייל");
   }
 };
+  const handleSyncOldReportsToSheets = async () => {
+  await dataService.syncAllReportsToGoogleSheets();
+  alert("ייבוא הדיווחים הישנים לגוגל שיטס הסתיים");
+};
   const handleDeleteReport = async (reportId: string) => {
   try {
     await dataService.deleteAttendanceReport(reportId);
@@ -1332,6 +1336,7 @@ await dataService.updateAttendanceReport(
   medicalUnits={medicalUnits}
   customRoles={customRoles}
   onUpdateMedicalSettings={handleUpdateMedicalSettings}
+  onSyncOldReportsToSheets={handleSyncOldReportsToSheets}
 />
             </motion.div>
           )}
