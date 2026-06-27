@@ -97,40 +97,36 @@ useEffect(() => {
   }
 }, [status]);
 
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      setGeoState("error");
-      return;
-    }
+const handleGetLocation = () => {
+  if (!navigator.geolocation) {
+    setGeoState("error");
+    alert("הדפדפן לא תומך באימות מיקום GPS.");
+    return;
+  }
 
-    setGeoState("fetching");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setCoords({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        });
-        setGeoState("success");
-        
-        // Populate standard coordinates or reverse info
-        if (location === "בסיס 105" || location === "בית" || !location) {
-          setLocation((prev) => `${prev} (GPS מאומת)`);
-        }
-      },
-      () => {
-        // Fallback simulated exact military coordinates if permission denied in iframe sandbox
-        setTimeout(() => {
-          setCoords({
-            lat: 32.0853,
-            lng: 34.7818
-          });
-          setGeoState("success");
-          setLocation((prev) => prev ? `${prev} (GPS סימולציה)` : "מיקום נוכחי מאומת");
-        }, 800);
-      },
-      { timeout: 5000 }
-    );
-  };
+  setGeoState("fetching");
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      setCoords({
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      });
+
+      setGeoState("success");
+
+      if (location === "בסיס 105" || location === "בית" || !location) {
+        setLocation((prev) => `${prev} (GPS מאומת)`);
+      }
+    },
+    () => {
+      setCoords(undefined);
+      setGeoState("error");
+      alert("לא ניתן לקבל מיקום. יש לאשר הרשאת מיקום בדפדפן ולנסות שוב.");
+    },
+    { timeout: 5000 }
+  );
+};
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
