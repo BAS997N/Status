@@ -45,6 +45,7 @@ export default function SoldierReporter({
 const [cutOrderStartDate, setCutOrderStartDate] = useState("");
 const [cutOrderEndDate, setCutOrderEndDate] = useState("");
 const [isDateRangeReport, setIsDateRangeReport] = useState(false);
+  const [dayMarker, setDayMarker] = useState<"return_to_base" | "exit_home" | "">("");
   
   // Geolocation states
   const [coords, setCoords] = useState<{ lat: number; lng: number } | undefined>(undefined);
@@ -260,6 +261,32 @@ useEffect(() => {
                 })}
               </div>
             </div>
+            {!isDateRangeReport && ["base", "home"].includes(status) && (
+  <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+    <label className="block text-sm font-bold text-slate-700">
+      סימון יום
+    </label>
+
+    <select
+      value={dayMarker}
+      onChange={(e) => setDayMarker(e.target.value as any)}
+      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+    >
+      <option value="">ללא סימון</option>
+
+      {status === "base" && (
+        <>
+          <option value="return_to_base">חזרה לבסיס</option>
+          <option value="exit_home">יציאה לבית</option>
+        </>
+      )}
+
+      {status === "home" && (
+        <option value="return_to_base">חזרה לבסיס</option>
+      )}
+    </select>
+  </div>
+)}
             {["base", "home"].includes(status) && (
   <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
     <input
