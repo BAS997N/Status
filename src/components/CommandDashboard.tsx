@@ -1530,6 +1530,7 @@ const soldierReports = Array.from(latestReportByDate.values());
                 sick: soldierReports.filter((r) => r.status === "sick").length,
                 course: soldierReports.filter((r) => r.status === "course").length,
                 cut_order: soldierReports.filter((r) => r.status === "cut_order").length,
+                not_on_order: soldierReports.filter((r) => r.status === "not_on_order").length,
                 other: soldierReports.filter((r) => r.status === "other").length,
               };
 
@@ -1547,6 +1548,7 @@ const soldierReports = Array.from(latestReportByDate.values());
                   <td className="px-4 py-3 text-rose-700 font-bold">{counts.sick}</td>
                   <td className="px-4 py-3 text-cyan-700 font-bold">{counts.course}</td>
                   <td className="px-4 py-3 text-red-700 font-bold">{counts.cut_order}</td>
+                  <td className="px-4 py-3 text-orange-700 font-bold">{counts.not_on_order}</td>
                   <td className="px-4 py-3 text-slate-600 font-bold">{counts.other}</td>
                 </tr>
               );
