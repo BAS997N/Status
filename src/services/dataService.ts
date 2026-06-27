@@ -488,21 +488,42 @@ await setDoc(docRef, {
   ...reportPayload,
   reportId: docRef.id
 });
+const users = await this.getAllUsers();
+
+const soldier = users.find(
+  (u) =>
+    u.userId === reportPayload.userId ||
+    u.personalId === (reportPayload as any).personalId
+);
+
+const markerText =
+  reportPayload.dayMarker === "return_to_base"
+    ? "חזרה לבסיס"
+    : reportPayload.dayMarker === "exit_home"
+    ? "יציאה לבית"
+    : reportPayload.dayMarker === "after_hours"
+    ? `אפטר ${reportPayload.afterHours || ""} שעות`
+    : "";
+
+const statusText =
+  ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label || reportPayload.status;
+
+const reportDateObj = new Date(reportPayload.timestamp);
+const formattedDate = `${String(reportDateObj.getDate()).padStart(2, "0")}/${String(
+  reportDateObj.getMonth() + 1
+).padStart(2, "0")}/${reportDateObj.getFullYear()}`;
+
 fetch(GOOGLE_SHEETS_WEB_APP_URL, {
   method: "POST",
   mode: "no-cors",
-  
   body: JSON.stringify({
-    personalId: reportPayload.userId,
-    fullName: reportPayload.userName,
-    role: reportPayload.unit,
-    phone: "",
-   date: new Date(reportPayload.timestamp).toLocaleDateString("he-IL", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-}),
-    status: ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label || reportPayload.status,
+    personalId:
+      soldier?.personalId || (reportPayload as any).personalId || reportPayload.userId,
+    fullName: soldier?.fullName || reportPayload.userName,
+    role: soldier?.medicalRole || "",
+    phone: soldier?.phoneNumber || "",
+    date: formattedDate,
+    cellValue: markerText ? `${statusText}/${markerText}` : statusText,
   }),
 }).catch((err) => {
   console.warn("Google Sheets sync failed:", err);
