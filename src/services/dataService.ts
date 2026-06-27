@@ -379,6 +379,11 @@ async createSystemLog(logData: {
         : "";
 
     const statusText = ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status;
+    const reportDateObj = new Date(report.timestamp);
+const formattedDate = `${String(reportDateObj.getDate()).padStart(2, "0")}/${String(
+  reportDateObj.getMonth() + 1
+).padStart(2, "0")}/${reportDateObj.getFullYear()}`;
+    const statusText = ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status;
 
     fetch(GOOGLE_SHEETS_WEB_APP_URL, {
       method: "POST",
@@ -388,11 +393,7 @@ async createSystemLog(logData: {
         fullName: soldier?.fullName || report.userName,
         role: soldier?.medicalRole || "",
         phone: soldier?.phoneNumber || "",
-        date: new Date(report.timestamp).toLocaleDateString("he-IL", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }),
+        date: formattedDate,
         status: markerText ? `${statusText}/${markerText}` : statusText,
       }),
     }).catch((err) => {
