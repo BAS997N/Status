@@ -394,6 +394,7 @@ const exitHomeTodayCount = reportedTodayList.filter(
     sick: reportedTodayList.filter(s => s.latestTodayReport?.status === "sick").length,
     home: reportedTodayList.filter(s => s.latestTodayReport?.status === "home").length,
     cut_order: reportedTodayList.filter(s => s.latestTodayReport?.status === "cut_order").length,
+    not_on_order: reportedTodayList.filter(s => s.latestTodayReport?.status === "not_on_order").length,
     other: reportedTodayList.filter(s => s.latestTodayReport?.status === "other").length,
   };
 
@@ -405,6 +406,8 @@ const absentCount =
   statusStats.home +
   statusStats.sick +
   statusStats.course +
+  statusStats.cut_order +
+  statusStats.not_on_order +
   statusStats.other;
   
   const pendingVerificationCount = reportedTodayList.filter(s => s.latestTodayReport && !s.latestTodayReport.verifiedBy).length;
@@ -449,6 +452,7 @@ const latestTodayReport = soldierReports.find(report =>
   { name: "נוכחים ביחידה / במשימה", value: presentCount, color: "#10b981" },
   { name: "מחוץ ליחידה / גימלים", value: absentCount, color: "#06b6d4" },
   { name: "חיתוך צו / משוחרר זמנית", value: statusStats.cut_order, color: "#dc2626" },
+  { name: "לא בצו",value: statusStats.not_on_order,color: "#f97316"},
   { name: "טרם ביצעו דיווח היום", value: unreportedCount, color: "#ef4444" }
 ].filter(d => d.value > 0);
 
@@ -459,6 +463,7 @@ const latestTodayReport = soldierReports.find(report =>
     { name: "בגימלים", כמות: statusStats.sick, fill: "#ef4444" },
     { name: "בבית/אפטר", כמות: statusStats.home, fill: "#6366f1" },
     { name: "חיתוך צו", כמות: statusStats.cut_order, fill: "#dc2626" },
+    { name: "לא בצו", כמות: statusStats.not_on_order, fill: "#f97316" },
     { name: "אחר/מיוחד", כמות: statusStats.other, fill: "#64748b" },
     { name: "לא דיווח", כמות: unreportedCount, fill: "#94a3b8" }
   ];
