@@ -91,6 +91,8 @@ const initSimStorage = () => {
   }
 };
 initSimStorage();
+const GOOGLE_SHEETS_WEB_APP_URL =
+  "https://script.google.com/macros/s/AKfycbz6XrTTu7UE9SmGNttzw7f0weg3wv9MLMFulCXc2piNlM3KD6_ncOSaEkm16vgpsLFRLw/exec";
 
 export const dataService = {
   async deleteAttendanceReport(reportId: string): Promise<void> {
@@ -439,7 +441,23 @@ await setDoc(docRef, {
   ...reportPayload,
   reportId: docRef.id
 });
-
+fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+  method: "POST",
+  mode: "no-cors",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    personalId: reportPayload.userId,
+    fullName: reportPayload.userName,
+    role: reportPayload.unit,
+    phone: "",
+    date: reportPayload.timestamp.split("T")[0],
+    status: ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label || reportPayload.status,
+  }),
+}).catch((err) => {
+  console.warn("Google Sheets sync failed:", err);
+});
       // Generate Firestore notification
       if (isAlert) {
         const notPayload = {
