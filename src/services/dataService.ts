@@ -356,6 +356,35 @@ async createSystemLog(logData: {
       return [];
     }
   },
+  async syncAllReportsToGoogleSheets(): Promise<void> {
+  const reports = await this.fetchAllReports();
+
+  for (const report of reports) {
+    fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        personalId: report.userId,
+        fullName: report.userName,
+        role: report.unit,
+        phone: "",
+        date: new Date(report.timestamp).toLocaleDateString("he-IL", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
+        status: ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status,
+      }),
+    }).catch((err) => {
+      console.warn("Google Sheets old report sync failed:", err);
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
+  }
+},
 
   async fetchReportsByUser(userId: string): Promise<AttendanceReport[]> {
     if (!isFirebaseActive()) {
