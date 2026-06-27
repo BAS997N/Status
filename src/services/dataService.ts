@@ -383,7 +383,6 @@ async createSystemLog(logData: {
     fetch(GOOGLE_SHEETS_WEB_APP_URL, {
       method: "POST",
       mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         personalId: soldier?.personalId || (report as any).personalId || report.userId,
         fullName: soldier?.fullName || report.userName,
@@ -491,9 +490,7 @@ await setDoc(docRef, {
 fetch(GOOGLE_SHEETS_WEB_APP_URL, {
   method: "POST",
   mode: "no-cors",
-  headers: {
-    "Content-Type": "application/json",
-  },
+  
   body: JSON.stringify({
     personalId: reportPayload.userId,
     fullName: reportPayload.userName,
