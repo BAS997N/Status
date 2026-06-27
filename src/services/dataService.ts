@@ -452,7 +452,11 @@ fetch(GOOGLE_SHEETS_WEB_APP_URL, {
     fullName: reportPayload.userName,
     role: reportPayload.unit,
     phone: "",
-    date: reportPayload.timestamp.split("T")[0],
+   date: new Date(reportPayload.timestamp).toLocaleDateString("he-IL", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+}),
     status: ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label || reportPayload.status,
   }),
 }).catch((err) => {
