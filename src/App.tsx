@@ -640,7 +640,8 @@ setUserProfile(newProfile);
   coords?: { lat: number; lng: number },
   reportDate?: string,
   cutOrderStartDate?: string,
-  cutOrderEndDate?: string
+cutOrderEndDate?: string,
+dayMarker?: "return_to_base" | "exit_home"
 ) => {
   if (!userProfile) return;
 
@@ -659,6 +660,7 @@ setUserProfile(newProfile);
     status,
     location,
     note,
+    ...(dayMarker ? { dayMarker } : {}),
     timestamp: createTimestampForDate(dateStr),
 
     createdBy: userProfile.userId,
