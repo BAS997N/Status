@@ -2358,7 +2358,23 @@ const soldierReports = Array.from(latestReportByDate.values());
                           <div className="space-y-1">
                             <span className="text-slate-700 font-semibold flex items-center gap-1">
                               <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span className="truncate max-w-[170px]">{latestTodayReport.location}</span>
+                              <div className="flex flex-col">
+  <span className="truncate max-w-[170px]">
+    {latestTodayReport.location}
+  </span>
+
+  {latestTodayReport.latitude &&
+    latestTodayReport.longitude && (
+      <a
+        href={`https://www.google.com/maps?q=${latestTodayReport.latitude},${latestTodayReport.longitude}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[10px] text-blue-600 hover:text-blue-800 underline font-bold"
+      >
+        📍 פתח במפות
+      </a>
+    )}
+</div>
                             </span>
                             <span className="text-[10px] text-slate-400 font-mono font-medium flex items-center gap-1">
                               <Clock className="w-3 h-3 text-slate-400 shrink-0" />
