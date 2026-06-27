@@ -383,8 +383,7 @@ async createSystemLog(logData: {
 const formattedDate = `${String(reportDateObj.getDate()).padStart(2, "0")}/${String(
   reportDateObj.getMonth() + 1
 ).padStart(2, "0")}/${reportDateObj.getFullYear()}`;
-    const statusText = ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status;
-
+    
     fetch(GOOGLE_SHEETS_WEB_APP_URL, {
       method: "POST",
       mode: "no-cors",
