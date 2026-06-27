@@ -389,6 +389,14 @@ const handleGetLocation = () => {
                   <span className="font-mono text-[10px]">
                     Lat: {coords.lat.toFixed(4)}°, Lng: {coords.lng.toFixed(4)}°
                   </span>
+                  <a
+  href={`https://www.google.com/maps?q=${coords.lat},${coords.lng}`}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="text-[10px] font-bold text-blue-700 underline"
+>
+  פתח במפות
+</a>
                 </div>
               )}
             </div>
