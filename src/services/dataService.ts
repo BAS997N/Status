@@ -388,13 +388,14 @@ const formattedDate = `${String(reportDateObj.getDate()).padStart(2, "0")}/${Str
       method: "POST",
       mode: "no-cors",
       body: JSON.stringify({
-        personalId: soldier?.personalId || (report as any).personalId || report.userId,
-        fullName: soldier?.fullName || report.userName,
-        role: soldier?.medicalRole || "",
-        phone: soldier?.phoneNumber || "",
-        date: formattedDate,
-        status: markerText ? `${statusText}/${markerText}` : statusText,
-      }),
+  personalId: soldier?.personalId || (report as any).personalId || report.userId,
+  fullName: soldier?.fullName || report.userName,
+  medicalRole: soldier?.medicalRole || "",
+  role: soldier?.medicalRole || "",
+  phone: soldier?.phoneNumber || "",
+  date: formattedDate,
+  cellValue: markerText ? `${statusText}/${markerText}` : statusText,
+}),
     }).catch((err) => {
       console.warn("Google Sheets old report sync failed:", err);
     });
