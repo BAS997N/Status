@@ -21,8 +21,16 @@ import { motion } from "motion/react";
 interface SoldierReporterProps {
   currentUser: UserProfile;
   reports: AttendanceReport[];
-  onSubmitReport: (status: AttendanceStatus, location: string, note: string, coords?: { lat: number; lng: number },
-                   reportDate?: string, cutOrderStartDate?: string, cutOrderEndDate?: string) => Promise<void>;
+ onSubmitReport: (
+  status: AttendanceStatus,
+  location: string,
+  note: string,
+  coords?: { lat: number; lng: number },
+  reportDate?: string,
+  cutOrderStartDate?: string,
+  cutOrderEndDate?: string,
+  dayMarker?: "return_to_base" | "exit_home"
+) => Promise<void>;
 }
 
 export default function SoldierReporter({ 
