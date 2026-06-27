@@ -358,31 +358,49 @@ async createSystemLog(logData: {
   },
   async syncAllReportsToGoogleSheets(): Promise<void> {
   const reports = await this.fetchAllReports();
+  const users = await this.getAllUsers();
 
-  for (const report of reports) {
+  const sortedReports = [...reports].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  for (const report of sortedReports) {
+    const soldier = users.find(
+      (u) => u.userId === report.userId || u.personalId === (report as any).personalId
+    );
+
+    const markerText =
+      report.dayMarker === "return_to_base"
+        ? "חזרה לבסיס"
+        : report.dayMarker === "exit_home"
+        ? "יציאה לבית"
+        : report.dayMarker === "after_hours"
+        ? `אפטר ${report.afterHours || ""} שעות`
+        : "";
+
+    const statusText = ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status;
+
     fetch(GOOGLE_SHEETS_WEB_APP_URL, {
       method: "POST",
       mode: "no-cors",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        personalId: report.userId,
-        fullName: report.userName,
-        role: report.unit,
-        phone: "",
+        personalId: soldier?.personalId || (report as any).personalId || report.userId,
+        fullName: soldier?.fullName || report.userName,
+        role: soldier?.medicalRole || "",
+        phone: soldier?.phoneNumber || "",
         date: new Date(report.timestamp).toLocaleDateString("he-IL", {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
         }),
-        status: ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status,
+        status: markerText ? `${statusText}/${markerText}` : statusText,
       }),
     }).catch((err) => {
       console.warn("Google Sheets old report sync failed:", err);
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 80));
+    await new Promise((resolve) => setTimeout(resolve, 120));
   }
 },
 
