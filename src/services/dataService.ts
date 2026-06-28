@@ -92,7 +92,8 @@ const initSimStorage = () => {
 };
 initSimStorage();
 const GOOGLE_SHEETS_WEB_APP_URL =
-  "https://script.google.com/macros/s/AKfycbxn5MGeVXo6MLdRMAWpyhH3Xq_3l_nqdX1GgaVrWVkhb9b10w0pisWg8pYthG8jvn5dhw/exec";
+  "https://script.google.com/macros/s/AKfycbzoMH-OzKtGCCWW0rdqaf8TPwlEXoPPSTV3tqjaC4DtFe5o4hVutyzK_FB5HeJRDj_VeQ/exec";
+
 
 export const dataService = {
   async deleteAttendanceReport(reportId: string): Promise<void> {
