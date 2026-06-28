@@ -592,12 +592,66 @@ await setDoc(notRef, {
 
   const path = `attendance/${reportId}`;
  
-  try {
-    await updateDoc(doc(db, "attendance", reportId), reportData);
-    await addDoc(collection(db, "attendance_logs"), updateLog);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, path);
+ try {
+  await updateDoc(doc(db, "attendance", reportId), reportData);
+
+  const updatedSnap = await getDoc(doc(db, "attendance", reportId));
+
+  if (updatedSnap.exists()) {
+    const updatedReport = {
+      reportId,
+      ...updatedSnap.data(),
+    } as AttendanceReport;
+
+    const users = await this.getAllUsers();
+
+    const soldier = users.find(
+      (u) =>
+        u.userId === updatedReport.userId ||
+        u.personalId === (updatedReport as any).personalId
+    );
+
+    const markerText =
+      updatedReport.dayMarker === "return_to_base"
+        ? "חזרה לבסיס"
+        : updatedReport.dayMarker === "exit_home"
+        ? "יציאה לבית"
+        : updatedReport.dayMarker === "after_hours"
+        ? `אפטר ${updatedReport.afterHours || ""} שעות`
+        : "";
+
+    const statusText =
+      ATTENDANCE_STATUS_LABELS[updatedReport.status]?.label ||
+      updatedReport.status;
+
+    const reportDateObj = new Date(updatedReport.timestamp);
+    const formattedDate = `${String(reportDateObj.getDate()).padStart(2, "0")}/${String(
+      reportDateObj.getMonth() + 1
+    ).padStart(2, "0")}/${reportDateObj.getFullYear()}`;
+
+    fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+      method: "POST",
+      mode: "no-cors",
+      body: JSON.stringify({
+        personalId:
+          soldier?.personalId ||
+          (updatedReport as any).personalId ||
+          updatedReport.userId,
+        fullName: soldier?.fullName || updatedReport.userName,
+        role: soldier?.medicalRole || "",
+        phone: soldier?.phoneNumber || "",
+        date: formattedDate,
+        cellValue: markerText ? `${statusText}/${markerText}` : statusText,
+      }),
+    }).catch((err) => {
+      console.warn("Google Sheets update sync failed:", err);
+    });
   }
+
+  await addDoc(collection(db, "attendance_logs"), updateLog);
+} catch (error) {
+  handleFirestoreError(error, OperationType.UPDATE, path);
+}
 },
   async fetchAttendanceLogs(): Promise<any[]> {
     if (!isFirebaseActive()) {
