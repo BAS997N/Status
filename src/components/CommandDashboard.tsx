@@ -1875,49 +1875,50 @@ const soldierReports = Array.from(latestReportByDate.values());
               אין נתוני דיווח קיימים
             </span>
           ) : (
-            <Pie
-  data={presenceDistributionData}
-  cx="50%"
-  cy="45%"
-  innerRadius={50}
-  outerRadius={70}
-  paddingAngle={4}
-  dataKey="value"
->
-  {presenceDistributionData.map((entry, index) => (
-    <Cell key={`cell-${index}`} fill={entry.color} />
-  ))}
-
-  <LabelList
+            <PieChart width={360} height={260}>
+  <Pie
+    data={presenceDistributionData}
+    cx="50%"
+    cy="45%"
+    innerRadius={50}
+    outerRadius={70}
+    paddingAngle={4}
     dataKey="value"
-    position="outside"
-    formatter={(value: number) => `${value}`}
-    className="text-[11px] font-black fill-slate-700"
+  >
+    {presenceDistributionData.map((entry, index) => (
+      <Cell key={`cell-${index}`} fill={entry.color} />
+    ))}
+
+    <LabelList
+      dataKey="value"
+      position="outside"
+      formatter={(value: number) => `${value}`}
+      className="text-[11px] font-black fill-slate-700"
+    />
+  </Pie>
+
+  <Tooltip
+    formatter={(value) => [`${value} חיילים`, "כמות"]}
+    contentStyle={{
+      direction: "rtl",
+      textAlign: "right",
+      borderRadius: "8px",
+      fontSize: "11px",
+    }}
   />
-</Pie>
 
-              <Tooltip
-                formatter={(value) => [`${value} חיילים`, "כמות"]}
-                contentStyle={{
-                  direction: "rtl",
-                  textAlign: "right",
-                  borderRadius: "8px",
-                  fontSize: "11px",
-                }}
-              />
-
-              <Legend
-                verticalAlign="bottom"
-                height={36}
-                iconSize={8}
-                iconType="circle"
-                formatter={(value) => (
-                  <span className="text-[11.5px] font-bold text-slate-600">
-                    {value}
-                  </span>
-                )}
-              />
-            </PieChart>
+  <Legend
+    verticalAlign="bottom"
+    height={36}
+    iconSize={8}
+    iconType="circle"
+    formatter={(value) => (
+      <span className="text-[11.5px] font-bold text-slate-600">
+        {value}
+      </span>
+    )}
+  />
+</PieChart>
           )}
         </div>
       )}
