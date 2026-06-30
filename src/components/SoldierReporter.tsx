@@ -17,7 +17,7 @@ import {
   AttendanceStatus, 
   ATTENDANCE_STATUS_LABELS 
 } from "../types";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 
 interface SoldierReporterProps {
   currentUser: UserProfile;
@@ -715,7 +715,107 @@ const reportTimeText = new Date(r.timestamp).toLocaleTimeString("he-IL", {
           </div>
 
       </div>
+<AnimatePresence>
+  {isHelpOpen && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[12000] flex items-center justify-center p-3 bg-slate-950/60 backdrop-blur-sm"
+      onClick={() => setIsHelpOpen(false)}
+    >
+      <motion.div
+        initial={{ scale: 0.95, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.95, y: 20 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg max-h-[88vh] overflow-y-auto text-right"
+        dir="rtl"
+      >
+        <div className="sticky top-0 bg-white border-b border-slate-100 p-4 flex items-center justify-between">
+          <h3 className="text-base font-black text-slate-800">
+            עזרה בדיווח נוכחות
+          </h3>
 
+          <button
+            type="button"
+            onClick={() => setIsHelpOpen(false)}
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-black"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4 text-xs leading-relaxed text-slate-600">
+          <section>
+            <h4 className="font-black text-slate-800 mb-1">מתי לדווח?</h4>
+            <p>
+              יש לדווח בתחילת היום או בכל שינוי מצב במהלך היום. אם בחרת תאריך אחר,
+              הדיווח יישמר עבור אותו תאריך.
+            </p>
+          </section>
+
+          <section>
+            <h4 className="font-black text-slate-800 mb-2">הסבר סטטוסים</h4>
+            <div className="space-y-2">
+              <p><b>בבסיס</b> — כאשר אתה נמצא ביחידה או בבסיס.</p>
+              <p><b>בית / אפטר</b> — כאשר אתה בבית, בחופשה, או באישור יציאה.</p>
+              <p><b>שטח / אימון</b> — כאשר אתה נמצא באימון, משימה או שטח.</p>
+              <p><b>גימלים</b> — כאשר אתה בגימלים או מחלה מאושרת.</p>
+              <p><b>קורס / הכשרה</b> — כאשר אתה בקורס, השתלמות או הכשרה.</p>
+              <p><b>חיתוך צו</b> — כאשר אתה לא נמצא במסגרת הצו לתאריכים מסוימים.</p>
+            </div>
+          </section>
+
+          <section>
+            <h4 className="font-black text-slate-800 mb-2">סימון יום</h4>
+            <p>
+              סימון יום מופיע רק במצבים מסוימים, ומשמש כדי להבהיר מעבר במהלך היום.
+            </p>
+            <div className="mt-2 space-y-1">
+              <p><b>חזרה לבסיס</b> — כאשר חזרת מהבית או מחופשה לבסיס.</p>
+              <p><b>יציאה לבית</b> — כאשר יצאת מהבסיס לבית.</p>
+            </div>
+          </section>
+
+          <section>
+            <h4 className="font-black text-slate-800 mb-2">דיווח לטווח תאריכים</h4>
+            <p>
+              אם צריך לדווח על כמה ימים ברצף, סמן “דיווח לטווח תאריכים” ובחר
+              מתאריך ועד תאריך. המערכת תשמור דיווחים לכל הימים בטווח.
+            </p>
+          </section>
+
+          <section>
+            <h4 className="font-black text-slate-800 mb-2">מיקום ו־GPS</h4>
+            <p>
+              יש להזין מיקום ברור, למשל בסיס, בית, שטח אימונים או מקום פעילות.
+              ניתן ללחוץ על “אימות מיקום GPS” כדי לצרף מיקום מאומת לדיווח.
+            </p>
+          </section>
+
+          <section>
+            <h4 className="font-black text-slate-800 mb-2">הערות</h4>
+            <p>
+              בשדה ההערות אפשר להוסיף הסבר קצר, למשל אישור חריג, המתנה להסעה,
+              ביקורת רפואית או כל פרט שהמפקד צריך לדעת.
+            </p>
+          </section>
+        </div>
+
+        <div className="sticky bottom-0 bg-slate-50 border-t border-slate-100 p-3">
+          <button
+            type="button"
+            onClick={() => setIsHelpOpen(false)}
+            className="w-full py-2.5 rounded-xl bg-slate-800 text-white text-xs font-black"
+          >
+            הבנתי, סגור
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
     </div>
   );
 }
