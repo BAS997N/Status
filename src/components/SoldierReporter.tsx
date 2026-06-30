@@ -224,7 +224,19 @@ dayMarker || undefined
             return (
               <div id="soldier-latest-report-badge" className={`text-xs px-3 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`}>
                 <span className="w-2 h-2 rounded-full bg-current"></span>
-                <span>{statusInfo.label}</span>
+                <span>
+  {statusInfo.label}
+  {latestReport.dayMarker && (
+    <>
+      {" / "}
+      {latestReport.dayMarker === "return_to_base"
+        ? "חזרה לבסיס"
+        : latestReport.dayMarker === "exit_home"
+        ? "יציאה לבית"
+        : latestReport.dayMarker}
+    </>
+  )}
+</span>
                 <span className="text-[10px] text-slate-400 font-medium">({new Date(latestReport.timestamp).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })})</span>
               </div>
             );
