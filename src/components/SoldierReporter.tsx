@@ -234,7 +234,7 @@ dayMarker || undefined
   : latestReport.dayMarker === "exit_home"
   ? "יציאה לבית"
   : latestReport.dayMarker === "after_hours"
-  ? "אפטר"
+? `אפטר${latestReport.afterHours ? ` ${latestReport.afterHours} שעות` : ""}`
   : latestReport.dayMarker}
     </>
   )}
@@ -530,7 +530,7 @@ dayMarker || undefined
   : r.dayMarker === "exit_home"
   ? "יציאה לבית"
   : r.dayMarker === "after_hours"
-  ? "אפטר"
+? `אפטר${r.afterHours ? ` ${r.afterHours} שעות` : ""}`
   : r.dayMarker}
     </>
   )}
