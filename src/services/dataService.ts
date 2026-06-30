@@ -562,24 +562,33 @@ await setDoc(notRef, {
   reportData: Partial<AttendanceReport>,
   updatedByProfile?: UserProfile
 ): Promise<void> {
- 
+
+    const updatedAt = new Date().toISOString();
+
+const finalReportData = {
+  ...reportData,
+  updatedAt,
+  updatedBy: updatedByProfile?.userId || auth?.currentUser?.uid || "unknown",
+  updatedByName: updatedByProfile?.fullName || (updatedByProfile as any)?.name || "לא ידוע",
+  updatedByRole: updatedByProfile?.role || "unknown",
+};
 
   const updateLog = {
-    reportId,
-    oldData: {},
-    newData: reportData,
-    updatedAt: new Date().toISOString(),
-    updatedBy: updatedByProfile?.userId || auth?.currentUser?.uid || "unknown",
-    updatedByName: updatedByProfile?.fullName || (updatedByProfile as any)?.name || "לא ידוע",
-    updatedByRole: updatedByProfile?.role || "unknown",
-  };
+  reportId,
+  oldData: {},
+  newData: finalReportData,
+  updatedAt,
+  updatedBy: finalReportData.updatedBy,
+  updatedByName: finalReportData.updatedByName,
+  updatedByRole: finalReportData.updatedByRole,
+};
 
   if (!isFirebaseActive()) {
     const reports: AttendanceReport[] = JSON.parse(localStorage.getItem("idf_reports") || "[]");
     const index = reports.findIndex(r => r.reportId === reportId);
 
     if (index > -1) {
-      reports[index] = { ...reports[index], ...reportData };
+      reports[index] = { ...reports[index], ...finalReportData };
       localStorage.setItem("idf_reports", JSON.stringify(reports));
 
       const logs: any[] = JSON.parse(localStorage.getItem("idf_attendance_logs") || "[]");
@@ -593,7 +602,7 @@ await setDoc(notRef, {
   const path = `attendance/${reportId}`;
  
  try {
-  await updateDoc(doc(db, "attendance", reportId), reportData);
+  await updateDoc(doc(db, "attendance", reportId), finalReportData);
 
   const updatedSnap = await getDoc(doc(db, "attendance", reportId));
 
