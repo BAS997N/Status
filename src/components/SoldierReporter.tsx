@@ -83,6 +83,23 @@ const latestReport = userReports
       new Date(a.updatedAt || a.timestamp).getTime()
   )[0];
 
+  const commanderEditedReports = userReports
+  .filter((r) => {
+    const updatedByRole = (r as any).updatedByRole;
+    const updatedAt = (r as any).updatedAt;
+
+    return (
+      updatedByRole === "commander" &&
+      updatedAt &&
+      updatedAt !== r.timestamp
+    );
+  })
+  .sort(
+    (a, b) =>
+      new Date((b as any).updatedAt || b.timestamp).getTime() -
+      new Date((a as any).updatedAt || a.timestamp).getTime()
+  );
+
   // Auto set default locations based on status selection
 useEffect(() => {
   switch (status) {
@@ -591,21 +608,7 @@ dayMarker || undefined
                 {createdByLabel}
               </span>
 
-              {wasEdited && (
-                <span className="font-bold text-amber-700">
-                  נערך ע״י{" "}
-                  {updatedByRole === "commander"
-                    ? "מפקד"
-                    : updatedByRole === "adjutant_officer"
-                    ? "שליש"
-                    : "משתמש"}
-                  {updatedByName ? `: ${updatedByName}` : ""} ·{" "}
-                  {new Date(updatedAt).toLocaleTimeString("he-IL", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              )}
+             
             </div>
 
             <div className="flex items-center justify-between">
@@ -633,6 +636,52 @@ dayMarker || undefined
           <div className="pt-4 border-t border-slate-100 text-center text-[10px] text-slate-400 font-medium leading-relaxed mt-4">
             סה״כ דיווחים שנשמרו: {userReports.length}
           </div>
+            <div className="mt-4 pt-4 border-t border-slate-100">
+  <h4 className="text-xs font-black text-slate-700 mb-3">
+    דיווחים שנערכו ע״י מפקד
+  </h4>
+
+  {commanderEditedReports.length === 0 ? (
+    <p className="text-[11px] text-slate-400 font-bold">
+      לא קיימות עריכות מפקד לדיווחים שלך
+    </p>
+  ) : (
+    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+      {commanderEditedReports.map((r) => {
+        const statusInfo = ATTENDANCE_STATUS_LABELS[r.status];
+        const updatedAt = (r as any).updatedAt;
+        const updatedByName = (r as any).updatedByName;
+
+        return (
+          <div
+            key={`commander-edit-${r.reportId}`}
+            className="p-2.5 rounded-lg border border-blue-100 bg-blue-50 text-[11px] space-y-1"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-black text-blue-700">
+                נערך ע״י מפקד{updatedByName ? `: ${updatedByName}` : ""}
+              </span>
+
+              <span className="text-slate-500 font-mono whitespace-nowrap">
+                {new Date(updatedAt).toLocaleString("he-IL")}
+              </span>
+            </div>
+
+            <div className="text-slate-700 font-bold">
+              {statusInfo?.label || r.status} · {r.location || "לא צוין"}
+            </div>
+
+            {r.note && (
+              <div className="text-slate-500">
+                הערה: {r.note}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  )}
+</div>
         </div>
           </div>
 
