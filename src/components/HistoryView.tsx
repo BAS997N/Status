@@ -45,7 +45,24 @@ const filteredReports = reports.filter(rep =>
   const getRelatedLog = (reportId: string) => {
     return filteredLogs.find(log => log.reportId === reportId);
   };
+const getActionTypeLabel = (rep: AttendanceReport, relatedLog?: any) => {
+  if (relatedLog) {
+    const role = relatedLog.updatedByRole || relatedLog.actorRole;
 
+    if (role === "commander") return "עריכת דיווח מפקד";
+    if (role === "adjutant_officer") return "עריכת דיווח שליש";
+
+    return "עריכת דיווח";
+  }
+
+  const createdByRole = (rep as any).createdByRole;
+
+  if (createdByRole === "commander") return "דיווח מפקד";
+  if (createdByRole === "adjutant_officer") return "דיווח שליש";
+  if (createdByRole === "soldier") return "דיווח חייל";
+
+  return "דיווח ישן / לא ידוע";
+};
   return (
     <div className="space-y-6" dir="rtl">
       <div className="bg-white p-6 rounded-xl border border-slate-200">
@@ -81,6 +98,7 @@ const filteredReports = reports.filter(rep =>
       <th className="p-3">שעה</th>
       <th className="p-3">דווח ע״י</th>
       <th className="p-3">נערך ע״י</th>
+      <th className="p-3">סוג פעולה</th>
       <th className="p-3 text-center">פעולות</th>
     </tr>
   </thead>
@@ -145,6 +163,19 @@ const filteredReports = reports.filter(rep =>
   {relatedLog
     ? `נערך ע״י ${(relatedLog as any).updatedByName || "מפקד"}`
     : "לא נערך"}
+</td>
+                          <td className="p-3">
+  <span className={`px-2 py-1 rounded-full text-[10px] font-black border whitespace-nowrap ${
+    getActionTypeLabel(rep, relatedLog).includes("מפקד")
+      ? "bg-blue-50 text-blue-700 border-blue-200"
+      : getActionTypeLabel(rep, relatedLog).includes("שליש")
+      ? "bg-purple-50 text-purple-700 border-purple-200"
+      : getActionTypeLabel(rep, relatedLog).includes("חייל")
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : "bg-slate-50 text-slate-600 border-slate-200"
+  }`}>
+    {getActionTypeLabel(rep, relatedLog)}
+  </span>
 </td>
                           <td className="p-3 text-center">
                             {onDeleteReport && (
