@@ -268,7 +268,7 @@ dayMarker || undefined
         
         {/* REPORT FORM */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200/80 p-6 shadow-sm">
-          <<div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-4 mb-4">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-4 mb-4">
   <div className="flex items-center gap-2">
     <Activity className="w-5 h-5 text-military-500" />
     <h3 className="text-base font-bold text-slate-800">
