@@ -1491,33 +1491,45 @@ const handleExportSummaryCSV = () => {
 })
   .map((soldier) => {
     const filteredReports = reports.filter((report) => {
-      const sameSoldier =
-        report.userId === soldier.userId ||
-        (report as any).personalId === soldier.personalId;
+  const sameSoldier =
+    report.userId === soldier.userId ||
+    (report as any).personalId === soldier.personalId;
 
-      if (!sameSoldier) return false;
+  if (!sameSoldier) return false;
 
-      const reportDate = report.timestamp?.split("T")[0];
+  const reportDay =
+    (report as any).reportDate ||
+    report.timestamp?.split("T")[0];
 
-      if (summaryStartDate && reportDate < summaryStartDate) return false;
-      if (summaryEndDate && reportDate > summaryEndDate) return false;
+  if (!reportDay) return false;
 
-      return true;
-    });
+  if (summaryStartDate && reportDay < summaryStartDate) return false;
+  if (summaryEndDate && reportDay > summaryEndDate) return false;
+
+  return true;
+});
 
 const latestReportByDate = new Map<string, AttendanceReport>();
 
 filteredReports.forEach((report) => {
-  const reportDate = report.timestamp?.split("T")[0];
-  if (!reportDate) return;
+  const reportDay =
+    (report as any).reportDate ||
+    report.timestamp?.split("T")[0];
 
-  const existing = latestReportByDate.get(reportDate);
+  if (!reportDay) return;
 
-  if (
-    !existing ||
-    new Date(report.timestamp).getTime() > new Date(existing.timestamp).getTime()
-  ) {
-    latestReportByDate.set(reportDate, report);
+  const existing = latestReportByDate.get(reportDay);
+
+  const reportTime = new Date(
+    report.updatedAt || report.timestamp
+  ).getTime();
+
+  const existingTime = existing
+    ? new Date(existing.updatedAt || existing.timestamp).getTime()
+    : 0;
+
+  if (!existing || reportTime > existingTime) {
+    latestReportByDate.set(reportDay, report);
   }
 });
 
