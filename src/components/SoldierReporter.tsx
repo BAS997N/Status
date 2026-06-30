@@ -634,6 +634,7 @@ dayMarker || undefined
             סה״כ דיווחים שנשמרו: {userReports.length}
           </div>
         </div>
+          </div>
 
       </div>
 
