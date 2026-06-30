@@ -62,8 +62,26 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
   const [actionSuccess, setActionSuccess] = useState(false);
 
   // Filter reports submitted by this user
-  const userReports = reports.filter(r => r.userId === currentUser.userId);
-  const latestReport = userReports[0]; // sorted desc
+const userReports = reports.filter((r) =>
+  r.userId === currentUser.userId ||
+  (r as any).personalId === currentUser.personalId
+);
+
+const selectedReportDate = reportDate || getTodayLocalDate();
+
+const latestReport = userReports
+  .filter((r) => {
+    const rDate =
+      (r as any).reportDate ||
+      r.timestamp?.split("T")[0];
+
+    return rDate === selectedReportDate;
+  })
+  .sort(
+    (a, b) =>
+      new Date(b.updatedAt || b.timestamp).getTime() -
+      new Date(a.updatedAt || a.timestamp).getTime()
+  )[0];
 
   // Auto set default locations based on status selection
 useEffect(() => {
@@ -144,8 +162,9 @@ const handleGetLocation = () => {
     ? cutOrderStartDate
     : undefined,
   status === "cut_order" || isDateRangeReport
-    ? cutOrderEndDate
-    : undefined
+  ? cutOrderEndDate
+  : undefined,
+dayMarker || undefined
 );
       setNote("");
       setCoords(undefined);
@@ -186,7 +205,7 @@ const handleGetLocation = () => {
 
         {/* Current report card badge */}
         <div className="flex flex-col items-start sm:items-end justify-center">
-          <span className="text-[11px] text-slate-400 font-bold block mb-1">דיווח נוכחי להיום:</span>
+          <span className="text-[11px] text-slate-400 font-bold block mb-1">דיווח נוכחי לתאריך שנבחר:</span>
           {(() => {
             if (!latestReport) {
               return (
