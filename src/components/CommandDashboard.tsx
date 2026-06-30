@@ -49,6 +49,7 @@ import {
   PieChart, 
   Pie, 
   Cell,
+  LabelList,
   LineChart,
   Line
 } from "recharts";
@@ -1874,20 +1875,26 @@ const soldierReports = Array.from(latestReportByDate.values());
               אין נתוני דיווח קיימים
             </span>
           ) : (
-            <PieChart width={360} height={260}>
-              <Pie
-                data={presenceDistributionData}
-                cx="50%"
-                cy="45%"
-                innerRadius={50}
-                outerRadius={70}
-                paddingAngle={4}
-                dataKey="value"
-              >
-                {presenceDistributionData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
+            <Pie
+  data={presenceDistributionData}
+  cx="50%"
+  cy="45%"
+  innerRadius={50}
+  outerRadius={70}
+  paddingAngle={4}
+  dataKey="value"
+>
+  {presenceDistributionData.map((entry, index) => (
+    <Cell key={`cell-${index}`} fill={entry.color} />
+  ))}
+
+  <LabelList
+    dataKey="value"
+    position="outside"
+    formatter={(value: number) => `${value}`}
+    className="text-[11px] font-black fill-slate-700"
+  />
+</Pie>
 
               <Tooltip
                 formatter={(value) => [`${value} חיילים`, "כמות"]}
