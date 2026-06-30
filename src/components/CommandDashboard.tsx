@@ -110,6 +110,9 @@ export default function CommandDashboard({
   const [systemLogFilterDate, setSystemLogFilterDate] = useState("");
 const [systemLogFilterUser, setSystemLogFilterUser] = useState("");
 const [systemLogFilterAction, setSystemLogFilterAction] = useState("all");
+  const [notificationFilterDate, setNotificationFilterDate] = useState("");
+const [notificationFilterSoldier, setNotificationFilterSoldier] = useState("");
+const [notificationFilterStatus, setNotificationFilterStatus] = useState("all");
 
   // Collapsible States
   const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
@@ -949,6 +952,28 @@ const handleExportSummaryCSV = () => {
 
   return matchesDate && matchesUser && matchesAction;
 });
+/* סינון התראות */
+  const filteredNotifications = notifications.filter((notification) => {
+  const notificationDate = notification.timestamp
+    ? notification.timestamp.split("T")[0]
+    : "";
+
+  const matchesDate =
+    !notificationFilterDate ||
+    notificationDate === notificationFilterDate;
+
+  const matchesSoldier =
+    !notificationFilterSoldier ||
+    (notification.soldierName || "")
+      .toLowerCase()
+      .includes(notificationFilterSoldier.toLowerCase());
+
+  const matchesStatus =
+    notificationFilterStatus === "all" ||
+    notification.status === notificationFilterStatus;
+
+  return matchesDate && matchesSoldier && matchesStatus;
+});
   
   return (
     <div id="commander-dashboard" className="space-y-6">
@@ -1238,7 +1263,50 @@ const handleExportSummaryCSV = () => {
         כל ההתראות שנוצרו בעקבות דיווחי נוכחות חריגים
       </p>
     </div>
+    {/* סינון התראות */}
+<div className="p-4 border-b border-slate-100 bg-slate-50">
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+    <input
+      type="date"
+      value={notificationFilterDate}
+      onChange={(e) => setNotificationFilterDate(e.target.value)}
+      className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold bg-white"
+    />
 
+    <input
+      type="text"
+      placeholder="סינון לפי חייל..."
+      value={notificationFilterSoldier}
+      onChange={(e) => setNotificationFilterSoldier(e.target.value)}
+      className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold bg-white"
+    />
+
+    <select
+      value={notificationFilterStatus}
+      onChange={(e) => setNotificationFilterStatus(e.target.value)}
+      className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold bg-white"
+    >
+      <option value="all">כל סוגי ההתראות</option>
+      {Object.entries(ATTENDANCE_STATUS_LABELS).map(([key, value]) => (
+        <option key={key} value={key}>
+          {value.label}
+        </option>
+      ))}
+    </select>
+
+    <button
+      type="button"
+      onClick={() => {
+        setNotificationFilterDate("");
+        setNotificationFilterSoldier("");
+        setNotificationFilterStatus("all");
+      }}
+      className="bg-slate-800 hover:bg-slate-900 text-white rounded-lg px-3 py-2 text-xs font-black"
+    >
+      נקה סינון
+    </button>
+  </div>
+</div>
     <div className="overflow-x-auto">
       <table className="min-w-[900px] w-full text-xs text-right">
         <thead className="bg-slate-50 text-slate-600 font-black">
@@ -1254,14 +1322,14 @@ const handleExportSummaryCSV = () => {
         </thead>
 
         <tbody className="divide-y divide-slate-100">
-          {notifications.length === 0 ? (
+          {filteredNotifications.length === 0? (
             <tr>
               <td colSpan={7} className="px-4 py-8 text-center text-slate-400 font-bold">
                 אין התראות להצגה
               </td>
             </tr>
           ) : (
-            notifications.map((notification) => {
+            filteredNotifications.map((notification) => {
               const statusInfo = ATTENDANCE_STATUS_LABELS[notification.status];
 
               return (
