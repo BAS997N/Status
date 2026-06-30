@@ -849,66 +849,110 @@ const latestTodayReport = soldierReports.find(report =>
     link.click();
     document.body.removeChild(link);
   };
+  // ייצוא אקסל בפורמט שיטס
 const handleExportSummaryCSV = () => {
-  const headers = [
-    "שם חייל",
-    "יחידה",
+  const getDateRange = (start: string, end: string) => {
+    const dates: string[] = [];
+    const current = new Date(start);
+    const last = new Date(end);
+
+    while (current <= last) {
+      dates.push(current.toISOString().split("T")[0]);
+      current.setDate(current.getDate() + 1);
+    }
+
+    return dates;
+  };
+
+  const today = new Date().toISOString().split("T")[0];
+  const startDate = summaryStartDate || today;
+  const endDate = summaryEndDate || today;
+  const dates = getDateRange(startDate, endDate);
+
+  const dayNames = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+
+  const firstHeader = [
     "מספר אישי",
-    "תאריך",
-    "שעה",
-    "סטטוס",
-    "מיקום",
-    "הערה"
+    "שם",
+    "תפקיד",
+    "טלפון",
+    ...dates.map((date) => dayNames[new Date(date).getDay()]),
   ];
 
-  const rows = reports
-    .filter((report) => {
-      const reportDate = report.timestamp?.split("T")[0];
+  const secondHeader = [
+    "",
+    "",
+    "",
+    "",
+    ...dates.map((date) =>
+      new Date(date).toLocaleDateString("he-IL")
+    ),
+  ];
 
-      if (summaryStartDate && reportDate < summaryStartDate) return false;
-      if (summaryEndDate && reportDate > summaryEndDate) return false;
+  const getMarkerText = (report: AttendanceReport) => {
+    if (report.dayMarker === "return_to_base") return "חזרה לבסיס";
+    if (report.dayMarker === "exit_home") return "יציאה לבית";
+    if (report.dayMarker === "after_hours") {
+      return `אפטר${report.afterHours ? ` ${report.afterHours} שעות` : ""}`;
+    }
+    return "";
+  };
 
-      return true;
-    })
-    .map((report) => {
-      const soldier = allSoldiers.find(
-        (s) =>
-          s.userId === report.userId ||
-          s.personalId === (report as any).personalId
-      );
+  const getCellValue = (report?: AttendanceReport) => {
+    if (!report) return "";
 
-      const reportDate = report.timestamp
-        ? new Date(report.timestamp).toLocaleDateString("he-IL")
-        : "—";
+    const statusText =
+      ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status;
 
-      const reportTime = report.timestamp
-        ? new Date(report.timestamp).toLocaleTimeString("he-IL", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "—";
+    const markerText = getMarkerText(report);
 
-      const statusLabel =
-        ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status;
+    return markerText ? `${statusText} / ${markerText}` : statusText;
+  };
 
-      return [
-        soldier?.fullName || report.userName || "—",
-        soldier?.unit || report.unit || "—",
-        soldier?.personalId || (report as any).personalId || "—",
-        reportDate,
-        reportTime,
-        statusLabel,
-        report.location || "—",
-        report.note || "—",
+  const rows = allSoldiers
+    .filter((soldier) => !soldier.isDischarged)
+    .map((soldier) => {
+      const baseData = [
+        soldier.personalId || "",
+        soldier.fullName || "",
+        soldier.medicalRole || "",
+        soldier.phoneNumber || "",
       ];
+
+      const dateCells = dates.map((date) => {
+        const reportsForDay = reports
+          .filter((report) => {
+            const sameSoldier =
+              report.userId === soldier.userId ||
+              (report as any).personalId === soldier.personalId;
+
+            const reportDay =
+              (report as any).reportDate ||
+              report.timestamp?.split("T")[0];
+
+            return sameSoldier && reportDay === date;
+          })
+          .sort(
+            (a, b) =>
+              new Date(b.updatedAt || b.timestamp).getTime() -
+              new Date(a.updatedAt || a.timestamp).getTime()
+          );
+
+        return getCellValue(reportsForDay[0]);
+      });
+
+      return [...baseData, ...dateCells];
     });
 
   const csvContent = [
-    headers.join(","),
-    ...rows.map((row) =>
+    firstHeader,
+    secondHeader,
+    ...rows,
+  ]
+    .map((row) =>
       row.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(",")
-    ),
-  ].join("\n");
+    )
+    .join("\n");
 
   const blob = new Blob(["\uFEFF" + csvContent], {
     type: "text/csv;charset=utf-8;",
@@ -918,16 +962,9 @@ const handleExportSummaryCSV = () => {
   const link = document.createElement("a");
   link.href = url;
 
-  const dateToday = new Date().toLocaleDateString("he-IL").replace(/\//g, "-");
-
-  const rangeText =
-    summaryStartDate || summaryEndDate
-      ? `_${summaryStartDate || "התחלה"}_עד_${summaryEndDate || "סוף"}`
-      : "";
-
   link.setAttribute(
     "download",
-    `סיכום_נוכחות_חיילים${rangeText}_${dateToday}.csv`
+    `דוח_נוכחות_בפורמט_שיטס_${startDate}_עד_${endDate}.csv`
   );
 
   document.body.appendChild(link);
