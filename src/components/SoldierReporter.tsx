@@ -649,8 +649,21 @@ dayMarker || undefined
     <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
       {commanderEditedReports.map((r) => {
         const statusInfo = ATTENDANCE_STATUS_LABELS[r.status];
-        const updatedAt = (r as any).updatedAt;
-        const updatedByName = (r as any).updatedByName;
+const updatedAt = (r as any).updatedAt;
+const updatedByName = (r as any).updatedByName;
+
+const reportDay =
+  (r as any).reportDate ||
+  r.timestamp?.split("T")[0];
+
+const reportDateText = reportDay
+  ? new Date(reportDay).toLocaleDateString("he-IL")
+  : new Date(r.timestamp).toLocaleDateString("he-IL");
+
+const reportTimeText = new Date(r.timestamp).toLocaleTimeString("he-IL", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
         return (
           <div
@@ -668,7 +681,8 @@ dayMarker || undefined
             </div>
 
             <div className="text-slate-700 font-bold">
-              {statusInfo?.label || r.status} · {r.location || "לא צוין"}
+              דיווח מתאריך {reportDateText} בשעה {reportTimeText} ·{" "}
+{statusInfo?.label || r.status} · {r.location || "לא צוין"}
             </div>
 
             {r.note && (
