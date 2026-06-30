@@ -513,6 +513,24 @@ dayMarker || undefined
                   };
                   const d = new Date(r.timestamp);
                   const formattedDateTime = d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+                 const createdByRole = (r as any).createdByRole;
+const createdByName = (r as any).createdByName;
+
+const updatedByName = (r as any).updatedByName;
+const updatedByRole = (r as any).updatedByRole;
+const updatedAt = (r as any).updatedAt;
+
+const createdByLabel =
+  createdByRole === "commander"
+    ? `דווח ע״י מפקד${createdByName ? `: ${createdByName}` : ""}`
+    : createdByRole === "adjutant_officer"
+    ? `דווח ע״י שליש${createdByName ? `: ${createdByName}` : ""}`
+    : "דווח ע״י החייל";
+
+const wasEdited =
+  updatedAt &&
+  updatedAt !== r.timestamp &&
+  (updatedByName || updatedByRole);
                   return (
                     <div 
                       key={r.reportId} 
@@ -549,27 +567,54 @@ dayMarker || undefined
                         </div>
                       )}
 
-                      {/* Verification Status */}
-                      <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                        <span className="text-slate-400 font-medium">מאושר ע״י מפקד:</span>
-                        {r.verifiedBy ? (
-                          <span className="text-emerald-700 dark:text-emerald-600 font-bold flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            אושר בהצלחה
-                          </span>
-                        ) : (
-                          <span className="text-amber-700 dark:text-amber-600 font-bold flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                            ממתין לבדיקה
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+                      {/* Report Source + Verification Status */}
+<div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1.5 text-[10px]">
+  <div className="flex flex-col gap-1">
+    <span
+      className={`font-black ${
+        createdByRole === "commander"
+          ? "text-blue-700"
+          : createdByRole === "adjutant_officer"
+          ? "text-purple-700"
+          : "text-emerald-700"
+      }`}
+    >
+      {createdByLabel}
+    </span>
+
+    {wasEdited && (
+      <span className="font-bold text-amber-700">
+        נערך ע״י{" "}
+        {updatedByRole === "commander"
+          ? "מפקד"
+          : updatedByRole === "adjutant_officer"
+          ? "שליש"
+          : "משתמש"}
+        {updatedByName ? `: ${updatedByName}` : ""} ·{" "}
+        {new Date(updatedAt).toLocaleTimeString("he-IL", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </span>
+    )}
+  </div>
+
+  <div className="flex items-center justify-between">
+    <span className="text-slate-400 font-medium">מאושר ע״י מפקד:</span>
+
+    {r.verifiedBy ? (
+      <span className="text-emerald-700 dark:text-emerald-600 font-bold flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        אושר בהצלחה
+      </span>
+    ) : (
+      <span className="text-amber-700 dark:text-amber-600 font-bold flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+        ממתין לבדיקה
+      </span>
+    )}
+  </div>
+</div>
 
           <div className="pt-4 border-t border-slate-100 text-center text-[10px] text-slate-400 font-medium leading-relaxed mt-4">
             סה״כ דיווחים שנשמרו: {userReports.length}
