@@ -499,126 +499,136 @@ dayMarker || undefined
             </div>
 
             <div className="space-y-3.5 max-h-[340px] overflow-y-auto custom-scrollbar pr-1">
-              {userReports.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 text-xs">
-                  אין דיווחים קודמים רשומים במערכת
-                </div>
-              ) : (
-                userReports.map((r) => {
-                  const statusInfo = ATTENDANCE_STATUS_LABELS[r.status] || {
-                    label: r.status || "לא מוגדר",
-                    color: "text-slate-600 dark:text-slate-300",
-                    bg: "bg-slate-50 dark:bg-slate-900/40",
-                    border: "border-slate-200 dark:border-slate-800"
-                  };
-                  const d = new Date(r.timestamp);
-                  const formattedDateTime = d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
-                 const createdByRole = (r as any).createdByRole;
-const createdByName = (r as any).createdByName;
+  {userReports.length === 0 ? (
+    <div className="text-center py-10 text-slate-400 text-xs">
+      אין דיווחים קודמים רשומים במערכת
+    </div>
+  ) : (
+    userReports.map((r) => {
+      const statusInfo = ATTENDANCE_STATUS_LABELS[r.status] || {
+        label: r.status || "לא מוגדר",
+        color: "text-slate-600 dark:text-slate-300",
+        bg: "bg-slate-50 dark:bg-slate-900/40",
+        border: "border-slate-200 dark:border-slate-800",
+      };
 
-const updatedByName = (r as any).updatedByName;
-const updatedByRole = (r as any).updatedByRole;
-const updatedAt = (r as any).updatedAt;
+      const d = new Date(r.timestamp);
+      const formattedDateTime =
+        d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" }) +
+        " " +
+        d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
 
-const createdByLabel =
-  createdByRole === "commander"
-    ? `דווח ע״י מפקד${createdByName ? `: ${createdByName}` : ""}`
-    : createdByRole === "adjutant_officer"
-    ? `דווח ע״י שליש${createdByName ? `: ${createdByName}` : ""}`
-    : "דווח ע״י החייל";
+      const createdByRole = (r as any).createdByRole;
+      const createdByName = (r as any).createdByName;
+      const updatedByName = (r as any).updatedByName;
+      const updatedByRole = (r as any).updatedByRole;
+      const updatedAt = (r as any).updatedAt;
 
-const wasEdited =
-  updatedAt &&
-  updatedAt !== r.timestamp &&
-  (updatedByName || updatedByRole);
-                  return (
-                    <div 
-                      key={r.reportId} 
-                      className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-2 text-xs"
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`}>
-  {statusInfo.label}
-
-  {r.dayMarker && (
-    <>
-      {" / "}
-      {r.dayMarker === "return_to_base"
-  ? "חזרה לבסיס"
-  : r.dayMarker === "exit_home"
-  ? "יציאה לבית"
-  : r.dayMarker === "after_hours"
-? `אפטר${r.afterHours ? ` ${r.afterHours} שעות` : ""}`
-  : r.dayMarker}
-    </>
-  )}
-</span>
-                        <span className="text-[10px] text-slate-400 font-mono">{formattedDateTime}</span>
-                      </div>
-
-                      <div className="text-slate-700 font-semibold flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">{r.location}</span>
-                      </div>
-
-                      {r.note && (
-                        <div className="text-slate-500 text-[11px] bg-white p-1 rounded border border-slate-100">
-                          {r.note}
-                        </div>
-                      )}
-
-                      {/* Report Source + Verification Status */}
-<div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1.5 text-[10px]">
-  <div className="flex flex-col gap-1">
-    <span
-      className={`font-black ${
+      const createdByLabel =
         createdByRole === "commander"
-          ? "text-blue-700"
+          ? `דווח ע״י מפקד${createdByName ? `: ${createdByName}` : ""}`
           : createdByRole === "adjutant_officer"
-          ? "text-purple-700"
-          : "text-emerald-700"
-      }`}
-    >
-      {createdByLabel}
-    </span>
+          ? `דווח ע״י שליש${createdByName ? `: ${createdByName}` : ""}`
+          : "דווח ע״י החייל";
 
-    {wasEdited && (
-      <span className="font-bold text-amber-700">
-        נערך ע״י{" "}
-        {updatedByRole === "commander"
-          ? "מפקד"
-          : updatedByRole === "adjutant_officer"
-          ? "שליש"
-          : "משתמש"}
-        {updatedByName ? `: ${updatedByName}` : ""} ·{" "}
-        {new Date(updatedAt).toLocaleTimeString("he-IL", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-      </span>
-    )}
-  </div>
+      const wasEdited =
+        updatedAt &&
+        updatedAt !== r.timestamp &&
+        (updatedByName || updatedByRole);
 
-  <div className="flex items-center justify-between">
-    <span className="text-slate-400 font-medium">מאושר ע״י מפקד:</span>
+      return (
+        <div
+          key={r.reportId}
+          className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-2 text-xs"
+        >
+          <div className="flex justify-between items-center">
+            <span
+              className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`}
+            >
+              {statusInfo.label}
 
-    {r.verifiedBy ? (
-      <span className="text-emerald-700 dark:text-emerald-600 font-bold flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-        אושר בהצלחה
-      </span>
-    ) : (
-      <span className="text-amber-700 dark:text-amber-600 font-bold flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-        ממתין לבדיקה
-      </span>
-    )}
-  </div>
-</div>
-                                          </div>
-                  );
-                })
+              {r.dayMarker && (
+                <>
+                  {" / "}
+                  {r.dayMarker === "return_to_base"
+                    ? "חזרה לבסיס"
+                    : r.dayMarker === "exit_home"
+                    ? "יציאה לבית"
+                    : r.dayMarker === "after_hours"
+                    ? `אפטר${r.afterHours ? ` ${r.afterHours} שעות` : ""}`
+                    : r.dayMarker}
+                </>
               )}
+            </span>
+
+            <span className="text-[10px] text-slate-400 font-mono">
+              {formattedDateTime}
+            </span>
+          </div>
+
+          <div className="text-slate-700 font-semibold flex items-center gap-1">
+            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="truncate">{r.location}</span>
+          </div>
+
+          {r.note && (
+            <div className="text-slate-500 text-[11px] bg-white p-1 rounded border border-slate-100">
+              {r.note}
+            </div>
+          )}
+
+          <div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1.5 text-[10px]">
+            <div className="flex flex-col gap-1">
+              <span
+                className={`font-black ${
+                  createdByRole === "commander"
+                    ? "text-blue-700"
+                    : createdByRole === "adjutant_officer"
+                    ? "text-purple-700"
+                    : "text-emerald-700"
+                }`}
+              >
+                {createdByLabel}
+              </span>
+
+              {wasEdited && (
+                <span className="font-bold text-amber-700">
+                  נערך ע״י{" "}
+                  {updatedByRole === "commander"
+                    ? "מפקד"
+                    : updatedByRole === "adjutant_officer"
+                    ? "שליש"
+                    : "משתמש"}
+                  {updatedByName ? `: ${updatedByName}` : ""} ·{" "}
+                  {new Date(updatedAt).toLocaleTimeString("he-IL", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 font-medium">מאושר ע״י מפקד:</span>
+
+              {r.verifiedBy ? (
+                <span className="text-emerald-700 dark:text-emerald-600 font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  אושר בהצלחה
+                </span>
+              ) : (
+                <span className="text-amber-700 dark:text-amber-600 font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                  ממתין לבדיקה
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    })
+  )}
+</div>
 
           <div className="pt-4 border-t border-slate-100 text-center text-[10px] text-slate-400 font-medium leading-relaxed mt-4">
             סה״כ דיווחים שנשמרו: {userReports.length}
