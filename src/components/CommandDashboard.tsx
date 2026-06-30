@@ -495,31 +495,6 @@ const latestTodayReport = soldierReports.find(report =>
     }
 
     const soldiers = allSoldiers.filter(s => s.role === "soldier" && !s.isDischarged);
-    const filteredSystemLogs = systemLogs.filter((log) => {
-  const logDate = log.timestamp
-    ? log.timestamp.split("T")[0]
-    : "";
-
-  const matchesDate =
-    !systemLogFilterDate ||
-    logDate === systemLogFilterDate;
-
-  const matchesUser =
-    !systemLogFilterUser ||
-    (log.actorName || "")
-      .toLowerCase()
-      .includes(systemLogFilterUser.toLowerCase());
-
-  const matchesAction =
-    systemLogFilterAction === "all" ||
-    log.action === systemLogFilterAction;
-
-  return (
-    matchesDate &&
-    matchesUser &&
-    matchesAction
-  );
-});
 
     return weekDays.map(day => {
       // Find reports of this day
@@ -956,6 +931,25 @@ const handleExportSummaryCSV = () => {
   link.click();
   document.body.removeChild(link);
 };
+
+  const filteredSystemLogs = systemLogs.filter((log) => {
+  const logDate = log.timestamp ? log.timestamp.split("T")[0] : "";
+
+  const matchesDate =
+    !systemLogFilterDate || logDate === systemLogFilterDate;
+
+  const matchesUser =
+    !systemLogFilterUser ||
+    (log.actorName || "")
+      .toLowerCase()
+      .includes(systemLogFilterUser.toLowerCase());
+
+  const matchesAction =
+    systemLogFilterAction === "all" || log.action === systemLogFilterAction;
+
+  return matchesDate && matchesUser && matchesAction;
+});
+  
   return (
     <div id="commander-dashboard" className="space-y-6">
       
