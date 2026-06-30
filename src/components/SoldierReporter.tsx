@@ -518,8 +518,19 @@ dayMarker || undefined
                     >
                       <div className="flex justify-between items-center">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`}>
-                          {statusInfo.label}
-                        </span>
+  {statusInfo.label}
+
+  {r.dayMarker && (
+    <>
+      {" / "}
+      {r.dayMarker === "return_to_base"
+        ? "חזרה לבסיס"
+        : r.dayMarker === "exit_home"
+        ? "יציאה לבית"
+        : r.dayMarker}
+    </>
+  )}
+</span>
                         <span className="text-[10px] text-slate-400 font-mono">{formattedDateTime}</span>
                       </div>
 
