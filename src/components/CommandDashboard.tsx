@@ -107,6 +107,9 @@ export default function CommandDashboard({
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [chartsReady, setChartsReady] = useState(false);
+  const [systemLogFilterDate, setSystemLogFilterDate] = useState("");
+const [systemLogFilterUser, setSystemLogFilterUser] = useState("");
+const [systemLogFilterAction, setSystemLogFilterAction] = useState("all");
 
   // Collapsible States
   const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
@@ -492,6 +495,31 @@ const latestTodayReport = soldierReports.find(report =>
     }
 
     const soldiers = allSoldiers.filter(s => s.role === "soldier" && !s.isDischarged);
+    const filteredSystemLogs = systemLogs.filter((log) => {
+  const logDate = log.timestamp
+    ? log.timestamp.split("T")[0]
+    : "";
+
+  const matchesDate =
+    !systemLogFilterDate ||
+    logDate === systemLogFilterDate;
+
+  const matchesUser =
+    !systemLogFilterUser ||
+    (log.actorName || "")
+      .toLowerCase()
+      .includes(systemLogFilterUser.toLowerCase());
+
+  const matchesAction =
+    systemLogFilterAction === "all" ||
+    log.action === systemLogFilterAction;
+
+  return (
+    matchesDate &&
+    matchesUser &&
+    matchesAction
+  );
+});
 
     return weekDays.map(day => {
       // Find reports of this day
@@ -1304,6 +1332,52 @@ const handleExportSummaryCSV = () => {
       </p>
     </div>
 
+    <div className="p-4 border-b border-slate-100 bg-slate-50">
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+    <input
+      type="date"
+      value={systemLogFilterDate}
+      onChange={(e) => setSystemLogFilterDate(e.target.value)}
+      className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold bg-white"
+    />
+
+    <input
+      type="text"
+      placeholder="סינון לפי משתמש..."
+      value={systemLogFilterUser}
+      onChange={(e) => setSystemLogFilterUser(e.target.value)}
+      className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold bg-white"
+    />
+
+    <select
+      value={systemLogFilterAction}
+      onChange={(e) => setSystemLogFilterAction(e.target.value)}
+      className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold bg-white"
+    >
+      <option value="all">כל הפעולות</option>
+      <option value="add_soldier">הוספת חייל</option>
+      <option value="edit_soldier">עריכת חייל</option>
+      <option value="delete_soldier">מחיקת חייל</option>
+      <option value="create_report">יצירת דיווח</option>
+      <option value="edit_report">עריכת דיווח</option>
+      <option value="delete_report">מחיקת דיווח</option>
+      <option value="reset_report">איפוס דיווח</option>
+    </select>
+
+    <button
+      type="button"
+      onClick={() => {
+        setSystemLogFilterDate("");
+        setSystemLogFilterUser("");
+        setSystemLogFilterAction("all");
+      }}
+      className="bg-slate-800 hover:bg-slate-900 text-white rounded-lg px-3 py-2 text-xs font-black"
+    >
+      נקה סינון
+    </button>
+  </div>
+</div>
+    
     <div className="overflow-x-auto">
       <table className="w-full text-xs text-right">
         <thead className="bg-slate-50 text-slate-600 font-black">
@@ -1317,14 +1391,14 @@ const handleExportSummaryCSV = () => {
         </thead>
 
         <tbody className="divide-y divide-slate-100">
-          {systemLogs.length === 0 ? (
+          {filteredSystemLogs.length === 0 ? (
             <tr>
               <td colSpan={5} className="px-4 py-8 text-center text-slate-400 font-bold">
                 אין פעולות ביומן עדיין
               </td>
             </tr>
           ) : (
-            systemLogs.map((log) => (
+            filteredSystemLogs.map((log) => (
               <tr key={log.logId} className="hover:bg-slate-50">
                 <td className="px-4 py-3 font-bold text-slate-700">
                   {log.timestamp ? new Date(log.timestamp).toLocaleString("he-IL") : "—"}
