@@ -10,6 +10,9 @@ interface HistoryViewProps {
 
 export default function HistoryView({ logs, reports, onDeleteReport }: HistoryViewProps) {
   const [filterDate, setFilterDate] = useState("");
+  const [filterSoldier, setFilterSoldier] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterRole, setFilterRole] = useState("all");
   const [reportToDelete, setReportToDelete] = useState<AttendanceReport | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -28,9 +31,24 @@ const filteredLogs = logs.filter(log =>
   !filterDate || getLocalDateString(log.updatedAt) === filterDate
 );
 
-const filteredReports = reports.filter(rep =>
-  !filterDate || getLocalDateString(rep.timestamp) === filterDate
-);
+const filteredReports = reports.filter((rep) => {
+  const matchesDate =
+    !filterDate || getLocalDateString(rep.timestamp) === filterDate;
+
+  const matchesSoldier =
+    !filterSoldier ||
+    (rep.userName || "").toLowerCase().includes(filterSoldier.toLowerCase());
+
+  const matchesStatus =
+    filterStatus === "all" || rep.status === filterStatus;
+
+  const createdByRole = (rep as any).createdByRole || "unknown";
+
+  const matchesRole =
+    filterRole === "all" || createdByRole === filterRole;
+
+  return matchesDate && matchesSoldier && matchesStatus && matchesRole;
+});
 
   const getStatusLabel = (status: string) => {
     if (status === "base") return "בבסיס";
@@ -66,16 +84,66 @@ const getActionTypeLabel = (rep: AttendanceReport, relatedLog?: any) => {
   return (
     <div className="space-y-6" dir="rtl">
       <div className="bg-white p-6 rounded-xl border border-slate-200">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h2 className="text-lg font-black">היסטוריית דיווחים</h2>
+        <div className="space-y-3 mb-4">
+  <div className="flex items-center justify-between gap-3">
+    <h2 className="text-lg font-black">היסטוריית דיווחים</h2>
 
-          <input
-            type="date"
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            className="border border-slate-200 p-2 rounded-lg text-sm"
-          />
-        </div>
+    <button
+      type="button"
+      onClick={() => {
+        setFilterDate("");
+        setFilterSoldier("");
+        setFilterStatus("all");
+        setFilterRole("all");
+      }}
+      className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-black"
+    >
+      נקה סינון
+    </button>
+  </div>
+
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
+    <input
+      type="date"
+      value={filterDate}
+      onChange={(e) => setFilterDate(e.target.value)}
+      className="border border-slate-200 p-2 rounded-lg text-xs font-bold bg-white"
+    />
+
+    <input
+      type="text"
+      placeholder="סינון לפי חייל..."
+      value={filterSoldier}
+      onChange={(e) => setFilterSoldier(e.target.value)}
+      className="border border-slate-200 p-2 rounded-lg text-xs font-bold bg-white"
+    />
+
+    <select
+      value={filterStatus}
+      onChange={(e) => setFilterStatus(e.target.value)}
+      className="border border-slate-200 p-2 rounded-lg text-xs font-bold bg-white"
+    >
+      <option value="all">כל הסטטוסים</option>
+      {Object.entries(ATTENDANCE_STATUS_LABELS).map(([key, value]) => (
+        <option key={key} value={key}>
+          {value.label}
+        </option>
+      ))}
+    </select>
+
+    <select
+      value={filterRole}
+      onChange={(e) => setFilterRole(e.target.value)}
+      className="border border-slate-200 p-2 rounded-lg text-xs font-bold bg-white"
+    >
+      <option value="all">כל המדווחים</option>
+      <option value="soldier">חייל</option>
+      <option value="commander">מפקד</option>
+      <option value="adjutant_officer">שליש</option>
+      <option value="unknown">לא ידוע</option>
+    </select>
+  </div>
+</div>
 
         <div className="space-y-6">
           <section>
