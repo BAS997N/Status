@@ -864,10 +864,24 @@ const handleExportSummaryCSV = () => {
     return dates;
   };
 
-  const today = new Date().toISOString().split("T")[0];
-  const startDate = summaryStartDate || today;
-  const endDate = summaryEndDate || today;
-  const dates = getDateRange(startDate, endDate);
+  const allReportDates = reports
+  .map((report) => (report as any).reportDate || report.timestamp?.split("T")[0])
+  .filter(Boolean)
+  .sort();
+
+const today = new Date().toISOString().split("T")[0];
+
+const startDate =
+  summaryStartDate ||
+  allReportDates[0] ||
+  today;
+
+const endDate =
+  summaryEndDate ||
+  allReportDates[allReportDates.length - 1] ||
+  today;
+
+const dates = getDateRange(startDate, endDate);
 
   const dayNames = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 
