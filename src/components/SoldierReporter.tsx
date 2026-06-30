@@ -8,7 +8,8 @@ import {
   AlertCircle, 
   Compass, 
   CalendarDays, 
-  FileText 
+  FileText,
+  CircleHelp
 } from "lucide-react";
 import { 
   UserProfile, 
@@ -277,12 +278,13 @@ dayMarker || undefined
   </div>
 
   <button
-    type="button"
-    onClick={() => setIsHelpOpen(true)}
-    className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-xs font-black"
-  >
-    ? עזרה
-  </button>
+  type="button"
+  onClick={() => setIsHelpOpen(true)}
+  className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-xs font-black flex items-center gap-1"
+>
+  <CircleHelp className="w-4 h-4" />
+  עזרה
+</button>
 </div>
 
           <form onSubmit={handleFormSubmit} className="space-y-5">
