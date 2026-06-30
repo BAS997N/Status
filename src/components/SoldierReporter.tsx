@@ -230,10 +230,12 @@ dayMarker || undefined
     <>
       {" / "}
       {latestReport.dayMarker === "return_to_base"
-        ? "חזרה לבסיס"
-        : latestReport.dayMarker === "exit_home"
-        ? "יציאה לבית"
-        : latestReport.dayMarker}
+  ? "חזרה לבסיס"
+  : latestReport.dayMarker === "exit_home"
+  ? "יציאה לבית"
+  : latestReport.dayMarker === "after_hours"
+  ? "אפטר"
+  : latestReport.dayMarker}
     </>
   )}
 </span>
@@ -524,10 +526,12 @@ dayMarker || undefined
     <>
       {" / "}
       {r.dayMarker === "return_to_base"
-        ? "חזרה לבסיס"
-        : r.dayMarker === "exit_home"
-        ? "יציאה לבית"
-        : r.dayMarker}
+  ? "חזרה לבסיס"
+  : r.dayMarker === "exit_home"
+  ? "יציאה לבית"
+  : r.dayMarker === "after_hours"
+  ? "אפטר"
+  : r.dayMarker}
     </>
   )}
 </span>
