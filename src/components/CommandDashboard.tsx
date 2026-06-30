@@ -505,7 +505,17 @@ const latestTodayReport = soldierReports.find(report =>
 
       if (reportsOnDay.length > 0) {
         soldiers.forEach(soldier => {
-          const soldierRep = reportsOnDay.find(r => r.userId === soldier.userId);
+          const soldierRep = reportsOnDay
+  .filter(
+    (r) =>
+      r.userId === soldier.userId ||
+      (r as any).personalId === soldier.personalId
+  )
+  .sort(
+    (a, b) =>
+      new Date(b.updatedAt || b.timestamp).getTime() -
+      new Date(a.updatedAt || a.timestamp).getTime()
+  )[0];
           if (soldierRep) {
             if (["base", "field", "course"].includes(soldierRep.status)) {
               present++;
@@ -647,7 +657,17 @@ const latestTodayReport = soldierReports.find(report =>
         if (reportsOnDay.length > 0) {
           let presentCount = 0;
           unitSoldiers.forEach(soldier => {
-            const soldierRep = reportsOnDay.find(r => r.userId === soldier.userId);
+            const soldierRep = reportsOnDay
+  .filter(
+    (r) =>
+      r.userId === soldier.userId ||
+      (r as any).personalId === soldier.personalId
+  )
+  .sort(
+    (a, b) =>
+      new Date(b.updatedAt || b.timestamp).getTime() -
+      new Date(a.updatedAt || a.timestamp).getTime()
+  )[0];
             if (soldierRep && ["base", "field", "course"].includes(soldierRep.status)) {
               presentCount++;
             }
