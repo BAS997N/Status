@@ -917,7 +917,7 @@ const handleExportSummaryCSV = () => {
   };
 
   const allReportDates = reports
-  .map((report) => (report as any).reportDate || getDateOnlyFromTimestamp(report.timestamp)
+  .map((report) => (report as any).reportDate || getDateOnlyFromTimestamp(report.timestamp))
   .filter(Boolean)
   .sort();
 
