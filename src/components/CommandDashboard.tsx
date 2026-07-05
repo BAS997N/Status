@@ -2844,9 +2844,93 @@ https://bas997n.github.io/Status/`
                {/* Table footer with summary count info */}
         <div className="p-4 bg-slate-50/50 border-t border-slate-100 text-[11px] text-slate-400 font-semibold flex items-center justify-between">
           <span>
-  סה"כ: {filteredSoldiersStatus.length} | 👮 מפקדים:{" "}
-  {filteredSoldiersStatus.filter(({ profile }) => profile.role === "commander").length} | 🪖 חיילים:{" "}
-  {filteredSoldiersStatus.filter(({ profile }) => profile.role === "soldier").length}
+  סה"כ:{" "}
+  {
+    filteredSoldiersStatus.filter(({ profile, latestTodayReport }) => {
+      const query = attendanceSearchQuery.toLowerCase();
+
+      const matchesSearch =
+        !query ||
+        profile.fullName.toLowerCase().includes(query) ||
+        profile.personalId?.includes(attendanceSearchQuery) ||
+        profile.medicalRole?.toLowerCase().includes(query);
+
+      const matchesRole =
+        attendanceRoleFilter === "all" ||
+        profile.medicalRole === attendanceRoleFilter;
+
+      const matchesStatus =
+        attendanceStatusFilter === "all" ||
+        (latestTodayReport && latestTodayReport.status === attendanceStatusFilter);
+
+      const matchesMissing =
+        !showOnlyMissingReports || !latestTodayReport;
+
+      return matchesSearch && matchesRole && matchesStatus && matchesMissing;
+    }).length
+  }{" "}
+  | 👮 מפקדים:{" "}
+  {
+    filteredSoldiersStatus.filter(({ profile, latestTodayReport }) => {
+      const query = attendanceSearchQuery.toLowerCase();
+
+      const matchesSearch =
+        !query ||
+        profile.fullName.toLowerCase().includes(query) ||
+        profile.personalId?.includes(attendanceSearchQuery) ||
+        profile.medicalRole?.toLowerCase().includes(query);
+
+      const matchesRole =
+        attendanceRoleFilter === "all" ||
+        profile.medicalRole === attendanceRoleFilter;
+
+      const matchesStatus =
+        attendanceStatusFilter === "all" ||
+        (latestTodayReport && latestTodayReport.status === attendanceStatusFilter);
+
+      const matchesMissing =
+        !showOnlyMissingReports || !latestTodayReport;
+
+      return (
+        profile.role === "commander" &&
+        matchesSearch &&
+        matchesRole &&
+        matchesStatus &&
+        matchesMissing
+      );
+    }).length
+  }{" "}
+  | 🪖 חיילים:{" "}
+  {
+    filteredSoldiersStatus.filter(({ profile, latestTodayReport }) => {
+      const query = attendanceSearchQuery.toLowerCase();
+
+      const matchesSearch =
+        !query ||
+        profile.fullName.toLowerCase().includes(query) ||
+        profile.personalId?.includes(attendanceSearchQuery) ||
+        profile.medicalRole?.toLowerCase().includes(query);
+
+      const matchesRole =
+        attendanceRoleFilter === "all" ||
+        profile.medicalRole === attendanceRoleFilter;
+
+      const matchesStatus =
+        attendanceStatusFilter === "all" ||
+        (latestTodayReport && latestTodayReport.status === attendanceStatusFilter);
+
+      const matchesMissing =
+        !showOnlyMissingReports || !latestTodayReport;
+
+      return (
+        profile.role !== "commander" &&
+        matchesSearch &&
+        matchesRole &&
+        matchesStatus &&
+        matchesMissing
+      );
+    }).length
+  }
 </span>
           <span>מפקד מאשר נוכחי: {currentUser.fullName} ({currentUser.unit})</span>
                    </div>
