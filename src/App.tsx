@@ -663,12 +663,9 @@ dayMarker?: "return_to_base" | "exit_home"
 ) => {
   if (!userProfile) return;
 
-  const createTimestampForDate = (dateStr?: string) => {
-    const selectedDate = dateStr || getIsraelDateString();
-    const now = new Date();
-    const timePart = now.toTimeString().split(" ")[0];
-    return new Date(`${selectedDate}T${timePart}`).toISOString();
-  };
+  const getReportDate = (dateStr?: string) => {
+  return dateStr || getIsraelDateString();
+};
 
   const buildReportPayload = (dateStr?: string) => ({
     userId: userProfile.userId,
@@ -679,7 +676,8 @@ dayMarker?: "return_to_base" | "exit_home"
     location,
     note,
     ...(dayMarker ? { dayMarker } : {}),
-    timestamp: createTimestampForDate(dateStr),
+    reportDate: getReportDate(dateStr),
+timestamp: new Date().toISOString(),
 
     createdBy: userProfile.userId,
     createdByName: userProfile.fullName,
