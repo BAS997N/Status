@@ -554,7 +554,7 @@ const latestTodayReport = soldierReports.find(report =>
     return weekDays.map(day => {
       // Find reports of this day
       const reportsOnDay = reports.filter(r => {
-        const rDate = r.timestamp.split("T")[0];
+        const rDate = getDateOnlyFromTimestamp(r.timestamp)
         return rDate === day.dateStr;
       });
 
@@ -698,7 +698,7 @@ const latestTodayReport = soldierReports.find(report =>
 
     return weekDays.map(day => {
       // Find reports of this day
-      const reportsOnDay = reports.filter(r => r.timestamp.split("T")[0] === day.dateStr);
+      const reportsOnDay = reports.filter(r => getDateOnlyFromTimestamp(r.timestamp) === day.dateStr);
       
       const record: Record<string, any> = {
         name: day.displayLabel,
@@ -917,7 +917,7 @@ const handleExportSummaryCSV = () => {
   };
 
   const allReportDates = reports
-  .map((report) => (report as any).reportDate || report.timestamp?.split("T")[0])
+  .map((report) => (report as any).reportDate || getDateOnlyFromTimestamp(report.timestamp)
   .filter(Boolean)
   .sort();
 
@@ -994,7 +994,7 @@ const dates = getDateRange(startDate, endDate);
 
             const reportDay =
               (report as any).reportDate ||
-              report.timestamp?.split("T")[0];
+              getDateOnlyFromTimestamp(report.timestamp)
 
             return sameSoldier && reportDay === date;
           })
@@ -1771,7 +1771,7 @@ const dates = getDateRange(startDate, endDate);
 
   const reportDay =
     (report as any).reportDate ||
-    report.timestamp?.split("T")[0];
+    getDateOnlyFromTimestamp(report.timestamp)
 
   if (!reportDay) return false;
 
@@ -1786,7 +1786,7 @@ const latestReportByDate = new Map<string, AttendanceReport>();
 filteredReports.forEach((report) => {
   const reportDay =
     (report as any).reportDate ||
-    report.timestamp?.split("T")[0];
+    getDateOnlyFromTimestamp(report.timestamp)
 
   if (!reportDay) return;
 
