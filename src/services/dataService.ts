@@ -779,11 +779,12 @@ const finalReportData = {
     localStorage.setItem("idf_notifications", JSON.stringify(DEFAULT_SIMULATED_NOTIFICATIONS));
     localStorage.setItem("idf_active_user_id", "sim_soldier_1");
   }
+  }
   export async function getReliableServerNow(): Promise<Date> {
   if (!isFirebaseActive() || !db || !auth?.currentUser?.uid) {
     return new Date();
   }
-  }
+  
 
   const ref = doc(db, "server_clock", auth.currentUser.uid);
 
