@@ -1038,8 +1038,22 @@ const dates = getDateRange(startDate, endDate);
   document.body.removeChild(link);
 };
 
+  const getDateOnlyFromTimestamp = (timestamp: any) => {
+  if (!timestamp) return "";
+
+  if (typeof timestamp === "string") {
+    return timestamp.split("T")[0];
+  }
+
+  if (typeof timestamp.toDate === "function") {
+    return timestamp.toDate().toISOString().split("T")[0];
+  }
+
+  return "";
+};
+  
   const filteredSystemLogs = systemLogs.filter((log) => {
-  const logDate = log.timestamp ? log.timestamp.split("T")[0] : "";
+  const logDate = getDateOnlyFromTimestamp(log.timestamp);
 
   const matchesDate =
     !systemLogFilterDate || logDate === systemLogFilterDate;
@@ -1057,9 +1071,7 @@ const dates = getDateRange(startDate, endDate);
 });
 /* סינון התראות */
   const filteredNotifications = notifications.filter((notification) => {
-  const notificationDate = notification.timestamp
-    ? notification.timestamp.split("T")[0]
-    : "";
+  const notificationDate = getDateOnlyFromTimestamp(notification.timestamp);
 
   const matchesDate =
     !notificationFilterDate ||
