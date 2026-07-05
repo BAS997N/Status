@@ -3,6 +3,7 @@ import { Shield, User, Sliders, Database, Wifi, WifiOff, RefreshCw, Layers, Bell
 import { UserProfile, IDF_UNITS, AppNotification, ATTENDANCE_STATUS_LABELS } from "../types";
 import { isFirebaseActive } from "../firebase";
 import { motion, AnimatePresence } from "motion/react";
+import { getReliableServerNow } from "../services/dataService";
 
 interface HeaderProps {
   currentUser: UserProfile;
@@ -44,9 +45,30 @@ export default function Header({
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  let serverOffsetMs = 0;
+
+  const syncServerTime = async () => {
+    try {
+      const serverNow = await getReliableServerNow();
+      serverOffsetMs = serverNow.getTime() - Date.now();
+    } catch {
+      serverOffsetMs = 0;
+    }
+  };
+
+  syncServerTime();
+
+  const timer = setInterval(() => {
+    setTime(new Date(Date.now() + serverOffsetMs));
+  }, 1000);
+
+  const syncTimer = setInterval(syncServerTime, 30000);
+
+  return () => {
+    clearInterval(timer);
+    clearInterval(syncTimer);
+  };
+}, []);
 
   // Update local inputs when currentUser changes
   useEffect(() => {
