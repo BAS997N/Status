@@ -536,17 +536,17 @@ fetch(GOOGLE_SHEETS_WEB_APP_URL, {
       // Generate Firestore notification
       if (isAlert) {
         const notPayload = {
-          reportId: docRef.id,
-          userId: reportPayload.userId,
-          soldierName: reportPayload.userName,
-          unit: reportPayload.unit,
-          status: reportPayload.status,
-          location: reportPayload.location,
-          timestamp: serverTimestamp(),
-reportTimestamp: reportPayload.timestamp,
-reportDate: reportPayload.reportDate,
-          isRead: false,
-          message: notificationMsg
+  reportId: docRef.id,
+  userId: reportPayload.userId,
+  soldierName: reportPayload.userName,
+  unit: reportPayload.unit,
+  status: reportPayload.status,
+  location: reportPayload.location,
+  timestamp: new Date().toISOString(),
+  reportTimestamp: reportPayload.timestamp,
+  reportDate: reportPayload.reportDate,
+  isRead: false,
+  message: notificationMsg
         };
         const notRef = doc(collection(db, "notifications"));
 
