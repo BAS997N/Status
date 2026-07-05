@@ -382,7 +382,17 @@ const [summaryEndDate, setSummaryEndDate] = useState("");
 const isDate = (timestampStr: string, dateStr: string) => {
   return getLocalDateString(timestampStr) === dateStr;
 };
+ const getDateOnlyFromTimestamp = (timestamp: any) => {
 
+  if (!timestamp) return "";
+  if (typeof timestamp === "string") {
+    return timestamp.split("T")[0];
+  }
+  if (typeof timestamp.toDate === "function") {
+    return timestamp.toDate().toISOString().split("T")[0];
+  }
+  return "";
+};
   // Compile today's latest reports for all active soldiers
   const getSoldiersLatestStatus = () => {
     const activeSoldiers = allSoldiers.filter(s => !s.isDischarged);
@@ -1038,19 +1048,6 @@ const dates = getDateRange(startDate, endDate);
   document.body.removeChild(link);
 };
 
-  const getDateOnlyFromTimestamp = (timestamp: any) => {
-  if (!timestamp) return "";
-
-  if (typeof timestamp === "string") {
-    return timestamp.split("T")[0];
-  }
-
-  if (typeof timestamp.toDate === "function") {
-    return timestamp.toDate().toISOString().split("T")[0];
-  }
-
-  return "";
-};
   
   const filteredSystemLogs = systemLogs.filter((log) => {
   const logDate = getDateOnlyFromTimestamp(log.timestamp);
