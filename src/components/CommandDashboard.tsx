@@ -24,7 +24,10 @@ import {
   UserMinus,
   UserCheck,
   Plus,
-  Trash2
+  Trash2,
+  Scissors,
+  House,
+  FileX
 } from "lucide-react";
 import { 
   UserProfile,
@@ -53,7 +56,7 @@ import {
   LineChart,
   Line
 } from "recharts";
-import { Scissors } from "lucide-react";
+
 
 interface CommandDashboardProps {
   currentUser: UserProfile;
@@ -1875,7 +1878,7 @@ const soldierReports = Array.from(latestReportByDate.values());
   </div>
 
   <div className="p-3 bg-orange-50 rounded-lg text-orange-600">
-    <Scissors className="w-5 h-5" />
+    <FileX className="w-5 h-5" />
   </div>
 </div>
               {/* Cut Order Status */}
@@ -1896,7 +1899,7 @@ const soldierReports = Array.from(latestReportByDate.values());
   </div>
 
   <div className="p-3 bg-red-50 rounded-lg text-red-600">
-    <FileText className="w-5 h-5" />
+    <Scissors className="w-5 h-5" />
   </div>
 </div>
               {/* Return To Base Today */}
@@ -1914,7 +1917,7 @@ const soldierReports = Array.from(latestReportByDate.values());
   </div>
 
   <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-    <RefreshCw className="w-5 h-5" />
+    <ArrowLeftCircle className="w-5 h-5" />
   </div>
 </div>
 
@@ -1933,7 +1936,7 @@ const soldierReports = Array.from(latestReportByDate.values());
   </div>
 
   <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
-   <Users className="w-5 h-5" />
+   <House className="w-5 h-5" />
   </div>
 </div>
               
