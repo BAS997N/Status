@@ -2508,7 +2508,11 @@ const soldierReports = Array.from(latestReportByDate.values());
 }}
     className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white font-bold text-slate-600"
   >
-    תפקידים {attendanceRoleFilters.length > 0 ? `(${attendanceRoleFilters.length})` : ""} ▼
+   {attendanceRoleFilters.length === 0
+  ? "תפקידים"
+  : attendanceRoleFilters.length <= 2
+  ? attendanceRoleFilters.join(", ")
+  : `${attendanceRoleFilters.slice(0, 2).join(", ")} +${attendanceRoleFilters.length - 2}`} ▼
   </button>
 
   {isRoleFilterOpen && (
@@ -2542,7 +2546,25 @@ const soldierReports = Array.from(latestReportByDate.values());
 }}
     className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white font-bold text-slate-600"
   >
-    סוג דיווח {attendanceStatusFilters.length > 0 ? `(${attendanceStatusFilters.length})` : ""} ▼
+    {attendanceStatusFilters.length === 0
+  ? "סוג דיווח"
+  : attendanceStatusFilters.length <= 2
+  ? attendanceStatusFilters
+      .map((status) => {
+        const labels: Record<string, string> = {
+          base: "בבסיס",
+          field: "בשטח",
+          home: "בבית",
+          sick: "גימלים",
+          course: "קורס",
+          cut_order: "חיתוך צו",
+          not_on_order: "לא בצו",
+          other: "אחר",
+        };
+        return labels[status] || status;
+      })
+      .join(", ")
+  : `${attendanceStatusFilters.length} סוגי דיווח`} ▼
   </button>
 
   {isStatusFilterOpen && (
