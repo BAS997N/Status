@@ -2502,7 +2502,10 @@ const soldierReports = Array.from(latestReportByDate.values());
 <div className="relative">
   <button
     type="button"
-    onClick={() => setIsRoleFilterOpen(!isRoleFilterOpen)}
+    onClick={() => {
+  setIsRoleFilterOpen(!isRoleFilterOpen);
+  setIsStatusFilterOpen(false);
+}}
     className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white font-bold text-slate-600"
   >
     תפקידים {attendanceRoleFilters.length > 0 ? `(${attendanceRoleFilters.length})` : ""} ▼
@@ -2533,7 +2536,10 @@ const soldierReports = Array.from(latestReportByDate.values());
 <div className="relative">
   <button
     type="button"
-    onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
+    onClick={() => {
+  setIsStatusFilterOpen(!isStatusFilterOpen);
+  setIsRoleFilterOpen(false);
+}}
     className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white font-bold text-slate-600"
   >
     סוג דיווח {attendanceStatusFilters.length > 0 ? `(${attendanceStatusFilters.length})` : ""} ▼
@@ -2569,6 +2575,21 @@ const soldierReports = Array.from(latestReportByDate.values());
     </div>
   )}
 </div>
+              {(attendanceRoleFilters.length > 0 || attendanceStatusFilters.length > 0 || showOnlyMissingReports) && (
+  <button
+    type="button"
+    onClick={() => {
+      setAttendanceRoleFilters([]);
+      setAttendanceStatusFilters([]);
+      setShowOnlyMissingReports(false);
+      setIsRoleFilterOpen(false);
+      setIsStatusFilterOpen(false);
+    }}
+    className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 rounded-md border border-slate-200"
+  >
+    איפוס סינון
+  </button>
+)}
 
 <label className="flex items-center gap-1 text-xs font-bold text-slate-600">
     <input
