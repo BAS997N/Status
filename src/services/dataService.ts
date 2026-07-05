@@ -783,6 +783,7 @@ const finalReportData = {
   if (!isFirebaseActive() || !db || !auth?.currentUser?.uid) {
     return new Date();
   }
+  }
 
   const ref = doc(db, "server_clock", auth.currentUser.uid);
 
