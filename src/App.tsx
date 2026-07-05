@@ -48,6 +48,24 @@ import {
   LogOut
 } from "lucide-react";
 
+//שעה לפי אזור זמן ולא לפי חייל
+const ISRAEL_TIME_ZONE = "Asia/Jerusalem";
+
+const getIsraelDateString = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: ISRAEL_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const year = parts.find((p) => p.type === "year")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+
+  return `${year}-${month}-${day}`;
+};
+
 export default function App() {
   // Auth & Profile states
   const buildAuthEmail = (personalId: string) => {
@@ -646,7 +664,7 @@ dayMarker?: "return_to_base" | "exit_home"
   if (!userProfile) return;
 
   const createTimestampForDate = (dateStr?: string) => {
-    const selectedDate = dateStr || new Date().toISOString().split("T")[0];
+    const selectedDate = dateStr || getIsraelDateString();
     const now = new Date();
     const timePart = now.toTimeString().split(" ")[0];
     return new Date(`${selectedDate}T${timePart}`).toISOString();
@@ -708,7 +726,7 @@ if (isRangeReport) {
     const lastDate = cutOrderEndDate;
 
     while (current <= end) {
-      const dateStr = current.toISOString().split("T")[0];
+      const dateStr = getIsraelDateString(current);
 
       await dataService.createAttendanceReport({
   ...buildReportPayload(dateStr),
