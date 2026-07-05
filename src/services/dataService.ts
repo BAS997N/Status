@@ -257,12 +257,12 @@ async createSystemLog(logData: {
   targetName?: string;
   details?: string;
 }): Promise<void> {
-  const payload = {
-    ...logData,
-    timestamp: new Date().toISOString(),
-  };
-
   if (!isFirebaseActive()) {
+    const payload = {
+      ...logData,
+      timestamp: new Date().toISOString(),
+    };
+
     const logs = JSON.parse(localStorage.getItem("idf_system_logs") || "[]");
     logs.unshift({
       logId: `log_${Date.now()}`,
@@ -276,7 +276,8 @@ async createSystemLog(logData: {
     const logRef = doc(collection(db, "system_logs"));
     await setDoc(logRef, {
       logId: logRef.id,
-      ...payload,
+      ...logData,
+      timestamp: serverTimestamp(),
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, "system_logs");
