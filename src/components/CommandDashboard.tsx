@@ -2618,65 +2618,68 @@ const soldierReports = Array.from(latestReportByDate.values());
   : `${attendanceStatusFilters.length} סוגי דיווח`} ▼
   </button>
 
-  {isStatusFilterOpen && (
-    <div className="absolute z-50 mt-1 w-56 max-h-72 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 text-xs">
-      <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
-  <button
-    type="button"
-    onClick={() =>
-      setAttendanceStatusFilters([
-        "base",
-        "field",
-        "home",
-        "sick",
-        "course",
-        "cut_order",
-        "not_on_order",
-        "other",
-      ])
-    }
-    className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold"
-  >
-    ✓ בחר הכל
-  </button>
+{isStatusFilterOpen && (
+  <div className="absolute z-50 mt-1 w-56 max-h-72 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 text-xs">
+    <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
+      <button
+        type="button"
+        onClick={() => {
+          setAttendanceStatusFilters([
+            "base",
+            "field",
+            "home",
+            "sick",
+            "course",
+            "cut_order",
+            "not_on_order",
+            "other",
+          ]);
+          setIsStatusFilterOpen(false);
+        }}
+        className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold"
+      >
+        ✓ בחר הכל
+      </button>
 
- <button
-  type="button"
-  onClick={() => {
-    setAttendanceStatusFilters([]);
-    setIsStatusFilterOpen(false);
-  }}
-  className="text-[10px] text-rose-700 hover:text-rose-900 font-bold"
->
-  ✕ נקה הכל
-</button>
-      {[
-        ["base", "בבסיס"],
-        ["field", "בשטח"],
-        ["home", "בבית"],
-        ["sick", "גימלים"],
-        ["course", "קורס/הכשרה"],
-        ["cut_order", "חיתוך צו"],
-        ["not_on_order", "לא בצו"],
-        ["other", "אחר"],
-      ].map(([value, label]) => (
-        <label key={value} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded px-2 py-1">
-          <input
-            type="checkbox"
-            checked={attendanceStatusFilters.includes(value)}
-            onChange={(e) => {
-              setAttendanceStatusFilters((prev) =>
-                e.target.checked
-                  ? [...prev, value]
-                  : prev.filter((item) => item !== value)
-              );
-            }}
-          />
-          <span>{label}</span>
-        </label>
-      ))}
+      <button
+        type="button"
+        onClick={() => {
+          setAttendanceStatusFilters([]);
+          setIsStatusFilterOpen(false);
+        }}
+        className="text-[10px] text-rose-700 hover:text-rose-900 font-bold"
+      >
+        ✕ נקה הכל
+      </button>
     </div>
-  )}
+
+    {[
+      ["base", "בבסיס"],
+      ["field", "בשטח"],
+      ["home", "בבית"],
+      ["sick", "גימלים"],
+      ["course", "קורס/הכשרה"],
+      ["cut_order", "חיתוך צו"],
+      ["not_on_order", "לא בצו"],
+      ["other", "אחר"],
+    ].map(([value, label]) => (
+      <label key={value} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded px-2 py-1">
+        <input
+          type="checkbox"
+          checked={attendanceStatusFilters.includes(value)}
+          onChange={(e) => {
+            setAttendanceStatusFilters((prev) =>
+              e.target.checked
+                ? [...prev, value]
+                : prev.filter((item) => item !== value)
+            );
+          }}
+        />
+        <span>{label}</span>
+      </label>
+    ))}
+  </div>
+)}
 </div>
               {(attendanceRoleFilters.length > 0 || attendanceStatusFilters.length > 0 || showOnlyMissingReports) && (
   <button
