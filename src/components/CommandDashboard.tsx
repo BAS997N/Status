@@ -130,8 +130,10 @@ const [notificationFilterStatus, setNotificationFilterStatus] = useState("all");
   const [isAttendanceGridCollapsed, setIsAttendanceGridCollapsed] = useState(false);
   const [attendanceSearchQuery, setAttendanceSearchQuery] = useState("");
 const [showOnlyMissingReports, setShowOnlyMissingReports] = useState(false);
-  const [attendanceRoleFilter, setAttendanceRoleFilter] = useState("all");
-const [attendanceStatusFilter, setAttendanceStatusFilter] = useState("all");
+  const [attendanceRoleFilters, setAttendanceRoleFilters] = useState<string[]>([]);
+const [attendanceStatusFilters, setAttendanceStatusFilters] = useState<string[]>([]);
+const [isRoleFilterOpen, setIsRoleFilterOpen] = useState(false);
+const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const [soldierToDelete, setSoldierToDelete] = useState<UserProfile | null>(null);
   const [reportToReset, setReportToReset] = useState<{
   reportId: string;
@@ -2497,34 +2499,76 @@ const soldierReports = Array.from(latestReportByDate.values());
   className="border border-slate-300 rounded-md px-2 py-1 text-xs w-56"
 />
 
-<select
-  value={attendanceRoleFilter}
-  onChange={(e) => setAttendanceRoleFilter(e.target.value)}
-  className="border border-slate-300 rounded-md px-2 py-1 text-xs"
->
-  <option value="all">כל התפקידים</option>
-  {customRoles.map((role) => (
-    <option key={role} value={role}>
-      {role}
-    </option>
-  ))}
-</select>
+<div className="relative">
+  <button
+    type="button"
+    onClick={() => setIsRoleFilterOpen(!isRoleFilterOpen)}
+    className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white font-bold text-slate-600"
+  >
+    תפקידים {attendanceRoleFilters.length > 0 ? `(${attendanceRoleFilters.length})` : ""} ▼
+  </button>
 
-<select
-  value={attendanceStatusFilter}
-  onChange={(e) => setAttendanceStatusFilter(e.target.value)}
-  className="border border-slate-300 rounded-md px-2 py-1 text-xs"
->
-  <option value="all">כל סוגי הדיווח</option>
-  <option value="base">בבסיס</option>
-  <option value="field">בשטח</option>
-  <option value="home">בבית</option>
-  <option value="sick">גימלים</option>
-  <option value="course">קורס/הכשרה</option>
-  <option value="cut_order">חיתוך צו</option>
-  <option value="not_on_order">לא בצו</option>
-  <option value="other">אחר</option>
-</select>
+  {isRoleFilterOpen && (
+    <div className="absolute z-50 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 text-xs">
+      {customRoles.map((role) => (
+        <label key={role} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded px-2 py-1">
+          <input
+            type="checkbox"
+            checked={attendanceRoleFilters.includes(role)}
+            onChange={(e) => {
+              setAttendanceRoleFilters((prev) =>
+                e.target.checked
+                  ? [...prev, role]
+                  : prev.filter((item) => item !== role)
+              );
+            }}
+          />
+          <span>{role}</span>
+        </label>
+      ))}
+    </div>
+  )}
+</div>
+
+<div className="relative">
+  <button
+    type="button"
+    onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
+    className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white font-bold text-slate-600"
+  >
+    סוג דיווח {attendanceStatusFilters.length > 0 ? `(${attendanceStatusFilters.length})` : ""} ▼
+  </button>
+
+  {isStatusFilterOpen && (
+    <div className="absolute z-50 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 text-xs">
+      {[
+        ["base", "בבסיס"],
+        ["field", "בשטח"],
+        ["home", "בבית"],
+        ["sick", "גימלים"],
+        ["course", "קורס/הכשרה"],
+        ["cut_order", "חיתוך צו"],
+        ["not_on_order", "לא בצו"],
+        ["other", "אחר"],
+      ].map(([value, label]) => (
+        <label key={value} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded px-2 py-1">
+          <input
+            type="checkbox"
+            checked={attendanceStatusFilters.includes(value)}
+            onChange={(e) => {
+              setAttendanceStatusFilters((prev) =>
+                e.target.checked
+                  ? [...prev, value]
+                  : prev.filter((item) => item !== value)
+              );
+            }}
+          />
+          <span>{label}</span>
+        </label>
+      ))}
+    </div>
+  )}
+</div>
 
 <label className="flex items-center gap-1 text-xs font-bold text-slate-600">
     <input
@@ -2610,13 +2654,13 @@ const soldierReports = Array.from(latestReportByDate.values());
   profile.medicalRole?.toLowerCase().includes(query);
 
 const matchesRole =
-  attendanceRoleFilter === "all" ||
-  profile.medicalRole === attendanceRoleFilter;
+  attendanceRoleFilters.length === 0 ||
+  attendanceRoleFilters.includes(profile.medicalRole || "");
 
 const matchesStatus =
-  attendanceStatusFilter === "all" ||
+  attendanceStatusFilters.length === 0 ||
   (latestTodayReport &&
-    latestTodayReport.status === attendanceStatusFilter);
+    attendanceStatusFilters.includes(latestTodayReport.status));
 
 const matchesMissing =
   !showOnlyMissingReports || !latestTodayReport;
@@ -2856,12 +2900,13 @@ https://bas997n.github.io/Status/`
         profile.medicalRole?.toLowerCase().includes(query);
 
       const matchesRole =
-        attendanceRoleFilter === "all" ||
-        profile.medicalRole === attendanceRoleFilter;
+  attendanceRoleFilters.length === 0 ||
+  attendanceRoleFilters.includes(profile.medicalRole || "");
 
-      const matchesStatus =
-        attendanceStatusFilter === "all" ||
-        (latestTodayReport && latestTodayReport.status === attendanceStatusFilter);
+const matchesStatus =
+  attendanceStatusFilters.length === 0 ||
+  (latestTodayReport &&
+    attendanceStatusFilters.includes(latestTodayReport.status));
 
       const matchesMissing =
         !showOnlyMissingReports || !latestTodayReport;
@@ -2881,12 +2926,13 @@ https://bas997n.github.io/Status/`
         profile.medicalRole?.toLowerCase().includes(query);
 
       const matchesRole =
-        attendanceRoleFilter === "all" ||
-        profile.medicalRole === attendanceRoleFilter;
+  attendanceRoleFilters.length === 0 ||
+  attendanceRoleFilters.includes(profile.medicalRole || "");
 
-      const matchesStatus =
-        attendanceStatusFilter === "all" ||
-        (latestTodayReport && latestTodayReport.status === attendanceStatusFilter);
+const matchesStatus =
+  attendanceStatusFilters.length === 0 ||
+  (latestTodayReport &&
+    attendanceStatusFilters.includes(latestTodayReport.status));
 
       const matchesMissing =
         !showOnlyMissingReports || !latestTodayReport;
@@ -2911,13 +2957,14 @@ https://bas997n.github.io/Status/`
         profile.personalId?.includes(attendanceSearchQuery) ||
         profile.medicalRole?.toLowerCase().includes(query);
 
-      const matchesRole =
-        attendanceRoleFilter === "all" ||
-        profile.medicalRole === attendanceRoleFilter;
+     const matchesRole =
+  attendanceRoleFilters.length === 0 ||
+  attendanceRoleFilters.includes(profile.medicalRole || "");
 
-      const matchesStatus =
-        attendanceStatusFilter === "all" ||
-        (latestTodayReport && latestTodayReport.status === attendanceStatusFilter);
+const matchesStatus =
+  attendanceStatusFilters.length === 0 ||
+  (latestTodayReport &&
+    attendanceStatusFilters.includes(latestTodayReport.status));
 
       const matchesMissing =
         !showOnlyMissingReports || !latestTodayReport;
