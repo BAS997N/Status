@@ -2614,6 +2614,34 @@ const soldierReports = Array.from(latestReportByDate.values());
 
   {isStatusFilterOpen && (
     <div className="absolute z-50 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 text-xs">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
+  <button
+    type="button"
+    onClick={() =>
+      setAttendanceStatusFilters([
+        "base",
+        "field",
+        "home",
+        "sick",
+        "course",
+        "cut_order",
+        "not_on_order",
+        "other",
+      ])
+    }
+    className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold"
+  >
+    ✓ בחר הכל
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setAttendanceStatusFilters([])}
+    className="text-[10px] text-rose-700 hover:text-rose-900 font-bold"
+  >
+    ✕ נקה הכל
+  </button>
+</div>
       {[
         ["base", "בבסיס"],
         ["field", "בשטח"],
