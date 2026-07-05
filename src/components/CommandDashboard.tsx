@@ -1876,7 +1876,27 @@ const soldierReports = Array.from(latestReportByDate.values());
     <FileText className="w-5 h-5" />
   </div>
 </div>
+{/* Not On Order Status */}
+<div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+  <div>
+    <span className="text-xs text-slate-400 font-bold block">
+      לא בצו
+    </span>
+    <span className="text-2xl font-black text-orange-600 tracking-tight mt-1 block">
+      {statusStats.not_on_order}
+      <span className="text-xs text-slate-400 font-normal pr-1.5">
+        ({totalSoldiersCount > 0 ? Math.round((statusStats.not_on_order / totalSoldiersCount) * 100) : 0}%)
+      </span>
+    </span>
+    <span className="text-[10px] text-slate-500 font-medium">
+      חיילים שלא נמצאים בצו כרגע
+    </span>
+  </div>
 
+  <div className="p-3 bg-orange-50 rounded-lg text-orange-600">
+    <FileText className="w-5 h-5" />
+  </div>
+</div>
               {/* Return To Base Today */}
 <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
   <div>
