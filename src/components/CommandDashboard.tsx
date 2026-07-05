@@ -451,6 +451,18 @@ const latestTodayReport = soldierReports.find(report =>
 
   const presentCommandStaff = listCommandsWithStatus.filter(item => item.isPresent);
   const absentCommandStaff = listCommandsWithStatus.filter(item => !item.isPresent);
+  
+  const getDayMarkerText = (item: any) => {
+  const report = item.report;
+
+  if (report?.dayMarker === "return_to_base") return "חזרה לבסיס";
+  if (report?.dayMarker === "exit_home") return "יציאה לבית";
+  if (report?.dayMarker === "after_hours") {
+    return report.afterHours ? `אפטר ${report.afterHours} שעות` : "אפטר";
+  }
+
+  return "";
+};
 
   // Recharts data sets for the visual distribution dashboards
   const presenceDistributionData = [
@@ -1959,6 +1971,11 @@ const soldierReports = Array.from(latestReportByDate.values());
                       <span className="text-[10px] bg-emerald-100/80 text-emerald-800 px-2 py-0.5 rounded font-black">
                         {item.status === "base" ? "בבסיס" : item.status === "field" ? "בשטח" : "בקורס"}
                       </span>
+                      {getDayMarkerText(item) && (
+  <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-black">
+    {getDayMarkerText(item)}
+  </span>
+)}
                     </div>
                   </div>
                 ))}
