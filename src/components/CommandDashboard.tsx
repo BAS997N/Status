@@ -53,6 +53,7 @@ import {
   LineChart,
   Line
 } from "recharts";
+import { Scissors } from "lucide-react";
 
 interface CommandDashboardProps {
   currentUser: UserProfile;
@@ -1874,7 +1875,7 @@ const soldierReports = Array.from(latestReportByDate.values());
   </div>
 
   <div className="p-3 bg-orange-50 rounded-lg text-orange-600">
-    <FileText className="w-5 h-5" />
+    <Scissors className="w-5 h-5" />
   </div>
 </div>
               {/* Cut Order Status */}
