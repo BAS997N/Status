@@ -2545,6 +2545,23 @@ const soldierReports = Array.from(latestReportByDate.values());
 
   {isRoleFilterOpen && (
     <div className="absolute z-50 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 text-xs">
+     <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
+  <button
+    type="button"
+    onClick={() => setAttendanceRoleFilters([...customRoles])}
+    className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold"
+  >
+    ✓ בחר הכל
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setAttendanceRoleFilters([])}
+    className="text-[10px] text-rose-700 hover:text-rose-900 font-bold"
+  >
+    ✕ נקה הכל
+  </button>
+</div>
       {customRoles.map((role) => (
         <label key={role} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded px-2 py-1">
           <input
