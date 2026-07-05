@@ -10,7 +10,8 @@ import {
   where, 
   orderBy, 
   updateDoc,
-  deleteDoc
+  deleteDoc,
+  serverTimestamp
 } from "firebase/firestore";
 import { db, auth, isFirebaseActive } from "../firebase";
 import { UserProfile, AttendanceReport, AttendanceStatus, AppNotification, ATTENDANCE_STATUS_LABELS, IDF_UNITS } from "../types";
@@ -487,7 +488,9 @@ Object.keys(reportPayload).forEach((key) => {
 
 await setDoc(docRef, {
   ...reportPayload,
-  reportId: docRef.id
+  reportId: docRef.id,
+  timestamp: serverTimestamp(),
+  verifiedAt: serverTimestamp(),
 });
 const users = await this.getAllUsers();
 
