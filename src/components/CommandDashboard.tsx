@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Users, 
   MapPin, 
@@ -134,6 +134,8 @@ const [showOnlyMissingReports, setShowOnlyMissingReports] = useState(false);
 const [attendanceStatusFilters, setAttendanceStatusFilters] = useState<string[]>([]);
 const [isRoleFilterOpen, setIsRoleFilterOpen] = useState(false);
 const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  const roleFilterRef = useRef<HTMLDivElement>(null);
+const statusFilterRef = useRef<HTMLDivElement>(null);
   const [soldierToDelete, setSoldierToDelete] = useState<UserProfile | null>(null);
   const [reportToReset, setReportToReset] = useState<{
   reportId: string;
@@ -203,6 +205,32 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   return () => clearTimeout(timer);
 }, []);
 
+  useEffect(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as Node;
+
+    if (
+      roleFilterRef.current &&
+      !roleFilterRef.current.contains(target)
+    ) {
+      setIsRoleFilterOpen(false);
+    }
+
+    if (
+      statusFilterRef.current &&
+      !statusFilterRef.current.contains(target)
+    ) {
+      setIsStatusFilterOpen(false);
+    }
+  };
+
+  document.addEventListener("mousedown", handleClickOutside);
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
+  
   // Add / Edit Soldier Modals and Form states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -2499,7 +2527,7 @@ const soldierReports = Array.from(latestReportByDate.values());
   className="border border-slate-300 rounded-md px-2 py-1 text-xs w-56"
 />
 
-<div className="relative">
+<div className="relative" ref={roleFilterRef}>
   <button
     type="button"
     onClick={() => {
@@ -2537,7 +2565,7 @@ const soldierReports = Array.from(latestReportByDate.values());
   )}
 </div>
 
-<div className="relative">
+<div className="relative" ref={statusFilterRef}>
   <button
     type="button"
     onClick={() => {
