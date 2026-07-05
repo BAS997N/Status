@@ -451,6 +451,11 @@ const latestTodayReport = soldierReports.find(report =>
 
   const presentCommandStaff = listCommandsWithStatus.filter(item => item.isPresent);
   const absentCommandStaff = listCommandsWithStatus.filter(item => !item.isPresent);
+
+  //ספירת לא בצו הוספת רובליקה
+  const notOnOrderCommandStaff = listCommandsWithStatus.filter(
+  (item) => item.status === "not_on_order"
+);
   
   const getDayMarkerText = (item: any) => {
   const report = item.report;
@@ -1939,10 +1944,17 @@ const soldierReports = Array.from(latestReportByDate.values());
               <p className="text-[10px] text-slate-400 font-bold">סטטוס בזמן אמת של המפקדים ובעלי התפקידים המובילים</p>
             </div>
           </div>
-          <div className="flex gap-3 text-[10px] ml-1 font-bold">
-            <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">נוכחים: {presentCommandStaff.length}</span>
-            <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full">לא נוכחים: {absentCommandStaff.length}</span>
-          </div>
+          <div className="flex gap-3 text-[10px] ml-1 font-bold flex-wrap">
+  <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+    נוכחים: {presentCommandStaff.length}
+  </span>
+  <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full">
+    לא נוכחים: {absentCommandStaff.length}
+  </span>
+  <span className="text-red-700 bg-red-50 px-2 py-0.5 rounded-full">
+    לא בצו: {notOnOrderCommandStaff.length}
+  </span>
+</div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
