@@ -27,6 +27,7 @@ import {
   Trash2,
   Scissors,
   House,
+  ArrowLeftCircle,
   FileX
 } from "lucide-react";
 import { 
