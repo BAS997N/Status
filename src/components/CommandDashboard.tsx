@@ -2548,7 +2548,10 @@ const soldierReports = Array.from(latestReportByDate.values());
      <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
   <button
     type="button"
-    onClick={() => setAttendanceRoleFilters([...customRoles])}
+    onClick={() => {
+  setAttendanceRoleFilters([...customRoles]);
+  setIsRoleFilterOpen(false);
+}}
     className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold"
   >
     ✓ בחר הכל
@@ -2556,7 +2559,10 @@ const soldierReports = Array.from(latestReportByDate.values());
 
   <button
     type="button"
-    onClick={() => setAttendanceRoleFilters([])}
+    onClick={() => {
+  setAttendanceRoleFilters([]);
+  setIsRoleFilterOpen(false);
+}}
     className="text-[10px] text-rose-700 hover:text-rose-900 font-bold"
   >
     ✕ נקה הכל
@@ -2634,14 +2640,16 @@ const soldierReports = Array.from(latestReportByDate.values());
     ✓ בחר הכל
   </button>
 
-  <button
-    type="button"
-    onClick={() => setAttendanceStatusFilters([])}
-    className="text-[10px] text-rose-700 hover:text-rose-900 font-bold"
-  >
-    ✕ נקה הכל
-  </button>
-</div>
+ <button
+  type="button"
+  onClick={() => {
+    setAttendanceStatusFilters([]);
+    setIsStatusFilterOpen(false);
+  }}
+  className="text-[10px] text-rose-700 hover:text-rose-900 font-bold"
+>
+  ✕ נקה הכל
+</button>
       {[
         ["base", "בבסיס"],
         ["field", "בשטח"],
