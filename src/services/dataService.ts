@@ -542,7 +542,9 @@ fetch(GOOGLE_SHEETS_WEB_APP_URL, {
           unit: reportPayload.unit,
           status: reportPayload.status,
           location: reportPayload.location,
-          timestamp: reportPayload.timestamp,
+          timestamp: serverTimestamp(),
+reportTimestamp: reportPayload.timestamp,
+reportDate: reportPayload.reportDate,
           isRead: false,
           message: notificationMsg
         };
