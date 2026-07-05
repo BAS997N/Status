@@ -413,8 +413,6 @@ const absentCount =
   statusStats.home +
   statusStats.sick +
   statusStats.course +
-  statusStats.cut_order +
-  statusStats.not_on_order +
   statusStats.other;
   
   const pendingVerificationCount = reportedTodayList.filter(s => s.latestTodayReport && !s.latestTodayReport.verifiedBy).length;
