@@ -2544,7 +2544,7 @@ const soldierReports = Array.from(latestReportByDate.values());
   </button>
 
   {isRoleFilterOpen && (
-    <div className="absolute z-50 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 text-xs">
+    <div className="absolute z-50 mt-1 w-56 max-h-72 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 text-xs">
      <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
   <button
     type="button"
@@ -2613,7 +2613,7 @@ const soldierReports = Array.from(latestReportByDate.values());
   </button>
 
   {isStatusFilterOpen && (
-    <div className="absolute z-50 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 text-xs">
+    <div className="absolute z-50 mt-1 w-56 max-h-72 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1 text-xs">
       <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
   <button
     type="button"
