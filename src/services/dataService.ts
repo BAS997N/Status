@@ -805,4 +805,4 @@ const finalReportData = {
 
   return new Date();
 }
-};
+}
