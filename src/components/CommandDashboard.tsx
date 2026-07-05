@@ -130,6 +130,8 @@ const [notificationFilterStatus, setNotificationFilterStatus] = useState("all");
   const [isAttendanceGridCollapsed, setIsAttendanceGridCollapsed] = useState(false);
   const [attendanceSearchQuery, setAttendanceSearchQuery] = useState("");
 const [showOnlyMissingReports, setShowOnlyMissingReports] = useState(false);
+  const [attendanceRoleFilter, setAttendanceRoleFilter] = useState("all");
+const [attendanceStatusFilter, setAttendanceStatusFilter] = useState("all");
   const [soldierToDelete, setSoldierToDelete] = useState<UserProfile | null>(null);
   const [reportToReset, setReportToReset] = useState<{
   reportId: string;
@@ -2488,14 +2490,43 @@ const soldierReports = Array.from(latestReportByDate.values());
           <div className="flex items-center gap-2">
             <div className="flex flex-wrap items-center gap-3 mr-3">
   <input
-    type="text"
-    placeholder="חיפוש לפי שם, מספר אישי או תפקיד..."
-    value={attendanceSearchQuery}
-    onChange={(e) => setAttendanceSearchQuery(e.target.value)}
-    className="border border-slate-300 rounded-md px-2 py-1 text-xs w-56"
-  />
+  type="text"
+  placeholder="חיפוש לפי שם, מספר אישי או תפקיד..."
+  value={attendanceSearchQuery}
+  onChange={(e) => setAttendanceSearchQuery(e.target.value)}
+  className="border border-slate-300 rounded-md px-2 py-1 text-xs w-56"
+/>
 
-  <label className="flex items-center gap-1 text-xs font-bold text-slate-600">
+<select
+  value={attendanceRoleFilter}
+  onChange={(e) => setAttendanceRoleFilter(e.target.value)}
+  className="border border-slate-300 rounded-md px-2 py-1 text-xs"
+>
+  <option value="all">כל התפקידים</option>
+  {customRoles.map((role) => (
+    <option key={role} value={role}>
+      {role}
+    </option>
+  ))}
+</select>
+
+<select
+  value={attendanceStatusFilter}
+  onChange={(e) => setAttendanceStatusFilter(e.target.value)}
+  className="border border-slate-300 rounded-md px-2 py-1 text-xs"
+>
+  <option value="all">כל סוגי הדיווח</option>
+  <option value="base">בבסיס</option>
+  <option value="field">בשטח</option>
+  <option value="home">בבית</option>
+  <option value="sick">גימלים</option>
+  <option value="course">קורס/הכשרה</option>
+  <option value="cut_order">חיתוך צו</option>
+  <option value="not_on_order">לא בצו</option>
+  <option value="other">אחר</option>
+</select>
+
+<label className="flex items-center gap-1 text-xs font-bold text-slate-600">
     <input
       type="checkbox"
       checked={showOnlyMissingReports}
@@ -2572,17 +2603,31 @@ const soldierReports = Array.from(latestReportByDate.values());
   .filter(({ profile, latestTodayReport }) => {
     const query = attendanceSearchQuery.toLowerCase();
 
-    const matchesSearch =
-      !query ||
-      profile.fullName.toLowerCase().includes(query) ||
-      profile.personalId?.includes(attendanceSearchQuery) ||
-      profile.medicalRole?.toLowerCase().includes(query);
+  const matchesSearch =
+  !query ||
+  profile.fullName.toLowerCase().includes(query) ||
+  profile.personalId?.includes(attendanceSearchQuery) ||
+  profile.medicalRole?.toLowerCase().includes(query);
 
-    const matchesMissing =
-      !showOnlyMissingReports || !latestTodayReport;
+const matchesRole =
+  attendanceRoleFilter === "all" ||
+  profile.medicalRole === attendanceRoleFilter;
 
-    return matchesSearch && matchesMissing;
-  })
+const matchesStatus =
+  attendanceStatusFilter === "all" ||
+  (latestTodayReport &&
+    latestTodayReport.status === attendanceStatusFilter);
+
+const matchesMissing =
+  !showOnlyMissingReports || !latestTodayReport;
+
+return (
+  matchesSearch &&
+  matchesRole &&
+  matchesStatus &&
+  matchesMissing
+);
+    })
   .map(({ profile, latestTodayReport }) => {
                   
                   // Detail for status label
