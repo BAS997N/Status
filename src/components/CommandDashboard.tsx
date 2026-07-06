@@ -599,10 +599,10 @@ const latestTodayReport = soldierReports.find(report =>
       (r as any).personalId === soldier.personalId
   )
   .sort(
-    (a, b) =>
-      new Date(b.updatedAt || b.timestamp).getTime() -
-      new Date(a.updatedAt || a.timestamp).getTime()
-  )[0];
+  (a, b) =>
+    getTimeMsFromTimestamp(b.updatedAt || b.timestamp) -
+    getTimeMsFromTimestamp(a.updatedAt || a.timestamp)
+)[0];
           if (soldierRep) {
             if (["base", "field", "course"].includes(soldierRep.status)) {
               present++;
@@ -751,10 +751,10 @@ const latestTodayReport = soldierReports.find(report =>
       (r as any).personalId === soldier.personalId
   )
   .sort(
-    (a, b) =>
-      new Date(b.updatedAt || b.timestamp).getTime() -
-      new Date(a.updatedAt || a.timestamp).getTime()
-  )[0];
+  (a, b) =>
+    getTimeMsFromTimestamp(b.updatedAt || b.timestamp) -
+    getTimeMsFromTimestamp(a.updatedAt || a.timestamp)
+)[0];
             if (soldierRep && ["base", "field", "course"].includes(soldierRep.status)) {
               presentCount++;
             }
@@ -1027,10 +1027,10 @@ const dates = getDateRange(startDate, endDate);
             return sameSoldier && reportDay === date;
           })
           .sort(
-            (a, b) =>
-              new Date(b.updatedAt || b.timestamp).getTime() -
-              new Date(a.updatedAt || a.timestamp).getTime()
-          );
+  (a, b) =>
+    getTimeMsFromTimestamp(b.updatedAt || b.timestamp) -
+    getTimeMsFromTimestamp(a.updatedAt || a.timestamp)
+);
 
         return getCellValue(reportsForDay[0]);
       });
@@ -2909,7 +2909,15 @@ return (
                             </span>
                             <span className="text-[10px] text-slate-400 font-mono font-medium flex items-center gap-1">
                               <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span>{new Date(latestTodayReport.timestamp).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+                              <span>
+  {getTimeMsFromTimestamp(latestTodayReport.timestamp)
+    ? new Date(getTimeMsFromTimestamp(latestTodayReport.timestamp)).toLocaleTimeString("he-IL", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "—"}
+</span>
                             </span>
                           </div>
                         ) : (
