@@ -379,8 +379,12 @@ const [summaryEndDate, setSummaryEndDate] = useState("");
   return `${year}-${month}-${day}`;
 };
 
-const isDate = (timestampStr: string, dateStr: string) => {
-  return getLocalDateString(timestampStr) === dateStr;
+const isReportForDate = (report: any, dateStr: string) => {
+  const reportDay =
+    report.reportDate ||
+    getDateOnlyFromTimestamp(report.timestamp);
+
+  return reportDay === dateStr;
 };
  const getDateOnlyFromTimestamp = (timestamp: any) => {
 
@@ -412,7 +416,7 @@ const isDate = (timestampStr: string, dateStr: string) => {
 const latestReport = soldierReports[0];
 
 const latestTodayReport = soldierReports.find(report =>
-  isDate(report.timestamp, selectedDate)
+  isReportForDate(report, selectedDate)
 );
 
       return {
@@ -482,7 +486,7 @@ const absentCount =
 const latestReport = soldierReports[0];
 
 const latestTodayReport = soldierReports.find(report =>
-  isDate(report.timestamp, selectedDate)
+  isReportForDate(report, selectedDate)
 );
     
     const currentStatus = latestTodayReport ? latestTodayReport.status : "unreported";
