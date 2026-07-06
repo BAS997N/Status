@@ -934,6 +934,13 @@ await dataService.updateAttendanceReport(
   updatePayload,
   userProfile || undefined
 );
+    setReports((currentReports) =>
+  currentReports.map((report) =>
+    report.reportId === reportData.reportId
+      ? { ...report, ...updatePayload }
+      : report
+  )
+);
   } else {
     const startDate =
       reportData.rangeStartDate ||
@@ -959,7 +966,6 @@ await dataService.updateAttendanceReport(
     }
   }
 
-  await refreshReports();
   await refreshNotifications();
 };
 
