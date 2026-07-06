@@ -893,6 +893,7 @@ const handleAdminSaveReport = async (reportData: {
     status: reportData.status,
     location: reportData.location,
     note: reportData.note || "",
+    reportDate: dateStr,
     timestamp: new Date(`${dateStr}T12:00:00`).toISOString(),
 
     dayMarker: reportData.dayMarker,
