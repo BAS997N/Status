@@ -424,7 +424,7 @@ setSystemLogs(updatedSystemLogs);
       }
     };
 
-    const interval = setInterval(poll, 4000);
+    const interval = setInterval(poll, 60000);
     return () => clearInterval(interval);
   }, [userProfile]);
 
