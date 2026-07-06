@@ -330,6 +330,12 @@ useEffect(() => {
     const updatedSystemLogs = await dataService.getSystemLogs();
 setSystemLogs(updatedSystemLogs);
 };
+  const refreshReportsOnly = async () => {
+  if (isFirebaseActive() && !auth?.currentUser) return;
+
+  const updatedReports = await dataService.fetchAllReports();
+  setReports(updatedReports);
+};
 
   useEffect(() => {
   if (!userProfile) return;
@@ -378,8 +384,8 @@ setSystemLogs(updatedSystemLogs);
   const handleDeleteReport = async (reportId: string) => {
   try {
     await dataService.deleteAttendanceReport(reportId);
-    await refreshReports();
-    await refreshNotifications();
+    await refreshReportsOnly();
+await refreshNotifications();
   } catch (error) {
     console.error("Failed deleting report:", error);
     alert("אירעה שגיאה במחיקת הדיווח");
