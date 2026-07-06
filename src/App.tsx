@@ -400,9 +400,8 @@ await refreshNotifications();
         try {
           const updatedReports = await dataService.fetchAllReports();
           const updatedNots = await dataService.fetchNotifications();
-          const updatedUsers = await dataService.getAllUsers();
           setReports(updatedReports);
-          setAllUsers(updatedUsers);
+          
 
           setNotifications(prev => {
             const prevIds = new Set(prev.map(n => n.notificationId));
