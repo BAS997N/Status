@@ -397,6 +397,20 @@ const isReportForDate = (report: any, dateStr: string) => {
   }
   return "";
 };
+  const getTimeMsFromTimestamp = (timestamp: any) => {
+  if (!timestamp) return 0;
+
+  if (typeof timestamp === "string") {
+    const time = new Date(timestamp).getTime();
+    return Number.isNaN(time) ? 0 : time;
+  }
+
+  if (typeof (timestamp as any).toDate === "function") {
+    return (timestamp as any).toDate().getTime();
+  }
+
+  return 0;
+};
   // Compile today's latest reports for all active soldiers
   const getSoldiersLatestStatus = () => {
     const activeSoldiers = allSoldiers.filter(s => !s.isDischarged);
@@ -408,10 +422,10 @@ const isReportForDate = (report: any, dateStr: string) => {
   (r as any).personalId === soldier.personalId
 )
   .sort(
-    (a, b) =>
-      new Date(b.timestamp).getTime() -
-      new Date(a.timestamp).getTime()
-  );
+  (a, b) =>
+    getTimeMsFromTimestamp(b.updatedAt || b.timestamp) -
+    getTimeMsFromTimestamp(a.updatedAt || a.timestamp)
+);
 
 const latestReport = soldierReports[0];
 
@@ -478,10 +492,10 @@ const absentCount =
   (r as any).personalId === soldier.personalId
 )
   .sort(
-    (a, b) =>
-      new Date(b.timestamp).getTime() -
-      new Date(a.timestamp).getTime()
-  );
+  (a, b) =>
+    getTimeMsFromTimestamp(b.updatedAt || b.timestamp) -
+    getTimeMsFromTimestamp(a.updatedAt || a.timestamp)
+);
 
 const latestReport = soldierReports[0];
 
