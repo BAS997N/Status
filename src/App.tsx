@@ -935,11 +935,34 @@ await dataService.updateAttendanceReport(
   userProfile || undefined
 );
     setReports((currentReports) =>
-  currentReports.map((report) =>
-    report.reportId === reportData.reportId
-      ? { ...report, ...updatePayload }
-      : report
-  )
+  currentReports.map((report) => {
+    if (report.reportId !== reportData.reportId) return report;
+
+    const updatedReport: any = {
+      ...report,
+      status: reportData.status,
+      location: reportData.location,
+      note: reportData.note || "",
+      updatedAt: new Date().toISOString(),
+      updatedBy: userProfile?.userId || "unknown",
+      updatedByName: userProfile?.fullName || "לא ידוע",
+      updatedByRole: userProfile?.role || "unknown",
+    };
+
+    if (reportData.dayMarker) {
+      updatedReport.dayMarker = reportData.dayMarker;
+    } else {
+      delete updatedReport.dayMarker;
+    }
+
+    if (reportData.dayMarker === "after_hours") {
+      updatedReport.afterHours = reportData.afterHours || 4;
+    } else {
+      delete updatedReport.afterHours;
+    }
+
+    return updatedReport;
+  })
 );
   } else {
     const startDate =
