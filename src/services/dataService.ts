@@ -95,6 +95,24 @@ initSimStorage();
 const GOOGLE_SHEETS_WEB_APP_URL =
   "https://script.google.com/macros/s/AKfycbzoMH-OzKtGCCWW0rdqaf8TPwlEXoPPSTV3tqjaC4DtFe5o4hVutyzK_FB5HeJRDj_VeQ/exec";
 
+const normalizeFirestoreDate = (value: any) => {
+  if (!value) return value;
+
+  if (typeof value === "string") return value;
+
+  if (typeof value.toDate === "function") {
+    return value.toDate().toISOString();
+  }
+
+  return value;
+};
+
+const normalizeReportDates = (data: any) => ({
+  ...data,
+  timestamp: normalizeFirestoreDate(data.timestamp),
+  updatedAt: normalizeFirestoreDate(data.updatedAt),
+  verifiedAt: normalizeFirestoreDate(data.verifiedAt),
+});
 
 export const dataService = {
   async deleteAttendanceReport(reportId: string): Promise<void> {
@@ -351,7 +369,10 @@ async createSystemLog(logData: {
       const querySnapshot = await getDocs(q);
       const list: AttendanceReport[] = [];
       querySnapshot.forEach((docSnap) => {
-        list.push({ reportId: docSnap.id, ...docSnap.data() } as AttendanceReport);
+        list.push({
+  reportId: docSnap.id,
+  ...normalizeReportDates(docSnap.data()),
+} as AttendanceReport);
       });
       return list;
     } catch (error) {
@@ -425,7 +446,10 @@ const formattedDate = `${String(reportDateObj.getDate()).padStart(2, "0")}/${Str
       const querySnapshot = await getDocs(q);
       const list: AttendanceReport[] = [];
       querySnapshot.forEach((docSnap) => {
-        list.push({ reportId: docSnap.id, ...docSnap.data() } as AttendanceReport);
+        list.push({
+  reportId: docSnap.id,
+  ...normalizeReportDates(docSnap.data()),
+} as AttendanceReport);
       });
       return list;
     } catch (error) {
