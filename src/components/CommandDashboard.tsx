@@ -429,9 +429,11 @@ const isReportForDate = (report: any, dateStr: string) => {
 
 const latestReport = soldierReports[0];
 
-const latestTodayReport = soldierReports.find(report =>
+const todayReports = soldierReports.filter(report =>
   isReportForDate(report, selectedDate)
 );
+
+const latestTodayReport = todayReports[0];
 
       return {
         profile: soldier,
@@ -499,9 +501,11 @@ const absentCount =
 
 const latestReport = soldierReports[0];
 
-const latestTodayReport = soldierReports.find(report =>
+const todayReports = soldierReports.filter(report =>
   isReportForDate(report, selectedDate)
 );
+
+const latestTodayReport = todayReports[0];
     
     const currentStatus = latestTodayReport ? latestTodayReport.status : "unreported";
     const isPresent = latestTodayReport ? ["base", "field", "course"].includes(latestTodayReport.status) : false;
