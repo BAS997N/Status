@@ -426,7 +426,7 @@ await refreshNotifications();
   // Poll reports and notifications every 4 seconds in commander/adjutant mode to pop up real-time soldier reports
   useEffect(() => {
     const poll = async () => {
-      if (userProfile && (userProfile.role === "commander" || userProfile.role === "adjutant_officer")) {
+      if (userProfile) {
         try {
           const updatedReports = await dataService.fetchAllReports();
           const updatedNots = await dataService.fetchNotifications();
