@@ -558,11 +558,25 @@ dayMarker || undefined
         border: "border-slate-200 dark:border-slate-800",
       };
 
-      const d = new Date(r.timestamp);
-      const formattedDateTime =
-        d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" }) +
-        " " +
-        d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+      const reportDay =
+  (r as any).reportDate ||
+  r.timestamp?.split("T")[0];
+
+const reportDateText = reportDay
+  ? new Date(`${reportDay}T12:00:00`).toLocaleDateString("he-IL", {
+      day: "2-digit",
+      month: "2-digit",
+    })
+  : "";
+
+const reportTimeText = r.timestamp
+  ? new Date(r.timestamp).toLocaleTimeString("he-IL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  : "";
+
+const formattedDateTime = `${reportDateText} ${reportTimeText}`;
 
       const createdByRole = (r as any).createdByRole;
       const createdByName = (r as any).createdByName;
