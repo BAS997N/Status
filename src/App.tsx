@@ -964,29 +964,7 @@ await dataService.updateAttendanceReport(
   updatePayload,
   userProfile || undefined
 );
-const dateToUpdate =
-  reportData.reportDate || new Date().toISOString().split("T")[0];
 
-upsertReportInState({
-  reportId: reportData.reportId,
-  userId: reportData.userId,
-  userName: reportData.userName,
-  unit: reportData.unit,
-  status: reportData.status,
-  location: reportData.location,
-  note: reportData.note || "",
-  reportDate: dateToUpdate,
-  timestamp: new Date(`${dateToUpdate}T12:00:00`).toISOString(),
-  dayMarker: reportData.dayMarker,
-  afterHours:
-    reportData.dayMarker === "after_hours"
-      ? reportData.afterHours || 4
-      : undefined,
-  updatedAt: new Date().toISOString(),
-  updatedBy: userProfile?.userId || "unknown",
-  updatedByName: userProfile?.fullName || "לא ידוע",
-  updatedByRole: userProfile?.role || "unknown",
-} as AttendanceReport);
 await refreshReports();
 
   } else {
