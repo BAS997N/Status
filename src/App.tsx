@@ -965,25 +965,52 @@ await dataService.updateAttendanceReport(
   userProfile || undefined
 );
     //דיווח מפקד חדש
-    upsertReportInState({
-  reportId: reportData.reportId,
-  userId: reportData.userId,
-  userName: reportData.userName,
-  unit: reportData.unit,
-  status: reportData.status,
-  location: reportData.location,
-  note: reportData.note || "",
-  reportDate: reportData.reportDate,
-  timestamp: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  updatedBy: userProfile?.userId || "unknown",
-  updatedByName: userProfile?.fullName || "לא ידוע",
-  updatedByRole: userProfile?.role || "unknown",
-  ...(reportData.dayMarker ? { dayMarker: reportData.dayMarker } : {}),
-  ...(reportData.dayMarker === "after_hours"
-    ? { afterHours: reportData.afterHours || 4 }
-    : {}),
-} as AttendanceReport);
+    setReports((currentReports) => {
+  const dateToUpdate = reportData.reportDate || new Date().toISOString().split("T")[0];
+
+  return currentReports.map((report) => {
+    const reportDate =
+      (report as any).reportDate ||
+      (typeof report.timestamp === "string" ? report.timestamp.split("T")[0] : "");
+
+    const isSameReport =
+      report.reportId === reportData.reportId ||
+      (report.userId === reportData.userId && reportDate === dateToUpdate);
+
+    if (!isSameReport) return report;
+
+    const updatedReport: any = {
+      ...report,
+      status: reportData.status,
+      location: reportData.location,
+      note: reportData.note || "",
+      reportDate: dateToUpdate,
+      updatedAt: new Date().toISOString(),
+      updatedBy: userProfile?.userId || "unknown",
+      updatedByName: userProfile?.fullName || "לא ידוע",
+      updatedByRole: userProfile?.role || "unknown",
+
+      // שומר שהדיווח יישאר מאושר בממשק
+      verifiedBy: report.verifiedBy || userProfile?.userId || "SYSTEM_AUTO",
+      verifiedAt: report.verifiedAt || new Date().toISOString(),
+    };
+
+    if (reportData.dayMarker) {
+      updatedReport.dayMarker = reportData.dayMarker;
+    } else {
+      delete updatedReport.dayMarker;
+    }
+
+    if (reportData.dayMarker === "after_hours") {
+      updatedReport.afterHours = reportData.afterHours || 4;
+    } else {
+      delete updatedReport.afterHours;
+    }
+
+    return updatedReport;
+  });
+});
+    //סוף דיווח מפקד חדש
     
     setReports((currentReports) =>
   currentReports.map((report) => {
