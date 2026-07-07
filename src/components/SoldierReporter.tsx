@@ -64,10 +64,24 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   // Filter reports submitted by this user
-const userReports = reports.filter((r) =>
-  r.userId === currentUser.userId ||
-  (r as any).personalId === currentUser.personalId
-);
+const userReports = reports
+  .filter((r) =>
+    r.userId === currentUser.userId ||
+    (r as any).personalId === currentUser.personalId
+  )
+  .sort(
+    (a, b) =>
+      new Date(
+        (b as any).updatedAt ||
+          (b as any).reportDate ||
+          b.timestamp
+      ).getTime() -
+      new Date(
+        (a as any).updatedAt ||
+          (a as any).reportDate ||
+          a.timestamp
+      ).getTime()
+  );
 
 const selectedReportDate = reportDate || getTodayLocalDate();
 
