@@ -966,6 +966,49 @@ await dataService.updateAttendanceReport(
 );
 
 await refreshReports();
+    const targetDate =
+  reportData.reportDate || new Date().toISOString().split("T")[0];
+
+setReports((currentReports) =>
+  currentReports.map((report) => {
+    const reportDate =
+      (report as any).reportDate ||
+      (typeof report.timestamp === "string"
+        ? report.timestamp.split("T")[0]
+        : "");
+
+    const isTargetReport =
+      report.reportId === reportData.reportId ||
+      (report.userId === reportData.userId && reportDate === targetDate);
+
+    if (!isTargetReport) return report;
+
+    const updatedReport: any = {
+      ...report,
+      status: reportData.status,
+      location: reportData.location,
+      note: reportData.note || "",
+      updatedAt: new Date().toISOString(),
+      updatedBy: userProfile?.userId || "unknown",
+      updatedByName: userProfile?.fullName || "לא ידוע",
+      updatedByRole: userProfile?.role || "unknown",
+    };
+
+    if (reportData.dayMarker) {
+      updatedReport.dayMarker = reportData.dayMarker;
+    } else {
+      delete updatedReport.dayMarker;
+    }
+
+    if (reportData.dayMarker === "after_hours") {
+      updatedReport.afterHours = reportData.afterHours || 4;
+    } else {
+      delete updatedReport.afterHours;
+    }
+
+    return updatedReport;
+  })
+);
 
   } else {
     const startDate =
