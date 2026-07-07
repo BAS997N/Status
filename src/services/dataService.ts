@@ -509,14 +509,36 @@ Object.keys(reportPayload).forEach((key) => {
 
     const path = "attendance";
     try {
-     const docRef = doc(collection(db, "attendance"));
+     const reportDateForLookup =
+  reportPayload.reportDate ||
+  (typeof reportPayload.timestamp === "string"
+    ? reportPayload.timestamp.split("T")[0]
+    : new Date().toISOString().split("T")[0]);
 
-await setDoc(docRef, {
-  ...reportPayload,
-  reportId: docRef.id,
-  timestamp: serverTimestamp(),
-  verifiedAt: serverTimestamp(),
-});
+const existingQuery = query(
+  collection(db, "attendance"),
+  where("userId", "==", reportPayload.userId),
+  where("reportDate", "==", reportDateForLookup)
+);
+
+const existingSnapshot = await getDocs(existingQuery);
+
+const docRef = existingSnapshot.empty
+  ? doc(collection(db, "attendance"))
+  : doc(db, "attendance", existingSnapshot.docs[0].id);
+
+await setDoc(
+  docRef,
+  {
+    ...reportPayload,
+    reportId: docRef.id,
+    reportDate: reportDateForLookup,
+    timestamp: reportPayload.timestamp || new Date().toISOString(),
+    verifiedAt: reportPayload.verifiedAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  { merge: true }
+);
 const users = await this.getAllUsers();
 
 const soldier = users.find(
@@ -537,7 +559,7 @@ const markerText =
 const statusText =
   ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label || reportPayload.status;
 
-const reportDateObj = new Date(reportPayload.timestamp);
+const reportDateObj = new Date(`${reportDateForLookup}T12:00:00`);
 const formattedDate = `${String(reportDateObj.getDate()).padStart(2, "0")}/${String(
   reportDateObj.getMonth() + 1
 ).padStart(2, "0")}/${reportDateObj.getFullYear()}`;
