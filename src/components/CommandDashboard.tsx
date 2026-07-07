@@ -3314,7 +3314,7 @@ const matchesStatus =
             className="bg-slate-50 border border-slate-200 rounded-lg px-2 w-full py-2 text-xs outline-none focus:ring-2 focus:ring-military-400 text-slate-600 font-bold transition cursor-pointer"
           >
             <option value="all">כלל הפלוגות והמחלקות</option>
-            {IDF_UNITS.map(u => (
+            {medicalUnits.map(u => (
               <option key={u} value={u}>{u}</option>
             ))}
           </select>
