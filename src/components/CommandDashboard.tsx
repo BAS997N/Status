@@ -455,6 +455,8 @@ const latestTodayReport = [...todayReports].sort(
   };
 
   const statusList = getSoldiersLatestStatus();
+  const rosterActiveSoldiers = allSoldiers.filter((s) => !s.isDischarged);
+  const rosterDischargedSoldiers = allSoldiers.filter((s) => s.isDischarged);
 
   // Statistics Computations (Specifically for Today: June 10, 2026)
   const totalSoldiersCount = allSoldiers.filter(s => s.role !== "commander" && s.role !== "adjutant_officer" && !s.isDischarged).length;
@@ -3245,13 +3247,13 @@ const matchesStatus =
           </div>
         </div>
       </div>
-
+ 
       {/* Roster stats summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200/85 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[10px] text-slate-400 font-bold block">סה״כ רשומים במערכת</span>
-            <span className="text-xl font-black text-slate-800 tracking-tight mt-1 block">{allSoldiers.length}</span>
+            <span className="text-xl font-black text-slate-800 tracking-tight mt-1 block">{rosterActiveSoldiers.length}</span>
           </div>
           <div className="p-2.5 bg-slate-50 text-slate-600 rounded-lg">
             <Users className="w-5 h-5" />
@@ -3262,7 +3264,7 @@ const matchesStatus =
           <div>
             <span className="text-[10px] text-slate-400 font-bold block">סגל פיקודי ומנהלים / מפקדים</span>
             <span className="text-xl font-black text-indigo-600 tracking-tight mt-1 block">
-              {allSoldiers.filter(s => s.role === "commander").length}
+              {rosterActiveSoldiers.filter(s => s.role === "commander").length}
             </span>
           </div>
           <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg">
@@ -3274,13 +3276,27 @@ const matchesStatus =
           <div>
             <span className="text-[10px] text-slate-400 font-bold block">חיילים מדווחים</span>
             <span className="text-xl font-black text-emerald-600 tracking-tight mt-1 block">
-              {allSoldiers.filter(s => s.role === "soldier").length}
+              {rosterActiveSoldiers.filter(s => s.role === "soldier").length}
             </span>
           </div>
           <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg">
             <Users className="w-5 h-5" />
           </div>
         </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200/85 shadow-sm flex items-center justify-between">
+  <div>
+    <span className="text-[10px] text-slate-400 font-bold block">
+      חיילים שנגרעו
+    </span>
+    <span className="text-xl font-black text-rose-600 tracking-tight mt-1 block">
+      {rosterDischargedSoldiers.length}
+    </span>
+  </div>
+
+  <div className="p-2.5 bg-rose-50 text-rose-600 rounded-lg">
+    <Users className="w-5 h-5" />
+  </div>
+</div>
       </div>
 
       {/* Filters bar for directory */}
