@@ -173,12 +173,6 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   // Edit Roster Report State
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
  const [editingReportData, setEditingReportData] = useState<{
-   const [lastSavedDayMarker, setLastSavedDayMarker] = useState<{
-  userId: string;
-  reportDate: string;
-  dayMarker?: "return_to_base" | "exit_home" | "after_hours";
-  afterHours?: number;
-} | null>(null);
   reportId?: string;
   userId: string;
   userName: string;
@@ -189,6 +183,13 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   reportDate?: string;
   rangeStartDate?: string;
   rangeEndDate?: string;
+  dayMarker?: "return_to_base" | "exit_home" | "after_hours";
+  afterHours?: number;
+} | null>(null);
+  
+  const [lastSavedDayMarker, setLastSavedDayMarker] = useState<{
+  userId: string;
+  reportDate: string;
   dayMarker?: "return_to_base" | "exit_home" | "after_hours";
   afterHours?: number;
 } | null>(null);
