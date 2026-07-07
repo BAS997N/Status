@@ -563,10 +563,7 @@ dayMarker || undefined
   r.timestamp?.split("T")[0];
 
 const reportDateText = reportDay
-  ? new Date(`${reportDay}T12:00:00`).toLocaleDateString("he-IL", {
-      day: "2-digit",
-      month: "2-digit",
-    })
+  ? reportDay.split("-").reverse().slice(0, 2).join("/")
   : "";
 
 const reportTimeText = r.timestamp
@@ -700,8 +697,8 @@ const reportDay =
   r.timestamp?.split("T")[0];
 
 const reportDateText = reportDay
-  ? new Date(reportDay).toLocaleDateString("he-IL")
-  : new Date(r.timestamp).toLocaleDateString("he-IL");
+  ? reportDay.split("-").reverse().join("/")
+  : "";
 
 const reportTimeText = new Date(r.timestamp).toLocaleTimeString("he-IL", {
   hour: "2-digit",
