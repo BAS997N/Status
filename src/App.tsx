@@ -951,6 +951,27 @@ await dataService.updateAttendanceReport(
   updatePayload,
   userProfile || undefined
 );
+    //דיווח מפקד חדש
+    upsertReportInState({
+  reportId: reportData.reportId,
+  userId: reportData.userId,
+  userName: reportData.userName,
+  unit: reportData.unit,
+  status: reportData.status,
+  location: reportData.location,
+  note: reportData.note || "",
+  reportDate: reportData.reportDate,
+  timestamp: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  updatedBy: userProfile?.userId || "unknown",
+  updatedByName: userProfile?.fullName || "לא ידוע",
+  updatedByRole: userProfile?.role || "unknown",
+  ...(reportData.dayMarker ? { dayMarker: reportData.dayMarker } : {}),
+  ...(reportData.dayMarker === "after_hours"
+    ? { afterHours: reportData.afterHours || 4 }
+    : {}),
+} as AttendanceReport);
+    
     setReports((currentReports) =>
   currentReports.map((report) => {
     if (report.reportId !== reportData.reportId) return report;
