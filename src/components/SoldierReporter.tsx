@@ -69,19 +69,25 @@ const userReports = reports
     r.userId === currentUser.userId ||
     (r as any).personalId === currentUser.personalId
   )
-  .sort(
-    (a, b) =>
-      new Date(
-        (b as any).updatedAt ||
-          (b as any).reportDate ||
-          b.timestamp
-      ).getTime() -
-      new Date(
-        (a as any).updatedAt ||
-          (a as any).reportDate ||
-          a.timestamp
-      ).getTime()
+  .sort((a, b) => {
+  const aDay =
+    (a as any).reportDate ||
+    a.timestamp?.split("T")[0] ||
+    "";
+
+  const bDay =
+    (b as any).reportDate ||
+    b.timestamp?.split("T")[0] ||
+    "";
+
+  const byDate = bDay.localeCompare(aDay);
+  if (byDate !== 0) return byDate;
+
+  return (
+    new Date(b.updatedAt || b.timestamp).getTime() -
+    new Date(a.updatedAt || a.timestamp).getTime()
   );
+});
 
 const selectedReportDate = reportDate || getTodayLocalDate();
 
