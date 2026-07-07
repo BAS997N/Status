@@ -966,49 +966,67 @@ await dataService.updateAttendanceReport(
 );
     //דיווח מפקד חדש
     setReports((currentReports) => {
-  const dateToUpdate = reportData.reportDate || new Date().toISOString().split("T")[0];
+  const dateToUpdate =
+    reportData.reportDate || new Date().toISOString().split("T")[0];
 
-  return currentReports.map((report) => {
+  const existingReport = currentReports.find((report) => {
     const reportDate =
       (report as any).reportDate ||
-      (typeof report.timestamp === "string" ? report.timestamp.split("T")[0] : "");
+      (typeof report.timestamp === "string"
+        ? report.timestamp.split("T")[0]
+        : "");
 
-    const isSameReport =
+    return (
       report.reportId === reportData.reportId ||
-      (report.userId === reportData.userId && reportDate === dateToUpdate);
-
-    if (!isSameReport) return report;
-
-    const updatedReport: any = {
-      ...report,
-      status: reportData.status,
-      location: reportData.location,
-      note: reportData.note || "",
-      reportDate: dateToUpdate,
-      updatedAt: new Date().toISOString(),
-      updatedBy: userProfile?.userId || "unknown",
-      updatedByName: userProfile?.fullName || "לא ידוע",
-      updatedByRole: userProfile?.role || "unknown",
-
-      // שומר שהדיווח יישאר מאושר בממשק
-      verifiedBy: report.verifiedBy || userProfile?.userId || "SYSTEM_AUTO",
-      verifiedAt: report.verifiedAt || new Date().toISOString(),
-    };
-
-    if (reportData.dayMarker) {
-      updatedReport.dayMarker = reportData.dayMarker;
-    } else {
-      delete updatedReport.dayMarker;
-    }
-
-    if (reportData.dayMarker === "after_hours") {
-      updatedReport.afterHours = reportData.afterHours || 4;
-    } else {
-      delete updatedReport.afterHours;
-    }
-
-    return updatedReport;
+      (report.userId === reportData.userId && reportDate === dateToUpdate)
+    );
   });
+
+  const updatedReport: any = {
+    ...(existingReport || {}),
+    reportId: reportData.reportId || existingReport?.reportId || `local_${Date.now()}`,
+    userId: reportData.userId,
+    userName: reportData.userName,
+    unit: reportData.unit,
+    status: reportData.status,
+    location: reportData.location,
+    note: reportData.note || "",
+    reportDate: dateToUpdate,
+    timestamp: existingReport?.timestamp || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    updatedBy: userProfile?.userId || "unknown",
+    updatedByName: userProfile?.fullName || "לא ידוע",
+    updatedByRole: userProfile?.role || "unknown",
+    verifiedBy: existingReport?.verifiedBy || userProfile?.userId || "SYSTEM_AUTO",
+    verifiedAt: existingReport?.verifiedAt || new Date().toISOString(),
+  };
+
+  if (reportData.dayMarker) {
+    updatedReport.dayMarker = reportData.dayMarker;
+  } else {
+    delete updatedReport.dayMarker;
+  }
+
+  if (reportData.dayMarker === "after_hours") {
+    updatedReport.afterHours = reportData.afterHours || 4;
+  } else {
+    delete updatedReport.afterHours;
+  }
+
+  const withoutOldReports = currentReports.filter((report) => {
+    const reportDate =
+      (report as any).reportDate ||
+      (typeof report.timestamp === "string"
+        ? report.timestamp.split("T")[0]
+        : "");
+
+    return !(
+      report.reportId === updatedReport.reportId ||
+      (report.userId === updatedReport.userId && reportDate === dateToUpdate)
+    );
+  });
+
+  return [updatedReport, ...withoutOldReports];
 });
     //סוף דיווח מפקד חדש
     
