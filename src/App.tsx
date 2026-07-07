@@ -336,7 +336,24 @@ setSystemLogs(updatedSystemLogs);
   const updatedReports = await dataService.fetchAllReports();
   setReports(updatedReports);
 };
+//עריכת דיווח מפקד חדש
+  const upsertReportInState = (updatedReport: AttendanceReport) => {
+  setReports((currentReports) => {
+    const exists = currentReports.some(
+      (report) => report.reportId === updatedReport.reportId
+    );
 
+    if (exists) {
+      return currentReports.map((report) =>
+        report.reportId === updatedReport.reportId
+          ? { ...report, ...updatedReport }
+          : report
+      );
+    }
+
+    return [updatedReport, ...currentReports];
+  });
+};
   useEffect(() => {
   if (!userProfile) return;
   refreshReports();
