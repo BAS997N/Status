@@ -339,19 +339,32 @@ setSystemLogs(updatedSystemLogs);
 //עריכת דיווח מפקד חדש
   const upsertReportInState = (updatedReport: AttendanceReport) => {
   setReports((currentReports) => {
-    const exists = currentReports.some(
-      (report) => report.reportId === updatedReport.reportId
-    );
+    const updatedDate =
+      (updatedReport as any).reportDate ||
+      (typeof updatedReport.timestamp === "string"
+        ? updatedReport.timestamp.split("T")[0]
+        : "");
 
-    if (exists) {
-      return currentReports.map((report) =>
-        report.reportId === updatedReport.reportId
-          ? { ...report, ...updatedReport }
-          : report
-      );
-    }
+    const withoutOldSameReport = currentReports.filter((report) => {
+      const reportDate =
+        (report as any).reportDate ||
+        (typeof report.timestamp === "string"
+          ? report.timestamp.split("T")[0]
+          : "");
 
-    return [updatedReport, ...currentReports];
+      const sameReportId =
+        report.reportId &&
+        updatedReport.reportId &&
+        report.reportId === updatedReport.reportId;
+
+      const sameSoldierSameDate =
+        report.userId === updatedReport.userId &&
+        reportDate === updatedDate;
+
+      return !sameReportId && !sameSoldierSameDate;
+    });
+
+    return [updatedReport, ...withoutOldSameReport];
   });
 };
   useEffect(() => {
