@@ -433,7 +433,11 @@ const todayReports = soldierReports.filter(report =>
   isReportForDate(report, selectedDate)
 );
 
-const latestTodayReport = todayReports[0];
+const latestTodayReport = [...todayReports].sort(
+  (a, b) =>
+    getTimeMsFromTimestamp(b.updatedAt || b.timestamp) -
+    getTimeMsFromTimestamp(a.updatedAt || a.timestamp)
+)[0];
 
       return {
         profile: soldier,
@@ -505,7 +509,11 @@ const todayReports = soldierReports.filter(report =>
   isReportForDate(report, selectedDate)
 );
 
-const latestTodayReport = todayReports[0];
+const latestTodayReport = [...todayReports].sort(
+  (a, b) =>
+    getTimeMsFromTimestamp(b.updatedAt || b.timestamp) -
+    getTimeMsFromTimestamp(a.updatedAt || a.timestamp)
+)[0];
     
     const currentStatus = latestTodayReport ? latestTodayReport.status : "unreported";
     const isPresent = latestTodayReport ? ["base", "field", "course"].includes(latestTodayReport.status) : false;
