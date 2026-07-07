@@ -964,102 +964,15 @@ await dataService.updateAttendanceReport(
   updatePayload,
   userProfile || undefined
 );
-    //דיווח מפקד חדש
-    setReports((currentReports) => {
-  const dateToUpdate =
-    reportData.reportDate || new Date().toISOString().split("T")[0];
-
-  const existingReport = currentReports.find((report) => {
-    const reportDate =
-      (report as any).reportDate ||
-      (typeof report.timestamp === "string"
-        ? report.timestamp.split("T")[0]
-        : "");
-
-    return (
-      report.reportId === reportData.reportId ||
-      (report.userId === reportData.userId && reportDate === dateToUpdate)
-    );
-  });
-
-  const updatedReport: any = {
-    ...(existingReport || {}),
-    reportId: reportData.reportId || existingReport?.reportId || `local_${Date.now()}`,
-    userId: reportData.userId,
-    userName: reportData.userName,
-    unit: reportData.unit,
-    status: reportData.status,
-    location: reportData.location,
-    note: reportData.note || "",
-    reportDate: dateToUpdate,
-    timestamp: existingReport?.timestamp || new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    updatedBy: userProfile?.userId || "unknown",
-    updatedByName: userProfile?.fullName || "לא ידוע",
-    updatedByRole: userProfile?.role || "unknown",
-    verifiedBy: existingReport?.verifiedBy || userProfile?.userId || "SYSTEM_AUTO",
-    verifiedAt: existingReport?.verifiedAt || new Date().toISOString(),
-  };
-
-  if (reportData.dayMarker) {
-    updatedReport.dayMarker = reportData.dayMarker;
-  } else {
-    delete updatedReport.dayMarker;
-  }
-
-  if (reportData.dayMarker === "after_hours") {
-    updatedReport.afterHours = reportData.afterHours || 4;
-  } else {
-    delete updatedReport.afterHours;
-  }
-
-  const withoutOldReports = currentReports.filter((report) => {
-    const reportDate =
-      (report as any).reportDate ||
-      (typeof report.timestamp === "string"
-        ? report.timestamp.split("T")[0]
-        : "");
-
-    return !(
-      report.reportId === updatedReport.reportId ||
-      (report.userId === updatedReport.userId && reportDate === dateToUpdate)
-    );
-  });
-
-  return [updatedReport, ...withoutOldReports];
-});
-    //סוף דיווח מפקד חדש
-    
-    setReports((currentReports) =>
-  currentReports.map((report) => {
-    if (report.reportId !== reportData.reportId) return report;
-
-    const updatedReport: any = {
-      ...report,
-      status: reportData.status,
-      location: reportData.location,
-      note: reportData.note || "",
-      updatedAt: new Date().toISOString(),
-      updatedBy: userProfile?.userId || "unknown",
-      updatedByName: userProfile?.fullName || "לא ידוע",
-      updatedByRole: userProfile?.role || "unknown",
-    };
-
-    if (reportData.dayMarker) {
-      updatedReport.dayMarker = reportData.dayMarker;
-    } else {
-      delete updatedReport.dayMarker;
-    }
-
-    if (reportData.dayMarker === "after_hours") {
-      updatedReport.afterHours = reportData.afterHours || 4;
-    } else {
-      delete updatedReport.afterHours;
-    }
-
-    return updatedReport;
-  })
+   
+    await dataService.updateAttendanceReport(
+  reportData.reportId,
+  updatePayload,
+  userProfile || undefined
 );
+
+await refreshReports();
+
   } else {
     const startDate =
       reportData.rangeStartDate ||
