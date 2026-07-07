@@ -32,8 +32,11 @@ const filteredLogs = logs.filter(log =>
 );
 
 const filteredReports = reports.filter((rep) => {
-  const matchesDate =
-    !filterDate || getLocalDateString(rep.timestamp) === filterDate;
+  const reportDay =
+  (rep as any).reportDate || getLocalDateString(rep.timestamp);
+
+const matchesDate =
+  !filterDate || reportDay === filterDate;
 
   const matchesSoldier =
     !filterSoldier ||
@@ -173,7 +176,12 @@ const getActionTypeLabel = (rep: AttendanceReport, relatedLog?: any) => {
 
                   <tbody className="divide-y divide-slate-100">
                     {filteredReports.map((rep) => {
-                      const dateObj = new Date(rep.timestamp);
+                      const reportDay =
+  (rep as any).reportDate || getLocalDateString(rep.timestamp);
+
+const reportDateText = reportDay
+  ? reportDay.split("-").reverse().join("/")
+  : "";
                       const relatedLog = getRelatedLog(rep.reportId);
 
                       return (
@@ -205,7 +213,7 @@ const getActionTypeLabel = (rep: AttendanceReport, relatedLog?: any) => {
                           </td>
 
                           <td className="p-3 text-slate-600 whitespace-nowrap">
-                            {dateObj.toLocaleDateString("he-IL")}
+                            {reportDateText}
                           </td>
 
                           <td className="p-3 text-slate-600 whitespace-nowrap">
