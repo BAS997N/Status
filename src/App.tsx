@@ -784,7 +784,7 @@ if (isRangeReport) {
    
   }
 
- await refreshReportsOnly();
+ await refreshReports();
   await refreshNotifications();
 
   if (status !== "base") {
