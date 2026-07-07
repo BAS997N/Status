@@ -964,14 +964,30 @@ await dataService.updateAttendanceReport(
   updatePayload,
   userProfile || undefined
 );
-   
-    await dataService.updateAttendanceReport(
-  reportData.reportId,
-  updatePayload,
-  userProfile || undefined
-);
 
 await refreshReports();
+
+setReports((currentReports) =>
+  currentReports.map((report) => {
+    if (report.reportId !== reportData.reportId) return report;
+
+    const updatedReport: any = { ...report };
+
+    if (reportData.dayMarker) {
+      updatedReport.dayMarker = reportData.dayMarker;
+    } else {
+      delete updatedReport.dayMarker;
+    }
+
+    if (reportData.dayMarker === "after_hours") {
+      updatedReport.afterHours = reportData.afterHours || 4;
+    } else {
+      delete updatedReport.afterHours;
+    }
+
+    return updatedReport;
+  })
+);
 
   } else {
     const startDate =
