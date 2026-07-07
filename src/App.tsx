@@ -780,18 +780,7 @@ if (isRangeReport) {
       current.setDate(current.getDate() + 1);
     }
   } else {
-    const payload = buildReportPayload(reportDate);
-const reportId = await dataService.createAttendanceReport(payload);
-
-upsertReportInState({
-  ...payload,
-  reportId,
-  verifiedBy: (payload as any).verifiedBy || "SYSTEM_AUTO",
-  verifiedAt: (payload as any).verifiedAt || new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-} as AttendanceReport);
-   
-  }
+   await dataService.createAttendanceReport(buildReportPayload(reportDate));
 
  await refreshReports();
 await refreshNotifications();
