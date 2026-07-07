@@ -1032,7 +1032,7 @@ setReports((currentReports) =>
       current.setDate(current.getDate() + 1);
     }
   }
-
+await refreshReports();
   await refreshNotifications();
 };
 
