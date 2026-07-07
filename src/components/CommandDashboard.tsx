@@ -3795,10 +3795,10 @@ const matchesStatus =
         note: editingReportData.note || "",
       };
 
-     await onAdminSaveReport(dataToSave);
-
-setIsReportModalOpen(false);
+     setIsReportModalOpen(false);
 setEditingReportData(null);
+
+await onAdminSaveReport(dataToSave);
     } catch (err) {
       console.error("Failed saving attendance report:", err);
     }
