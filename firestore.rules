@@ -1,71 +1,66 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() {
+    function signedIn() {
       return request.auth != null;
     }
 
-    function userPath() {
-      return /databases/$(database)/documents/users/$(request.auth.uid);
+    function myUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    function hasUserDoc() {
-      return isSignedIn() && exists(userPath());
-    }
-
-    function currentUser() {
-      return get(userPath()).data;
+    function myRole() {
+      return myUser().data.role;
     }
 
     function isCommander() {
-      return hasUserDoc() && currentUser().role == "commander";
-    }
-
-    function isAdjutant() {
-      return hasUserDoc() && currentUser().role == "adjutant_officer";
-    }
-
-    function isStaffReader() {
-      return isCommander() || isAdjutant();
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return signedIn() && myRole() == "commander";
     }
 
     match /users/{userId} {
-      allow get: if isOwner(userId) || isStaffReader();
-      allow list: if isStaffReader();
+  allow read: if true;
 
-      allow create: if isOwner(userId)
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.role == "soldier";
+  allow create: if signedIn() && (
+    request.auth.uid == userId || isCommander()
+  );
 
-      allow update: if isCommander() || isOwner(userId);
-      allow delete: if isCommander();
-    }
+  allow update, delete: if isCommander();
+}
+    match /settings/{docId} {
+  allow read: if true;
+  allow write: if isCommander();
+}
 
     match /attendance/{reportId} {
-      allow get: if isSignedIn() &&
-        (resource.data.userId == request.auth.uid || isStaffReader());
+      allow read, create: if signedIn();
+      allow update, delete: if isCommander();
+    }
 
-      allow list: if isStaffReader();
+    match /attendance_logs/{logId} {
+      allow read, create: if signedIn();
+      allow update, delete: if isCommander();
+    }
 
-      allow create: if isSignedIn()
-  && request.resource.data.userId == request.auth.uid
-  && hasUserDoc()
-  && currentUser().role != "adjutant_officer";
-
-      allow update: if isCommander();
-      allow delete: if isCommander();
+    match /reports/{reportId} {
+      allow read, create: if signedIn();
+      allow update, delete: if isCommander();
     }
 
     match /notifications/{notificationId} {
-      allow read: if isStaffReader();
-      allow create, update, delete: if isCommander();
+      allow read, create: if signedIn();
+      allow update, delete: if isCommander();
     }
 
+    match /system_logs/{logId} {
+      allow read, create: if signedIn();
+      allow update, delete: if isCommander();
+    }
+
+match /server_clock/{userId} {
+  allow read, write: if request.auth != null && request.auth.uid == userId;
+}
     match /{document=**} {
       allow read, write: if false;
     }
