@@ -108,6 +108,8 @@ export default function CommandDashboard({
 >("attendance");
   const [directorySearchQuery, setDirectorySearchQuery] = useState("");
   const [directorySelectedUnit, setDirectorySelectedUnit] = useState<string>("all");
+  const [directorySoldierStatusFilter, setDirectorySoldierStatusFilter] =
+  useState<"active" | "all" | "discharged">("active");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -3334,7 +3336,21 @@ const matchesStatus =
               <option key={u} value={u}>{u}</option>
             ))}
           </select>
+             <select
+  value={directorySoldierStatusFilter}
+onChange={(e) =>
+  setDirectorySoldierStatusFilter(
+    e.target.value as "all" | "active" | "discharged"
+  )
+}
+  className="w-full sm:w-auto bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700"
+>
+  <option value="active">פעילים בלבד</option>
+  <option value="all">כל החיילים</option>
+  <option value="discharged">שנגרעו בלבד</option>
+</select>
         </div>
+    
 
         {(directorySearchQuery !== "" || directorySelectedUnit !== "all") && (
           <button
@@ -3437,9 +3453,14 @@ const matchesStatus =
       (s.medicalRole && s.medicalRole.toLowerCase().includes(query));
 
     const matchesUnit =
-      directorySelectedUnit === "all" || s.unit === directorySelectedUnit;
+  directorySelectedUnit === "all" || s.unit === directorySelectedUnit;
 
-    return matchesSearch && matchesUnit;
+const matchesSoldierStatus =
+  directorySoldierStatusFilter === "all" ||
+  (directorySoldierStatusFilter === "active" && !s.isDischarged) ||
+  (directorySoldierStatusFilter === "discharged" && s.isDischarged);
+
+return matchesSearch && matchesUnit && matchesSoldierStatus;
   })
   .sort((a, b) => {
     const aValue = String((a as any)[directorySortField] || "");
@@ -3604,7 +3625,15 @@ const matchesStatus =
                 (s.phoneNumber && s.phoneNumber.includes(directorySearchQuery)) ||
                 s.unit.toLowerCase().includes(directorySearchQuery.toLowerCase());
                 
-              const matchesUnit = directorySelectedUnit === "all" || s.unit === directorySelectedUnit;
+              const matchesUnit =
+  directorySelectedUnit === "all" || s.unit === directorySelectedUnit;
+
+const matchesSoldierStatus =
+  directorySoldierStatusFilter === "all" ||
+  (directorySoldierStatusFilter === "active" && !s.isDischarged) ||
+  (directorySoldierStatusFilter === "discharged" && s.isDischarged);
+
+return matchesSearch && matchesUnit && matchesSoldierStatus;
               
               return matchesSearch && matchesUnit;
             });
