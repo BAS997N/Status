@@ -35,6 +35,7 @@ const filteredReports = reports.filter((rep) => {
   const reportDay =
   (rep as any).reportDate || getLocalDateString(rep.timestamp);
 
+
 const matchesDate =
   !filterDate || reportDay === filterDate;
 
@@ -51,6 +52,15 @@ const matchesDate =
     filterRole === "all" || createdByRole === filterRole;
 
   return matchesDate && matchesSoldier && matchesStatus && matchesRole;
+});
+  const sortedFilteredReports = [...filteredReports].sort((a, b) => {
+  const aDay = (a as any).reportDate || getLocalDateString(a.timestamp);
+  const bDay = (b as any).reportDate || getLocalDateString(b.timestamp);
+
+  const byDate = bDay.localeCompare(aDay);
+  if (byDate !== 0) return byDate;
+
+  return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
 });
 
   const getStatusLabel = (status: string) => {
@@ -175,7 +185,7 @@ const getActionTypeLabel = (rep: AttendanceReport, relatedLog?: any) => {
   </thead>
 
                   <tbody className="divide-y divide-slate-100">
-                    {filteredReports.map((rep) => {
+                    {sortedFilteredReports.map((rep) => {
                       const reportDay =
   (rep as any).reportDate || getLocalDateString(rep.timestamp);
 
