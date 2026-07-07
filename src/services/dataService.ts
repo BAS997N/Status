@@ -539,6 +539,14 @@ await setDoc(
   },
   { merge: true }
 );
+      await this.createSystemLog({
+  action: existingSnapshot.empty ? "create_report" : "edit_report",
+  actorUserId: reportPayload.createdBy || "unknown",
+  actorName: reportPayload.createdByName || "לא ידוע",
+  targetUserId: reportPayload.userId,
+  targetName: reportPayload.userName,
+  details: `${statusText} | ${reportDateForLookup}`,
+});
 const users = await this.getAllUsers();
 
 const soldier = users.find(
@@ -655,6 +663,15 @@ const finalReportData = {
  
  try {
   await updateDoc(doc(db, "attendance", reportId), finalReportData);
+   
+   await this.createSystemLog({
+  action: "edit_report",
+  actorUserId: finalReportData.updatedBy,
+  actorName: finalReportData.updatedByName,
+  targetUserId: updatedReport.userId,
+  targetName: updatedReport.userName,
+  details: `${statusText} | ${updatedReport.reportDate || ""}`,
+});
 
   const updatedSnap = await getDoc(doc(db, "attendance", reportId));
 
