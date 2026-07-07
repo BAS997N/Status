@@ -182,6 +182,7 @@ const getActionTypeLabel = (rep: AttendanceReport, relatedLog?: any) => {
 const reportDateText = reportDay
   ? reportDay.split("-").reverse().join("/")
   : "";
+                const dateObj = new Date(rep.timestamp);
                       const relatedLog = getRelatedLog(rep.reportId);
 
                       return (
