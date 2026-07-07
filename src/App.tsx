@@ -780,12 +780,21 @@ if (isRangeReport) {
       current.setDate(current.getDate() + 1);
     }
   } else {
-    await dataService.createAttendanceReport(buildReportPayload(reportDate));
+    const payload = buildReportPayload(reportDate);
+const reportId = await dataService.createAttendanceReport(payload);
+
+upsertReportInState({
+  ...payload,
+  reportId,
+  verifiedBy: (payload as any).verifiedBy || "SYSTEM_AUTO",
+  verifiedAt: (payload as any).verifiedAt || new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+} as AttendanceReport);
    
   }
 
  await refreshReports();
-  await refreshNotifications();
+await refreshNotifications();
 
   if (status !== "base") {
     const labelObj = ATTENDANCE_STATUS_LABELS[status] || { label: status };
