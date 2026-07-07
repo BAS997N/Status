@@ -781,7 +781,7 @@ if (isRangeReport) {
     }
   } else {
    await dataService.createAttendanceReport(buildReportPayload(reportDate));
-
+}
  await refreshReports();
 await refreshNotifications();
 
