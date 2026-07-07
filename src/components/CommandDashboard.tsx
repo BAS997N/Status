@@ -2997,6 +2997,8 @@ return (
   location: latestTodayReport?.location || "בסיס קבע",
   note: latestTodayReport?.note || "",
   reportDate: selectedDate,
+  dayMarker: latestTodayReport?.dayMarker,
+  afterHours: latestTodayReport?.afterHours,
 });
                                 setIsReportModalOpen(true);
                               }}
