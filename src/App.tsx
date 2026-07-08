@@ -891,6 +891,8 @@ await signOut(secondaryAuth);
 });
     const users = await dataService.getAllUsers();
     setAllUsers(users);
+    const logs = await dataService.getSystemLogs();
+setSystemLogs(logs);
 
     if (userProfile && userProfile.userId === profileToSave.userId) {
       setUserProfile(profileToSave);
