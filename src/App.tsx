@@ -491,6 +491,8 @@ await refreshNotifications();
     // Reload all users list to propagate name changes
     const users = await dataService.getAllUsers();
     setAllUsers(users);
+    const logs = await dataService.getSystemLogs();
+setSystemLogs(logs);
     await refreshReports();
     await refreshNotifications();
   };
