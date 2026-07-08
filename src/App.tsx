@@ -398,7 +398,7 @@ setSystemLogs(updatedSystemLogs);
       targetName: soldierToDelete?.fullName || "לא ידוע",
       details: `נמחק חייל מהמערכת (${soldierToDelete?.medicalRole || "ללא תפקיד"})`,
     });
-
+console.log("SYSTEM LOG CREATED");
     const updatedUsers = await dataService.getAllUsers();
     setAllUsers(updatedUsers);
 
