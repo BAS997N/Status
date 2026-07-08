@@ -1089,9 +1089,23 @@ const dates = getDateRange(startDate, endDate);
   document.body.removeChild(link);
 };
 
+  const getSystemLogTimestamp = (timestamp: any) => {
+  if (!timestamp) return "";
+  if (typeof timestamp === "string") return timestamp;
+  if (typeof timestamp.toDate === "function") return timestamp.toDate().toISOString();
+  return "";
+};
+  const logDate = getDateOnlyFromTimestamp(getSystemLogTimestamp(log.timestamp));
   
   const filteredSystemLogs = systemLogs.filter((log) => {
-  const logDate = getDateOnlyFromTimestamp(log.timestamp);
+  const logTimestamp =
+  typeof log.timestamp === "string"
+    ? log.timestamp
+    : log.timestamp?.toDate
+    ? log.timestamp.toDate().toISOString()
+    : "";
+
+const logDate = getDateOnlyFromTimestamp(logTimestamp);
 
   const matchesDate =
     !systemLogFilterDate || logDate === systemLogFilterDate;
@@ -1616,7 +1630,12 @@ const dates = getDateRange(startDate, endDate);
             filteredSystemLogs.map((log) => (
               <tr key={log.logId} className="hover:bg-slate-50">
                 <td className="px-4 py-3 font-bold text-slate-700">
-                  {log.timestamp ? new Date(log.timestamp).toLocaleString("he-IL") : "—"}
+                  {logTimestamp
+  ? new Date(logTimestamp).toLocaleString("he-IL")
+  : "—"}
+                  {getSystemLogTimestamp(log.timestamp)
+  ? new Date(getSystemLogTimestamp(log.timestamp)).toLocaleString("he-IL")
+  : "—"}
                 </td>
                 <td className="px-4 py-3">{log.actorName || "—"}</td>
                 <td className="px-4 py-3 font-black text-slate-800">
