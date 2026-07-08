@@ -398,7 +398,7 @@ setSystemLogs(updatedSystemLogs);
       targetName: soldierToDelete?.fullName || "לא ידוע",
       details: `נמחק חייל מהמערכת (${soldierToDelete?.medicalRole || "ללא תפקיד"})`,
     });
-console.log("SYSTEM LOG CREATED");
+
     const updatedUsers = await dataService.getAllUsers();
     setAllUsers(updatedUsers);
 
@@ -889,7 +889,7 @@ await signOut(secondaryAuth);
   ? changes.join(" | ")
   : `עודכנו פרטי חייל (${profileToSave.medicalRole || "ללא תפקיד"})`,
 });
-    console.log("SYSTEM LOG SOLDIER CREATED");
+    
     setSystemLogs((currentLogs) => [
   {
     logId: `local_${Date.now()}`,
@@ -911,7 +911,7 @@ await signOut(secondaryAuth);
     setAllUsers(users);
     const logs = await dataService.getSystemLogs();
 setSystemLogs(logs);
-console.log("SYSTEM LOGS COUNT", logs.length, logs[0]);
+
     if (userProfile && userProfile.userId === profileToSave.userId) {
       setUserProfile(profileToSave);
     }
