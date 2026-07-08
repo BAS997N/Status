@@ -962,6 +962,14 @@ await dataService.updateAttendanceReport(
   updatePayload,
   userProfile || undefined
 );
+    await dataService.createSystemLog({
+  action: "edit_report",
+  actorUserId: userProfile?.userId || "unknown",
+  actorName: userProfile?.fullName || "משתמש לא ידוע",
+  targetUserId: reportData.userId,
+  targetName: reportData.userName,
+  details: `עודכן דיווח לתאריך ${reportData.reportDate || "לא ידוע"} | סטטוס: ${reportData.status} | מיקום: ${reportData.location}`,
+});
 
 await refreshReports();
     const targetDate =
@@ -1031,6 +1039,14 @@ setReports((currentReports) =>
       await dataService.createAttendanceReport(buildPayload(dateStr));
       current.setDate(current.getDate() + 1);
     }
+    await dataService.createSystemLog({
+  action: "create_report",
+  actorUserId: userProfile?.userId || "unknown",
+  actorName: userProfile?.fullName || "משתמש לא ידוע",
+  targetUserId: reportData.userId,
+  targetName: reportData.userName,
+  details: `נוצר דיווח ע״י מפקד לתאריכים ${startDate} עד ${endDate} | סטטוס: ${reportData.status} | מיקום: ${reportData.location}`,
+});
   }
 await refreshReports();
   await refreshNotifications();
