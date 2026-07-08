@@ -539,6 +539,8 @@ await setDoc(
   },
   { merge: true }
 );
+      const statusText =
+  ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label || reportPayload.status;
       await this.createSystemLog({
   action: existingSnapshot.empty ? "create_report" : "edit_report",
   actorUserId: reportPayload.createdBy || "unknown",
@@ -564,8 +566,6 @@ const markerText =
     ? `אפטר ${reportPayload.afterHours || ""} שעות`
     : "";
 
-const statusText =
-  ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label || reportPayload.status;
 
 const reportDateObj = new Date(`${reportDateForLookup}T12:00:00`);
 const formattedDate = `${String(reportDateObj.getDate()).padStart(2, "0")}/${String(
