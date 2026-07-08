@@ -802,12 +802,6 @@ if (isRangeReport) {
 await refreshReports();
 await refreshNotifications();
 
-
-    setToasts(current => [localToast, ...current]);
-    setTimeout(() => {
-      setToasts(current => current.filter(t => t.id !== localToast.id));
-    }, 6000);
-  }
 };
 
   
