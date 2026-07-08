@@ -889,6 +889,7 @@ await signOut(secondaryAuth);
   ? changes.join(" | ")
   : `עודכנו פרטי חייל (${profileToSave.medicalRole || "ללא תפקיד"})`,
 });
+    console.log("SYSTEM LOG SOLDIER CREATED");
     const users = await dataService.getAllUsers();
     setAllUsers(users);
     const logs = await dataService.getSystemLogs();
@@ -899,6 +900,7 @@ setSystemLogs(logs);
     }
   } catch (err) {
     console.error("Admin save soldier error:", err);
+    alert("שגיאה בשמירת חייל / יומן מערכת");
     throw err;
   }
 };
