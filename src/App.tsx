@@ -695,14 +695,14 @@ setUserProfile(newProfile);
   coords?: { lat: number; lng: number },
   reportDate?: string,
   cutOrderStartDate?: string,
-cutOrderEndDate?: string,
-dayMarker?: "return_to_base" | "exit_home"
+  cutOrderEndDate?: string,
+  dayMarker?: "return_to_base" | "exit_home"
 ) => {
   if (!userProfile) return;
 
   const getReportDate = (dateStr?: string) => {
-  return dateStr || getIsraelDateString();
-};
+    return dateStr || getIsraelDateString();
+  };
 
   const buildReportPayload = (dateStr?: string) => ({
     userId: userProfile.userId,
@@ -714,7 +714,7 @@ dayMarker?: "return_to_base" | "exit_home"
     note,
     ...(dayMarker ? { dayMarker } : {}),
     reportDate: getReportDate(dateStr),
-timestamp: new Date().toISOString(),
+    timestamp: new Date().toISOString(),
 
     createdBy: userProfile.userId,
     createdByName: userProfile.fullName,
@@ -736,12 +736,30 @@ timestamp: new Date().toISOString(),
       : {}),
   });
 
-  const isRangeReport =
-  !!cutOrderStartDate &&
-  !!cutOrderEndDate &&
-  ["cut_order", "base", "home"].includes(status);
+  const showAlertToast = () => {
+    if (status === "base") return;
 
-if (isRangeReport) {
+    const labelObj = ATTENDANCE_STATUS_LABELS[status] || { label: status };
+    const localToast: ToastMessage = {
+      id: `toast_${Date.now()}`,
+      title: "דיווח חריג נשלח בהצלחה",
+      message: `דיווחת על מיקום חריג (${labelObj.label}). מפקד היחידה קיבל התראה על כך.`,
+      status,
+    };
+
+    setToasts((current) => [localToast, ...current]);
+
+    setTimeout(() => {
+      setToasts((current) => current.filter((t) => t.id !== localToast.id));
+    }, 6000);
+  };
+
+  const isRangeReport =
+    !!cutOrderStartDate &&
+    !!cutOrderEndDate &&
+    ["cut_order", "base", "home"].includes(status);
+
+  if (isRangeReport) {
     if (!cutOrderStartDate || !cutOrderEndDate) {
       alert("יש לבחור תאריך התחלה ותאריך סיום לדיווח");
       return;
@@ -756,52 +774,54 @@ if (isRangeReport) {
     }
 
     const current = new Date(start);
-
     const firstDate = cutOrderStartDate;
     const lastDate = cutOrderEndDate;
 
     while (current <= end) {
       const dateStr = getIsraelDateString(current);
 
-      await dataService.createAttendanceReport({
-  ...buildReportPayload(dateStr),
+      const payload = {
+        ...buildReportPayload(dateStr),
+        dayMarker:
+          status === "base"
+            ? dateStr === firstDate
+              ? "return_to_base"
+              : dateStr === lastDate
+              ? "exit_home"
+              : undefined
+            : undefined,
+        note,
+      };
 
-  dayMarker:
-    status === "base"
-      ? dateStr === firstDate
-        ? "return_to_base"
-        : dateStr === lastDate
-        ? "exit_home"
-        : undefined
-      : undefined,
+      const reportId = await dataService.createAttendanceReport(payload);
 
-  note,
-});
-    
+      upsertReportInState({
+        ...payload,
+        reportId,
+        verifiedBy: (payload as any).verifiedBy || "SYSTEM_AUTO",
+        verifiedAt: (payload as any).verifiedAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as AttendanceReport);
 
       current.setDate(current.getDate() + 1);
     }
   } else {
-   await dataService.createAttendanceReport(buildReportPayload(reportDate));
-}
-   if (status !== "base") {
-  const labelObj = ATTENDANCE_STATUS_LABELS[status] || { label: status };
-  const localToast: ToastMessage = {
-    id: `toast_${Date.now()}`,
-    title: `דיווח חריג נשלח בהצלחה`,
-    message: `דיווחת על מיקום חריג (${labelObj.label}). מפקד היחידה קיבל התראה על כך.`,
-    status: status
-  };
+    const payload = buildReportPayload(reportDate);
+    const reportId = await dataService.createAttendanceReport(payload);
 
-  setToasts(current => [localToast, ...current]);
-  setTimeout(() => {
-    setToasts(current => current.filter(t => t.id !== localToast.id));
-  }, 6000);
-}
+    upsertReportInState({
+      ...payload,
+      reportId,
+      verifiedBy: (payload as any).verifiedBy || "SYSTEM_AUTO",
+      verifiedAt: (payload as any).verifiedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as AttendanceReport);
+  }
 
-await refreshReports();
-await refreshNotifications();
+  showAlertToast();
 
+  refreshReports();
+  refreshNotifications();
 };
 
   
