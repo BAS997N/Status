@@ -1117,7 +1117,8 @@ const logDate = getDateOnlyFromTimestamp(logTimestamp);
 
   const matchesAction =
     systemLogFilterAction === "all" || log.action === systemLogFilterAction;
-
+console.log("SYSTEM LOGS:", systemLogs.length);
+console.log("FILTERED SYSTEM LOGS:", filteredSystemLogs.length);
   return matchesDate && matchesUser && matchesAction;
 });
 /* סינון התראות */
