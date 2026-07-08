@@ -1097,14 +1097,8 @@ const dates = getDateRange(startDate, endDate);
 };
   
   const filteredSystemLogs = systemLogs.filter((log) => {
-  const logTimestamp =
-  typeof log.timestamp === "string"
-    ? log.timestamp
-    : log.timestamp?.toDate
-    ? log.timestamp.toDate().toISOString()
-    : "";
-
-const logDate = getDateOnlyFromTimestamp(logTimestamp);
+  const logTimestamp = getSystemLogTimestamp(log.timestamp);
+  const logDate = getDateOnlyFromTimestamp(logTimestamp);
 
   const matchesDate =
     !systemLogFilterDate || logDate === systemLogFilterDate;
@@ -1117,8 +1111,7 @@ const logDate = getDateOnlyFromTimestamp(logTimestamp);
 
   const matchesAction =
     systemLogFilterAction === "all" || log.action === systemLogFilterAction;
-console.log("SYSTEM LOGS:", systemLogs.length);
-console.log("FILTERED SYSTEM LOGS:", filteredSystemLogs.length);
+
   return matchesDate && matchesUser && matchesAction;
 });
 /* סינון התראות */
