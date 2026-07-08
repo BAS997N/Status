@@ -911,7 +911,7 @@ await signOut(secondaryAuth);
     setAllUsers(users);
     const logs = await dataService.getSystemLogs();
 setSystemLogs(logs);
-
+console.log("SYSTEM LOGS COUNT", logs.length, logs[0]);
     if (userProfile && userProfile.userId === profileToSave.userId) {
       setUserProfile(profileToSave);
     }
