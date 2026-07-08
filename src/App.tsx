@@ -784,10 +784,7 @@ if (isRangeReport) {
   } else {
    await dataService.createAttendanceReport(buildReportPayload(reportDate));
 }
- await refreshReports();
-await refreshNotifications();
-
-  if (status !== "base") {
+    if (status !== "base") {
     const labelObj = ATTENDANCE_STATUS_LABELS[status] || { label: status };
     const localToast: ToastMessage = {
       id: `toast_${Date.now()}`,
@@ -795,6 +792,9 @@ await refreshNotifications();
       message: `דיווחת על מיקום חריג (${labelObj.label}). מפקד היחידה קיבל התראה על כך.`,
       status: status
     };
+ await refreshReports();
+await refreshNotifications();
+
 
     setToasts(current => [localToast, ...current]);
     setTimeout(() => {
