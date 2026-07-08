@@ -1095,7 +1095,6 @@ const dates = getDateRange(startDate, endDate);
   if (typeof timestamp.toDate === "function") return timestamp.toDate().toISOString();
   return "";
 };
-  const logDate = getDateOnlyFromTimestamp(getSystemLogTimestamp(log.timestamp));
   
   const filteredSystemLogs = systemLogs.filter((log) => {
   const logTimestamp =
@@ -1630,13 +1629,10 @@ const logDate = getDateOnlyFromTimestamp(logTimestamp);
             filteredSystemLogs.map((log) => (
               <tr key={log.logId} className="hover:bg-slate-50">
                 <td className="px-4 py-3 font-bold text-slate-700">
-                  {logTimestamp
-  ? new Date(logTimestamp).toLocaleString("he-IL")
-  : "—"}
-                  {getSystemLogTimestamp(log.timestamp)
-  ? new Date(getSystemLogTimestamp(log.timestamp)).toLocaleString("he-IL")
-  : "—"}
-                </td>
+  {getSystemLogTimestamp(log.timestamp)
+    ? new Date(getSystemLogTimestamp(log.timestamp)).toLocaleString("he-IL")
+    : "—"}
+</td>
                 <td className="px-4 py-3">{log.actorName || "—"}</td>
                 <td className="px-4 py-3 font-black text-slate-800">
   {{
