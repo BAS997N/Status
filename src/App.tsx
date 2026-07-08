@@ -890,6 +890,23 @@ await signOut(secondaryAuth);
   : `עודכנו פרטי חייל (${profileToSave.medicalRole || "ללא תפקיד"})`,
 });
     console.log("SYSTEM LOG SOLDIER CREATED");
+    setSystemLogs((currentLogs) => [
+  {
+    logId: `local_${Date.now()}`,
+    action: isNewSoldier ? "add_soldier" : "edit_soldier",
+    actorUserId: userProfile?.userId || "unknown",
+    actorName: userProfile?.fullName || "משתמש לא ידוע",
+    targetUserId: profileToSave.userId,
+    targetName: profileToSave.fullName,
+    details: isNewSoldier
+      ? `נוסף חייל חדש (${profileToSave.medicalRole || "ללא תפקיד"})`
+      : changes.length > 0
+      ? changes.join(" | ")
+      : `עודכנו פרטי חייל (${profileToSave.medicalRole || "ללא תפקיד"})`,
+    timestamp: new Date().toISOString(),
+  },
+  ...currentLogs,
+]);
     const users = await dataService.getAllUsers();
     setAllUsers(users);
     const logs = await dataService.getSystemLogs();
