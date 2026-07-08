@@ -1096,24 +1096,31 @@ const dates = getDateRange(startDate, endDate);
   return "";
 };
   
-  const filteredSystemLogs = systemLogs.filter((log) => {
-  const logTimestamp = getSystemLogTimestamp(log.timestamp);
-  const logDate = getDateOnlyFromTimestamp(logTimestamp);
+  const filteredSystemLogs = [...systemLogs]
+  .sort((a, b) => {
+    const aTime = getSystemLogTimestamp(a.timestamp);
+    const bTime = getSystemLogTimestamp(b.timestamp);
 
-  const matchesDate =
-    !systemLogFilterDate || logDate === systemLogFilterDate;
+    return new Date(bTime).getTime() - new Date(aTime).getTime();
+  })
+  .filter((log) => {
+    const logTimestamp = getSystemLogTimestamp(log.timestamp);
+    const logDate = getDateOnlyFromTimestamp(logTimestamp);
 
-  const matchesUser =
-    !systemLogFilterUser ||
-    (log.actorName || "")
-      .toLowerCase()
-      .includes(systemLogFilterUser.toLowerCase());
+    const matchesDate =
+      !systemLogFilterDate || logDate === systemLogFilterDate;
 
-  const matchesAction =
-    systemLogFilterAction === "all" || log.action === systemLogFilterAction;
+    const matchesUser =
+      !systemLogFilterUser ||
+      (log.actorName || "")
+        .toLowerCase()
+        .includes(systemLogFilterUser.toLowerCase());
 
-  return matchesDate && matchesUser && matchesAction;
-});
+    const matchesAction =
+      systemLogFilterAction === "all" || log.action === systemLogFilterAction;
+
+    return matchesDate && matchesUser && matchesAction;
+  });
 /* סינון התראות */
   const filteredNotifications = notifications.filter((notification) => {
   const notificationDate = getDateOnlyFromTimestamp(notification.timestamp);
