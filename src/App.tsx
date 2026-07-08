@@ -784,15 +784,22 @@ if (isRangeReport) {
   } else {
    await dataService.createAttendanceReport(buildReportPayload(reportDate));
 }
-    if (status !== "base") {
-    const labelObj = ATTENDANCE_STATUS_LABELS[status] || { label: status };
-    const localToast: ToastMessage = {
-      id: `toast_${Date.now()}`,
-      title: `דיווח חריג נשלח בהצלחה`,
-      message: `דיווחת על מיקום חריג (${labelObj.label}). מפקד היחידה קיבל התראה על כך.`,
-      status: status
-    };
- await refreshReports();
+   if (status !== "base") {
+  const labelObj = ATTENDANCE_STATUS_LABELS[status] || { label: status };
+  const localToast: ToastMessage = {
+    id: `toast_${Date.now()}`,
+    title: `דיווח חריג נשלח בהצלחה`,
+    message: `דיווחת על מיקום חריג (${labelObj.label}). מפקד היחידה קיבל התראה על כך.`,
+    status: status
+  };
+
+  setToasts(current => [localToast, ...current]);
+  setTimeout(() => {
+    setToasts(current => current.filter(t => t.id !== localToast.id));
+  }, 6000);
+}
+
+await refreshReports();
 await refreshNotifications();
 
 
