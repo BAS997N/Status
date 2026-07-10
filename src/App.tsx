@@ -411,7 +411,19 @@ setSystemLogs(updatedSystemLogs);
   await dataService.syncAllReportsToGoogleSheets();
   alert("ייבוא הדיווחים הישנים לגוגל שיטס הסתיים");
 };
-  const handleResetReport = async (reportId: string) => {
+
+const handleDeleteReport = async (reportId: string) => {
+  try {
+    await dataService.deleteAttendanceReport(reportId);
+    await refreshReportsOnly();
+    await refreshNotifications();
+  } catch (error) {
+    console.error("Failed deleting report:", error);
+    alert("אירעה שגיאה במחיקת הדיווח");
+  }
+};
+
+const handleResetReport = async (reportId: string) => {
   try {
     const reportToReset = reports.find(
       (report) => report.reportId === reportId
