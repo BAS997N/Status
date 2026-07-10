@@ -384,14 +384,116 @@ async createSystemLog(logData: {
   const reports = await this.fetchAllReports();
   const users = await this.getAllUsers();
 
-  const sortedReports = [...reports].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  /*
+   * מסננים דיווחים מאופסים ודיווחים שאין להם
+   * חייל או תאריך תקינים.
+   */
+  const activeReports = reports.filter(
+    (report) =>
+      !(report as any).isReset &&
+      !!report.userId
   );
 
-  for (const report of sortedReports) {
+  /*
+   * לכל חייל ולכל יום נשמר רק הדיווח האחרון.
+   */
+  const latestReportBySoldierAndDate =
+    new Map<string, AttendanceReport>();
+
+  activeReports.forEach((report) => {
     const soldier = users.find(
-      (u) => u.userId === report.userId || u.personalId === (report as any).personalId
+      (user) =>
+        user.userId === report.userId ||
+        user.personalId ===
+          (report as any).personalId
     );
+
+    const stablePersonalId =
+      soldier?.personalId ||
+      (report as any).personalId ||
+      report.userId;
+
+    const reportDate =
+      (report as any).reportDate ||
+      (typeof report.timestamp === "string"
+        ? report.timestamp.split("T")[0]
+        : "");
+
+    if (!stablePersonalId || !reportDate) {
+      return;
+    }
+
+    const uniqueKey =
+      `${stablePersonalId}_${reportDate}`;
+
+    const existing =
+      latestReportBySoldierAndDate.get(
+        uniqueKey
+      );
+
+    const reportTime = new Date(
+      report.updatedAt ||
+        report.timestamp ||
+        0
+    ).getTime();
+
+    const existingTime = existing
+      ? new Date(
+          existing.updatedAt ||
+            existing.timestamp ||
+            0
+        ).getTime()
+      : 0;
+
+    if (
+      !existing ||
+      reportTime >= existingTime
+    ) {
+      latestReportBySoldierAndDate.set(
+        uniqueKey,
+        report
+      );
+    }
+  });
+
+  const reportsToSync = Array.from(
+    latestReportBySoldierAndDate.values()
+  ).sort((a, b) => {
+    const aDate =
+      (a as any).reportDate ||
+      a.timestamp ||
+      "";
+
+    const bDate =
+      (b as any).reportDate ||
+      b.timestamp ||
+      "";
+
+    return aDate.localeCompare(bDate);
+  });
+
+  for (const report of reportsToSync) {
+    const soldier = users.find(
+      (user) =>
+        user.userId === report.userId ||
+        user.personalId ===
+          (report as any).personalId
+    );
+
+    const stablePersonalId =
+      soldier?.personalId ||
+      (report as any).personalId ||
+      report.userId;
+
+    const reportDate =
+      (report as any).reportDate ||
+      (typeof report.timestamp === "string"
+        ? report.timestamp.split("T")[0]
+        : "");
+
+    if (!stablePersonalId || !reportDate) {
+      continue;
+    }
 
     const markerText =
       report.dayMarker === "return_to_base"
@@ -399,32 +501,74 @@ async createSystemLog(logData: {
         : report.dayMarker === "exit_home"
         ? "יציאה לבית"
         : report.dayMarker === "after_hours"
-        ? `אפטר ${report.afterHours || ""} שעות`
+        ? `אפטר ${
+            report.afterHours || ""
+          } שעות`
         : "";
 
-    const statusText = ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status;
-    const reportDateObj = new Date(report.timestamp);
-const formattedDate = `${String(reportDateObj.getDate()).padStart(2, "0")}/${String(
-  reportDateObj.getMonth() + 1
-).padStart(2, "0")}/${reportDateObj.getFullYear()}`;
-    
-    fetch(GOOGLE_SHEETS_WEB_APP_URL, {
-      method: "POST",
-      mode: "no-cors",
-      body: JSON.stringify({
-  personalId: soldier?.personalId || (report as any).personalId || report.userId,
-  fullName: soldier?.fullName || report.userName,
-  medicalRole: soldier?.medicalRole || "",
-  role: soldier?.medicalRole || "",
-  phone: soldier?.phoneNumber || "",
-  date: formattedDate,
-  cellValue: markerText ? `${statusText}/${markerText}` : statusText,
-}),
-    }).catch((err) => {
-      console.warn("Google Sheets old report sync failed:", err);
-    });
+    const statusText =
+      ATTENDANCE_STATUS_LABELS[
+        report.status
+      ]?.label || report.status;
 
-    await new Promise((resolve) => setTimeout(resolve, 120));
+    const [year, month, day] =
+      reportDate.split("-");
+
+    const formattedDate =
+      year && month && day
+        ? `${day.padStart(
+            2,
+            "0"
+          )}/${month.padStart(
+            2,
+            "0"
+          )}/${year}`
+        : reportDate;
+
+    try {
+      await fetch(
+        GOOGLE_SHEETS_WEB_APP_URL,
+        {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8",
+          },
+          body: JSON.stringify({
+            personalId:
+              stablePersonalId,
+            fullName:
+              soldier?.fullName ||
+              report.userName ||
+              "",
+            medicalRole:
+              soldier?.medicalRole || "",
+            role:
+              soldier?.medicalRole || "",
+            phone:
+              soldier?.phoneNumber || "",
+            date: formattedDate,
+            cellValue: markerText
+              ? `${statusText}/${markerText}`
+              : statusText,
+            reportId: report.reportId,
+          }),
+        }
+      );
+    } catch (error) {
+      console.warn(
+        "Google Sheets historical sync failed:",
+        report.reportId,
+        error
+      );
+    }
+
+    /*
+     * מונע עומס וחסימה של Google Apps Script.
+     */
+    await new Promise((resolve) =>
+      setTimeout(resolve, 250)
+    );
   }
 },
 
@@ -721,10 +865,22 @@ const finalReportData = {
   }`,
 });
 
-    const reportDateObj = new Date(updatedReport.timestamp);
-    const formattedDate = `${String(reportDateObj.getDate()).padStart(2, "0")}/${String(
-      reportDateObj.getMonth() + 1
-    ).padStart(2, "0")}/${reportDateObj.getFullYear()}`;
+    const reportDateForSheets =
+  (updatedReport as any).reportDate ||
+  (typeof updatedReport.timestamp === "string"
+    ? updatedReport.timestamp.split("T")[0]
+    : "");
+
+const [year, month, day] =
+  reportDateForSheets.split("-");
+
+const formattedDate =
+  year && month && day
+    ? `${day.padStart(2, "0")}/${month.padStart(
+        2,
+        "0"
+      )}/${year}`
+    : reportDateForSheets;
 
     fetch(GOOGLE_SHEETS_WEB_APP_URL, {
       method: "POST",
