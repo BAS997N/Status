@@ -1607,6 +1607,53 @@ await refreshReports();
         </AnimatePresence>
 
       </main>
+      {appMessage && (
+  <div
+    className="fixed inset-0 z-[13000] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+    dir="rtl"
+  >
+    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden text-right">
+      <div
+        className={`p-4 text-white flex items-center justify-between ${
+          appMessage.type === "success"
+            ? "bg-emerald-700"
+            : appMessage.type === "error"
+            ? "bg-rose-700"
+            : "bg-slate-700"
+        }`}
+      >
+        <h3 className="text-sm font-black">
+          {appMessage.title}
+        </h3>
+
+        <button
+          type="button"
+          onClick={() => setAppMessage(null)}
+          className="text-white text-xl leading-none opacity-80 hover:opacity-100"
+          aria-label="סגור הודעה"
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="p-6">
+        <p className="text-sm text-slate-700 font-bold leading-relaxed">
+          {appMessage.message}
+        </p>
+      </div>
+
+      <div className="bg-slate-50 p-4 border-t border-slate-100 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setAppMessage(null)}
+          className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-black"
+        >
+          אישור
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       <footer className="text-center py-6 text-cyan-500 font-bold text-sm select-none animate-fade-in" dir="rtl">
         Created by AviElias
       </footer>
