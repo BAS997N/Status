@@ -117,6 +117,11 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     type,
   });
 };
+  const [appMessage, setAppMessage] = useState<{
+  title: string;
+  message: string;
+  type: "success" | "error" | "info";
+} | null>(null);
   const showToast = (
   title: string,
   message: string,
