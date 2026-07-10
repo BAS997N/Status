@@ -469,7 +469,9 @@ const latestTodayReport = [...todayReports].sort(
       };
     });
   };
-
+const activeReports = reports.filter(
+  (report) => !(report as any).isReset
+);
   const statusList = getSoldiersLatestStatus();
   const rosterActiveSoldiers = allSoldiers.filter((s) => !s.isDischarged);
   const rosterDischargedSoldiers = allSoldiers.filter((s) => s.isDischarged);
@@ -622,7 +624,7 @@ const latestTodayReport = [...todayReports].sort(
 
     return weekDays.map(day => {
       // Find reports of this day
-      const reportsOnDay = reports.filter(r => {
+      const reportsOnDay = activeReports.filter(r => {
         const rDate = getDateOnlyFromTimestamp(r.timestamp)
         return rDate === day.dateStr;
       });
@@ -767,7 +769,7 @@ const latestTodayReport = [...todayReports].sort(
 
     return weekDays.map(day => {
       // Find reports of this day
-      const reportsOnDay = reports.filter(r => getDateOnlyFromTimestamp(r.timestamp) === day.dateStr);
+      const reportsOnDay = activeReports.filter(r => getDateOnlyFromTimestamp(r.timestamp) === day.dateStr);
       
       const record: Record<string, any> = {
         name: day.displayLabel,
@@ -985,7 +987,7 @@ const handleExportSummaryCSV = () => {
     return dates;
   };
 
-  const allReportDates = reports
+  const allReportDates = activeReports
   .map((report) => (report as any).reportDate || getDateOnlyFromTimestamp(report.timestamp))
   .filter(Boolean)
   .sort();
@@ -1055,7 +1057,7 @@ const dates = getDateRange(startDate, endDate);
       ];
 
       const dateCells = dates.map((date) => {
-        const reportsForDay = reports
+        const reportsForDay = activeReports
           .filter((report) => {
             const sameSoldier =
               report.userId === soldier.userId ||
@@ -1848,7 +1850,7 @@ const dates = getDateRange(startDate, endDate);
     : (b.fullName || "").localeCompare(a.fullName || "", "he");
 })
   .map((soldier) => {
-    const filteredReports = reports.filter((report) => {
+    const filteredReports = activeReports.filter((report) => {
   const sameSoldier =
     report.userId === soldier.userId ||
     (report as any).personalId === soldier.personalId;
