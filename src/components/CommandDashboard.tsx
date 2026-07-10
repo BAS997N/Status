@@ -86,6 +86,11 @@ interface CommandDashboardProps {
   message: string,
   status?: AttendanceStatus
 ) => void;
+  onShowMessage?: (
+  title: string,
+  message: string,
+  type?: "success" | "error" | "info"
+) => void;
   medicalUnits?: string[];
   customRoles?: string[];
   onUpdateMedicalSettings?: (newUnits: string[], newRoles: string[]) => void;
