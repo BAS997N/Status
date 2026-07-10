@@ -93,6 +93,8 @@ const selectedReportDate = reportDate || getTodayLocalDate();
 
 const latestReport = userReports
   .filter((r) => {
+    if ((r as any).isReset) return false;
+
     const rDate =
       (r as any).reportDate ||
       r.timestamp?.split("T")[0];
