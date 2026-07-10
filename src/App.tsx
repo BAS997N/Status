@@ -862,6 +862,10 @@ setUserProfile(newProfile);
       upsertReportInState({
         ...payload,
         reportId,
+        isReset: false,
+resetAt: undefined,
+resetBy: undefined,
+resetByName: undefined,
         verifiedBy: (payload as any).verifiedBy || "SYSTEM_AUTO",
         verifiedAt: (payload as any).verifiedAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -876,6 +880,10 @@ setUserProfile(newProfile);
     upsertReportInState({
       ...payload,
       reportId,
+      isReset: false,
+resetAt: undefined,
+resetBy: undefined,
+resetByName: undefined,
       verifiedBy: (payload as any).verifiedBy || "SYSTEM_AUTO",
       verifiedAt: (payload as any).verifiedAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
