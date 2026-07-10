@@ -7,6 +7,11 @@ interface HistoryViewProps {
   reports: AttendanceReport[];
   onDeleteReport?: (reportId: string) => Promise<void>;
   onResetReport?: (reportId: string) => Promise<void>;
+  onShowToast?: (
+  title: string,
+  message: string,
+  status?: AttendanceStatus
+) => void;
 }
 
 export default function HistoryView({
@@ -14,6 +19,7 @@ export default function HistoryView({
   reports,
   onDeleteReport,
   onResetReport,
+  onShowToast,
 }: HistoryViewProps) {
   const [filterDate, setFilterDate] = useState("");
   const [filterSoldier, setFilterSoldier] = useState("");
@@ -126,7 +132,11 @@ const handleBulkAction = async () => {
       setSelectedReports([]);
       setBulkAction(null);
 
-      alert(`${selectedCount} דיווחים נמחקו בהצלחה`);
+      onShowToast?.(
+  "מחיקת דיווחים",
+  `${selectedCount} דיווחים נמחקו בהצלחה`,
+  "base"
+);
     }
 
     if (bulkAction === "reset" && onResetReport) {
@@ -139,16 +149,22 @@ const handleBulkAction = async () => {
       setSelectedReports([]);
       setBulkAction(null);
 
-      alert(`${selectedCount} דיווחים אופסו בהצלחה`);
+      onShowToast?.(
+  "איפוס דיווחים",
+  `${selectedCount} דיווחים אופסו בהצלחה`,
+  "base"
+);
     }
   } catch (error) {
     console.error("Bulk report action failed:", error);
 
-    alert(
-      bulkAction === "delete"
-        ? "אירעה שגיאה במחיקת הדיווחים"
-        : "אירעה שגיאה באיפוס הדיווחים"
-    );
+    onShowToast?.(
+  "שגיאה",
+  bulkAction === "delete"
+    ? "אירעה שגיאה במחיקת הדיווחים"
+    : "אירעה שגיאה באיפוס הדיווחים",
+  "sick"
+);
   } finally {
     setIsBulkProcessing(false);
   }
