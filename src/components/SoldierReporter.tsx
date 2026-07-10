@@ -608,23 +608,33 @@ const formattedDateTime = `${reportDateText} ${reportTimeText}`;
         >
           <div className="flex justify-between items-center">
             <span
-              className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`}
-            >
-              {statusInfo.label}
+  className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+    (r as any).isReset
+      ? "bg-slate-100 text-slate-600 border-slate-300"
+      : `${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`
+  }`}
+>
+  {(r as any).isReset ? (
+    <>אופס ע״י מפקד</>
+  ) : (
+    <>
+      {statusInfo.label}
 
-              {r.dayMarker && (
-                <>
-                  {" / "}
-                  {r.dayMarker === "return_to_base"
-                    ? "חזרה לבסיס"
-                    : r.dayMarker === "exit_home"
-                    ? "יציאה לבית"
-                    : r.dayMarker === "after_hours"
-                    ? `אפטר${r.afterHours ? ` ${r.afterHours} שעות` : ""}`
-                    : r.dayMarker}
-                </>
-              )}
-            </span>
+      {r.dayMarker && (
+        <>
+          {" / "}
+          {r.dayMarker === "return_to_base"
+            ? "חזרה לבסיס"
+            : r.dayMarker === "exit_home"
+            ? "יציאה לבית"
+            : r.dayMarker === "after_hours"
+            ? `אפטר${r.afterHours ? ` ${r.afterHours} שעות` : ""}`
+            : r.dayMarker}
+        </>
+      )}
+    </>
+  )}
+</span>
 
             <span className="text-[10px] text-slate-400 font-mono">
               {formattedDateTime}
