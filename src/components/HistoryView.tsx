@@ -7,11 +7,6 @@ interface HistoryViewProps {
   reports: AttendanceReport[];
   onDeleteReport?: (reportId: string) => Promise<void>;
   onResetReport?: (reportId: string) => Promise<void>;
-  onShowToast?: (
-  title: string,
-  message: string,
-  status?: AttendanceStatus
-) => void;
   onShowMessage?: (
   title: string,
   message: string,
@@ -24,7 +19,7 @@ export default function HistoryView({
   reports,
   onDeleteReport,
   onResetReport,
-  onShowToast,
+  onShowMessage,
 }: HistoryViewProps) {
   const [filterDate, setFilterDate] = useState("");
   const [filterSoldier, setFilterSoldier] = useState("");
