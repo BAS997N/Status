@@ -536,6 +536,12 @@ await setDoc(
     timestamp: reportPayload.timestamp || new Date().toISOString(),
     verifiedAt: reportPayload.verifiedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+
+    // דיווח חדש מבטל מצב איפוס קודם
+    isReset: false,
+    resetAt: deleteField(),
+    resetBy: deleteField(),
+    resetByName: deleteField(),
   },
   { merge: true }
 );
