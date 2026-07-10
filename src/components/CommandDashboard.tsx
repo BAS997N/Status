@@ -204,6 +204,8 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   afterHours?: number;
 } | null>(null);
 
+  const [lastSavedReport, setLastSavedReport] = useState<AttendanceReport | null>(null);
+
  const defaultShortUnits = ["תאג״ד"];
 
   const [selectedUnitsForTrend, setSelectedUnitsForTrend] = useState<string[]>(
@@ -2896,12 +2898,23 @@ return (
 );
     })
   .map(({ profile, latestTodayReport }) => {
+                  const useLocalReport =
+                    lastSavedReport &&
+                    lastSavedReport.userId === profile.userId &&
+                    (lastSavedReport as any).reportDate === selectedDate;
+
+                  const displayedTodayReport = useLocalReport
+                    ? ({
+                        ...(latestTodayReport || {}),
+                        ...lastSavedReport,
+                      } as AttendanceReport)
+                    : latestTodayReport;
                   
                   // Detail for status label
-                  const hasReportedToday = !!latestTodayReport;
+                  const hasReportedToday = !!displayedTodayReport;
                   const statusInfo = hasReportedToday
-                    ? (ATTENDANCE_STATUS_LABELS[latestTodayReport.status] || {
-                        label: latestTodayReport.status || "לא מוגדר",
+                    ? (ATTENDANCE_STATUS_LABELS[displayedTodayReport.status] || {
+                        label: displayedTodayReport.status || "לא מוגדר",
                         color: "text-slate-600 dark:text-slate-300",
                         bg: "bg-slate-50 dark:bg-slate-905/40",
                         border: "border-slate-200 dark:border-slate-802"
@@ -2954,19 +2967,19 @@ return (
 
                       {/* Location & Stamp */}
                       <td className="px-5 py-4">
-                        {hasReportedToday && latestTodayReport ? (
+                        {hasReportedToday && displayedTodayReport ? (
                           <div className="space-y-1">
                             <span className="text-slate-700 font-semibold flex items-center gap-1">
                               <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                               <div className="flex flex-col">
   <span className="truncate max-w-[170px]">
-    {latestTodayReport.location}
+    {displayedTodayReport.location}
   </span>
 
-  {latestTodayReport.latitude &&
-    latestTodayReport.longitude && (
+  {displayedTodayReport.latitude &&
+    displayedTodayReport.longitude && (
       <a
-        href={`https://www.google.com/maps?q=${latestTodayReport.latitude},${latestTodayReport.longitude}`}
+        href={`https://www.google.com/maps?q=${displayedTodayReport.latitude},${displayedTodayReport.longitude}`}
         target="_blank"
         rel="noopener noreferrer"
         className="text-[10px] text-blue-600 hover:text-blue-800 underline font-bold"
@@ -2979,8 +2992,8 @@ return (
                             <span className="text-[10px] text-slate-400 font-mono font-medium flex items-center gap-1">
                               <Clock className="w-3 h-3 text-slate-400 shrink-0" />
                               <span>
-  {getTimeMsFromTimestamp(latestTodayReport.timestamp)
-    ? new Date(getTimeMsFromTimestamp(latestTodayReport.timestamp)).toLocaleTimeString("he-IL", {
+  {getTimeMsFromTimestamp(displayedTodayReport.timestamp)
+    ? new Date(getTimeMsFromTimestamp(displayedTodayReport.timestamp)).toLocaleTimeString("he-IL", {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
@@ -2996,9 +3009,9 @@ return (
 
                       {/* Notes */}
                       <td className="px-5 py-4">
-                        {hasReportedToday && latestTodayReport?.note ? (
-                          <p className="text-slate-500 max-w-[180px] truncate" title={latestTodayReport.note}>
-                            {latestTodayReport.note}
+                        {hasReportedToday && displayedTodayReport?.note ? (
+                          <p className="text-slate-500 max-w-[180px] truncate" title={displayedTodayReport.note}>
+                            {displayedTodayReport.note}
                           </p>
                         ) : (
                           <span className="text-slate-400 font-normal italic">אין הערה</span>
@@ -3015,11 +3028,11 @@ return (
 
     const displayDayMarker = useLocalDayMarker
       ? lastSavedDayMarker.dayMarker
-      : latestTodayReport?.dayMarker;
+      : displayedTodayReport?.dayMarker;
 
     const displayAfterHours = useLocalDayMarker
       ? lastSavedDayMarker.afterHours
-      : latestTodayReport?.afterHours;
+      : displayedTodayReport?.afterHours;
 
     return displayDayMarker === "return_to_base" ? (
       <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold whitespace-nowrap">
@@ -3042,8 +3055,8 @@ return (
                       {/* Commander verification and reporting actions */}
                       <td className="px-5 py-4 text-left">
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-1.5">
-                          {hasReportedToday && latestTodayReport ? (
-                            latestTodayReport.verifiedBy ? (
+                          {hasReportedToday && displayedTodayReport ? (
+                            displayedTodayReport.verifiedBy ? (
                               <span className="text-emerald-700 font-extrabold text-[10px] inline-flex items-center gap-1 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-md">
                                 <Check className="w-3 h-3" />
                                 מאושר
@@ -3055,7 +3068,7 @@ return (
                                 </span>
                               ) : (
                                 <button
-                                  onClick={() => onVerifyReport(latestTodayReport.reportId)}
+                                  onClick={() => onVerifyReport(displayedTodayReport.reportId)}
                                   className="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-2 rounded-md transition cursor-pointer border-none inline-flex items-center justify-center gap-1 shadow-xs"
                                 >
                                   <Check className="w-3 h-3" />
@@ -3069,26 +3082,26 @@ return (
                             <button
                               onClick={() => {
                                 setEditingReportData({
-  reportId: latestTodayReport?.reportId,
+  reportId: displayedTodayReport?.reportId,
   userId: profile.userId,
   userName: profile.fullName,
   unit: profile.unit,
-  status: latestTodayReport?.status || "base",
-  location: latestTodayReport?.location || "בסיס קבע",
-  note: latestTodayReport?.note || "",
+  status: displayedTodayReport?.status || "base",
+  location: displayedTodayReport?.location || "בסיס קבע",
+  note: displayedTodayReport?.note || "",
   reportDate: selectedDate,
-  dayMarker: latestTodayReport?.dayMarker,
-  afterHours: latestTodayReport?.afterHours,
+  dayMarker: displayedTodayReport?.dayMarker,
+  afterHours: displayedTodayReport?.afterHours,
 });
                                 setIsReportModalOpen(true);
                               }}
                               className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-1 px-2 rounded-md transition cursor-pointer border border-slate-200/60 inline-flex items-center justify-center gap-1 shadow-xs"
                             >
                               <FileText className="w-3 h-3 text-slate-500" />
-                              {latestTodayReport ? "ערוך דיווח" : "צור דיווח"}
+                              {displayedTodayReport ? "ערוך דיווח" : "צור דיווח"}
                             </button>
                       )}
-                          {!latestTodayReport && profile.phoneNumber && currentUser.role !== "adjutant_officer" && (
+                          {!displayedTodayReport && profile.phoneNumber && currentUser.role !== "adjutant_officer" && (
   <a
     href={`https://wa.me/972${profile.phoneNumber
   .replace(/\D/g, "")
@@ -3108,11 +3121,11 @@ https://bas997n.github.io/Status/`
   </a>
 )}
                      
- {latestTodayReport && onDeleteReport && currentUser.role === "commander" && (
+ {displayedTodayReport && onDeleteReport && currentUser.role === "commander" && (
   <button
     onClick={() =>
       setReportToReset({
-  reportId: latestTodayReport.reportId || (latestTodayReport as any).id,
+  reportId: displayedTodayReport.reportId || (displayedTodayReport as any).id,
   soldierName: profile.fullName,
 })
     }
@@ -3907,24 +3920,25 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
         location: editingReportData.location?.trim() || "לא צוין",
         note: editingReportData.note || "",
       };
+      const optimisticReport = {
+        ...dataToSave,
+        reportId: dataToSave.reportId || `local_${Date.now()}`,
+        reportDate: dataToSave.reportDate || selectedDate,
+        timestamp: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isReset: false,
+      } as AttendanceReport;
+
+      setLastSavedReport(optimisticReport);
       setLastSavedDayMarker({
-  userId: dataToSave.userId,
-  reportDate: dataToSave.reportDate || selectedDate,
-  dayMarker: dataToSave.dayMarker,
-  afterHours:
-    dataToSave.dayMarker === "after_hours"
-      ? dataToSave.afterHours || 4
-      : undefined,
-});
-setLastSavedDayMarker({
-  userId: dataToSave.userId,
-  reportDate: dataToSave.reportDate || selectedDate,
-  dayMarker: dataToSave.dayMarker,
-  afterHours:
-    dataToSave.dayMarker === "after_hours"
-      ? dataToSave.afterHours || 4
-      : undefined,
-});
+        userId: dataToSave.userId,
+        reportDate: dataToSave.reportDate || selectedDate,
+        dayMarker: dataToSave.dayMarker,
+        afterHours:
+          dataToSave.dayMarker === "after_hours"
+            ? dataToSave.afterHours || 4
+            : undefined,
+      });
      setIsReportModalOpen(false);
 setEditingReportData(null);
 
