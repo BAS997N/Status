@@ -469,6 +469,92 @@ const reportDateText = reportDay
         </div>
       </div>
 
+            {bulkAction && (
+        <div className="fixed inset-0 z-[11000] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+          <div
+            className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden text-right"
+            dir="rtl"
+          >
+            <div
+              className={`text-white p-4 flex items-center gap-2 justify-between ${
+                bulkAction === "delete" ? "bg-rose-900" : "bg-amber-700"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {bulkAction === "delete" ? (
+                  <Trash2 className="w-5 h-5 text-rose-200" />
+                ) : (
+                  <RotateCcw className="w-5 h-5 text-amber-100" />
+                )}
+
+                <h3 className="text-sm font-black tracking-tight">
+                  {bulkAction === "delete"
+                    ? "אישור מחיקת דיווחים"
+                    : "אישור איפוס דיווחים"}
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isBulkProcessing) {
+                    setBulkAction(null);
+                  }
+                }}
+                disabled={isBulkProcessing}
+                className="text-white opacity-80 hover:opacity-100 disabled:opacity-40 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3">
+              <p className="text-xs text-slate-700 font-bold leading-relaxed">
+                {bulkAction === "delete"
+                  ? `האם למחוק לצמיתות ${selectedReports.length} דיווחים מסומנים?`
+                  : `האם לאפס ${selectedReports.length} דיווחים מסומנים?`}
+              </p>
+
+              <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
+                {bulkAction === "delete"
+                  ? "פעולה זו תמחק את הדיווחים מהיסטוריית הדיווחים ומטבלאות הנוכחות."
+                  : "פעולה זו תשאיר את הדיווחים במערכת, אך תחזיר אותם לערכי ברירת המחדל של האיפוס."}
+              </p>
+            </div>
+
+            <div className="bg-slate-50 p-4 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setBulkAction(null)}
+                disabled={isBulkProcessing}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-500 font-bold text-xs rounded-lg border border-slate-200 transition cursor-pointer"
+              >
+                בטל פעולה
+              </button>
+
+              <button
+                type="button"
+                disabled={isBulkProcessing}
+                onClick={handleBulkAction}
+                className={`px-4 py-2 disabled:opacity-60 text-white font-bold text-xs rounded-lg border-none transition cursor-pointer shadow-sm ${
+                  bulkAction === "delete"
+                    ? "bg-rose-600 hover:bg-rose-700"
+                    : "bg-amber-600 hover:bg-amber-700"
+                }`}
+              >
+                {isBulkProcessing
+                  ? bulkAction === "delete"
+                    ? "מוחק דיווחים..."
+                    : "מאפס דיווחים..."
+                  : bulkAction === "delete"
+                  ? "אישור ומחיקת דיווחים"
+                  : "אישור ואיפוס דיווחים"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {reportToDelete && (
         <div className="fixed inset-0 z-[11000] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden text-right" dir="rtl">
