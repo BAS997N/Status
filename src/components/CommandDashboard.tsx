@@ -81,11 +81,6 @@ interface CommandDashboardProps {
     note?: string;
     reportDate?: string;
   }) => Promise<void>;
-  onShowToast?: (
-  title: string,
-  message: string,
-  status?: AttendanceStatus
-) => void;
   onShowMessage?: (
   title: string,
   message: string,
@@ -112,7 +107,6 @@ export default function CommandDashboard({
   onShowMessage,
   onSyncOldReportsToSheets,
   onAdminSaveReport,
-  onShowToast,
   medicalUnits = [],
   customRoles = [],
   onUpdateMedicalSettings
@@ -4152,14 +4146,33 @@ await onAdminSaveReport(dataToSave);
 
           <button
             onClick={async () => {
-              if (!onDeleteReport || !reportToReset) return;
-             if (!reportToReset.reportId) {
-  alert("לא נמצא מזהה דיווח למחיקה");
-  return;
-}
+              if (!onResetReport || !reportToReset) return;
 
-await onDeleteReport(reportToReset.reportId);
-              setReportToReset(null);
+              if (!reportToReset.reportId) {
+                onShowMessage?.(
+                  "שגיאה",
+                  "לא נמצא מזהה דיווח לאיפוס",
+                  "error"
+                );
+                return;
+              }
+
+              try {
+                await onResetReport(reportToReset.reportId);
+                setReportToReset(null);
+                onShowMessage?.(
+                  "איפוס דיווח",
+                  `הדיווח של ${reportToReset.soldierName} אופס בהצלחה`,
+                  "success"
+                );
+              } catch (error) {
+                console.error("Failed resetting report:", error);
+                onShowMessage?.(
+                  "שגיאה",
+                  "אירעה שגיאה באיפוס הדיווח",
+                  "error"
+                );
+              }
             }}
             className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg border-none transition cursor-pointer shadow-sm"
           >
@@ -4241,4 +4254,3 @@ await onDeleteReport(reportToReset.reportId);
 </div>
     );
 }
-
