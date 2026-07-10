@@ -128,6 +128,7 @@ const handleBulkAction = async () => {
           onResetReport(reportId)
         )
       );
+      alert(`${selectedReports.length} דיווחים אופסו בהצלחה`);
     }
 
     setSelectedReports([]);
