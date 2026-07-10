@@ -446,19 +446,24 @@ const handleResetReport = async (reportId: string) => {
       userProfile || undefined
     );
 
-    await dataService.createSystemLog({
-      action: "reset_report",
-      actorUserId: userProfile?.userId || "unknown",
-      actorName: userProfile?.fullName || "משתמש לא ידוע",
-      targetUserId: reportToReset.userId,
-      targetName: reportToReset.userName || "חייל לא ידוע",
-      details: `אופס דיווח לתאריך ${
-        (reportToReset as any).reportDate || "לא ידוע"
-      }`,
-    });
+    try {
+  await dataService.createSystemLog({
+    action: "reset_report",
+    actorUserId: userProfile?.userId || "unknown",
+    actorName: userProfile?.fullName || "משתמש לא ידוע",
+    targetUserId: reportToReset.userId,
+    targetName: reportToReset.userName || "חייל לא ידוע",
+    details: `אופס דיווח לתאריך ${
+      (reportToReset as any).reportDate || "לא ידוע"
+    }`,
+  });
+} catch (logError) {
+  console.error("Failed creating reset system log:", logError);
+}
 
     await refreshReportsOnly();
     await refreshNotifications();
+    alert("הדיווח אופס בהצלחה");
   } catch (error) {
     console.error("Failed resetting report:", error);
     alert("אירעה שגיאה באיפוס הדיווח");
