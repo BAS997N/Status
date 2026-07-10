@@ -662,18 +662,14 @@ const finalReportData = {
   const path = `attendance/${reportId}`;
  
  try {
-  await updateDoc(doc(db, "attendance", reportId), finalReportData);
-   
-   await this.createSystemLog({
-  action: "edit_report",
-  actorUserId: finalReportData.updatedBy,
-  actorName: finalReportData.updatedByName,
-  targetUserId: updatedReport.userId,
-  targetName: updatedReport.userName,
-  details: `${statusText} | ${updatedReport.reportDate || ""}`,
-});
+  await updateDoc(
+    doc(db, "attendance", reportId),
+    finalReportData
+  );
 
-  const updatedSnap = await getDoc(doc(db, "attendance", reportId));
+  const updatedSnap = await getDoc(
+    doc(db, "attendance", reportId)
+  );
 
   if (updatedSnap.exists()) {
     const updatedReport = {
@@ -701,6 +697,17 @@ const finalReportData = {
     const statusText =
       ATTENDANCE_STATUS_LABELS[updatedReport.status]?.label ||
       updatedReport.status;
+   
+    await this.createSystemLog({
+  action: "edit_report",
+  actorUserId: finalReportData.updatedBy,
+  actorName: finalReportData.updatedByName,
+  targetUserId: updatedReport.userId,
+  targetName: updatedReport.userName,
+  details: `${statusText} | ${
+    updatedReport.reportDate || ""
+  }`,
+});
 
     const reportDateObj = new Date(updatedReport.timestamp);
     const formattedDate = `${String(reportDateObj.getDate()).padStart(2, "0")}/${String(
