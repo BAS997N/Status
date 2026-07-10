@@ -12,6 +12,11 @@ interface HistoryViewProps {
   message: string,
   status?: AttendanceStatus
 ) => void;
+  onShowMessage?: (
+  title: string,
+  message: string,
+  type?: "success" | "error" | "info"
+) => void;
 }
 
 export default function HistoryView({
