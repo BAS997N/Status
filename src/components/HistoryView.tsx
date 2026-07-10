@@ -132,10 +132,10 @@ const handleBulkAction = async () => {
       setSelectedReports([]);
       setBulkAction(null);
 
-      onShowToast?.(
+      onShowMessage?.(
   "מחיקת דיווחים",
   `${selectedCount} דיווחים נמחקו בהצלחה`,
-  "base"
+  "success"
 );
     }
 
@@ -149,21 +149,21 @@ const handleBulkAction = async () => {
       setSelectedReports([]);
       setBulkAction(null);
 
-      onShowToast?.(
+      onShowMessage?.(
   "איפוס דיווחים",
   `${selectedCount} דיווחים אופסו בהצלחה`,
-  "base"
+  "success"
 );
     }
   } catch (error) {
     console.error("Bulk report action failed:", error);
 
-    onShowToast?.(
+    onShowMessage?.(
   "שגיאה",
   bulkAction === "delete"
     ? "אירעה שגיאה במחיקת הדיווחים"
     : "אירעה שגיאה באיפוס הדיווחים",
-  "sick"
+  "error"
 );
   } finally {
     setIsBulkProcessing(false);
