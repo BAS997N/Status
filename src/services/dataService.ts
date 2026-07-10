@@ -539,9 +539,9 @@ await setDoc(
 
     // דיווח חדש מבטל מצב איפוס קודם
     isReset: false,
-    resetAt: deleteField(),
-    resetBy: deleteField(),
-    resetByName: deleteField(),
+resetAt: null,
+resetBy: null,
+resetByName: null,
   },
   { merge: true }
 );
