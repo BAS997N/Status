@@ -463,7 +463,6 @@ const handleResetReport = async (reportId: string) => {
 
     await refreshReportsOnly();
     await refreshNotifications();
-    alert("הדיווח אופס בהצלחה");
   } catch (error) {
     console.error("Failed resetting report:", error);
     alert("אירעה שגיאה באיפוס הדיווח");
