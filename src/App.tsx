@@ -106,6 +106,17 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     status: AttendanceStatus;
   }
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const showAppMessage = (
+  title: string,
+  message: string,
+  type: "success" | "error" | "info" = "info"
+) => {
+  setAppMessage({
+    title,
+    message,
+    type,
+  });
+};
   const showToast = (
   title: string,
   message: string,
@@ -1585,7 +1596,7 @@ await refreshReports();
   onDeleteSoldier={handleDeleteSoldier}
   onDeleteReport={handleDeleteReport}
   onResetReport={handleResetReport}
-  onShowToast={showToast}
+  onShowMessage={showAppMessage}
   medicalUnits={medicalUnits}
   customRoles={customRoles}
   onUpdateMedicalSettings={handleUpdateMedicalSettings}
