@@ -1103,59 +1103,63 @@ const handleAdminSaveReport = async (reportData: {
 
   if (reportData.reportId) {
     const updatePayload: any = {
-  status: reportData.status,
-  location: reportData.location,
-  note: reportData.note || "",
-};
-
-if (reportData.dayMarker) {
-  updatePayload.dayMarker = reportData.dayMarker;
-}
-    else {
-  updatePayload.dayMarker = deleteField();
-  updatePayload.afterHours = deleteField();
-}
-
-if (reportData.dayMarker === "after_hours") {
-  updatePayload.afterHours = reportData.afterHours || 4;
-}
-    else if (reportData.dayMarker) {
-  updatePayload.afterHours = deleteField();
-}
-
-await dataService.updateAttendanceReport(
-  reportData.reportId,
-  updatePayload,
-  userProfile || undefined
-);
-    await dataService.createSystemLog({
-  action: "edit_report",
-  actorUserId: userProfile?.userId || "unknown",
-  actorName: userProfile?.fullName || "משתמש לא ידוע",
-  targetUserId: reportData.userId,
-  targetName: reportData.userName,
-  details: `עודכן דיווח לתאריך ${reportData.reportDate || "לא ידוע"} | סטטוס: ${reportData.status} | מיקום: ${reportData.location}`,
-});
-
-const targetDate =
-  reportData.reportDate || new Date().toISOString().split("T")[0];
-
-const updatedAt = new Date().toISOString();
-
-setReports((currentReports) =>
-  currentReports.map((report) => {
-    const isTargetReport =
-      report.reportId === reportData.reportId;
-
-    if (!isTargetReport) return report;
-
-    const updatedReport: AttendanceReport = {
-      ...report,
       status: reportData.status,
       location: reportData.location,
       note: reportData.note || "",
-      reportDate: targetDate,
-      updatedAt,
+      isReset: false,
+    };
+
+    if (reportData.dayMarker) {
+      updatePayload.dayMarker = reportData.dayMarker;
+    } else {
+      updatePayload.dayMarker = deleteField();
+      updatePayload.afterHours = deleteField();
+    }
+
+    if (reportData.dayMarker === "after_hours") {
+      updatePayload.afterHours = reportData.afterHours || 4;
+    } else if (reportData.dayMarker) {
+      updatePayload.afterHours = deleteField();
+    }
+
+    await dataService.updateAttendanceReport(
+      reportData.reportId,
+      updatePayload,
+      userProfile || undefined
+    );
+
+    await dataService.createSystemLog({
+      action: "edit_report",
+      actorUserId: userProfile?.userId || "unknown",
+      actorName: userProfile?.fullName || "משתמש לא ידוע",
+      targetUserId: reportData.userId,
+      targetName: reportData.userName,
+      details: `עודכן דיווח לתאריך ${
+        reportData.reportDate || "לא ידוע"
+      } | סטטוס: ${reportData.status} | מיקום: ${reportData.location}`,
+    });
+
+    const existingReport = reports.find(
+      (report) =>
+        report.reportId === reportData.reportId ||
+        (report as any).id === reportData.reportId
+    );
+
+    const updatedReport: AttendanceReport = {
+      ...(existingReport || {}),
+      reportId: reportData.reportId,
+      userId: reportData.userId,
+      userName: reportData.userName,
+      unit: reportData.unit,
+      status: reportData.status,
+      location: reportData.location,
+      note: reportData.note || "",
+      reportDate:
+        reportData.reportDate ||
+        (existingReport as any)?.reportDate ||
+        new Date().toISOString().split("T")[0],
+      timestamp: existingReport?.timestamp || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       updatedBy: userProfile?.userId || "unknown",
       updatedByName: userProfile?.fullName || "לא ידוע",
       updatedByRole: userProfile?.role || "unknown",
@@ -1174,12 +1178,7 @@ setReports((currentReports) =>
       delete (updatedReport as any).afterHours;
     }
 
-    return updatedReport;
-  })
-);
-
-await refreshReports();
-
+    upsertReportInState(updatedReport);
   } else {
     const startDate =
       reportData.rangeStartDate ||
@@ -1192,7 +1191,11 @@ await refreshReports();
     const end = new Date(endDate);
 
     if (end < start) {
-      showAppMessage("טווח תאריכים לא תקין", "תאריך הסיום לא יכול להיות לפני תאריך ההתחלה", "error");
+      showAppMessage(
+        "טווח תאריכים לא תקין",
+        "תאריך הסיום לא יכול להיות לפני תאריך ההתחלה",
+        "error"
+      );
       return;
     }
 
@@ -1203,16 +1206,19 @@ await refreshReports();
       await dataService.createAttendanceReport(buildPayload(dateStr));
       current.setDate(current.getDate() + 1);
     }
+
     await dataService.createSystemLog({
-  action: "create_report",
-  actorUserId: userProfile?.userId || "unknown",
-  actorName: userProfile?.fullName || "משתמש לא ידוע",
-  targetUserId: reportData.userId,
-  targetName: reportData.userName,
-  details: `נוצר דיווח ע״י מפקד לתאריכים ${startDate} עד ${endDate} | סטטוס: ${reportData.status} | מיקום: ${reportData.location}`,
-});
+      action: "create_report",
+      actorUserId: userProfile?.userId || "unknown",
+      actorName: userProfile?.fullName || "משתמש לא ידוע",
+      targetUserId: reportData.userId,
+      targetName: reportData.userName,
+      details: `נוצר דיווח ע״י מפקד לתאריכים ${startDate} עד ${endDate} | סטטוס: ${reportData.status} | מיקום: ${reportData.location}`,
+    });
+
+    await refreshReports();
   }
-await refreshReports();
+
   await refreshNotifications();
 };
 
