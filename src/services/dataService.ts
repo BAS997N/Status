@@ -523,9 +523,15 @@ const existingQuery = query(
 
 const existingSnapshot = await getDocs(existingQuery);
 
-const docRef = existingSnapshot.empty
-  ? doc(collection(db, "attendance"))
-  : doc(db, "attendance", existingSnapshot.docs[0].id);
+// מחפשים רק דיווח פעיל שאינו מאופס
+const existingActiveDoc = existingSnapshot.docs.find(
+  (existingDoc) => existingDoc.data().isReset !== true
+);
+
+// אם קיים רק דיווח מאופס, יוצרים מסמך חדש
+const docRef = existingActiveDoc
+  ? doc(db, "attendance", existingActiveDoc.id)
+  : doc(collection(db, "attendance"));
 
 await setDoc(
   docRef,
@@ -548,7 +554,7 @@ resetByName: null,
       const statusText =
   ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label || reportPayload.status;
       await this.createSystemLog({
-  action: existingSnapshot.empty ? "create_report" : "edit_report",
+  action: existingActiveDoc ? "edit_report" : "create_report",
   actorUserId: reportPayload.createdBy || "unknown",
   actorName: reportPayload.createdByName || "לא ידוע",
   targetUserId: reportPayload.userId,
