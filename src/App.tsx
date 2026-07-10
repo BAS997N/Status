@@ -106,6 +106,28 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     status: AttendanceStatus;
   }
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const showToast = (
+  title: string,
+  message: string,
+  status: AttendanceStatus = "base"
+) => {
+  const toastId = `toast_${Date.now()}_${Math.random()}`;
+
+  const newToast: ToastMessage = {
+    id: toastId,
+    title,
+    message,
+    status,
+  };
+
+  setToasts((current) => [newToast, ...current]);
+
+  setTimeout(() => {
+    setToasts((current) =>
+      current.filter((toast) => toast.id !== toastId)
+    );
+  }, 4000);
+};
 
   // Simulation switch helper counter to trigger state re-reads
   const [simCounter, setSimCounter] = useState(0);
@@ -1563,6 +1585,7 @@ await refreshReports();
   onDeleteSoldier={handleDeleteSoldier}
   onDeleteReport={handleDeleteReport}
   onResetReport={handleResetReport}
+  onShowToast={showToast}
   medicalUnits={medicalUnits}
   customRoles={customRoles}
   onUpdateMedicalSettings={handleUpdateMedicalSettings}
