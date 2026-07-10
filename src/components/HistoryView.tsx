@@ -117,58 +117,64 @@ const toggleSelectAllVisibleReports = () => {
 const handleBulkAction = async () => {
   if (!bulkAction || selectedReports.length === 0) return;
 
+  const action = bulkAction;
+  const selectedIds = [...selectedReports];
+  const selectedCount = selectedIds.length;
+
   setIsBulkProcessing(true);
 
-  const selectedCount = selectedReports.length;
-
   try {
-    if (bulkAction === "delete" && onDeleteReport) {
+    if (action === "delete") {
+      if (!onDeleteReport) {
+        throw new Error("פעולת מחיקת דיווחים אינה זמינה");
+      }
+
       await Promise.all(
-        selectedReports.map((reportId) =>
-          onDeleteReport(reportId)
-        )
+        selectedIds.map((reportId) => onDeleteReport(reportId))
       );
 
       setSelectedReports([]);
       setBulkAction(null);
 
       onShowMessage?.(
-  "מחיקת דיווחים",
-  `${selectedCount} דיווחים נמחקו בהצלחה`,
-  "success"
-);
-    }
-
-    if (bulkAction === "reset" && onResetReport) {
-      await Promise.all(
-        selectedReports.map((reportId) =>
-          onResetReport(reportId)
-        )
+        "מחיקת דיווחים",
+        `${selectedCount} דיווחים נמחקו בהצלחה`,
+        "success"
       );
-
-      setSelectedReports([]);
-      setBulkAction(null);
-
-      onShowMessage?.(
-  "איפוס דיווחים",
-  `${selectedCount} דיווחים אופסו בהצלחה`,
-  "success"
-);
+      return;
     }
+
+    if (!onResetReport) {
+      throw new Error("פעולת איפוס דיווחים אינה זמינה");
+    }
+
+    await Promise.all(
+      selectedIds.map((reportId) => onResetReport(reportId))
+    );
+
+    setSelectedReports([]);
+    setBulkAction(null);
+
+    onShowMessage?.(
+      "איפוס דיווחים",
+      `${selectedCount} דיווחים אופסו בהצלחה`,
+      "success"
+    );
   } catch (error) {
     console.error("Bulk report action failed:", error);
 
     onShowMessage?.(
-  "שגיאה",
-  bulkAction === "delete"
-    ? "אירעה שגיאה במחיקת הדיווחים"
-    : "אירעה שגיאה באיפוס הדיווחים",
-  "error"
-);
+      "שגיאה",
+      action === "delete"
+        ? "אירעה שגיאה במחיקת הדיווחים"
+        : "אירעה שגיאה באיפוס הדיווחים",
+      "error"
+    );
   } finally {
     setIsBulkProcessing(false);
   }
 };
+
   const getStatusLabel = (status: string) => {
     if (status === "base") return "בבסיס";
     if (status === "home") return "בית / אפטר";
@@ -633,10 +639,26 @@ const reportDateText = reportDay
                 disabled={isDeleting}
                 onClick={async () => {
                   if (!onDeleteReport || !reportToDelete) return;
+
                   setIsDeleting(true);
+
                   try {
                     await onDeleteReport(reportToDelete.reportId);
                     setReportToDelete(null);
+
+                    onShowMessage?.(
+                      "מחיקת דיווח",
+                      "הדיווח נמחק בהצלחה",
+                      "success"
+                    );
+                  } catch (error) {
+                    console.error("Single report delete failed:", error);
+
+                    onShowMessage?.(
+                      "שגיאה",
+                      "אירעה שגיאה במחיקת הדיווח",
+                      "error"
+                    );
                   } finally {
                     setIsDeleting(false);
                   }
