@@ -31,6 +31,10 @@ export interface AttendanceReport {
   verifiedAt?: string;
   dayMarker?: "return_to_base" | "exit_home" | "after_hours";
 afterHours?: number;
+  isReset?: boolean;
+resetAt?: string;
+resetBy?: string;
+resetByName?: string;
 }
 
 export interface AppNotification {
