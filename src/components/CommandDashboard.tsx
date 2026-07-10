@@ -81,6 +81,11 @@ interface CommandDashboardProps {
     note?: string;
     reportDate?: string;
   }) => Promise<void>;
+  onShowToast?: (
+  title: string,
+  message: string,
+  status?: AttendanceStatus
+) => void;
   medicalUnits?: string[];
   customRoles?: string[];
   onUpdateMedicalSettings?: (newUnits: string[], newRoles: string[]) => void;
@@ -101,6 +106,7 @@ export default function CommandDashboard({
   onResetReport,
   onSyncOldReportsToSheets,
   onAdminSaveReport,
+  onShowToast,
   medicalUnits = [],
   customRoles = [],
   onUpdateMedicalSettings
@@ -1444,6 +1450,7 @@ const dates = getDateRange(startDate, endDate);
       ? onResetReport
       : undefined
   }
+    onShowToast={onShowToast}
 />
       ) : dashboardTab === "notifications" && currentUser.role !== "adjutant_officer" ? (
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-right" dir="rtl">
