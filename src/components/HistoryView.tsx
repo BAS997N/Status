@@ -1,20 +1,36 @@
 import React, { useState } from "react";
 import { AttendanceReport, ATTENDANCE_STATUS_LABELS } from "../types";
-import { Clock, FileText, Trash2, X } from "lucide-react";
+import { Clock, FileText, Trash2, X, RotateCcw } from "lucide-react";
 
 interface HistoryViewProps {
   logs: any[];
   reports: AttendanceReport[];
   onDeleteReport?: (reportId: string) => Promise<void>;
+  onResetReport?: (reportId: string) => Promise<void>;
 }
 
-export default function HistoryView({ logs, reports, onDeleteReport }: HistoryViewProps) {
+export default function HistoryView({
+  logs,
+  reports,
+  onDeleteReport,
+  onResetReport,
+}: HistoryViewProps) {
   const [filterDate, setFilterDate] = useState("");
   const [filterSoldier, setFilterSoldier] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterRole, setFilterRole] = useState("all");
-  const [reportToDelete, setReportToDelete] = useState<AttendanceReport | null>(null);
+    const [reportToDelete, setReportToDelete] =
+    useState<AttendanceReport | null>(null);
+
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [selectedReports, setSelectedReports] = useState<string[]>([]);
+
+  const [bulkAction, setBulkAction] = useState<
+    "delete" | "reset" | null
+  >(null);
+
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
   const getLocalDateString = (timestamp?: string) => {
   if (!timestamp) return "";
@@ -62,6 +78,66 @@ const matchesDate =
 
   return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
 });
+  const visibleReportIds = sortedFilteredReports
+  .map((report) => report.id)
+  .filter((id): id is string => Boolean(id));
+
+const areAllVisibleReportsSelected =
+  visibleReportIds.length > 0 &&
+  visibleReportIds.every((id) => selectedReports.includes(id));
+
+const toggleReportSelection = (reportId: string) => {
+  setSelectedReports((currentSelected) =>
+    currentSelected.includes(reportId)
+      ? currentSelected.filter((id) => id !== reportId)
+      : [...currentSelected, reportId]
+  );
+};
+
+const toggleSelectAllVisibleReports = () => {
+  setSelectedReports((currentSelected) => {
+    if (areAllVisibleReportsSelected) {
+      return currentSelected.filter(
+        (id) => !visibleReportIds.includes(id)
+      );
+    }
+
+    return Array.from(
+      new Set([...currentSelected, ...visibleReportIds])
+    );
+  });
+};
+
+const handleBulkAction = async () => {
+  if (!bulkAction || selectedReports.length === 0) return;
+
+  setIsBulkProcessing(true);
+
+  try {
+    if (bulkAction === "delete" && onDeleteReport) {
+      await Promise.all(
+        selectedReports.map((reportId) =>
+          onDeleteReport(reportId)
+        )
+      );
+    }
+
+    if (bulkAction === "reset" && onResetReport) {
+      await Promise.all(
+        selectedReports.map((reportId) =>
+          onResetReport(reportId)
+        )
+      );
+    }
+
+    setSelectedReports([]);
+    setBulkAction(null);
+  } catch (error) {
+    console.error("Bulk report action failed:", error);
+  } finally {
+    setIsBulkProcessing(false);
+  }
+};
 
   const getStatusLabel = (status: string) => {
     if (status === "base") return "בבסיס";
@@ -155,6 +231,58 @@ const getActionTypeLabel = (rep: AttendanceReport, relatedLog?: any) => {
       <option value="adjutant_officer">שליש</option>
       <option value="unknown">לא ידוע</option>
     </select>
+    </div>
+
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3">
+    <label className="flex items-center gap-2 text-xs font-black text-slate-700 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={areAllVisibleReportsSelected}
+        onChange={toggleSelectAllVisibleReports}
+        disabled={visibleReportIds.length === 0 || isBulkProcessing}
+        className="w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+      />
+
+      <span>
+        בחר את כל הדיווחים המוצגים
+      </span>
+    </label>
+
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-xs font-black text-slate-500">
+        {selectedReports.length > 0
+          ? `${selectedReports.length} דיווחים מסומנים`
+          : "לא נבחרו דיווחים"}
+      </span>
+
+      <button
+        type="button"
+        onClick={() => setBulkAction("reset")}
+        disabled={
+          selectedReports.length === 0 ||
+          isBulkProcessing ||
+          !onResetReport
+        }
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <RotateCcw size={15} />
+        אפס מסומנים
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setBulkAction("delete")}
+        disabled={
+          selectedReports.length === 0 ||
+          isBulkProcessing ||
+          !onDeleteReport
+        }
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <Trash2 size={15} />
+        מחק מסומנים
+      </button>
+    </div>
   </div>
 </div>
 
