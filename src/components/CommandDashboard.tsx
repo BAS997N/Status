@@ -109,6 +109,7 @@ export default function CommandDashboard({
   onDeleteSoldier,
   onDeleteReport,
   onResetReport,
+  onShowMessage,
   onSyncOldReportsToSheets,
   onAdminSaveReport,
   onShowToast,
@@ -1455,7 +1456,7 @@ const dates = getDateRange(startDate, endDate);
       ? onResetReport
       : undefined
   }
-    onShowToast={onShowToast}
+    onShowMessage={onShowMessage}
 />
       ) : dashboardTab === "notifications" && currentUser.role !== "adjutant_officer" ? (
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-right" dir="rtl">
