@@ -360,21 +360,27 @@ const reportDateText = reportDay
     </td>
 
                           <td className="p-3">
-  {(() => {
-    const statusInfo = ATTENDANCE_STATUS_LABELS[rep.status];
+  {(rep as any).isReset ? (
+    <span className="px-2 py-1 rounded-full font-bold whitespace-nowrap border bg-slate-100 text-slate-600 border-slate-300">
+      אופס
+    </span>
+  ) : (
+    (() => {
+      const statusInfo = ATTENDANCE_STATUS_LABELS[rep.status];
 
-    return (
-      <span
-        className={`px-2 py-1 rounded-full font-bold whitespace-nowrap border ${
-          statusInfo
-            ? `${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`
-            : "bg-slate-50 text-slate-600 border-slate-200"
-        }`}
-      >
-        {statusInfo?.label || getStatusLabel(rep.status)}
-      </span>
-    );
-  })()}
+      return (
+        <span
+          className={`px-2 py-1 rounded-full font-bold whitespace-nowrap border ${
+            statusInfo
+              ? `${statusInfo.bg} ${statusInfo.color} ${statusInfo.border}`
+              : "bg-slate-50 text-slate-600 border-slate-200"
+          }`}
+        >
+          {statusInfo?.label || getStatusLabel(rep.status)}
+        </span>
+      );
+    })()
+  )}
 </td>
 
                           <td className="p-3 text-slate-700">
