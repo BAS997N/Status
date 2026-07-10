@@ -428,10 +428,14 @@ const isReportForDate = (report: any, dateStr: string) => {
     return activeSoldiers.map(soldier => {
       // Find reports of this soldier sorted by time descending
       const soldierReports = reports
-  .filter(r =>
-  r.userId === soldier.userId ||
-  (r as any).personalId === soldier.personalId
-)
+  .filter(
+    (r) =>
+      !(r as any).isReset &&
+      (
+        r.userId === soldier.userId ||
+        (r as any).personalId === soldier.personalId
+      )
+  )
   .sort(
   (a, b) =>
     getTimeMsFromTimestamp(b.updatedAt || b.timestamp) -
@@ -506,10 +510,14 @@ const absentCount =
   
   const listCommandsWithStatus = commandStaffProfiles.map(soldier => {
     const soldierReports = reports
-  .filter(r =>
-  r.userId === soldier.userId ||
-  (r as any).personalId === soldier.personalId
-)
+  .filter(
+    (r) =>
+      !(r as any).isReset &&
+      (
+        r.userId === soldier.userId ||
+        (r as any).personalId === soldier.personalId
+      )
+  )
   .sort(
   (a, b) =>
     getTimeMsFromTimestamp(b.updatedAt || b.timestamp) -
