@@ -79,7 +79,7 @@ const matchesDate =
   return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
 });
   const visibleReportIds = sortedFilteredReports
-  .map((report) => report.id)
+  .map((report) => report.reportId)
   .filter((id): id is string => Boolean(id));
 
 const areAllVisibleReportsSelected =
@@ -300,7 +300,18 @@ const getActionTypeLabel = (rep: AttendanceReport, relatedLog?: any) => {
                 <table className="w-full text-xs text-right">
   <thead className="bg-slate-100 text-slate-600 font-black">
     <tr>
-      <th className="p-3">שם חייל</th>
+  <th className="p-3 text-center">
+    <input
+      type="checkbox"
+      checked={areAllVisibleReportsSelected}
+      onChange={toggleSelectAllVisibleReports}
+      disabled={visibleReportIds.length === 0 || isBulkProcessing}
+      aria-label="בחר את כל הדיווחים המוצגים"
+      className="w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+    />
+  </th>
+
+  <th className="p-3">שם חייל</th>
       <th className="p-3">סטטוס</th>
       <th className="p-3">מיקום</th>
       <th className="p-3">תאריך</th>
@@ -314,8 +325,9 @@ const getActionTypeLabel = (rep: AttendanceReport, relatedLog?: any) => {
 
                   <tbody className="divide-y divide-slate-100">
                     {sortedFilteredReports.map((rep) => {
-                      const reportDay =
-  (rep as any).reportDate || getLocalDateString(rep.timestamp);
+  const reportId = rep.reportId || "";
+  const reportDay =
+    (rep as any).reportDate || getLocalDateString(rep.timestamp);
 
 const reportDateText = reportDay
   ? reportDay.split("-").reverse().join("/")
@@ -323,11 +335,29 @@ const reportDateText = reportDay
                 const dateObj = new Date(rep.timestamp);
                       const relatedLog = getRelatedLog(rep.reportId);
 
-                      return (
-                        <tr key={rep.reportId} className="hover:bg-slate-50 transition">
-                          <td className="p-3 font-bold text-slate-800">
-                            {rep.userName || "לא ידוע"}
-                          </td>
+                     return (
+  <tr
+    key={rep.reportId}
+    className="hover:bg-slate-50 transition"
+  >
+    <td className="p-3 text-center">
+      <input
+        type="checkbox"
+        checked={reportId ? selectedReports.includes(reportId) : false}
+        onChange={() => {
+          if (reportId) {
+            toggleReportSelection(reportId);
+          }
+        }}
+        disabled={!reportId || isBulkProcessing}
+        aria-label={`בחר דיווח של ${rep.userName || "חייל לא ידוע"}`}
+        className="w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+      />
+    </td>
+
+    <td className="p-3 font-bold text-slate-800">
+      {rep.userName || "לא ידוע"}
+    </td>
 
                           <td className="p-3">
   {(() => {
