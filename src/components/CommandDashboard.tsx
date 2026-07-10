@@ -68,7 +68,8 @@ interface CommandDashboardProps {
   onVerifyReport: (reportId: string) => Promise<void>;
   onAdminUpdateSoldier: (profile: UserProfile) => Promise<void>;
   onDeleteSoldier?: (userId: string) => Promise<void>;
-  onDeleteReport?: (reportId: string) => Promise<void>;
+    onDeleteReport?: (reportId: string) => Promise<void>;
+  onResetReport?: (reportId: string) => Promise<void>;
   onSyncOldReportsToSheets?: () => Promise<void>;
   onAdminSaveReport?: (reportData: {
     reportId?: string;
@@ -97,6 +98,7 @@ export default function CommandDashboard({
   onAdminUpdateSoldier,
   onDeleteSoldier,
   onDeleteReport,
+  onResetReport,
   onSyncOldReportsToSheets,
   onAdminSaveReport,
   medicalUnits = [],
@@ -1421,7 +1423,20 @@ const dates = getDateRange(startDate, endDate);
           </div>
         </div>
       ) : dashboardTab === "history" ? (
-  <HistoryView logs={attendanceLogs} reports={reports} onDeleteReport={onDeleteReport}/>
+  <HistoryView
+  logs={attendanceLogs}
+  reports={reports}
+  onDeleteReport={
+    currentUser.role === "commander"
+      ? onDeleteReport
+      : undefined
+  }
+  onResetReport={
+    currentUser.role === "commander"
+      ? onResetReport
+      : undefined
+  }
+/>
       ) : dashboardTab === "notifications" && currentUser.role !== "adjutant_officer" ? (
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-right" dir="rtl">
     <div className="p-5 border-b border-slate-100">
