@@ -411,14 +411,46 @@ setSystemLogs(updatedSystemLogs);
   await dataService.syncAllReportsToGoogleSheets();
   alert("ייבוא הדיווחים הישנים לגוגל שיטס הסתיים");
 };
-  const handleDeleteReport = async (reportId: string) => {
+  const handleResetReport = async (reportId: string) => {
   try {
-    await dataService.deleteAttendanceReport(reportId);
+    const reportToReset = reports.find(
+      (report) => report.reportId === reportId
+    );
+
+    if (!reportToReset) {
+      throw new Error("Report not found");
+    }
+
+    const resetPayload: any = {
+      status: "base",
+      location: "",
+      note: "",
+      dayMarker: deleteField(),
+      afterHours: deleteField(),
+    };
+
+    await dataService.updateAttendanceReport(
+      reportId,
+      resetPayload,
+      userProfile || undefined
+    );
+
+    await dataService.createSystemLog({
+      action: "reset_report",
+      actorUserId: userProfile?.userId || "unknown",
+      actorName: userProfile?.fullName || "משתמש לא ידוע",
+      targetUserId: reportToReset.userId,
+      targetName: reportToReset.userName || "חייל לא ידוע",
+      details: `אופס דיווח לתאריך ${
+        (reportToReset as any).reportDate || "לא ידוע"
+      }`,
+    });
+
     await refreshReportsOnly();
-await refreshNotifications();
+    await refreshNotifications();
   } catch (error) {
-    console.error("Failed deleting report:", error);
-    alert("אירעה שגיאה במחיקת הדיווח");
+    console.error("Failed resetting report:", error);
+    alert("אירעה שגיאה באיפוס הדיווח");
   }
 };
   
@@ -1489,7 +1521,8 @@ await refreshReports();
   onAdminUpdateSoldier={handleAdminUpdateSoldier}
   onAdminSaveReport={handleAdminSaveReport}
   onDeleteSoldier={handleDeleteSoldier}
-  onDeleteReport={handleDeleteReport}             
+  onDeleteReport={handleDeleteReport}
+  onResetReport={handleResetReport}
   medicalUnits={medicalUnits}
   customRoles={customRoles}
   onUpdateMedicalSettings={handleUpdateMedicalSettings}
