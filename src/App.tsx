@@ -434,12 +434,11 @@ const handleResetReport = async (reportId: string) => {
     }
 
     const resetPayload: any = {
-      status: "base",
-      location: "",
-      note: "",
-      dayMarker: deleteField(),
-      afterHours: deleteField(),
-    };
+  isReset: true,
+  resetAt: new Date().toISOString(),
+  resetBy: userProfile?.userId || "unknown",
+  resetByName: userProfile?.fullName || "משתמש לא ידוע",
+};
 
     await dataService.updateAttendanceReport(
       reportId,
