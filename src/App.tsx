@@ -1137,50 +1137,48 @@ await dataService.updateAttendanceReport(
   details: `עודכן דיווח לתאריך ${reportData.reportDate || "לא ידוע"} | סטטוס: ${reportData.status} | מיקום: ${reportData.location}`,
 });
 
-await refreshReports();
-    const targetDate =
+const targetDate =
   reportData.reportDate || new Date().toISOString().split("T")[0];
+
+const updatedAt = new Date().toISOString();
 
 setReports((currentReports) =>
   currentReports.map((report) => {
-    const reportDate =
-      (report as any).reportDate ||
-      (typeof report.timestamp === "string"
-        ? report.timestamp.split("T")[0]
-        : "");
-
     const isTargetReport =
-      report.reportId === reportData.reportId ||
-      (report.userId === reportData.userId && reportDate === targetDate);
+      report.reportId === reportData.reportId;
 
     if (!isTargetReport) return report;
 
-    const updatedReport: any = {
+    const updatedReport: AttendanceReport = {
       ...report,
       status: reportData.status,
       location: reportData.location,
       note: reportData.note || "",
-      updatedAt: new Date().toISOString(),
+      reportDate: targetDate,
+      updatedAt,
       updatedBy: userProfile?.userId || "unknown",
       updatedByName: userProfile?.fullName || "לא ידוע",
       updatedByRole: userProfile?.role || "unknown",
-    };
+      isReset: false,
+    } as AttendanceReport;
 
     if (reportData.dayMarker) {
       updatedReport.dayMarker = reportData.dayMarker;
     } else {
-      delete updatedReport.dayMarker;
+      delete (updatedReport as any).dayMarker;
     }
 
     if (reportData.dayMarker === "after_hours") {
       updatedReport.afterHours = reportData.afterHours || 4;
     } else {
-      delete updatedReport.afterHours;
+      delete (updatedReport as any).afterHours;
     }
 
     return updatedReport;
   })
 );
+
+await refreshReports();
 
   } else {
     const startDate =
