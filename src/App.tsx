@@ -424,48 +424,65 @@ const handleDeleteReport = async (reportId: string) => {
 };
 
 const handleResetReport = async (reportId: string) => {
+  const reportToReset = reports.find(
+    (report) => report.reportId === reportId
+  );
+
+  if (!reportToReset) {
+    throw new Error("הדיווח לא נמצא");
+  }
+
   try {
-    const reportToReset = reports.find(
-      (report) => report.reportId === reportId
-    );
-
-    if (!reportToReset) {
-      throw new Error("Report not found");
-    }
-
-    const resetPayload: any = {
-  isReset: true,
-  resetAt: new Date().toISOString(),
-  resetBy: userProfile?.userId || "unknown",
-  resetByName: userProfile?.fullName || "משתמש לא ידוע",
-};
-
     await dataService.updateAttendanceReport(
       reportId,
-      resetPayload,
+      {
+        isReset: true,
+        resetAt: new Date().toISOString(),
+        resetBy: userProfile?.userId || "unknown",
+        resetByName: userProfile?.fullName || "משתמש לא ידוע",
+      } as any,
       userProfile || undefined
     );
 
-    try {
-  await dataService.createSystemLog({
-    action: "reset_report",
-    actorUserId: userProfile?.userId || "unknown",
-    actorName: userProfile?.fullName || "משתמש לא ידוע",
-    targetUserId: reportToReset.userId,
-    targetName: reportToReset.userName || "חייל לא ידוע",
-    details: `אופס דיווח לתאריך ${
-      (reportToReset as any).reportDate || "לא ידוע"
-    }`,
-  });
-} catch (logError) {
-  console.error("Failed creating reset system log:", logError);
-}
+    // עדכון מיידי של המסך ללא צורך ברענון ידני
+    setReports((currentReports) =>
+      currentReports.map((report) =>
+        report.reportId === reportId
+          ? {
+              ...report,
+              isReset: true,
+              resetAt: new Date().toISOString(),
+              resetBy: userProfile?.userId || "unknown",
+              resetByName:
+                userProfile?.fullName || "משתמש לא ידוע",
+            }
+          : report
+      )
+    );
 
-    await refreshReportsOnly();
-    await refreshNotifications();
+    // כשל ביומן המערכת לא צריך להפוך איפוס מוצלח לשגיאה
+    try {
+      await dataService.createSystemLog({
+        action: "reset_report",
+        actorUserId: userProfile?.userId || "unknown",
+        actorName:
+          userProfile?.fullName || "משתמש לא ידוע",
+        targetUserId: reportToReset.userId,
+        targetName:
+          reportToReset.userName || "חייל לא ידוע",
+        details: `אופס דיווח לתאריך ${
+          (reportToReset as any).reportDate || "לא ידוע"
+        }`,
+      });
+    } catch (logError) {
+      console.error(
+        "Failed creating reset system log:",
+        logError
+      );
+    }
   } catch (error) {
     console.error("Failed resetting report:", error);
-    alert("אירעה שגיאה באיפוס הדיווח");
+    throw error;
   }
 };
   
