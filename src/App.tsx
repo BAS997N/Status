@@ -37,6 +37,7 @@ import { dataService } from "./services/dataService";
 import Header from "./components/Header";
 import SoldierReporter from "./components/SoldierReporter";
 import CommandDashboard from "./components/CommandDashboard";
+import AppMessageModal from "./components/AppMessageModal";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   ShieldCheck, 
@@ -106,22 +107,19 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     status: AttendanceStatus;
   }
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const showAppMessage = (
-  title: string,
-  message: string,
-  type: "success" | "error" | "info" = "info"
-) => {
-  setAppMessage({
-    title,
-    message,
-    type,
-  });
-};
   const [appMessage, setAppMessage] = useState<{
-  title: string;
-  message: string;
-  type: "success" | "error" | "info";
-} | null>(null);
+    title: string;
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
+
+  const showAppMessage = (
+    title: string,
+    message: string,
+    type: "success" | "error" | "info" = "info"
+  ) => {
+    setAppMessage({ title, message, type });
+  };
   const showToast = (
   title: string,
   message: string,
@@ -442,13 +440,27 @@ setSystemLogs(updatedSystemLogs);
 
   } catch (error) {
     console.error("Failed deleting soldier:", error);
-    alert("אירעה שגיאה במחיקת החייל");
+    showAppMessage("שגיאה", "אירעה שגיאה במחיקת החייל", "error");
   }
 };
   const handleSyncOldReportsToSheets = async () => {
-  await dataService.syncAllReportsToGoogleSheets();
-  alert("ייבוא הדיווחים הישנים לגוגל שיטס הסתיים");
-};
+    try {
+      await dataService.syncAllReportsToGoogleSheets();
+      showAppMessage(
+        "ייבוא לגוגל שיטס",
+        "ייבוא הדיווחים הישנים לגוגל שיטס הסתיים בהצלחה",
+        "success"
+      );
+    } catch (error) {
+      console.error("Failed syncing old reports to Google Sheets:", error);
+      showAppMessage(
+        "שגיאה",
+        "אירעה שגיאה בייבוא הדיווחים לגוגל שיטס",
+        "error"
+      );
+      throw error;
+    }
+  };
 
 const handleDeleteReport = async (reportId: string) => {
   try {
@@ -457,7 +469,7 @@ const handleDeleteReport = async (reportId: string) => {
     await refreshNotifications();
   } catch (error) {
     console.error("Failed deleting report:", error);
-    alert("אירעה שגיאה במחיקת הדיווח");
+    showAppMessage("שגיאה", "אירעה שגיאה במחיקת הדיווח", "error");
   }
 };
 
@@ -863,7 +875,7 @@ setUserProfile(newProfile);
 
   if (isRangeReport) {
     if (!cutOrderStartDate || !cutOrderEndDate) {
-      alert("יש לבחור תאריך התחלה ותאריך סיום לדיווח");
+      showAppMessage("חסרים תאריכים", "יש לבחור תאריך התחלה ותאריך סיום לדיווח", "info");
       return;
     }
 
@@ -871,7 +883,7 @@ setUserProfile(newProfile);
     const end = new Date(cutOrderEndDate);
 
     if (end < start) {
-      alert("תאריך הסיום לא יכול להיות לפני תאריך ההתחלה");
+      showAppMessage("טווח תאריכים לא תקין", "תאריך הסיום לא יכול להיות לפני תאריך ההתחלה", "error");
       return;
     }
 
@@ -1048,7 +1060,7 @@ setSystemLogs(logs);
     }
   } catch (err) {
     console.error("Admin save soldier error:", err);
-    alert("שגיאה בשמירת חייל / יומן מערכת");
+    showAppMessage("שגיאה", "שגיאה בשמירת חייל / יומן מערכת", "error");
     throw err;
   }
 };
@@ -1182,7 +1194,7 @@ setReports((currentReports) =>
     const end = new Date(endDate);
 
     if (end < start) {
-      alert("תאריך הסיום לא יכול להיות לפני תאריך ההתחלה");
+      showAppMessage("טווח תאריכים לא תקין", "תאריך הסיום לא יכול להיות לפני תאריך ההתחלה", "error");
       return;
     }
 
@@ -1612,57 +1624,17 @@ await refreshReports();
         </AnimatePresence>
 
       </main>
-      {appMessage && (
-  <div
-    className="fixed inset-0 z-[13000] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
-    dir="rtl"
-  >
-    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden text-right">
-      <div
-        className={`p-4 text-white flex items-center justify-between ${
-          appMessage.type === "success"
-            ? "bg-emerald-700"
-            : appMessage.type === "error"
-            ? "bg-rose-700"
-            : "bg-slate-700"
-        }`}
-      >
-        <h3 className="text-sm font-black">
-          {appMessage.title}
-        </h3>
+      <AppMessageModal
+        isOpen={Boolean(appMessage)}
+        title={appMessage?.title || ""}
+        message={appMessage?.message || ""}
+        type={appMessage?.type || "info"}
+        onClose={() => setAppMessage(null)}
+      />
 
-        <button
-          type="button"
-          onClick={() => setAppMessage(null)}
-          className="text-white text-xl leading-none opacity-80 hover:opacity-100"
-          aria-label="סגור הודעה"
-        >
-          ×
-        </button>
-      </div>
-
-      <div className="p-6">
-        <p className="text-sm text-slate-700 font-bold leading-relaxed">
-          {appMessage.message}
-        </p>
-      </div>
-
-      <div className="bg-slate-50 p-4 border-t border-slate-100 flex justify-end">
-        <button
-          type="button"
-          onClick={() => setAppMessage(null)}
-          className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-black"
-        >
-          אישור
-        </button>
-      </div>
-    </div>
-  </div>
-)}
       <footer className="text-center py-6 text-cyan-500 font-bold text-sm select-none animate-fade-in" dir="rtl">
         Created by AviElias
       </footer>
     </div>
   );
 }
-
