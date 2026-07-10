@@ -114,6 +114,20 @@ const normalizeReportDates = (data: any) => ({
   verifiedAt: normalizeFirestoreDate(data.verifiedAt),
 });
 
+const getSheetsPersonalId = (...values: any[]): string => {
+  for (const value of values) {
+    const cleanValue = String(value || "")
+      .trim()
+      .replace(/\s+/g, "");
+
+    if (/^\d+$/.test(cleanValue)) {
+      return cleanValue;
+    }
+  }
+
+  return "";
+};
+
 export const dataService = {
   async deleteAttendanceReport(reportId: string): Promise<void> {
   if (!isFirebaseActive()) {
@@ -408,10 +422,10 @@ async createSystemLog(logData: {
           (report as any).personalId
     );
 
-    const stablePersonalId =
-      soldier?.personalId ||
-      (report as any).personalId ||
-      report.userId;
+    const stablePersonalId = getSheetsPersonalId(
+      soldier?.personalId,
+      (report as any).personalId
+    );
 
     const reportDate =
       (report as any).reportDate ||
@@ -480,10 +494,10 @@ async createSystemLog(logData: {
           (report as any).personalId
     );
 
-    const stablePersonalId =
-      soldier?.personalId ||
-      (report as any).personalId ||
-      report.userId;
+    const stablePersonalId = getSheetsPersonalId(
+      soldier?.personalId,
+      (report as any).personalId
+    );
 
     const reportDate =
       (report as any).reportDate ||
@@ -728,21 +742,38 @@ const formattedDate = `${String(reportDateObj.getDate()).padStart(2, "0")}/${Str
   reportDateObj.getMonth() + 1
 ).padStart(2, "0")}/${reportDateObj.getFullYear()}`;
 
-fetch(GOOGLE_SHEETS_WEB_APP_URL, {
-  method: "POST",
-  mode: "no-cors",
-  body: JSON.stringify({
-    personalId:
-      soldier?.personalId || (reportPayload as any).personalId || reportPayload.userId,
-    fullName: soldier?.fullName || reportPayload.userName,
-    role: soldier?.medicalRole || "",
-    phone: soldier?.phoneNumber || "",
-    date: formattedDate,
-    cellValue: markerText ? `${statusText}/${markerText}` : statusText,
-  }),
-}).catch((err) => {
-  console.warn("Google Sheets sync failed:", err);
-});
+const personalIdForSheets = getSheetsPersonalId(
+  soldier?.personalId,
+  (reportPayload as any).personalId
+);
+
+if (personalIdForSheets) {
+  try {
+    await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8",
+      },
+      body: JSON.stringify({
+        personalId: personalIdForSheets,
+        fullName: soldier?.fullName || reportPayload.userName,
+        role: soldier?.medicalRole || "",
+        phone: soldier?.phoneNumber || "",
+        date: formattedDate,
+        cellValue: markerText ? `${statusText}/${markerText}` : statusText,
+      }),
+    });
+  } catch (err) {
+    console.warn("Google Sheets sync failed:", err);
+  }
+} else {
+  console.warn(
+    "Google Sheets sync skipped: missing numeric personalId",
+    docRef.id,
+    reportPayload.userName
+  );
+}
       // Generate Firestore notification
       if (isAlert) {
         const notPayload = {
@@ -882,23 +913,38 @@ const formattedDate =
       )}/${year}`
     : reportDateForSheets;
 
-    fetch(GOOGLE_SHEETS_WEB_APP_URL, {
-      method: "POST",
-      mode: "no-cors",
-      body: JSON.stringify({
-        personalId:
-          soldier?.personalId ||
-          (updatedReport as any).personalId ||
-          updatedReport.userId,
-        fullName: soldier?.fullName || updatedReport.userName,
-        role: soldier?.medicalRole || "",
-        phone: soldier?.phoneNumber || "",
-        date: formattedDate,
-        cellValue: markerText ? `${statusText}/${markerText}` : statusText,
-      }),
-    }).catch((err) => {
-      console.warn("Google Sheets update sync failed:", err);
-    });
+    const personalIdForSheets = getSheetsPersonalId(
+      soldier?.personalId,
+      (updatedReport as any).personalId
+    );
+
+    if (personalIdForSheets) {
+      try {
+        await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8",
+          },
+          body: JSON.stringify({
+            personalId: personalIdForSheets,
+            fullName: soldier?.fullName || updatedReport.userName,
+            role: soldier?.medicalRole || "",
+            phone: soldier?.phoneNumber || "",
+            date: formattedDate,
+            cellValue: markerText ? `${statusText}/${markerText}` : statusText,
+          }),
+        });
+      } catch (err) {
+        console.warn("Google Sheets update sync failed:", err);
+      }
+    } else {
+      console.warn(
+        "Google Sheets update sync skipped: missing numeric personalId",
+        reportId,
+        updatedReport.userName
+      );
+    }
   }
 
   await addDoc(collection(db, "attendance_logs"), updateLog);
@@ -1046,4 +1092,3 @@ const formattedDate =
 
   return new Date();
 }
-
