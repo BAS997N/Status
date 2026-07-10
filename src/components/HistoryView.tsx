@@ -113,6 +113,8 @@ const handleBulkAction = async () => {
 
   setIsBulkProcessing(true);
 
+  const selectedCount = selectedReports.length;
+
   try {
     if (bulkAction === "delete" && onDeleteReport) {
       await Promise.all(
@@ -120,6 +122,11 @@ const handleBulkAction = async () => {
           onDeleteReport(reportId)
         )
       );
+
+      setSelectedReports([]);
+      setBulkAction(null);
+
+      alert(`${selectedCount} דיווחים נמחקו בהצלחה`);
     }
 
     if (bulkAction === "reset" && onResetReport) {
@@ -128,18 +135,24 @@ const handleBulkAction = async () => {
           onResetReport(reportId)
         )
       );
-      alert(`${selectedReports.length} דיווחים אופסו בהצלחה`);
-    }
 
-    setSelectedReports([]);
-    setBulkAction(null);
+      setSelectedReports([]);
+      setBulkAction(null);
+
+      alert(`${selectedCount} דיווחים אופסו בהצלחה`);
+    }
   } catch (error) {
     console.error("Bulk report action failed:", error);
+
+    alert(
+      bulkAction === "delete"
+        ? "אירעה שגיאה במחיקת הדיווחים"
+        : "אירעה שגיאה באיפוס הדיווחים"
+    );
   } finally {
     setIsBulkProcessing(false);
   }
 };
-
   const getStatusLabel = (status: string) => {
     if (status === "base") return "בבסיס";
     if (status === "home") return "בית / אפטר";
