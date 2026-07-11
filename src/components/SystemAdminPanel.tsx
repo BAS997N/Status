@@ -12,9 +12,11 @@ import {
 } from "lucide-react";
 import { SystemRole, UserProfile } from "../types";
 import UsersManager from "./systemAdmin/UsersManager";
+import PermissionsManager from "./systemAdmin/PermissionsManager";
 
 type AdminSection =
   | "overview"
+  | "users"
   | "permissions"
   | "statuses"
   | "roles"
@@ -38,10 +40,16 @@ const sections: Array<{
   icon: typeof ShieldCheck;
 }> = [
   {
-    id: "permissions",
-    title: "משתמשים והרשאות",
-    description: "הגדרת סופר־אדמין, אדמין, צפייה בלבד ודיווח בלבד.",
+    id: "users",
+    title: "משתמשים ותפקידי מערכת",
+    description: "שיוך משתמש לסופר־אדמין, אדמין, צפייה בלבד או דיווח בלבד.",
     icon: Users,
+  },
+  {
+    id: "permissions",
+    title: "הרשאות לפי תפקיד",
+    description: "קביעה אילו מסכים ופעולות זמינים לכל סוג משתמש.",
+    icon: ShieldCheck,
   },
   {
     id: "statuses",
@@ -141,12 +149,14 @@ export default function SystemAdminPanel({
             );
           })}
         </div>
-      ) : activeSection === "permissions" ? (
+      ) : activeSection === "users" ? (
         <UsersManager
           currentUser={currentUser}
           users={users}
           onUpdateSystemRole={onUpdateSystemRole}
         />
+      ) : activeSection === "permissions" ? (
+        <PermissionsManager currentUser={currentUser} />
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-start gap-3">
