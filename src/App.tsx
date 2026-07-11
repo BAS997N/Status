@@ -35,6 +35,7 @@ import {
   RolePermissionConfig,
   AttendanceStatusConfig,
   UnitConfig,
+  MedicalRoleConfig,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "./types";
 import { dataService } from "./services/dataService";
@@ -159,7 +160,11 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     () => unitConfigs.filter((unit) => unit.enabled).sort((a, b) => a.sortOrder - b.sortOrder).map((unit) => unit.name),
     [unitConfigs]
   );
-  const [customRoles, setCustomRoles] = useState<string[]>([]);
+  const [medicalRoleConfigs, setMedicalRoleConfigs] = useState<MedicalRoleConfig[]>([]);
+  const customRoles = React.useMemo(
+    () => medicalRoleConfigs.filter((role) => role.enabled).sort((a, b) => a.sortOrder - b.sortOrder).map((role) => role.name),
+    [medicalRoleConfigs]
+  );
   const [permissionConfigs, setPermissionConfigs] = useState<RolePermissionConfig[]>([]);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [attendanceStatuses, setAttendanceStatuses] = useState<AttendanceStatusConfig[]>(
@@ -182,6 +187,10 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     if (firstEnabledUnit && !sorted.some((unit) => unit.enabled && unit.name === regUnit)) {
       setRegUnit(firstEnabledUnit);
     }
+  };
+
+  const handleMedicalRoleConfigsChanged = (roles: MedicalRoleConfig[]) => {
+    setMedicalRoleConfigs([...roles].sort((a, b) => a.sortOrder - b.sortOrder));
   };
 
 
@@ -315,109 +324,59 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   }, [userProfile, permissionsLoaded, activeTab, isSuperAdmin, canViewDashboard, canViewReporter]);
 
   useEffect(() => {
-  const loadMedicalSettings = async () => {
-    const unitsKey = "idf_medical_units_list";
-    const rolesKey = "idf_custom_roles_list";
+    let cancelled = false;
 
-    const defaultUnits = [
-      "חוליית רפואה גדודית",
-      "מחלקת פינוי וטראומה",
-      "צוות טיפול נמרץ",
-      "מרפאת בסיס קדמית",
-      "סגל ופיקוד רפואי",
-      "חוליית אפידמיולוגיה",
-      "בית חולים שדה",
-    ];
-
-    const defaultRoles = [
-      "רופא/ה צבאי/ת",
-      "פרמדיק/ית",
-      "חובש/ת",
-      "סניטר/ית",
-      "נהג/ת אמבולנס",
-      "אח/ות צבאי/ת",
-      "מפקד/ת תאג״ד",
-      "חייל/ת מדווח/ת",
-    ];
-
-    try {
-      if (isFirebaseActive() && db) {
-        const snap = await getDoc(doc(db, "settings", "medical_config"));
-
-        if (snap.exists()) {
-          const data = snap.data();
-
-          const finalRoles =
-            Array.isArray(data.customRoles) && data.customRoles.length > 0
-              ? data.customRoles
-              : defaultRoles;
-
-          setCustomRoles(finalRoles);
-          return;
-        }
-
-        await setDoc(doc(db, "settings", "medical_config"), {
-          medicalUnits: defaultUnits,
-          customRoles: defaultRoles,
-          updatedAt: new Date().toISOString(),
-        });
-
-        setCustomRoles(defaultRoles);
-        return;
+    const loadMedicalRoles = async () => {
+      try {
+        const roles = await dataService.getMedicalRoleConfigs();
+        if (!cancelled) setMedicalRoleConfigs(roles);
+      } catch (error) {
+        console.error("Failed loading medical role configs:", error);
       }
+    };
 
-      const storedRoles = localStorage.getItem(rolesKey);
-      const finalRoles = storedRoles ? JSON.parse(storedRoles) : defaultRoles;
-      localStorage.setItem(rolesKey, JSON.stringify(finalRoles));
-      setCustomRoles(finalRoles);
-    } catch (error) {
-      console.error("Failed loading medical settings:", error);
+    loadMedicalRoles();
+    return () => { cancelled = true; };
+  }, []);
 
-      setCustomRoles(defaultRoles);
+  const handleUpdateMedicalSettings = async (
+    newUnits: string[],
+    newRoles: string[]
+  ) => {
+    if (newUnits.length > 0) {
+      const nextUnitConfigs: UnitConfig[] = newUnits.map((name, index) => {
+        const existing = unitConfigs.find((unit) => unit.name === name);
+        return {
+          id: existing?.id || `unit_${Date.now()}_${index}`,
+          name,
+          enabled: true,
+          sortOrder: index + 1,
+          systemUnit: existing?.systemUnit === true,
+        };
+      });
+      const savedUnits = await dataService.saveUnitConfigs(
+        nextUnitConfigs,
+        userProfile?.userId
+      );
+      setUnitConfigs(savedUnits);
     }
-  };
 
-  loadMedicalSettings();
-}, []);
-
- const handleUpdateMedicalSettings = async (
-  newUnits: string[],
-  newRoles: string[]
-) => {
-  if (isFirebaseActive() && db) {
-    await setDoc(
-      doc(db, "settings", "medical_config"),
-      {
-        medicalUnits: newUnits,
-        customRoles: newRoles,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
-  } else {
-    localStorage.setItem("idf_medical_units_list", JSON.stringify(newUnits));
-    localStorage.setItem("idf_custom_roles_list", JSON.stringify(newRoles));
-  }
-
-  if (newUnits.length > 0) {
-    const nextUnitConfigs: UnitConfig[] = newUnits.map((name, index) => {
-      const existing = unitConfigs.find((unit) => unit.name === name);
+    const nextRoleConfigs: MedicalRoleConfig[] = newRoles.map((name, index) => {
+      const existing = medicalRoleConfigs.find((role) => role.name === name);
       return {
-        id: existing?.id || `unit_${Date.now()}_${index}`,
+        id: existing?.id || `medical_role_${Date.now()}_${index}`,
         name,
         enabled: true,
         sortOrder: index + 1,
-        systemUnit: existing?.systemUnit === true,
+        systemRole: existing?.systemRole === true,
       };
     });
-    const savedUnits = await dataService.saveUnitConfigs(
-      nextUnitConfigs,
+    const savedRoles = await dataService.saveMedicalRoleConfigs(
+      nextRoleConfigs,
       userProfile?.userId
     );
-    setUnitConfigs(savedUnits);
-  }
-  setCustomRoles(newRoles);
-};
+    setMedicalRoleConfigs(savedRoles);
+  };
 
   const refreshNotifications = async () => {
     const updated = await dataService.fetchNotifications();
@@ -1798,6 +1757,8 @@ const handleAdminSaveReport = async (reportData: {
                 onAttendanceStatusesChanged={handleAttendanceStatusesChanged}
                 unitConfigs={unitConfigs}
                 onUnitConfigsChanged={handleUnitConfigsChanged}
+                medicalRoleConfigs={medicalRoleConfigs}
+                onMedicalRoleConfigsChanged={handleMedicalRoleConfigsChanged}
               />
             </motion.div>
           ) : activeTab === "reporter" && canViewReporter ? (
