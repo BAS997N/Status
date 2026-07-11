@@ -10,7 +10,7 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { SystemRole, UserProfile } from "../types";
+import { AttendanceStatusConfig, SystemRole, UserProfile } from "../types";
 import UsersManager from "./systemAdmin/UsersManager";
 import PermissionsManager from "./systemAdmin/PermissionsManager";
 import AttendanceStatusManager from "./systemAdmin/AttendanceStatusManager";
@@ -32,6 +32,9 @@ interface SystemAdminPanelProps {
     userId: string,
     systemRole: SystemRole
   ) => Promise<void>;
+  onAttendanceStatusesChanged?: (
+    statuses: AttendanceStatusConfig[]
+  ) => void;
 }
 
 const sections: Array<{
@@ -88,6 +91,7 @@ export default function SystemAdminPanel({
   currentUser,
   users,
   onUpdateSystemRole,
+  onAttendanceStatusesChanged,
 }: SystemAdminPanelProps) {
   const [activeSection, setActiveSection] =
     useState<AdminSection>("overview");
@@ -159,7 +163,10 @@ export default function SystemAdminPanel({
       ) : activeSection === "permissions" ? (
         <PermissionsManager currentUser={currentUser} />
       ) : activeSection === "statuses" ? (
-        <AttendanceStatusManager currentUser={currentUser} />
+        <AttendanceStatusManager
+          currentUser={currentUser}
+          onStatusesChanged={onAttendanceStatusesChanged}
+        />
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-start gap-3">
