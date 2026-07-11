@@ -21,6 +21,8 @@ import {
   AppNotification,
   ATTENDANCE_STATUS_LABELS,
   IDF_UNITS,
+  UnitConfig,
+  DEFAULT_UNIT_CONFIGS,
   AttendanceStatusConfig,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   SystemRole,
@@ -208,6 +210,84 @@ const getAttendanceStatusesFromCache = (
   }
 };
 
+
+const UNIT_CONFIGS_CACHE_KEY = "idf_unit_configs";
+const UNIT_CONFIGS_CACHE_TIME_KEY = "idf_unit_configs_cached_at";
+const UNIT_CONFIGS_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const cloneDefaultUnitConfigs = (): UnitConfig[] =>
+  DEFAULT_UNIT_CONFIGS.map((unit) => ({ ...unit }));
+
+const makeUnitId = (name: string, index: number) => {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9א-ת]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return normalized ? `unit_${normalized}` : `unit_${index + 1}`;
+};
+
+const normalizeUnitConfigs = (value: unknown): UnitConfig[] => {
+  if (!Array.isArray(value)) return cloneDefaultUnitConfigs();
+
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+
+  const units = value
+    .filter((unit): unit is UnitConfig =>
+      !!unit && typeof unit === "object" && typeof (unit as UnitConfig).name === "string"
+    )
+    .map((unit, index) => {
+      const name = unit.name.trim();
+      let id = typeof unit.id === "string" && unit.id.trim()
+        ? unit.id.trim()
+        : makeUnitId(name, index);
+
+      while (seenIds.has(id)) id = `${id}_${index + 1}`;
+      seenIds.add(id);
+
+      return {
+        ...unit,
+        id,
+        name,
+        enabled: unit.enabled !== false,
+        sortOrder: typeof unit.sortOrder === "number" ? unit.sortOrder : index + 1,
+        systemUnit: unit.systemUnit === true,
+      };
+    })
+    .filter((unit) => {
+      const key = unit.name.toLocaleLowerCase("he");
+      if (!unit.name || seenNames.has(key)) return false;
+      seenNames.add(key);
+      return true;
+    })
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((unit, index) => ({ ...unit, sortOrder: index + 1 }));
+
+  return units.length > 0 ? units : cloneDefaultUnitConfigs();
+};
+
+const saveUnitConfigsToCache = (units: UnitConfig[]) => {
+  localStorage.setItem(UNIT_CONFIGS_CACHE_KEY, JSON.stringify(units));
+  localStorage.setItem(UNIT_CONFIGS_CACHE_TIME_KEY, String(Date.now()));
+};
+
+const getUnitConfigsFromCache = (allowExpired = false): UnitConfig[] | null => {
+  try {
+    const raw = localStorage.getItem(UNIT_CONFIGS_CACHE_KEY);
+    const cachedAt = Number(localStorage.getItem(UNIT_CONFIGS_CACHE_TIME_KEY) || 0);
+    if (!raw) return null;
+
+    const isExpired = !cachedAt || Date.now() - cachedAt > UNIT_CONFIGS_CACHE_TTL_MS;
+    if (isExpired && !allowExpired) return null;
+
+    return normalizeUnitConfigs(JSON.parse(raw));
+  } catch (error) {
+    console.warn("Invalid unit configs cache:", error);
+    return null;
+  }
+};
 
 const ROLE_PERMISSIONS_CACHE_KEY = "idf_role_permission_configs";
 const ROLE_PERMISSIONS_CACHE_TIME_KEY =
@@ -490,6 +570,97 @@ export const dataService = {
       );
 
       saveRolePermissionsToCache(normalized);
+      return normalized;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+      return normalized;
+    }
+  },
+
+  async getUnitConfigs(forceRefresh = false): Promise<UnitConfig[]> {
+    if (!forceRefresh) {
+      const cached = getUnitConfigsFromCache();
+      if (cached) return cached;
+    }
+
+    if (!isFirebaseActive()) {
+      const localUnits = getUnitConfigsFromCache(true) || cloneDefaultUnitConfigs();
+      saveUnitConfigsToCache(localUnits);
+      return localUnits;
+    }
+
+    const path = "settings/unit_configs";
+
+    try {
+      const ref = doc(db, "settings", "unit_configs");
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        const units = normalizeUnitConfigs(snap.data()?.units);
+        saveUnitConfigsToCache(units);
+        return units;
+      }
+
+      // Migration: preserve units already stored in the older medical_config document.
+      const legacySnap = await getDoc(doc(db, "settings", "medical_config"));
+      const legacyUnits = legacySnap.exists() && Array.isArray(legacySnap.data()?.medicalUnits)
+        ? legacySnap.data().medicalUnits
+        : IDF_UNITS;
+      const initialUnits = normalizeUnitConfigs(
+        legacyUnits.map((name: string, index: number) => ({
+          id: makeUnitId(name, index),
+          name,
+          enabled: true,
+          sortOrder: index + 1,
+          systemUnit: index === 0,
+        }))
+      );
+
+      await setDoc(ref, {
+        units: initialUnits,
+        updatedAt: new Date().toISOString(),
+        updatedBy: auth?.currentUser?.uid || "SYSTEM_INIT",
+      });
+
+      saveUnitConfigsToCache(initialUnits);
+      return initialUnits;
+    } catch (error) {
+      console.error("Failed loading unit settings:", error);
+      const fallback = getUnitConfigsFromCache(true) || cloneDefaultUnitConfigs();
+      saveUnitConfigsToCache(fallback);
+      return fallback;
+    }
+  },
+
+  async saveUnitConfigs(
+    units: UnitConfig[],
+    updatedBy?: string
+  ): Promise<UnitConfig[]> {
+    const normalized = normalizeUnitConfigs(units).map((unit) => ({
+      ...unit,
+      updatedAt: new Date().toISOString(),
+      updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
+    }));
+
+    if (!isFirebaseActive()) {
+      saveUnitConfigsToCache(normalized);
+      return normalized;
+    }
+
+    const path = "settings/unit_configs";
+
+    try {
+      await setDoc(
+        doc(db, "settings", "unit_configs"),
+        {
+          units: normalized,
+          updatedAt: new Date().toISOString(),
+          updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
+        },
+        { merge: true }
+      );
+
+      saveUnitConfigsToCache(normalized);
       return normalized;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
