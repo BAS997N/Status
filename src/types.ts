@@ -67,6 +67,15 @@ export type AttendanceStatus =
   | BuiltInAttendanceStatus
   | (string & {});
 
+export type AttendanceChartCategory =
+  | "present"
+  | "absent"
+  | "medical"
+  | "administrative"
+  | "not_on_order"
+  | "neutral"
+  | "exclude";
+
 /*
  * מבנה ההגדרות של כל סטטוס.
  */
@@ -124,6 +133,16 @@ export interface AttendanceStatusConfig {
    * האם יש לחייב הערה בעת בחירת הסטטוס.
    */
   requiresNote?: boolean;
+
+  icon?: string;
+  description?: string;
+  customColor?: string;
+  chartCategory?: AttendanceChartCategory;
+  exportToSheets?: boolean;
+  requiresGps?: boolean;
+  requiresDateRange?: boolean;
+  requiresPhoto?: boolean;
+  requiresCommanderApproval?: boolean;
 
   /*
    * מי יצר או עדכן את הסטטוס.
@@ -201,6 +220,9 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
   AttendanceStatusConfig[] = [
   {
     id: "base",
+    icon: "🟢",
+    chartCategory: "present",
+    exportToSheets: true,
     label: "בבסיס",
     enabled: true,
     visibleToSoldiers: true,
@@ -217,6 +239,9 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
   },
   {
     id: "home",
+    icon: "🏠",
+    chartCategory: "absent",
+    exportToSheets: true,
     label: "בבית / אפטר",
     enabled: true,
     visibleToSoldiers: true,
@@ -233,6 +258,9 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
   },
   {
     id: "field",
+    icon: "🌲",
+    chartCategory: "present",
+    exportToSheets: true,
     label: "פעילות שטח / אימון",
     enabled: true,
     visibleToSoldiers: true,
@@ -249,6 +277,9 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
   },
   {
     id: "sick",
+    icon: "🚑",
+    chartCategory: "medical",
+    exportToSheets: true,
     label: "גימלים / חולים",
     enabled: true,
     visibleToSoldiers: true,
@@ -265,6 +296,9 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
   },
   {
     id: "course",
+    icon: "📚",
+    chartCategory: "present",
+    exportToSheets: true,
     label: "קורס / הכשרה",
     enabled: true,
     visibleToSoldiers: true,
@@ -281,6 +315,9 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
   },
   {
     id: "cut_order",
+    icon: "✂️",
+    chartCategory: "administrative",
+    exportToSheets: true,
     label: "חיתוך צו",
     enabled: true,
     visibleToSoldiers: true,
@@ -294,6 +331,9 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
   },
   {
     id: "not_on_order",
+    icon: "⛔",
+    chartCategory: "not_on_order",
+    exportToSheets: true,
     label: "לא בצו",
     enabled: true,
     visibleToSoldiers: false,
@@ -307,6 +347,9 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
   },
   {
     id: "processing_days",
+    icon: "📅",
+    chartCategory: "administrative",
+    exportToSheets: true,
     label: "ימי עיבוד",
     enabled: true,
     visibleToSoldiers: false,
@@ -323,6 +366,9 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
   },
   {
     id: "refresh_days",
+    icon: "☕",
+    chartCategory: "administrative",
+    exportToSheets: true,
     label: "ימי התרעננות",
     enabled: true,
     visibleToSoldiers: false,
@@ -339,6 +385,9 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
   },
   {
     id: "other",
+    icon: "📌",
+    chartCategory: "neutral",
+    exportToSheets: true,
     label: "אחר (ראה הערה)",
     enabled: true,
     visibleToSoldiers: true,
