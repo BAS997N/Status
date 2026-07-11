@@ -12,6 +12,7 @@ import {
 import {
   AttendanceChartCategory,
   AttendanceStatusConfig,
+  DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   UserProfile,
 } from "../../types";
 import { dataService } from "../../services/dataService";
@@ -19,6 +20,41 @@ import { dataService } from "../../services/dataService";
 interface AttendanceStatusManagerProps {
   currentUser: UserProfile;
 }
+
+
+interface IconOption {
+  value: string;
+  label: string;
+  keywords: string[];
+}
+
+const ICON_OPTIONS: IconOption[] = [
+  { value: "🟢", label: "בבסיס / פעיל", keywords: ["בסיס", "פעיל", "נוכח", "ירוק"] },
+  { value: "🏠", label: "בית", keywords: ["בית", "חופשה", "אפטר"] },
+  { value: "🌲", label: "שטח", keywords: ["שטח", "אימון", "טבע"] },
+  { value: "🚑", label: "רפואה", keywords: ["רפואה", "גימלים", "חולים", "אמבולנס"] },
+  { value: "🩺", label: "בדיקה רפואית", keywords: ["רופא", "בדיקה", "רפואה"] },
+  { value: "🏥", label: "בית חולים", keywords: ["אשפוז", "בית חולים", "רפואה"] },
+  { value: "📚", label: "קורס / לימודים", keywords: ["קורס", "לימודים", "הכשרה"] },
+  { value: "🎓", label: "הכשרה", keywords: ["הכשרה", "קורס", "לימודים"] },
+  { value: "✂️", label: "חיתוך צו", keywords: ["חיתוך", "צו"] },
+  { value: "⛔", label: "לא בצו / חסום", keywords: ["לא בצו", "חסום", "עצירה"] },
+  { value: "📅", label: "תאריך / ימי עיבוד", keywords: ["תאריך", "עיבוד", "ימים"] },
+  { value: "☕", label: "התרעננות", keywords: ["התרעננות", "מנוחה", "קפה"] },
+  { value: "🛌", label: "מנוחה", keywords: ["מנוחה", "שינה", "בית"] },
+  { value: "🛡️", label: "שמירה / אבטחה", keywords: ["שמירה", "אבטחה", "כוננות"] },
+  { value: "⚠️", label: "אזהרה", keywords: ["אזהרה", "חריג", "תשומת לב"] },
+  { value: "✅", label: "מאושר", keywords: ["מאושר", "תקין", "הושלם"] },
+  { value: "⏳", label: "בהמתנה", keywords: ["המתנה", "ממתין", "זמן"] },
+  { value: "🚗", label: "נסיעה", keywords: ["נסיעה", "רכב", "נהג"] },
+  { value: "🚌", label: "הסעה", keywords: ["הסעה", "אוטובוס", "נסיעה"] },
+  { value: "📍", label: "מיקום", keywords: ["מיקום", "GPS", "נקודה"] },
+  { value: "🗂️", label: "מנהלי", keywords: ["מנהלי", "מסמכים", "טיפול"] },
+  { value: "📋", label: "דיווח", keywords: ["דיווח", "טופס", "רשימה"] },
+  { value: "🧭", label: "משימה", keywords: ["משימה", "ניווט", "פעילות"] },
+  { value: "🎯", label: "יעד / משימה", keywords: ["יעד", "משימה", "מטרה"] },
+  { value: "📌", label: "אחר", keywords: ["אחר", "כללי", "סיכה"] },
+];
 
 interface ColorOption {
   key: string;
@@ -73,12 +109,33 @@ const normalizeId = (value: string) =>
 const applyOrder = (statuses: AttendanceStatusConfig[]) =>
   statuses.map((status, index) => ({ ...status, sortOrder: index + 1 }));
 
+const restoreBuiltInIcons = (statuses: AttendanceStatusConfig[]) => {
+  const defaultsById = new Map(
+    DEFAULT_ATTENDANCE_STATUS_CONFIGS.map((status) => [status.id, status])
+  );
+
+  return statuses.map((status) => {
+    const defaultStatus = defaultsById.get(status.id);
+    const shouldRestore =
+      defaultStatus?.icon &&
+      (!status.icon ||
+        (status.icon === "📌" && defaultStatus.icon !== "📌"));
+
+    return shouldRestore
+      ? { ...status, icon: defaultStatus.icon }
+      : status;
+  });
+};
+
+
 export default function AttendanceStatusManager({ currentUser }: AttendanceStatusManagerProps) {
   const [statuses, setStatuses] = useState<AttendanceStatusConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [openIconPickerId, setOpenIconPickerId] = useState<string | null>(null);
+  const [iconSearch, setIconSearch] = useState("");
 
   const sortedStatuses = useMemo(
     () => [...statuses].sort((a, b) => a.sortOrder - b.sortOrder),
@@ -90,7 +147,7 @@ export default function AttendanceStatusManager({ currentUser }: AttendanceStatu
       setLoading(true);
       setError("");
       const loaded = await dataService.getAttendanceStatusConfigs(forceRefresh);
-      setStatuses(applyOrder(loaded));
+      setStatuses(applyOrder(restoreBuiltInIcons(loaded)));
     } catch (err) {
       console.error(err);
       setError("טעינת הסטטוסים נכשלה");
@@ -275,7 +332,81 @@ export default function AttendanceStatusManager({ currentUser }: AttendanceStatu
                   <button type="button" onClick={() => moveStatus(status.id, 1)} disabled={index === sortedStatuses.length - 1} className="rounded-lg border border-slate-200 p-2 text-slate-600 disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button>
                 </div>
 
-                <label className="space-y-1"><span className="text-[11px] font-black text-slate-500">אייקון</span><input value={status.icon || ""} onChange={(e) => updateStatus(status.id, { icon: e.target.value })} maxLength={6} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-center text-xl" /></label>
+                <div className="relative space-y-1">
+                  <span className="text-[11px] font-black text-slate-500">אייקון</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenIconPickerId((current) =>
+                        current === status.id ? null : status.id
+                      );
+                      setIconSearch("");
+                    }}
+                    className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-xl transition hover:border-rose-300 hover:bg-rose-50/30"
+                    title="פתח בורר אייקונים"
+                  >
+                    <span>{status.icon || "📌"}</span>
+                    <span className="text-[10px] font-black text-slate-400">בחר</span>
+                  </button>
+
+                  {openIconPickerId === status.id && (
+                    <div className="absolute right-0 top-full z-50 mt-2 w-[320px] max-w-[85vw] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+                      <input
+                        autoFocus
+                        value={iconSearch}
+                        onChange={(event) => setIconSearch(event.target.value)}
+                        placeholder="חיפוש אייקון: בית, רפואה, שטח..."
+                        className="mb-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                      />
+
+                      <div className="grid max-h-52 grid-cols-5 gap-2 overflow-y-auto pl-1">
+                        {ICON_OPTIONS.filter((option) => {
+                          const query = iconSearch.trim().toLowerCase();
+                          if (!query) return true;
+                          return (
+                            option.label.toLowerCase().includes(query) ||
+                            option.keywords.some((keyword) =>
+                              keyword.toLowerCase().includes(query)
+                            )
+                          );
+                        }).map((option) => (
+                          <button
+                            key={`${option.value}-${option.label}`}
+                            type="button"
+                            onClick={() => {
+                              updateStatus(status.id, { icon: option.value });
+                              setOpenIconPickerId(null);
+                              setIconSearch("");
+                            }}
+                            className={`flex h-12 items-center justify-center rounded-xl border text-2xl transition hover:border-rose-300 hover:bg-rose-50 ${
+                              status.icon === option.value
+                                ? "border-rose-400 bg-rose-50 ring-2 ring-rose-100"
+                                : "border-slate-200 bg-white"
+                            }`}
+                            title={option.label}
+                          >
+                            {option.value}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="mt-3 border-t border-slate-100 pt-3">
+                        <span className="mb-1 block text-[10px] font-black text-slate-500">
+                          אימוג׳י מותאם אישית
+                        </span>
+                        <input
+                          value={status.icon || ""}
+                          onChange={(event) =>
+                            updateStatus(status.id, { icon: event.target.value })
+                          }
+                          maxLength={8}
+                          placeholder="הדבק כאן אימוג׳י"
+                          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-center text-xl outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <label className="space-y-1"><span className="text-[11px] font-black text-slate-500">שם שיוצג באתר</span><input value={status.label} onChange={(e) => updateStatus(status.id, { label: e.target.value })} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold" /></label>
                 <label className="space-y-1"><span className="text-[11px] font-black text-slate-500">מזהה פנימי באנגלית</span><input value={status.id} disabled={status.systemStatus} onChange={(e) => updateStatus(status.id, { id: e.target.value })} onBlur={(e) => updateStatus(status.id, { id: normalizeId(e.target.value) })} className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs disabled:bg-slate-50 disabled:text-slate-400" /></label>
 
@@ -330,4 +461,3 @@ export default function AttendanceStatusManager({ currentUser }: AttendanceStatu
       </div>
     </div>
   );
-}
