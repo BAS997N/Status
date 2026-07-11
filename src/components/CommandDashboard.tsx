@@ -40,6 +40,7 @@ import {
   IDF_UNITS 
 } from "../types";
 import { motion, AnimatePresence } from "motion/react";
+import { hasPermission, PermissionMap } from "../security/permissions";
 import HistoryView from "./HistoryView";
 import { 
   BarChart, 
@@ -61,6 +62,7 @@ import {
 
 interface CommandDashboardProps {
   currentUser: UserProfile;
+  permissions: PermissionMap;
   reports: AttendanceReport[];
   allSoldiers: UserProfile[];
   systemLogs: any[];
@@ -97,6 +99,7 @@ interface CommandDashboardProps {
 
 export default function CommandDashboard({ 
   currentUser, 
+  permissions, 
   reports, 
   attendanceLogs,
   systemLogs,
@@ -114,6 +117,8 @@ export default function CommandDashboard({
   customRoles = [],
   onUpdateMedicalSettings
 }: CommandDashboardProps) {
+  const can = (permissionId: string) => hasPermission(permissions, permissionId);
+
   const [dashboardTab, setDashboardTab] = useState<
   "attendance" | "directory" | "summary" | "settings" | "history" | "systemlogs" | "notifications"
 >("attendance");
@@ -155,7 +160,7 @@ export default function CommandDashboard({
   };
 
   const handleSheetsRangeExport = async () => {
-    if (!onSyncOldReportsToSheets || isSheetsExporting) return;
+    if (!can("sheets.export") || !onSyncOldReportsToSheets || isSheetsExporting) return;
 
     if (!sheetsExportStartDate || !sheetsExportEndDate) {
       setSheetsExportError("יש לבחור תאריך התחלה ותאריך סיום");
@@ -336,6 +341,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   const [formSuccess, setFormSuccess] = useState("");
 
   const handleOpenEdit = (soldier: UserProfile) => {
+    if (!can("soldiers.edit")) return;
     setEditingSoldier(soldier);
     setIsAddingNew(false);
     setFormFullName(soldier.fullName);
@@ -351,6 +357,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   };
 
   const handleOpenAdd = () => {
+    if (!can("soldiers.add")) return;
     setEditingSoldier(null);
     setIsAddingNew(true);
     setFormFullName("");
@@ -367,6 +374,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   };
 
   const handleToggleDischargeDirectly = async (soldier: UserProfile) => {
+    if (!can("soldiers.edit")) return;
     try {
       const updated: UserProfile = {
         ...soldier,
@@ -380,6 +388,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
 
 const handleFormSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
+  if (!(can("soldiers.add") || can("soldiers.edit"))) return;
   setFormError("");
   setFormSuccess("");
 
@@ -1237,6 +1246,7 @@ const dates = getDateRange(startDate, endDate);
       
       {/* Sub-Dashboard Tab Selection */}
       <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-sm mr-auto gap-1 w-full" dir="rtl">
+        {can("dashboard.attendance.view") && (
         <button
           onClick={() => setDashboardTab("attendance")}
           className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1248,6 +1258,8 @@ const dates = getDateRange(startDate, endDate);
           <Activity className="w-4 h-4 text-emerald-500" />
           <span>בקרה ומצבי נוכחות</span>
         </button>
+        )}
+        {can("dashboard.directory.view") && (
         <button
           onClick={() => setDashboardTab("directory")}
           className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1259,7 +1271,8 @@ const dates = getDateRange(startDate, endDate);
           <Users className="w-4 h-4 text-blue-500" />
           <span>ספר טלפונים וסגל</span>
         </button>
-        {currentUser.role !== "adjutant_officer" && (
+        )}
+        {can("dashboard.history.view") && (
           <button
             onClick={() => setDashboardTab("history")}
             className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1272,7 +1285,7 @@ const dates = getDateRange(startDate, endDate);
             <span>היסטוריית דיווחים</span>
           </button>
         )}
-        {currentUser.role !== "adjutant_officer" && (
+        {can("dashboard.summary.view") && (
         <button
   onClick={() => setDashboardTab("summary")}
   className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1298,7 +1311,7 @@ const dates = getDateRange(startDate, endDate);
   <span>סיכום נוכחות חיילים</span>
 </button>
       )}
-        {currentUser.role !== "adjutant_officer" && (
+        {can("dashboard.system_logs.view") && (
       <button
   onClick={() => setDashboardTab("systemlogs")}
   className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1312,7 +1325,7 @@ const dates = getDateRange(startDate, endDate);
 </button>
 )}
 
-{currentUser.role !== "adjutant_officer" && (
+{can("dashboard.notifications.view") && (
   <button
     onClick={() => setDashboardTab("notifications")}
     className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1326,7 +1339,7 @@ const dates = getDateRange(startDate, endDate);
   </button>
 )}
 
-{currentUser.role !== "adjutant_officer" && (
+{can("dashboard.settings.view") && (
   <button
     onClick={() => setDashboardTab("settings")}
     className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1341,7 +1354,7 @@ const dates = getDateRange(startDate, endDate);
     <span>ערוך הגדרות שיוך</span>
   </button>
 )}
-           {currentUser.role === "commander" && onSyncOldReportsToSheets && (
+           {can("sheets.export") && onSyncOldReportsToSheets && (
   <button
     type="button"
     onClick={openSheetsExportModal}
@@ -1516,18 +1529,18 @@ const dates = getDateRange(startDate, endDate);
   logs={attendanceLogs}
   reports={reports}
   onDeleteReport={
-    currentUser.role === "commander"
+    can("reports.delete")
       ? onDeleteReport
       : undefined
   }
   onResetReport={
-    currentUser.role === "commander"
+    can("reports.reset")
       ? onResetReport
       : undefined
   }
     onShowMessage={onShowMessage}
 />
-      ) : dashboardTab === "notifications" && currentUser.role !== "adjutant_officer" ? (
+      ) : dashboardTab === "notifications" && can("dashboard.notifications.view") ? (
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-right" dir="rtl">
     <div className="p-5 border-b border-slate-100">
       <h2 className="text-lg font-black text-slate-800">היסטוריית התראות</h2>
@@ -1657,7 +1670,7 @@ const dates = getDateRange(startDate, endDate);
       </table>
     </div>
   </div>
-) : dashboardTab === "systemlogs" && currentUser.role !== "adjutant_officer" ? (
+) : dashboardTab === "systemlogs" && can("dashboard.system_logs.view") ? (
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-right" dir="rtl">
     <div className="p-5 border-b border-slate-100">
       <h2 className="text-lg font-black text-slate-800">יומן מערכת</h2>
@@ -1760,7 +1773,7 @@ const dates = getDateRange(startDate, endDate);
       </table>
     </div>
   </div>
-) : dashboardTab === "summary" && currentUser.role !== "adjutant_officer" ? (
+) : dashboardTab === "summary" && can("dashboard.summary.view") ? (
   <div className="space-y-4 text-right" dir="rtl">
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
       <h2 className="text-lg font-black text-slate-800 mb-2">
@@ -2883,7 +2896,7 @@ const soldierReports = Array.from(latestReportByDate.values());
               onChange={(e) => setSelectedDate(e.target.value)} 
               className="border border-slate-300 rounded-md p-1 text-xs" 
             />
-            {currentUser.role !== "adjutant_officer" && (
+            {can("soldiers.add") && (
               <button
                 onClick={() => {
                   setEditingSoldier(null);
@@ -3151,7 +3164,7 @@ return (
                             )
                           ) : null}
 
-                          {currentUser.role === "commander" && (
+                          {can("reports.manage") && (
                             <button
                               onClick={() => {
                                 setEditingReportData({
@@ -3174,7 +3187,7 @@ return (
                               {displayedTodayReport ? "ערוך דיווח" : "צור דיווח"}
                             </button>
                       )}
-                          {!displayedTodayReport && profile.phoneNumber && currentUser.role !== "adjutant_officer" && (
+                          {!displayedTodayReport && profile.phoneNumber && can("reports.manage") && (
   <a
     href={`https://wa.me/972${profile.phoneNumber
   .replace(/\D/g, "")
@@ -3194,7 +3207,7 @@ https://bas997n.github.io/Status/`
   </a>
 )}
                      
- {displayedTodayReport && onDeleteReport && currentUser.role === "commander" && (
+ {displayedTodayReport && onDeleteReport && can("reports.delete") && (
   <button
     onClick={() =>
       setReportToReset({
@@ -3337,6 +3350,7 @@ const matchesStatus =
           </div>
           
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+            {can("soldiers.add") && (
             <button
               onClick={handleOpenAdd}
               className="bg-emerald-600 hover:bg-emerald-700 hover:border-emerald-500 shadow-md text-white text-xs font-bold py-2 px-4 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 border border-emerald-500"
@@ -3344,6 +3358,7 @@ const matchesStatus =
               <UserPlus className="w-4 h-4 text-white" />
               <span>הוסף חייל חדש</span>
             </button>
+            )}
 
             <button
               onClick={() => {
