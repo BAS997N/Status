@@ -13,6 +13,7 @@ import {
 import { SystemRole, UserProfile } from "../types";
 import UsersManager from "./systemAdmin/UsersManager";
 import PermissionsManager from "./systemAdmin/PermissionsManager";
+import AttendanceStatusManager from "./systemAdmin/AttendanceStatusManager";
 
 type AdminSection =
   | "overview"
@@ -157,6 +158,8 @@ export default function SystemAdminPanel({
         />
       ) : activeSection === "permissions" ? (
         <PermissionsManager currentUser={currentUser} />
+      ) : activeSection === "statuses" ? (
+        <AttendanceStatusManager currentUser={currentUser} />
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-start gap-3">
