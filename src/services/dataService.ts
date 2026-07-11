@@ -902,6 +902,10 @@ async createSystemLog(logData: {
   ): Promise<void> {
   const reports = await this.fetchAllReports();
   const users = await this.getAllUsers();
+  const attendanceStatusConfigs = await this.getAttendanceStatusConfigs();
+  const attendanceStatusById = new Map(
+    attendanceStatusConfigs.map((status) => [status.id, status])
+  );
 
   /*
    * מסננים דיווחים מאופסים ודיווחים שאין להם
@@ -909,6 +913,11 @@ async createSystemLog(logData: {
    */
   const activeReports = reports.filter((report) => {
     if ((report as any).isReset || !report.userId) {
+      return false;
+    }
+
+    const statusConfig = attendanceStatusById.get(report.status);
+    if (statusConfig?.exportToSheets === false) {
       return false;
     }
 
@@ -1038,9 +1047,9 @@ async createSystemLog(logData: {
         : "";
 
     const statusText =
-      ATTENDANCE_STATUS_LABELS[
-        report.status
-      ]?.label || report.status;
+      attendanceStatusById.get(report.status)?.label ||
+      ATTENDANCE_STATUS_LABELS[report.status]?.label ||
+      report.status;
 
     const [year, month, day] =
       reportDate.split("-");
@@ -1134,12 +1143,23 @@ async createSystemLog(logData: {
   },
 
   async createAttendanceReport(reportData: Omit<AttendanceReport, "reportId">): Promise<string> {
+    const attendanceStatusConfigs = await this.getAttendanceStatusConfigs();
+    const selectedStatusConfig = attendanceStatusConfigs.find(
+      (status) => status.id === reportData.status
+    );
+    const requiresCommanderApproval =
+      selectedStatusConfig?.requiresCommanderApproval === true;
+
     const reportPayload: AttendanceReport = {
-  ...reportData,
-  reportId: "",
-  verifiedBy: reportData.verifiedBy || "SYSTEM_AUTO",
-  verifiedAt: reportData.verifiedAt || new Date().toISOString()
-};
+      ...reportData,
+      reportId: "",
+      verifiedBy: requiresCommanderApproval
+        ? undefined
+        : reportData.verifiedBy || "SYSTEM_AUTO",
+      verifiedAt: requiresCommanderApproval
+        ? undefined
+        : reportData.verifiedAt || new Date().toISOString()
+    };
 
 Object.keys(reportPayload).forEach((key) => {
   if ((reportPayload as any)[key] === undefined) {
@@ -1147,7 +1167,10 @@ Object.keys(reportPayload).forEach((key) => {
   }
 });
     const isAlert = reportPayload.status !== "base";
-    const statusLabel = ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label || reportPayload.status;
+    const statusLabel =
+      selectedStatusConfig?.label ||
+      ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label ||
+      reportPayload.status;
     const notificationMsg = `החייל/ת ${reportPayload.userName} דיווח/ה על סטטוס ${statusLabel} מחוץ לבסיס במיקום: ${reportPayload.location}`;
     
     if (!isFirebaseActive()) {
@@ -1215,7 +1238,12 @@ await setDoc(
     reportId: docRef.id,
     reportDate: reportDateForLookup,
     timestamp: reportPayload.timestamp || new Date().toISOString(),
-    verifiedAt: reportPayload.verifiedAt || new Date().toISOString(),
+    verifiedAt: requiresCommanderApproval
+      ? null
+      : reportPayload.verifiedAt || new Date().toISOString(),
+    verifiedBy: requiresCommanderApproval
+      ? null
+      : reportPayload.verifiedBy || "SYSTEM_AUTO",
     updatedAt: new Date().toISOString(),
 
     // דיווח חדש מבטל מצב איפוס קודם
@@ -1227,7 +1255,9 @@ resetByName: null,
   { merge: true }
 );
       const statusText =
-  ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label || reportPayload.status;
+  selectedStatusConfig?.label ||
+  ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label ||
+  reportPayload.status;
       await this.createSystemLog({
   action: existingActiveDoc ? "edit_report" : "create_report",
   actorUserId: reportPayload.createdBy || "unknown",
@@ -1264,7 +1294,10 @@ const personalIdForSheets = getSheetsPersonalId(
   (reportPayload as any).personalId
 );
 
-if (personalIdForSheets) {
+if (
+  selectedStatusConfig?.exportToSheets !== false &&
+  personalIdForSheets
+) {
   try {
     await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
       method: "POST",
@@ -1284,7 +1317,10 @@ if (personalIdForSheets) {
   } catch (err) {
     console.warn("Google Sheets sync failed:", err);
   }
-} else {
+} else if (
+  selectedStatusConfig?.exportToSheets !== false &&
+  !personalIdForSheets
+) {
   console.warn(
     "Google Sheets sync skipped: missing numeric personalId",
     docRef.id,
@@ -1381,6 +1417,11 @@ const finalReportData = {
       ...updatedSnap.data(),
     } as AttendanceReport;
 
+    const attendanceStatusConfigs = await this.getAttendanceStatusConfigs();
+    const selectedStatusConfig = attendanceStatusConfigs.find(
+      (status) => status.id === updatedReport.status
+    );
+
     const users = await this.getAllUsers();
 
     const soldier = users.find(
@@ -1399,6 +1440,7 @@ const finalReportData = {
         : "";
 
     const statusText =
+      selectedStatusConfig?.label ||
       ATTENDANCE_STATUS_LABELS[updatedReport.status]?.label ||
       updatedReport.status;
    
@@ -1435,7 +1477,10 @@ const formattedDate =
       (updatedReport as any).personalId
     );
 
-    if (personalIdForSheets) {
+    if (
+      selectedStatusConfig?.exportToSheets !== false &&
+      personalIdForSheets
+    ) {
       try {
         await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
           method: "POST",
@@ -1455,7 +1500,10 @@ const formattedDate =
       } catch (err) {
         console.warn("Google Sheets update sync failed:", err);
       }
-    } else {
+    } else if (
+      selectedStatusConfig?.exportToSheets !== false &&
+      !personalIdForSheets
+    ) {
       console.warn(
         "Google Sheets update sync skipped: missing numeric personalId",
         reportId,
