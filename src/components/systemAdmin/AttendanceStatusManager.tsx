@@ -19,6 +19,7 @@ import { dataService } from "../../services/dataService";
 
 interface AttendanceStatusManagerProps {
   currentUser: UserProfile;
+  onStatusesChanged?: (statuses: AttendanceStatusConfig[]) => void;
 }
 
 
@@ -128,7 +129,10 @@ const restoreBuiltInIcons = (statuses: AttendanceStatusConfig[]) => {
 };
 
 
-export default function AttendanceStatusManager({ currentUser }: AttendanceStatusManagerProps) {
+export default function AttendanceStatusManager({
+  currentUser,
+  onStatusesChanged,
+}: AttendanceStatusManagerProps) {
   const [statuses, setStatuses] = useState<AttendanceStatusConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -284,8 +288,13 @@ export default function AttendanceStatusManager({ currentUser }: AttendanceStatu
         updatedAt: new Date().toISOString(),
         updatedBy: currentUser.userId,
       }));
-      const saved = await dataService.saveAttendanceStatusConfigs(payload, currentUser.userId);
-      setStatuses(applyOrder(saved));
+      const saved = await dataService.saveAttendanceStatusConfigs(
+        payload,
+        currentUser.userId
+      );
+      const orderedSaved = applyOrder(restoreBuiltInIcons(saved));
+      setStatuses(orderedSaved);
+      onStatusesChanged?.(orderedSaved);
       setMessage("הסטטוסים נשמרו בהצלחה");
     } catch (err) {
       console.error(err);
