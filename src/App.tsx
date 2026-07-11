@@ -219,9 +219,16 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   useEffect(() => {
     if (activeTab === "system_admin") return;
 
+    // When leaving the admin screen, reload directly from Firestore.
+    // This prevents an older cached list from restoring statuses that were
+    // hidden or deleted moments earlier.
     dataService
-      .getAttendanceStatusConfigs()
-      .then(setAttendanceStatuses)
+      .getAttendanceStatusConfigs(true)
+      .then((statuses) =>
+        setAttendanceStatuses(
+          [...statuses].sort((a, b) => a.sortOrder - b.sortOrder)
+        )
+      )
       .catch((error) =>
         console.error("Failed refreshing attendance statuses:", error)
       );
@@ -634,26 +641,9 @@ const handleDeleteReport = async (reportId: string) => {
 };
 
 const handleResetReport = async (reportId: string) => {
-  if (!reportId || reportId.startsWith("local_")) {
-    throw new Error("לא נמצא מזהה דיווח תקין לאיפוס");
-  }
-
-  let reportToReset = reports.find(
-    (report) =>
-      report.reportId === reportId ||
-      (report as any).id === reportId
+  const reportToReset = reports.find(
+    (report) => report.reportId === reportId
   );
-
-  if (!reportToReset) {
-    const freshReports = await dataService.fetchAllReports();
-    setReports(freshReports);
-
-    reportToReset = freshReports.find(
-      (report) =>
-        report.reportId === reportId ||
-        (report as any).id === reportId
-    );
-  }
 
   if (!reportToReset) {
     throw new Error("הדיווח לא נמצא");
