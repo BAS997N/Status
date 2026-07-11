@@ -288,11 +288,11 @@ export default function AttendanceStatusManager({
         updatedAt: new Date().toISOString(),
         updatedBy: currentUser.userId,
       }));
-      const saved = await dataService.saveAttendanceStatusConfigs(
-        payload,
-        currentUser.userId
-      );
-      const orderedSaved = applyOrder(restoreBuiltInIcons(saved));
+      await dataService.saveAttendanceStatusConfigs(payload, currentUser.userId);
+
+      const confirmedSaved = await dataService.getAttendanceStatusConfigs(true);
+      const orderedSaved = applyOrder(restoreBuiltInIcons(confirmedSaved));
+
       setStatuses(orderedSaved);
       onStatusesChanged?.(orderedSaved);
       setMessage("הסטטוסים נשמרו בהצלחה");
