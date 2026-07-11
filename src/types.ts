@@ -37,6 +37,18 @@ export interface UnitConfig {
   updatedBy?: string;
 }
 
+
+export interface MedicalRoleConfig {
+  id: string;
+  name: string;
+  enabled: boolean;
+  sortOrder: number;
+  systemRole?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export interface UserProfile {
   userId: string;
   fullName: string;
@@ -466,3 +478,24 @@ export const DEFAULT_UNIT_CONFIGS: UnitConfig[] = IDF_UNITS.map(
     systemUnit: index === 0,
   })
 );
+
+
+export const DEFAULT_MEDICAL_ROLE_NAMES = [
+  "רופא/ה צבאי/ת",
+  "פרמדיק/ית",
+  "חובש/ת",
+  "סניטר/ית",
+  "נהג/ת אמבולנס",
+  "אח/ות צבאי/ת",
+  "מפקד/ת תאג״ד",
+  "חייל/ת מדווח/ת",
+];
+
+export const DEFAULT_MEDICAL_ROLE_CONFIGS: MedicalRoleConfig[] =
+  DEFAULT_MEDICAL_ROLE_NAMES.map((name, index) => ({
+    id: `medical_role_${index + 1}`,
+    name,
+    enabled: true,
+    sortOrder: index + 1,
+    systemRole: index === 0,
+  }));
