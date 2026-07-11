@@ -1,170 +1,65 @@
-import { SystemRole, UserProfile } from "../types";
+import {
+  RolePermissionConfig,
+  SystemRole,
+  UserProfile,
+} from "../types";
 
-export interface AppPermissions {
-  canViewReporter: boolean;
-  canViewDashboard: boolean;
-  canViewSystemAdmin: boolean;
+export const PERMISSION_DEFINITIONS = [
+  { id: "reporter.view", label: "דיווח נוכחות אישי", category: "מסכים" },
+  { id: "dashboard.view", label: "לוח בקרה למפקדים", category: "מסכים" },
+  { id: "dashboard.attendance.view", label: "בקרה ומצבי נוכחות", category: "מסכי לוח בקרה" },
+  { id: "dashboard.directory.view", label: "ספר טלפונים וסגל", category: "מסכי לוח בקרה" },
+  { id: "dashboard.summary.view", label: "סיכום נוכחות", category: "מסכי לוח בקרה" },
+  { id: "dashboard.history.view", label: "היסטוריית דיווחים", category: "מסכי לוח בקרה" },
+  { id: "dashboard.system_logs.view", label: "יומן מערכת", category: "מסכי לוח בקרה" },
+  { id: "dashboard.notifications.view", label: "התראות", category: "מסכי לוח בקרה" },
+  { id: "dashboard.settings.view", label: "הגדרות לוח הבקרה", category: "מסכי לוח בקרה" },
+  { id: "reports.manage", label: "יצירה ועריכת דיווחים", category: "דיווחים" },
+  { id: "reports.verify", label: "אימות דיווחים", category: "דיווחים" },
+  { id: "reports.reset", label: "איפוס דיווחים", category: "דיווחים" },
+  { id: "reports.delete", label: "מחיקת דיווחים", category: "דיווחים" },
+  { id: "soldiers.manage", label: "ניהול חיילים", category: "חיילים" },
+  { id: "soldiers.add", label: "הוספת חיילים", category: "חיילים" },
+  { id: "soldiers.edit", label: "עריכת חיילים", category: "חיילים" },
+  { id: "soldiers.delete", label: "מחיקת חיילים", category: "חיילים" },
+  { id: "sheets.export", label: "ייצוא ל־Google Sheets", category: "ייצוא" },
+  { id: "system_admin.view", label: "כניסה לניהול מערכת", category: "ניהול מערכת" },
+  { id: "system_admin.statuses.manage", label: "ניהול סטטוסים", category: "ניהול מערכת" },
+  { id: "system_admin.permissions.manage", label: "ניהול הרשאות", category: "ניהול מערכת" },
+] as const;
 
-  canViewAttendance: boolean;
-  canViewDirectory: boolean;
-  canViewSummary: boolean;
-  canViewHistory: boolean;
-  canViewSystemLogs: boolean;
-  canViewNotifications: boolean;
-  canViewSettings: boolean;
+export type PermissionId =
+  (typeof PERMISSION_DEFINITIONS)[number]["id"];
 
-  canManageReports: boolean;
-  canVerifyReports: boolean;
-  canResetReports: boolean;
-  canDeleteReports: boolean;
-
-  canManageSoldiers: boolean;
-  canAddSoldiers: boolean;
-  canEditSoldiers: boolean;
-  canDeleteSoldiers: boolean;
-
-  canExportSheets: boolean;
-  canManageStatuses: boolean;
-  canManagePermissions: boolean;
-}
+export type PermissionMap = Record<string, boolean>;
 
 export const getEffectiveSystemRole = (
   user?: UserProfile | null
 ): SystemRole => {
   if (!user) return "reporter";
-
-  if (user.systemRole) {
-    return user.systemRole;
-  }
-
-  if (user.role === "commander") {
-    return "admin";
-  }
-
-  if (user.role === "adjutant_officer") {
-    return "viewer";
-  }
-
+  if (user.systemRole) return user.systemRole;
+  if (user.role === "commander") return "admin";
+  if (user.role === "adjutant_officer") return "viewer";
   return "reporter";
 };
 
-const ROLE_PERMISSIONS: Record<SystemRole, AppPermissions> = {
-  super_admin: {
-    canViewReporter: true,
-    canViewDashboard: true,
-    canViewSystemAdmin: true,
-
-    canViewAttendance: true,
-    canViewDirectory: true,
-    canViewSummary: true,
-    canViewHistory: true,
-    canViewSystemLogs: true,
-    canViewNotifications: true,
-    canViewSettings: true,
-
-    canManageReports: true,
-    canVerifyReports: true,
-    canResetReports: true,
-    canDeleteReports: true,
-
-    canManageSoldiers: true,
-    canAddSoldiers: true,
-    canEditSoldiers: true,
-    canDeleteSoldiers: true,
-
-    canExportSheets: true,
-    canManageStatuses: true,
-    canManagePermissions: true,
-  },
-
-  admin: {
-    canViewReporter: true,
-    canViewDashboard: true,
-    canViewSystemAdmin: false,
-
-    canViewAttendance: true,
-    canViewDirectory: true,
-    canViewSummary: true,
-    canViewHistory: true,
-    canViewSystemLogs: true,
-    canViewNotifications: true,
-    canViewSettings: true,
-
-    canManageReports: true,
-    canVerifyReports: true,
-    canResetReports: true,
-    canDeleteReports: true,
-
-    canManageSoldiers: true,
-    canAddSoldiers: true,
-    canEditSoldiers: true,
-    canDeleteSoldiers: true,
-
-    canExportSheets: true,
-    canManageStatuses: false,
-    canManagePermissions: false,
-  },
-
-  viewer: {
-    canViewReporter: false,
-    canViewDashboard: true,
-    canViewSystemAdmin: false,
-
-    canViewAttendance: true,
-    canViewDirectory: true,
-    canViewSummary: false,
-    canViewHistory: false,
-    canViewSystemLogs: false,
-    canViewNotifications: false,
-    canViewSettings: false,
-
-    canManageReports: false,
-    canVerifyReports: false,
-    canResetReports: false,
-    canDeleteReports: false,
-
-    canManageSoldiers: false,
-    canAddSoldiers: false,
-    canEditSoldiers: false,
-    canDeleteSoldiers: false,
-
-    canExportSheets: false,
-    canManageStatuses: false,
-    canManagePermissions: false,
-  },
-
-  reporter: {
-    canViewReporter: true,
-    canViewDashboard: false,
-    canViewSystemAdmin: false,
-
-    canViewAttendance: false,
-    canViewDirectory: false,
-    canViewSummary: false,
-    canViewHistory: false,
-    canViewSystemLogs: false,
-    canViewNotifications: false,
-    canViewSettings: false,
-
-    canManageReports: false,
-    canVerifyReports: false,
-    canResetReports: false,
-    canDeleteReports: false,
-
-    canManageSoldiers: false,
-    canAddSoldiers: false,
-    canEditSoldiers: false,
-    canDeleteSoldiers: false,
-
-    canExportSheets: false,
-    canManageStatuses: false,
-    canManagePermissions: false,
-  },
+export const getPermissionsForRole = (
+  role: SystemRole,
+  configs: RolePermissionConfig[]
+): PermissionMap => {
+  return (
+    configs.find((config) => config.systemRole === role)?.permissions || {}
+  );
 };
 
 export const getPermissionsForUser = (
-  user?: UserProfile | null
-): AppPermissions => {
-  const role = getEffectiveSystemRole(user);
-  return ROLE_PERMISSIONS[role];
+  user: UserProfile | null | undefined,
+  configs: RolePermissionConfig[]
+): PermissionMap => {
+  return getPermissionsForRole(getEffectiveSystemRole(user), configs);
 };
+
+export const hasPermission = (
+  permissions: PermissionMap,
+  permissionId: PermissionId | string
+): boolean => permissions[permissionId] === true;
