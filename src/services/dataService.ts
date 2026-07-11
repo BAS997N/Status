@@ -14,7 +14,16 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 import { db, auth, isFirebaseActive } from "../firebase";
-import { UserProfile, AttendanceReport, AttendanceStatus, AppNotification, ATTENDANCE_STATUS_LABELS, IDF_UNITS } from "../types";
+import {
+  UserProfile,
+  AttendanceReport,
+  AttendanceStatus,
+  AppNotification,
+  ATTENDANCE_STATUS_LABELS,
+  IDF_UNITS,
+  AttendanceStatusConfig,
+  DEFAULT_ATTENDANCE_STATUS_CONFIGS,
+} from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
 export enum OperationType {
@@ -114,6 +123,89 @@ const normalizeReportDates = (data: any) => ({
   verifiedAt: normalizeFirestoreDate(data.verifiedAt),
 });
 
+const ATTENDANCE_STATUS_CACHE_KEY = "idf_attendance_status_configs";
+const ATTENDANCE_STATUS_CACHE_TIME_KEY =
+  "idf_attendance_status_configs_cached_at";
+const ATTENDANCE_STATUS_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const cloneDefaultAttendanceStatuses = (): AttendanceStatusConfig[] =>
+  DEFAULT_ATTENDANCE_STATUS_CONFIGS.map((status) => ({ ...status }));
+
+const normalizeAttendanceStatusConfigs = (
+  value: unknown
+): AttendanceStatusConfig[] => {
+  if (!Array.isArray(value)) {
+    return cloneDefaultAttendanceStatuses();
+  }
+
+  const validStatuses = value
+    .filter(
+      (status): status is AttendanceStatusConfig =>
+        !!status &&
+        typeof status === "object" &&
+        typeof (status as AttendanceStatusConfig).id === "string" &&
+        typeof (status as AttendanceStatusConfig).label === "string"
+    )
+    .map((status, index) => ({
+      ...status,
+      id: status.id.trim(),
+      label: status.label.trim(),
+      enabled: status.enabled !== false,
+      visibleToSoldiers: status.visibleToSoldiers === true,
+      visibleToCommanders: status.visibleToCommanders !== false,
+      sortOrder:
+        typeof status.sortOrder === "number"
+          ? status.sortOrder
+          : index + 1,
+      systemStatus: status.systemStatus === true,
+      color: status.color || "text-slate-700",
+      bg: status.bg || "bg-slate-50",
+      border: status.border || "border-slate-200",
+    }))
+    .filter((status) => status.id.length > 0 && status.label.length > 0)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  return validStatuses.length > 0
+    ? validStatuses
+    : cloneDefaultAttendanceStatuses();
+};
+
+const saveAttendanceStatusesToCache = (
+  statuses: AttendanceStatusConfig[]
+) => {
+  localStorage.setItem(
+    ATTENDANCE_STATUS_CACHE_KEY,
+    JSON.stringify(statuses)
+  );
+  localStorage.setItem(
+    ATTENDANCE_STATUS_CACHE_TIME_KEY,
+    String(Date.now())
+  );
+};
+
+const getAttendanceStatusesFromCache = (
+  allowExpired = false
+): AttendanceStatusConfig[] | null => {
+  try {
+    const raw = localStorage.getItem(ATTENDANCE_STATUS_CACHE_KEY);
+    const cachedAt = Number(
+      localStorage.getItem(ATTENDANCE_STATUS_CACHE_TIME_KEY) || 0
+    );
+
+    if (!raw) return null;
+
+    const isExpired =
+      !cachedAt || Date.now() - cachedAt > ATTENDANCE_STATUS_CACHE_TTL_MS;
+
+    if (isExpired && !allowExpired) return null;
+
+    return normalizeAttendanceStatusConfigs(JSON.parse(raw));
+  } catch (error) {
+    console.warn("Invalid attendance status cache:", error);
+    return null;
+  }
+};
+
 const getSheetsPersonalId = (...values: any[]): string => {
   for (const value of values) {
     const cleanValue = String(value || "")
@@ -129,6 +221,100 @@ const getSheetsPersonalId = (...values: any[]): string => {
 };
 
 export const dataService = {
+  async getAttendanceStatusConfigs(
+    forceRefresh = false
+  ): Promise<AttendanceStatusConfig[]> {
+    if (!forceRefresh) {
+      const cachedStatuses = getAttendanceStatusesFromCache();
+      if (cachedStatuses) return cachedStatuses;
+    }
+
+    if (!isFirebaseActive()) {
+      const localStatuses =
+        getAttendanceStatusesFromCache(true) ||
+        cloneDefaultAttendanceStatuses();
+
+      saveAttendanceStatusesToCache(localStatuses);
+      return localStatuses;
+    }
+
+    const settingsPath = "settings/attendance_statuses";
+
+    try {
+      const settingsRef = doc(db, "settings", "attendance_statuses");
+      const settingsSnap = await getDoc(settingsRef);
+
+      if (settingsSnap.exists()) {
+        const statuses = normalizeAttendanceStatusConfigs(
+          settingsSnap.data()?.statuses
+        );
+
+        saveAttendanceStatusesToCache(statuses);
+        return statuses;
+      }
+
+      const defaultStatuses = cloneDefaultAttendanceStatuses();
+
+      await setDoc(settingsRef, {
+        statuses: defaultStatuses,
+        updatedAt: new Date().toISOString(),
+        updatedBy: auth?.currentUser?.uid || "SYSTEM_INIT",
+      });
+
+      saveAttendanceStatusesToCache(defaultStatuses);
+      return defaultStatuses;
+    } catch (error) {
+      console.error(
+        "Failed loading attendance status settings:",
+        error
+      );
+
+      const fallbackStatuses =
+        getAttendanceStatusesFromCache(true) ||
+        cloneDefaultAttendanceStatuses();
+
+      saveAttendanceStatusesToCache(fallbackStatuses);
+      return fallbackStatuses;
+    }
+  },
+
+  async saveAttendanceStatusConfigs(
+    statuses: AttendanceStatusConfig[],
+    updatedBy?: string
+  ): Promise<AttendanceStatusConfig[]> {
+    const normalizedStatuses = normalizeAttendanceStatusConfigs(statuses);
+
+    if (!isFirebaseActive()) {
+      saveAttendanceStatusesToCache(normalizedStatuses);
+      return normalizedStatuses;
+    }
+
+    const settingsPath = "settings/attendance_statuses";
+
+    try {
+      await setDoc(
+        doc(db, "settings", "attendance_statuses"),
+        {
+          statuses: normalizedStatuses,
+          updatedAt: new Date().toISOString(),
+          updatedBy:
+            updatedBy || auth?.currentUser?.uid || "unknown",
+        },
+        { merge: true }
+      );
+
+      saveAttendanceStatusesToCache(normalizedStatuses);
+      return normalizedStatuses;
+    } catch (error) {
+      handleFirestoreError(
+        error,
+        OperationType.WRITE,
+        settingsPath
+      );
+      return normalizedStatuses;
+    }
+  },
+
   async deleteAttendanceReport(reportId: string): Promise<void> {
   if (!isFirebaseActive()) {
     const reports: AttendanceReport[] = JSON.parse(localStorage.getItem("idf_reports") || "[]");
