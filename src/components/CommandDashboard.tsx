@@ -2297,9 +2297,22 @@ const soldierReports = Array.from(latestReportByDate.values());
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] text-slate-400 font-bold">{item.profile.unit}</span>
-                      <span className="text-[10px] bg-emerald-100/80 text-emerald-800 px-2 py-0.5 rounded font-black">
-                        {item.status === "base" ? "בבסיס" : item.status === "field" ? "בשטח" : "בקורס"}
-                      </span>
+                      {(() => {
+                        const itemStatusInfo = statusLabels[item.status] || {
+                          label: item.status || "לא מוגדר",
+                          color: "text-emerald-800",
+                          bg: "bg-emerald-100/80",
+                          border: "border-emerald-200",
+                        };
+
+                        return (
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded font-black border ${itemStatusInfo.bg} ${itemStatusInfo.color} ${itemStatusInfo.border}`}
+                          >
+                            {itemStatusInfo.label}
+                          </span>
+                        );
+                      })()}
                       {getDayMarkerText(item) && (
   <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-black">
     {getDayMarkerText(item)}
@@ -2323,21 +2336,21 @@ const soldierReports = Array.from(latestReportByDate.values());
             ) : (
               <div className="divide-y divide-rose-100/35 max-h-48 overflow-y-auto pr-1">
                 {absentCommandStaff.map((item) => {
-                  let badgeColor = "bg-rose-100/80 text-rose-800";
-                  let statusText = "טרם דיווח";
-                  if (item.status === "home") {
-  badgeColor = "bg-indigo-100/80 text-indigo-800";
-  statusText = "בבית";
-} else if (item.status === "sick") {
-  badgeColor = "bg-rose-100/80 text-rose-800";
-  statusText = "גימלים";
-} else if (item.status === "cut_order") {
-  badgeColor = "bg-red-100/80 text-red-800";
-  statusText = "חיתוך צו";
-} else if (item.status === "other") {
-  badgeColor = "bg-slate-100 text-slate-700";
-  statusText = "אחר";
-}
+                  const dynamicStatusInfo =
+                    item.status === "unreported"
+                      ? null
+                      : statusLabels[item.status];
+
+                  const badgeColor = dynamicStatusInfo
+                    ? `${dynamicStatusInfo.bg} ${dynamicStatusInfo.color} ${dynamicStatusInfo.border} border`
+                    : "bg-rose-100/80 text-rose-800 border border-rose-200";
+
+                  const statusText =
+                    dynamicStatusInfo?.label ||
+                    (item.status === "unreported"
+                      ? "טרם דיווח"
+                      : item.status || "לא מוגדר");
+
                   return (
                     <div key={item.profile.userId} className="flex items-center justify-between py-1.5 text-xs">
                       <div className="flex items-center gap-2">
@@ -3284,12 +3297,18 @@ https://bas997n.github.io/Status/`
                      
  {displayedTodayReport && onDeleteReport && canDeleteReport && (
   <button
-    onClick={() =>
+    onClick={() => {
+      const actualReportId =
+        latestTodayReport?.reportId ||
+        (latestTodayReport as any)?.id ||
+        displayedTodayReport.reportId ||
+        (displayedTodayReport as any).id;
+
       setReportToReset({
-  reportId: displayedTodayReport.reportId || (displayedTodayReport as any).id,
-  soldierName: profile.fullName,
-})
-    }
+        reportId: actualReportId,
+        soldierName: profile.fullName,
+      });
+    }}
     className="text-[10px] bg-red-50 hover:bg-red-100 text-red-700 font-bold py-1 px-2 rounded-md transition cursor-pointer border border-red-200 inline-flex items-center justify-center gap-1 shadow-xs"
   >
     אפס דיווח
@@ -4119,6 +4138,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
 setEditingReportData(null);
 
 await onAdminSaveReport(dataToSave);
+      setLastSavedReport(null);
     } catch (err) {
       console.error("Failed saving attendance report:", err);
     }
