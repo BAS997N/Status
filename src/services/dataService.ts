@@ -24,6 +24,7 @@ import {
   AttendanceStatusConfig,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   SystemRole,
+  RolePermissionConfig,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -207,6 +208,196 @@ const getAttendanceStatusesFromCache = (
   }
 };
 
+
+const ROLE_PERMISSIONS_CACHE_KEY = "idf_role_permission_configs";
+const ROLE_PERMISSIONS_CACHE_TIME_KEY =
+  "idf_role_permission_configs_cached_at";
+const ROLE_PERMISSIONS_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const DEFAULT_ROLE_PERMISSION_CONFIGS: RolePermissionConfig[] = [
+  {
+    systemRole: "super_admin",
+    permissions: {
+      "reporter.view": true,
+      "dashboard.view": true,
+      "dashboard.attendance.view": true,
+      "dashboard.directory.view": true,
+      "dashboard.summary.view": true,
+      "dashboard.history.view": true,
+      "dashboard.system_logs.view": true,
+      "dashboard.notifications.view": true,
+      "dashboard.settings.view": true,
+      "reports.manage": true,
+      "reports.verify": true,
+      "reports.reset": true,
+      "reports.delete": true,
+      "soldiers.manage": true,
+      "soldiers.add": true,
+      "soldiers.edit": true,
+      "soldiers.delete": true,
+      "sheets.export": true,
+      "system_admin.view": true,
+      "system_admin.statuses.manage": true,
+      "system_admin.permissions.manage": true,
+    },
+  },
+  {
+    systemRole: "admin",
+    permissions: {
+      "reporter.view": true,
+      "dashboard.view": true,
+      "dashboard.attendance.view": true,
+      "dashboard.directory.view": true,
+      "dashboard.summary.view": true,
+      "dashboard.history.view": true,
+      "dashboard.system_logs.view": true,
+      "dashboard.notifications.view": true,
+      "dashboard.settings.view": true,
+      "reports.manage": true,
+      "reports.verify": true,
+      "reports.reset": true,
+      "reports.delete": true,
+      "soldiers.manage": true,
+      "soldiers.add": true,
+      "soldiers.edit": true,
+      "soldiers.delete": true,
+      "sheets.export": true,
+      "system_admin.view": false,
+      "system_admin.statuses.manage": false,
+      "system_admin.permissions.manage": false,
+    },
+  },
+  {
+    systemRole: "viewer",
+    permissions: {
+      "reporter.view": false,
+      "dashboard.view": true,
+      "dashboard.attendance.view": true,
+      "dashboard.directory.view": true,
+      "dashboard.summary.view": false,
+      "dashboard.history.view": false,
+      "dashboard.system_logs.view": false,
+      "dashboard.notifications.view": false,
+      "dashboard.settings.view": false,
+      "reports.manage": false,
+      "reports.verify": false,
+      "reports.reset": false,
+      "reports.delete": false,
+      "soldiers.manage": false,
+      "soldiers.add": false,
+      "soldiers.edit": false,
+      "soldiers.delete": false,
+      "sheets.export": false,
+      "system_admin.view": false,
+      "system_admin.statuses.manage": false,
+      "system_admin.permissions.manage": false,
+    },
+  },
+  {
+    systemRole: "reporter",
+    permissions: {
+      "reporter.view": true,
+      "dashboard.view": false,
+      "dashboard.attendance.view": false,
+      "dashboard.directory.view": false,
+      "dashboard.summary.view": false,
+      "dashboard.history.view": false,
+      "dashboard.system_logs.view": false,
+      "dashboard.notifications.view": false,
+      "dashboard.settings.view": false,
+      "reports.manage": false,
+      "reports.verify": false,
+      "reports.reset": false,
+      "reports.delete": false,
+      "soldiers.manage": false,
+      "soldiers.add": false,
+      "soldiers.edit": false,
+      "soldiers.delete": false,
+      "sheets.export": false,
+      "system_admin.view": false,
+      "system_admin.statuses.manage": false,
+      "system_admin.permissions.manage": false,
+    },
+  },
+];
+
+const cloneDefaultRolePermissions = (): RolePermissionConfig[] =>
+  DEFAULT_ROLE_PERMISSION_CONFIGS.map((config) => ({
+    ...config,
+    permissions: { ...config.permissions },
+  }));
+
+const normalizeRolePermissionConfigs = (
+  value: unknown
+): RolePermissionConfig[] => {
+  if (!Array.isArray(value)) return cloneDefaultRolePermissions();
+
+  const allowedRoles: SystemRole[] = [
+    "super_admin",
+    "admin",
+    "viewer",
+    "reporter",
+  ];
+
+  const defaults = cloneDefaultRolePermissions();
+
+  return allowedRoles.map((systemRole) => {
+    const defaultConfig = defaults.find(
+      (config) => config.systemRole === systemRole
+    )!;
+
+    const storedConfig = value.find(
+      (config: any) => config?.systemRole === systemRole
+    ) as RolePermissionConfig | undefined;
+
+    return {
+      systemRole,
+      permissions: {
+        ...defaultConfig.permissions,
+        ...(storedConfig?.permissions || {}),
+      },
+      updatedAt: storedConfig?.updatedAt,
+      updatedBy: storedConfig?.updatedBy,
+    };
+  });
+};
+
+const saveRolePermissionsToCache = (
+  configs: RolePermissionConfig[]
+) => {
+  localStorage.setItem(
+    ROLE_PERMISSIONS_CACHE_KEY,
+    JSON.stringify(configs)
+  );
+  localStorage.setItem(
+    ROLE_PERMISSIONS_CACHE_TIME_KEY,
+    String(Date.now())
+  );
+};
+
+const getRolePermissionsFromCache = (
+  allowExpired = false
+): RolePermissionConfig[] | null => {
+  try {
+    const raw = localStorage.getItem(ROLE_PERMISSIONS_CACHE_KEY);
+    const cachedAt = Number(
+      localStorage.getItem(ROLE_PERMISSIONS_CACHE_TIME_KEY) || 0
+    );
+
+    if (!raw) return null;
+
+    const isExpired =
+      !cachedAt || Date.now() - cachedAt > ROLE_PERMISSIONS_CACHE_TTL_MS;
+
+    if (isExpired && !allowExpired) return null;
+
+    return normalizeRolePermissionConfigs(JSON.parse(raw));
+  } catch (error) {
+    console.warn("Invalid role permissions cache:", error);
+    return null;
+  }
+};
+
 const getSheetsPersonalId = (...values: any[]): string => {
   for (const value of values) {
     const cleanValue = String(value || "")
@@ -222,6 +413,90 @@ const getSheetsPersonalId = (...values: any[]): string => {
 };
 
 export const dataService = {
+  async getRolePermissionConfigs(
+    forceRefresh = false
+  ): Promise<RolePermissionConfig[]> {
+    if (!forceRefresh) {
+      const cached = getRolePermissionsFromCache();
+      if (cached) return cached;
+    }
+
+    if (!isFirebaseActive()) {
+      const localConfigs =
+        getRolePermissionsFromCache(true) || cloneDefaultRolePermissions();
+      saveRolePermissionsToCache(localConfigs);
+      return localConfigs;
+    }
+
+    const path = "settings/role_permissions";
+
+    try {
+      const ref = doc(db, "settings", "role_permissions");
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        const configs = normalizeRolePermissionConfigs(
+          snap.data()?.roles
+        );
+        saveRolePermissionsToCache(configs);
+        return configs;
+      }
+
+      const defaults = cloneDefaultRolePermissions();
+      await setDoc(ref, {
+        roles: defaults,
+        updatedAt: new Date().toISOString(),
+        updatedBy: auth?.currentUser?.uid || "SYSTEM_INIT",
+      });
+      saveRolePermissionsToCache(defaults);
+      return defaults;
+    } catch (error) {
+      console.error("Failed loading role permissions:", error);
+      const fallback =
+        getRolePermissionsFromCache(true) || cloneDefaultRolePermissions();
+      saveRolePermissionsToCache(fallback);
+      return fallback;
+    }
+  },
+
+  async saveRolePermissionConfigs(
+    configs: RolePermissionConfig[],
+    updatedBy?: string
+  ): Promise<RolePermissionConfig[]> {
+    const normalized = normalizeRolePermissionConfigs(configs).map(
+      (config) => ({
+        ...config,
+        updatedAt: new Date().toISOString(),
+        updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
+      })
+    );
+
+    if (!isFirebaseActive()) {
+      saveRolePermissionsToCache(normalized);
+      return normalized;
+    }
+
+    const path = "settings/role_permissions";
+
+    try {
+      await setDoc(
+        doc(db, "settings", "role_permissions"),
+        {
+          roles: normalized,
+          updatedAt: new Date().toISOString(),
+          updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
+        },
+        { merge: true }
+      );
+
+      saveRolePermissionsToCache(normalized);
+      return normalized;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+      return normalized;
+    }
+  },
+
   async getAttendanceStatusConfigs(
     forceRefresh = false
   ): Promise<AttendanceStatusConfig[]> {
