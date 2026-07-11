@@ -10,7 +10,8 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { UserProfile } from "../types";
+import { SystemRole, UserProfile } from "../types";
+import UsersManager from "./systemAdmin/UsersManager";
 
 type AdminSection =
   | "overview"
@@ -23,6 +24,11 @@ type AdminSection =
 
 interface SystemAdminPanelProps {
   currentUser: UserProfile;
+  users: UserProfile[];
+  onUpdateSystemRole: (
+    userId: string,
+    systemRole: SystemRole
+  ) => Promise<void>;
 }
 
 const sections: Array<{
@@ -71,6 +77,8 @@ const sections: Array<{
 
 export default function SystemAdminPanel({
   currentUser,
+  users,
+  onUpdateSystemRole,
 }: SystemAdminPanelProps) {
   const [activeSection, setActiveSection] =
     useState<AdminSection>("overview");
@@ -133,6 +141,12 @@ export default function SystemAdminPanel({
             );
           })}
         </div>
+      ) : activeSection === "permissions" ? (
+        <UsersManager
+          currentUser={currentUser}
+          users={users}
+          onUpdateSystemRole={onUpdateSystemRole}
+        />
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-start gap-3">
