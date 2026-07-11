@@ -634,9 +634,26 @@ const handleDeleteReport = async (reportId: string) => {
 };
 
 const handleResetReport = async (reportId: string) => {
-  const reportToReset = reports.find(
-    (report) => report.reportId === reportId
+  if (!reportId || reportId.startsWith("local_")) {
+    throw new Error("לא נמצא מזהה דיווח תקין לאיפוס");
+  }
+
+  let reportToReset = reports.find(
+    (report) =>
+      report.reportId === reportId ||
+      (report as any).id === reportId
   );
+
+  if (!reportToReset) {
+    const freshReports = await dataService.fetchAllReports();
+    setReports(freshReports);
+
+    reportToReset = freshReports.find(
+      (report) =>
+        report.reportId === reportId ||
+        (report as any).id === reportId
+    );
+  }
 
   if (!reportToReset) {
     throw new Error("הדיווח לא נמצא");
