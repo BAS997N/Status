@@ -31,7 +31,8 @@ import {
   AppNotification,
   ATTENDANCE_STATUS_LABELS,
   IDF_UNITS,
-  UserRole
+  UserRole,
+  SystemRole
 } from "./types";
 import { dataService } from "./services/dataService";
 import Header from "./components/Header";
@@ -452,6 +453,33 @@ setSystemLogs(updatedSystemLogs);
     showAppMessage("שגיאה", "אירעה שגיאה במחיקת החייל", "error");
   }
 };
+ const handleUpdateUserSystemRole = async (
+  userId: string,
+  systemRole: SystemRole
+) => {
+  if (!userProfile || !isSuperAdmin) {
+    throw new Error("אין הרשאה לעדכן הרשאות מערכת");
+  }
+
+  if (userId === userProfile.userId && systemRole !== "super_admin") {
+    throw new Error("לא ניתן להסיר מעצמך הרשאת סופר־אדמין");
+  }
+
+  await dataService.updateUserSystemRole(userId, systemRole);
+
+  setAllUsers((currentUsers) =>
+    currentUsers.map((user) =>
+      user.userId === userId ? { ...user, systemRole } : user
+    )
+  );
+
+  if (userProfile.userId === userId) {
+    setUserProfile((currentProfile) =>
+      currentProfile ? { ...currentProfile, systemRole } : currentProfile
+    );
+  }
+};
+
  const handleSyncOldReportsToSheets = async (
   startDate: string,
   endDate: string
@@ -1627,7 +1655,11 @@ const handleAdminSaveReport = async (reportData: {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.15 }}
             >
-              <SystemAdminPanel currentUser={userProfile} />
+              <SystemAdminPanel
+                currentUser={userProfile}
+                users={allUsers}
+                onUpdateSystemRole={handleUpdateUserSystemRole}
+              />
             </motion.div>
           ) : activeTab === "reporter" &&
             userProfile.role !== "adjutant_officer" ? (
