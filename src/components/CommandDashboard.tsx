@@ -70,7 +70,10 @@ interface CommandDashboardProps {
   onDeleteSoldier?: (userId: string) => Promise<void>;
     onDeleteReport?: (reportId: string) => Promise<void>;
   onResetReport?: (reportId: string) => Promise<void>;
-  onSyncOldReportsToSheets?: () => Promise<void>;
+  onSyncOldReportsToSheets?: (
+    startDate: string,
+    endDate: string
+  ) => Promise<void>;
   onAdminSaveReport?: (reportData: {
     reportId?: string;
     userId: string;
@@ -114,6 +117,73 @@ export default function CommandDashboard({
   const [dashboardTab, setDashboardTab] = useState<
   "attendance" | "directory" | "summary" | "settings" | "history" | "systemlogs" | "notifications"
 >("attendance");
+  const getDefaultSheetsRange = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 6);
+
+    const toLocalDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    return {
+      startDate: toLocalDate(start),
+      endDate: toLocalDate(end),
+    };
+  };
+
+  const defaultSheetsRange = getDefaultSheetsRange();
+  const [isSheetsExportModalOpen, setIsSheetsExportModalOpen] = useState(false);
+  const [sheetsExportStartDate, setSheetsExportStartDate] = useState(
+    defaultSheetsRange.startDate
+  );
+  const [sheetsExportEndDate, setSheetsExportEndDate] = useState(
+    defaultSheetsRange.endDate
+  );
+  const [isSheetsExporting, setIsSheetsExporting] = useState(false);
+  const [sheetsExportError, setSheetsExportError] = useState("");
+
+  const openSheetsExportModal = () => {
+    const range = getDefaultSheetsRange();
+    setSheetsExportStartDate(range.startDate);
+    setSheetsExportEndDate(range.endDate);
+    setSheetsExportError("");
+    setIsSheetsExportModalOpen(true);
+  };
+
+  const handleSheetsRangeExport = async () => {
+    if (!onSyncOldReportsToSheets || isSheetsExporting) return;
+
+    if (!sheetsExportStartDate || !sheetsExportEndDate) {
+      setSheetsExportError("יש לבחור תאריך התחלה ותאריך סיום");
+      return;
+    }
+
+    if (sheetsExportEndDate < sheetsExportStartDate) {
+      setSheetsExportError("תאריך הסיום לא יכול להיות מוקדם מתאריך ההתחלה");
+      return;
+    }
+
+    setSheetsExportError("");
+    setIsSheetsExporting(true);
+
+    try {
+      await onSyncOldReportsToSheets(
+        sheetsExportStartDate,
+        sheetsExportEndDate
+      );
+      setIsSheetsExportModalOpen(false);
+    } catch (error) {
+      console.error("Google Sheets range export failed:", error);
+      setSheetsExportError("הייצוא נכשל. נסה שוב לאחר בדיקת החיבור.");
+    } finally {
+      setIsSheetsExporting(false);
+    }
+  };
+
   const [directorySearchQuery, setDirectorySearchQuery] = useState("");
   const [directorySelectedUnit, setDirectorySelectedUnit] = useState<string>("all");
   const [directorySoldierStatusFilter, setDirectorySoldierStatusFilter] =
@@ -1273,10 +1343,11 @@ const dates = getDateRange(startDate, endDate);
 )}
            {currentUser.role === "commander" && onSyncOldReportsToSheets && (
   <button
-    onClick={onSyncOldReportsToSheets}
+    type="button"
+    onClick={openSheetsExportModal}
     className="min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer bg-orange-600 hover:bg-orange-700 text-white"
   >
-    ייבוא היסטוריה לשיטס
+    ייצוא טווח לשיטס
   </button>
 )}
       </div>
@@ -4199,6 +4270,99 @@ await onAdminSaveReport(dataToSave);
     </motion.div>
   )}
 </AnimatePresence>
+      <AnimatePresence>
+        {isSheetsExportModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[12000] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden text-right"
+              dir="rtl"
+            >
+              <div className="bg-orange-700 text-white p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Download className="w-5 h-5" />
+                  <h3 className="text-sm font-black">ייצוא דיווחים לגוגל שיטס</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !isSheetsExporting && setIsSheetsExportModalOpen(false)}
+                  disabled={isSheetsExporting}
+                  className="text-white/80 hover:text-white disabled:opacity-40 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  בחר טווח תאריכים לייצוא. דיווחים מאופסים לא יישלחו, ולכל חייל יישלח רק הדיווח האחרון בכל יום.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 mb-1">
+                      מתאריך
+                    </label>
+                    <input
+                      type="date"
+                      value={sheetsExportStartDate}
+                      onChange={(event) => setSheetsExportStartDate(event.target.value)}
+                      disabled={isSheetsExporting}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold disabled:opacity-60"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 mb-1">
+                      עד תאריך
+                    </label>
+                    <input
+                      type="date"
+                      value={sheetsExportEndDate}
+                      onChange={(event) => setSheetsExportEndDate(event.target.value)}
+                      disabled={isSheetsExporting}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
+                {sheetsExportError && (
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                    {sheetsExportError}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-slate-50 p-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsSheetsExportModalOpen(false)}
+                  disabled={isSheetsExporting}
+                  className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-600 font-bold text-xs rounded-lg border border-slate-200 transition cursor-pointer disabled:opacity-50"
+                >
+                  ביטול
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSheetsRangeExport}
+                  disabled={isSheetsExporting}
+                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-lg border-none transition cursor-pointer shadow-sm disabled:opacity-60 disabled:cursor-wait"
+                >
+                  {isSheetsExporting ? "מייצא..." : "ייצוא הטווח"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {soldierToDelete && (
           <motion.div
