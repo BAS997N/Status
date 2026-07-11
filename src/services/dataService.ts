@@ -23,6 +23,8 @@ import {
   IDF_UNITS,
   UnitConfig,
   DEFAULT_UNIT_CONFIGS,
+  MedicalRoleConfig,
+  DEFAULT_MEDICAL_ROLE_CONFIGS,
   AttendanceStatusConfig,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   SystemRole,
@@ -285,6 +287,82 @@ const getUnitConfigsFromCache = (allowExpired = false): UnitConfig[] | null => {
     return normalizeUnitConfigs(JSON.parse(raw));
   } catch (error) {
     console.warn("Invalid unit configs cache:", error);
+    return null;
+  }
+};
+
+const MEDICAL_ROLE_CONFIGS_CACHE_KEY = "idf_medical_role_configs";
+const MEDICAL_ROLE_CONFIGS_CACHE_TIME_KEY = "idf_medical_role_configs_cached_at";
+const MEDICAL_ROLE_CONFIGS_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const cloneDefaultMedicalRoleConfigs = (): MedicalRoleConfig[] =>
+  DEFAULT_MEDICAL_ROLE_CONFIGS.map((role) => ({ ...role }));
+
+const makeMedicalRoleId = (name: string, index: number) => {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9א-ת]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return normalized ? `medical_role_${normalized}` : `medical_role_${index + 1}`;
+};
+
+const normalizeMedicalRoleConfigs = (value: unknown): MedicalRoleConfig[] => {
+  if (!Array.isArray(value)) return cloneDefaultMedicalRoleConfigs();
+
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+
+  const roles = value
+    .filter((role): role is MedicalRoleConfig =>
+      !!role && typeof role === "object" && typeof (role as MedicalRoleConfig).name === "string"
+    )
+    .map((role, index) => {
+      const name = role.name.trim();
+      let id = typeof role.id === "string" && role.id.trim()
+        ? role.id.trim()
+        : makeMedicalRoleId(name, index);
+
+      while (seenIds.has(id)) id = `${id}_${index + 1}`;
+      seenIds.add(id);
+
+      return {
+        ...role,
+        id,
+        name,
+        enabled: role.enabled !== false,
+        sortOrder: typeof role.sortOrder === "number" ? role.sortOrder : index + 1,
+        systemRole: role.systemRole === true,
+      };
+    })
+    .filter((role) => {
+      const key = role.name.toLocaleLowerCase("he");
+      if (!role.name || seenNames.has(key)) return false;
+      seenNames.add(key);
+      return true;
+    })
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((role, index) => ({ ...role, sortOrder: index + 1 }));
+
+  return roles.length > 0 ? roles : cloneDefaultMedicalRoleConfigs();
+};
+
+const saveMedicalRoleConfigsToCache = (roles: MedicalRoleConfig[]) => {
+  localStorage.setItem(MEDICAL_ROLE_CONFIGS_CACHE_KEY, JSON.stringify(roles));
+  localStorage.setItem(MEDICAL_ROLE_CONFIGS_CACHE_TIME_KEY, String(Date.now()));
+};
+
+const getMedicalRoleConfigsFromCache = (allowExpired = false): MedicalRoleConfig[] | null => {
+  try {
+    const raw = localStorage.getItem(MEDICAL_ROLE_CONFIGS_CACHE_KEY);
+    const cachedAt = Number(localStorage.getItem(MEDICAL_ROLE_CONFIGS_CACHE_TIME_KEY) || 0);
+    if (!raw) return null;
+    const isExpired = !cachedAt || Date.now() - cachedAt > MEDICAL_ROLE_CONFIGS_CACHE_TTL_MS;
+    if (isExpired && !allowExpired) return null;
+    return normalizeMedicalRoleConfigs(JSON.parse(raw));
+  } catch (error) {
+    console.warn("Invalid medical role cache:", error);
     return null;
   }
 };
@@ -661,6 +739,96 @@ export const dataService = {
       );
 
       saveUnitConfigsToCache(normalized);
+      return normalized;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+      return normalized;
+    }
+  },
+
+  async getMedicalRoleConfigs(forceRefresh = false): Promise<MedicalRoleConfig[]> {
+    if (!forceRefresh) {
+      const cached = getMedicalRoleConfigsFromCache();
+      if (cached) return cached;
+    }
+
+    if (!isFirebaseActive()) {
+      const localRoles = getMedicalRoleConfigsFromCache(true) || cloneDefaultMedicalRoleConfigs();
+      saveMedicalRoleConfigsToCache(localRoles);
+      return localRoles;
+    }
+
+    const path = "settings/medical_role_configs";
+
+    try {
+      const ref = doc(db, "settings", "medical_role_configs");
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        const roles = normalizeMedicalRoleConfigs(snap.data()?.roles);
+        saveMedicalRoleConfigsToCache(roles);
+        return roles;
+      }
+
+      const legacySnap = await getDoc(doc(db, "settings", "medical_config"));
+      const legacyRoles = legacySnap.exists() && Array.isArray(legacySnap.data()?.customRoles)
+        ? legacySnap.data().customRoles
+        : DEFAULT_MEDICAL_ROLE_CONFIGS.map((role) => role.name);
+      const initialRoles = normalizeMedicalRoleConfigs(
+        legacyRoles.map((name: string, index: number) => ({
+          id: makeMedicalRoleId(name, index),
+          name,
+          enabled: true,
+          sortOrder: index + 1,
+          systemRole: index === 0,
+        }))
+      );
+
+      await setDoc(ref, {
+        roles: initialRoles,
+        updatedAt: new Date().toISOString(),
+        updatedBy: auth?.currentUser?.uid || "SYSTEM_INIT",
+      });
+
+      saveMedicalRoleConfigsToCache(initialRoles);
+      return initialRoles;
+    } catch (error) {
+      console.error("Failed loading medical role settings:", error);
+      const fallback = getMedicalRoleConfigsFromCache(true) || cloneDefaultMedicalRoleConfigs();
+      saveMedicalRoleConfigsToCache(fallback);
+      return fallback;
+    }
+  },
+
+  async saveMedicalRoleConfigs(
+    roles: MedicalRoleConfig[],
+    updatedBy?: string
+  ): Promise<MedicalRoleConfig[]> {
+    const normalized = normalizeMedicalRoleConfigs(roles).map((role) => ({
+      ...role,
+      updatedAt: new Date().toISOString(),
+      updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
+    }));
+
+    if (!isFirebaseActive()) {
+      saveMedicalRoleConfigsToCache(normalized);
+      return normalized;
+    }
+
+    const path = "settings/medical_role_configs";
+
+    try {
+      await setDoc(
+        doc(db, "settings", "medical_role_configs"),
+        {
+          roles: normalized,
+          updatedAt: new Date().toISOString(),
+          updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
+        },
+        { merge: true }
+      );
+
+      saveMedicalRoleConfigsToCache(normalized);
       return normalized;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
