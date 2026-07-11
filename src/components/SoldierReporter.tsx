@@ -14,14 +14,16 @@ import {
 import { 
   UserProfile, 
   AttendanceReport, 
-  AttendanceStatus, 
-  ATTENDANCE_STATUS_LABELS 
+  AttendanceStatus,
+  AttendanceStatusConfig,
+  DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 
 interface SoldierReporterProps {
   currentUser: UserProfile;
   reports: AttendanceReport[];
+  attendanceStatuses?: AttendanceStatusConfig[];
  onSubmitReport: (
   status: AttendanceStatus,
   location: string,
@@ -36,8 +38,9 @@ interface SoldierReporterProps {
 
 export default function SoldierReporter({ 
   currentUser, 
-  reports, 
-  onSubmitReport 
+  reports,
+  attendanceStatuses = DEFAULT_ATTENDANCE_STATUS_CONFIGS,
+  onSubmitReport
 }: SoldierReporterProps) {
   const getTodayLocalDate = () => {
     const now = new Date();
@@ -62,6 +65,36 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  const soldierStatusOptions = attendanceStatuses
+    .filter((item) => item.enabled && item.visibleToSoldiers)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const statusLabels = React.useMemo(
+    () =>
+      Object.fromEntries(
+        attendanceStatuses.map((item) => [
+          item.id,
+          {
+            label: item.label,
+            color: item.color,
+            bg: item.bg,
+            border: item.border,
+          },
+        ])
+      ),
+    [attendanceStatuses]
+  );
+
+  const selectedStatusConfig = attendanceStatuses.find(
+    (item) => item.id === status
+  );
+
+  useEffect(() => {
+    if (soldierStatusOptions.some((item) => item.id === status)) return;
+    const fallback = soldierStatusOptions[0];
+    if (fallback) setStatus(fallback.id as AttendanceStatus);
+  }, [attendanceStatuses, status]);
 
   // Filter reports submitted by this user
 const userReports = reports
@@ -190,6 +223,10 @@ const handleGetLocation = () => {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!location.trim()) return;
+    if (selectedStatusConfig?.requiresNote && !note.trim()) {
+      alert("בסטטוס זה חובה להזין הערה.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -256,7 +293,7 @@ dayMarker || undefined
                 </div>
               );
             }
-            const statusInfo = ATTENDANCE_STATUS_LABELS[latestReport.status] || {
+            const statusInfo = statusLabels[latestReport.status] || {
               label: latestReport.status || "לא מוגדר",
               color: "text-slate-600 dark:text-slate-300",
               bg: "bg-slate-50 dark:bg-slate-900/40",
@@ -329,10 +366,14 @@ dayMarker || undefined
               </label>
               
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {(Object.keys(ATTENDANCE_STATUS_LABELS) as AttendanceStatus[])
-  .filter(st => st !== "not_on_order")
-  .map((st) => {
-                  const item = ATTENDANCE_STATUS_LABELS[st];
+                {soldierStatusOptions.map((statusConfig) => {
+                  const st = statusConfig.id as AttendanceStatus;
+                  const item = {
+                    label: statusConfig.label,
+                    color: statusConfig.color,
+                    bg: statusConfig.bg,
+                    border: statusConfig.border,
+                  };
                   const isSelected = status === st;
                   return (
                     <button
@@ -559,7 +600,7 @@ dayMarker || undefined
     </div>
   ) : (
     userReports.map((r) => {
-      const statusInfo = ATTENDANCE_STATUS_LABELS[r.status] || {
+      const statusInfo = statusLabels[r.status] || {
         label: r.status || "לא מוגדר",
         color: "text-slate-600 dark:text-slate-300",
         bg: "bg-slate-50 dark:bg-slate-900/40",
@@ -706,7 +747,7 @@ const formattedDateTime = `${reportDateText} ${reportTimeText}`;
   ) : (
     <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
       {commanderEditedReports.map((r) => {
-        const statusInfo = ATTENDANCE_STATUS_LABELS[r.status];
+        const statusInfo = statusLabels[r.status];
 const updatedAt = (r as any).updatedAt;
 const updatedByName = (r as any).updatedByName;
 
