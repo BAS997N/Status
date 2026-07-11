@@ -119,6 +119,25 @@ export default function CommandDashboard({
 }: CommandDashboardProps) {
   const can = (permissionId: string) => hasPermission(permissions, permissionId);
 
+  const canViewAttendance = canViewAttendance;
+  const canViewDirectory = canViewDirectory;
+  const canViewSummary = canViewSummary;
+  const canViewHistory = canViewHistory;
+  const canViewSystemLogs = canViewSystemLogs;
+  const canViewNotifications = canViewNotifications;
+  const canViewSettings = canViewSettings;
+
+  const canManageReports = can("reports.manage");
+  const canVerifyReport = can("reports.verify");
+  const canResetReport = can("reports.reset");
+  const canDeleteReport = can("reports.delete");
+
+  const canAddSoldier = can("soldiers.add");
+  const canEditSoldier = can("soldiers.edit");
+  const canDeleteSoldier = can("soldiers.delete");
+
+  const canExportSheets = can("sheets.export");
+
   const [dashboardTab, setDashboardTab] = useState<
   "attendance" | "directory" | "summary" | "settings" | "history" | "systemlogs" | "notifications"
 >("attendance");
@@ -160,7 +179,7 @@ export default function CommandDashboard({
   };
 
   const handleSheetsRangeExport = async () => {
-    if (!can("sheets.export") || !onSyncOldReportsToSheets || isSheetsExporting) return;
+    if (!canExportSheets || !onSyncOldReportsToSheets || isSheetsExporting) return;
 
     if (!sheetsExportStartDate || !sheetsExportEndDate) {
       setSheetsExportError("יש לבחור תאריך התחלה ותאריך סיום");
@@ -341,7 +360,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   const [formSuccess, setFormSuccess] = useState("");
 
   const handleOpenEdit = (soldier: UserProfile) => {
-    if (!can("soldiers.edit")) return;
+    if (!canEditSoldier) return;
     setEditingSoldier(soldier);
     setIsAddingNew(false);
     setFormFullName(soldier.fullName);
@@ -357,7 +376,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   };
 
   const handleOpenAdd = () => {
-    if (!can("soldiers.add")) return;
+    if (!canAddSoldier) return;
     setEditingSoldier(null);
     setIsAddingNew(true);
     setFormFullName("");
@@ -374,7 +393,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   };
 
   const handleToggleDischargeDirectly = async (soldier: UserProfile) => {
-    if (!can("soldiers.edit")) return;
+    if (!canEditSoldier) return;
     try {
       const updated: UserProfile = {
         ...soldier,
@@ -388,7 +407,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
 
 const handleFormSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  if (!(can("soldiers.add") || can("soldiers.edit"))) return;
+  if (!(canAddSoldier || canEditSoldier)) return;
   setFormError("");
   setFormSuccess("");
 
@@ -1246,7 +1265,7 @@ const dates = getDateRange(startDate, endDate);
       
       {/* Sub-Dashboard Tab Selection */}
       <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-sm mr-auto gap-1 w-full" dir="rtl">
-        {can("dashboard.attendance.view") && (
+        {canViewAttendance && (
         <button
           onClick={() => setDashboardTab("attendance")}
           className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1259,7 +1278,7 @@ const dates = getDateRange(startDate, endDate);
           <span>בקרה ומצבי נוכחות</span>
         </button>
         )}
-        {can("dashboard.directory.view") && (
+        {canViewDirectory && (
         <button
           onClick={() => setDashboardTab("directory")}
           className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1272,7 +1291,7 @@ const dates = getDateRange(startDate, endDate);
           <span>ספר טלפונים וסגל</span>
         </button>
         )}
-        {can("dashboard.history.view") && (
+        {canViewHistory && (
           <button
             onClick={() => setDashboardTab("history")}
             className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1285,7 +1304,7 @@ const dates = getDateRange(startDate, endDate);
             <span>היסטוריית דיווחים</span>
           </button>
         )}
-        {can("dashboard.summary.view") && (
+        {canViewSummary && (
         <button
   onClick={() => setDashboardTab("summary")}
   className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1311,7 +1330,7 @@ const dates = getDateRange(startDate, endDate);
   <span>סיכום נוכחות חיילים</span>
 </button>
       )}
-        {can("dashboard.system_logs.view") && (
+        {canViewSystemLogs && (
       <button
   onClick={() => setDashboardTab("systemlogs")}
   className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1325,7 +1344,7 @@ const dates = getDateRange(startDate, endDate);
 </button>
 )}
 
-{can("dashboard.notifications.view") && (
+{canViewNotifications && (
   <button
     onClick={() => setDashboardTab("notifications")}
     className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1339,7 +1358,7 @@ const dates = getDateRange(startDate, endDate);
   </button>
 )}
 
-{can("dashboard.settings.view") && (
+{canViewSettings && (
   <button
     onClick={() => setDashboardTab("settings")}
     className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
@@ -1529,18 +1548,18 @@ const dates = getDateRange(startDate, endDate);
   logs={attendanceLogs}
   reports={reports}
   onDeleteReport={
-    can("reports.delete")
+    canDeleteReport
       ? onDeleteReport
       : undefined
   }
   onResetReport={
-    can("reports.reset")
+    canResetReport
       ? onResetReport
       : undefined
   }
     onShowMessage={onShowMessage}
 />
-      ) : dashboardTab === "notifications" && can("dashboard.notifications.view") ? (
+      ) : dashboardTab === "notifications" && canViewNotifications ? (
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-right" dir="rtl">
     <div className="p-5 border-b border-slate-100">
       <h2 className="text-lg font-black text-slate-800">היסטוריית התראות</h2>
@@ -1670,7 +1689,7 @@ const dates = getDateRange(startDate, endDate);
       </table>
     </div>
   </div>
-) : dashboardTab === "systemlogs" && can("dashboard.system_logs.view") ? (
+) : dashboardTab === "systemlogs" && canViewSystemLogs ? (
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-right" dir="rtl">
     <div className="p-5 border-b border-slate-100">
       <h2 className="text-lg font-black text-slate-800">יומן מערכת</h2>
@@ -1773,7 +1792,7 @@ const dates = getDateRange(startDate, endDate);
       </table>
     </div>
   </div>
-) : dashboardTab === "summary" && can("dashboard.summary.view") ? (
+) : dashboardTab === "summary" && canViewSummary ? (
   <div className="space-y-4 text-right" dir="rtl">
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
       <h2 className="text-lg font-black text-slate-800 mb-2">
@@ -2896,7 +2915,7 @@ const soldierReports = Array.from(latestReportByDate.values());
               onChange={(e) => setSelectedDate(e.target.value)} 
               className="border border-slate-300 rounded-md p-1 text-xs" 
             />
-            {can("soldiers.add") && (
+            {canAddSoldier && (
               <button
                 onClick={() => {
                   setEditingSoldier(null);
@@ -3148,7 +3167,7 @@ return (
                                 מאושר
                               </span>
                             ) : (
-                              currentUser.role === "adjutant_officer" ? (
+                              !canVerifyReport ? (
                                 <span className="text-amber-700 font-bold text-[10px] bg-amber-50 border border-amber-100 px-2 py-1 rounded-md">
                                   ממתין לאישור
                                 </span>
@@ -3164,7 +3183,7 @@ return (
                             )
                           ) : null}
 
-                          {can("reports.manage") && (
+                          {canManageReports && (
                             <button
                               onClick={() => {
                                 setEditingReportData({
@@ -3187,7 +3206,7 @@ return (
                               {displayedTodayReport ? "ערוך דיווח" : "צור דיווח"}
                             </button>
                       )}
-                          {!displayedTodayReport && profile.phoneNumber && can("reports.manage") && (
+                          {!displayedTodayReport && profile.phoneNumber && canManageReports && (
   <a
     href={`https://wa.me/972${profile.phoneNumber
   .replace(/\D/g, "")
@@ -3207,7 +3226,7 @@ https://bas997n.github.io/Status/`
   </a>
 )}
                      
- {displayedTodayReport && onDeleteReport && can("reports.delete") && (
+ {displayedTodayReport && onDeleteReport && canDeleteReport && (
   <button
     onClick={() =>
       setReportToReset({
@@ -3350,7 +3369,7 @@ const matchesStatus =
           </div>
           
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
-            {can("soldiers.add") && (
+            {canAddSoldier && (
             <button
               onClick={handleOpenAdd}
               className="bg-emerald-600 hover:bg-emerald-700 hover:border-emerald-500 shadow-md text-white text-xs font-bold py-2 px-4 rounded-xl transition duration-150 cursor-pointer flex items-center gap-1.5 border border-emerald-500"
@@ -3704,26 +3723,26 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                       {/* Quick Communication Actions Column */}
                       <td className="px-5 py-4 text-left pl-10">
                         <div className="inline-flex items-center gap-2">
-                          {currentUser.role !== "adjutant_officer" && (
-                            <>
-                              <button
-                                onClick={() => handleOpenEdit(soldier)}
-                                className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg border border-indigo-200 hover:border-indigo-600 transition shadow-xs flex items-center justify-center cursor-pointer"
-                                title={`ערוך פרטי חייל: ${soldier.fullName}`}
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
+                          {canEditSoldier && (
+                            <button
+                              onClick={() => handleOpenEdit(soldier)}
+                              className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg border border-indigo-200 hover:border-indigo-600 transition shadow-xs flex items-center justify-center cursor-pointer"
+                              title={`ערוך פרטי חייל: ${soldier.fullName}`}
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
 
-                              <button
-                                onClick={() => {
-                                  setSoldierToDelete(soldier);
-                                }}
-                                className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg border border-rose-200 hover:border-rose-600 transition shadow-xs flex items-center justify-center cursor-pointer"
-                                title={`הסר רשומת חייל מהרשימה`}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
+                          {canDeleteSoldier && (
+                            <button
+                              onClick={() => {
+                                setSoldierToDelete(soldier);
+                              }}
+                              className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg border border-rose-200 hover:border-rose-600 transition shadow-xs flex items-center justify-center cursor-pointer"
+                              title="הסר רשומת חייל מהרשימה"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           )}
 
                           {hasPhone ? (
@@ -3794,7 +3813,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
 
       {/* EDIT/ADD SOLDIER MODAL */}
       <AnimatePresence>
-        {isEditModalOpen && (
+        {isEditModalOpen && (canAddSoldier || canEditSoldier) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -3965,7 +3984,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
 
       {/* Edit Attendance Report Modal Popup */}
       <AnimatePresence>
-        {isReportModalOpen && editingReportData && (
+        {isReportModalOpen && editingReportData && canManageReports && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -4198,7 +4217,7 @@ await onAdminSaveReport(dataToSave);
 
       {/* CUSTOM CONFIRMATION RESET REPORT MODAL */}
 <AnimatePresence>
-  {reportToReset && (
+  {reportToReset && canResetReport && (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -4379,7 +4398,7 @@ await onAdminSaveReport(dataToSave);
       </AnimatePresence>
 
       <AnimatePresence>
-        {soldierToDelete && (
+        {soldierToDelete && canDeleteSoldier && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -4430,6 +4449,7 @@ await onAdminSaveReport(dataToSave);
                 <button
                   type="button"
                   onClick={async () => {
+                    if (!canDeleteSoldier) return;
                     const tempId = soldierToDelete.userId;
                     setSoldierToDelete(null);
                     if (onDeleteSoldier) {
