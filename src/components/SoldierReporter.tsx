@@ -90,11 +90,28 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
     (item) => item.id === status
   );
 
+  const requiresGps = selectedStatusConfig?.requiresGps === true;
+  const requiresDateRange =
+    selectedStatusConfig?.requiresDateRange === true || status === "cut_order";
+  const requiresCommanderApproval =
+    selectedStatusConfig?.requiresCommanderApproval === true;
+  const showOptionalDateRangeToggle =
+    !requiresDateRange && ["base", "home"].includes(status);
+  const showDateRangeFields = requiresDateRange || isDateRangeReport;
+
   useEffect(() => {
     if (soldierStatusOptions.some((item) => item.id === status)) return;
     const fallback = soldierStatusOptions[0];
     if (fallback) setStatus(fallback.id as AttendanceStatus);
   }, [attendanceStatuses, status]);
+
+  useEffect(() => {
+    setIsDateRangeReport(selectedStatusConfig?.requiresDateRange === true);
+    setCutOrderStartDate("");
+    setCutOrderEndDate("");
+    setCoords(undefined);
+    setGeoState("idle");
+  }, [status]);
 
   // Filter reports submitted by this user
 const userReports = reports
@@ -227,6 +244,20 @@ const handleGetLocation = () => {
       alert("בסטטוס זה חובה להזין הערה.");
       return;
     }
+    if (requiresGps && !coords) {
+      alert("בסטטוס זה חובה לאמת מיקום GPS לפני שליחת הדיווח.");
+      return;
+    }
+    if (showDateRangeFields) {
+      if (!cutOrderStartDate || !cutOrderEndDate) {
+        alert("בסטטוס זה חובה לבחור תאריך התחלה ותאריך סיום.");
+        return;
+      }
+      if (cutOrderEndDate < cutOrderStartDate) {
+        alert("תאריך הסיום לא יכול להיות מוקדם מתאריך ההתחלה.");
+        return;
+      }
+    }
 
     setIsSubmitting(true);
     try {
@@ -236,12 +267,8 @@ const handleGetLocation = () => {
   note,
   coords,
   reportDate,
-  status === "cut_order" || isDateRangeReport
-    ? cutOrderStartDate
-    : undefined,
-  status === "cut_order" || isDateRangeReport
-  ? cutOrderEndDate
-  : undefined,
+  showDateRangeFields ? cutOrderStartDate : undefined,
+  showDateRangeFields ? cutOrderEndDate : undefined,
 dayMarker || undefined
 );
       setNote("");
@@ -419,7 +446,7 @@ dayMarker || undefined
     </select>
   </div>
 )}
-            {["base", "home"].includes(status) && (
+            {showOptionalDateRangeToggle && (
   <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
     <input
       type="checkbox"
@@ -429,7 +456,7 @@ dayMarker || undefined
     דיווח לטווח תאריכים
   </label>
 )}
-          {(status === "cut_order" || (["base", "home"].includes(status) && isDateRangeReport)) && (
+          {showDateRangeFields && (
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
 
     {status === "base" && (
@@ -475,6 +502,11 @@ dayMarker || undefined
               <div className="flex justify-between items-center mb-1.5">
                 <label className="block text-sm font-bold text-slate-700">
                   2. איפה אתה נמצא? (מיקום פיזי מדויק): <span className="text-rose-500">*</span>
+                  {requiresGps && (
+                    <span className="mr-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">
+                      GPS חובה
+                    </span>
+                  )}
                 </label>
                 
                 <button
@@ -532,7 +564,7 @@ dayMarker || undefined
             {/* 3. Notes */}
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                3. הערות / הסבר נוסף (אופציונלי):
+                3. הערות / הסבר נוסף{selectedStatusConfig?.requiresNote ? " (חובה)" : " (אופציונלי)"}:
               </label>
               <div className="relative rounded-md shadow-sm">
                 <div className="absolute top-2.5 right-3 text-slate-400">
@@ -548,6 +580,12 @@ dayMarker || undefined
               </div>
             </div>
 
+            {requiresCommanderApproval && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">
+                הדיווח יישמר כממתין לאישור מפקד.
+              </div>
+            )}
+
             {/* Safety Declaration */}
             <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100 flex items-start gap-2.5">
               <Clock className="w-4 h-4 text-military-500 mt-0.5 shrink-0" />
@@ -560,9 +598,16 @@ dayMarker || undefined
             {/* Submit Action */}
             <button
               type="submit"
-              disabled={isSubmitting || !location.trim()}
+              disabled={
+                isSubmitting ||
+                !location.trim() ||
+                (requiresGps && !coords) ||
+                (showDateRangeFields && (!cutOrderStartDate || !cutOrderEndDate))
+              }
               className={`w-full py-3 rounded-xl font-bold text-sm tracking-wide text-white transition flex items-center justify-center gap-2 cursor-pointer shadow-md ${
-                !location.trim() 
+                !location.trim() ||
+                (requiresGps && !coords) ||
+                (showDateRangeFields && (!cutOrderStartDate || !cutOrderEndDate))
                   ? "bg-slate-300 cursor-not-allowed" 
                   : "bg-military-700 hover:bg-military-800"
               }`}
