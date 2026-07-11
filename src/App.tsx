@@ -34,6 +34,7 @@ import {
   SystemRole,
   RolePermissionConfig,
   AttendanceStatusConfig,
+  UnitConfig,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "./types";
 import { dataService } from "./services/dataService";
@@ -153,7 +154,11 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   // Simulation switch helper counter to trigger state re-reads
   const [simCounter, setSimCounter] = useState(0);
 
-  const [medicalUnits, setMedicalUnits] = useState<string[]>([]);
+  const [unitConfigs, setUnitConfigs] = useState<UnitConfig[]>([]);
+  const medicalUnits = React.useMemo(
+    () => unitConfigs.filter((unit) => unit.enabled).sort((a, b) => a.sortOrder - b.sortOrder).map((unit) => unit.name),
+    [unitConfigs]
+  );
   const [customRoles, setCustomRoles] = useState<string[]>([]);
   const [permissionConfigs, setPermissionConfigs] = useState<RolePermissionConfig[]>([]);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
@@ -167,6 +172,16 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     setAttendanceStatuses(
       [...statuses].sort((a, b) => a.sortOrder - b.sortOrder)
     );
+  };
+
+  const handleUnitConfigsChanged = (units: UnitConfig[]) => {
+    const sorted = [...units].sort((a, b) => a.sortOrder - b.sortOrder);
+    setUnitConfigs(sorted);
+
+    const firstEnabledUnit = sorted.find((unit) => unit.enabled)?.name;
+    if (firstEnabledUnit && !sorted.some((unit) => unit.enabled && unit.name === regUnit)) {
+      setRegUnit(firstEnabledUnit);
+    }
   };
 
 
@@ -199,6 +214,26 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       ),
     [attendanceStatuses]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadUnits = async () => {
+      try {
+        const units = await dataService.getUnitConfigs();
+        if (!cancelled) {
+          setUnitConfigs(units);
+          const firstEnabled = units.find((unit) => unit.enabled)?.name;
+          if (firstEnabled) setRegUnit(firstEnabled);
+        }
+      } catch (error) {
+        console.error("Failed loading unit configs:", error);
+      }
+    };
+
+    loadUnits();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -312,23 +347,12 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
         if (snap.exists()) {
           const data = snap.data();
 
-          const finalUnits =
-            Array.isArray(data.medicalUnits) && data.medicalUnits.length > 0
-              ? data.medicalUnits
-              : defaultUnits;
-
           const finalRoles =
             Array.isArray(data.customRoles) && data.customRoles.length > 0
               ? data.customRoles
               : defaultRoles;
 
-          setMedicalUnits(finalUnits);
           setCustomRoles(finalRoles);
-
-          if (finalUnits.length > 0) {
-            setRegUnit(finalUnits[0]);
-          }
-
           return;
         }
 
@@ -338,33 +362,18 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
           updatedAt: new Date().toISOString(),
         });
 
-        setMedicalUnits(defaultUnits);
         setCustomRoles(defaultRoles);
-        setRegUnit(defaultUnits[0]);
         return;
       }
 
-      const storedUnits = localStorage.getItem(unitsKey);
       const storedRoles = localStorage.getItem(rolesKey);
-
-      const finalUnits = storedUnits ? JSON.parse(storedUnits) : defaultUnits;
       const finalRoles = storedRoles ? JSON.parse(storedRoles) : defaultRoles;
-
-      localStorage.setItem(unitsKey, JSON.stringify(finalUnits));
       localStorage.setItem(rolesKey, JSON.stringify(finalRoles));
-
-      setMedicalUnits(finalUnits);
       setCustomRoles(finalRoles);
-
-      if (finalUnits.length > 0) {
-        setRegUnit(finalUnits[0]);
-      }
     } catch (error) {
       console.error("Failed loading medical settings:", error);
 
-      setMedicalUnits(defaultUnits);
       setCustomRoles(defaultRoles);
-      setRegUnit(defaultUnits[0]);
     }
   };
 
@@ -390,7 +399,23 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     localStorage.setItem("idf_custom_roles_list", JSON.stringify(newRoles));
   }
 
-  setMedicalUnits(newUnits);
+  if (newUnits.length > 0) {
+    const nextUnitConfigs: UnitConfig[] = newUnits.map((name, index) => {
+      const existing = unitConfigs.find((unit) => unit.name === name);
+      return {
+        id: existing?.id || `unit_${Date.now()}_${index}`,
+        name,
+        enabled: true,
+        sortOrder: index + 1,
+        systemUnit: existing?.systemUnit === true,
+      };
+    });
+    const savedUnits = await dataService.saveUnitConfigs(
+      nextUnitConfigs,
+      userProfile?.userId
+    );
+    setUnitConfigs(savedUnits);
+  }
   setCustomRoles(newRoles);
 };
 
@@ -1771,6 +1796,8 @@ const handleAdminSaveReport = async (reportData: {
                 users={allUsers}
                 onUpdateSystemRole={handleUpdateUserSystemRole}
                 onAttendanceStatusesChanged={handleAttendanceStatusesChanged}
+                unitConfigs={unitConfigs}
+                onUnitConfigsChanged={handleUnitConfigsChanged}
               />
             </motion.div>
           ) : activeTab === "reporter" && canViewReporter ? (
