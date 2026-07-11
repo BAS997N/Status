@@ -394,7 +394,10 @@ async createSystemLog(logData: {
       return [];
     }
   },
-  async syncAllReportsToGoogleSheets(): Promise<void> {
+  async syncAllReportsToGoogleSheets(
+    startDate?: string,
+    endDate?: string
+  ): Promise<void> {
   const reports = await this.fetchAllReports();
   const users = await this.getAllUsers();
 
@@ -402,11 +405,23 @@ async createSystemLog(logData: {
    * מסננים דיווחים מאופסים ודיווחים שאין להם
    * חייל או תאריך תקינים.
    */
-  const activeReports = reports.filter(
-    (report) =>
-      !(report as any).isReset &&
-      !!report.userId
-  );
+  const activeReports = reports.filter((report) => {
+    if ((report as any).isReset || !report.userId) {
+      return false;
+    }
+
+    const reportDate =
+      (report as any).reportDate ||
+      (typeof report.timestamp === "string"
+        ? report.timestamp.split("T")[0]
+        : "");
+
+    if (!reportDate) return false;
+    if (startDate && reportDate < startDate) return false;
+    if (endDate && reportDate > endDate) return false;
+
+    return true;
+  });
 
   /*
    * לכל חייל ולכל יום נשמר רק הדיווח האחרון.
