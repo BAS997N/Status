@@ -10,10 +10,11 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { AttendanceStatusConfig, SystemRole, UserProfile } from "../types";
+import { AttendanceStatusConfig, SystemRole, UnitConfig, UserProfile } from "../types";
 import UsersManager from "./systemAdmin/UsersManager";
 import PermissionsManager from "./systemAdmin/PermissionsManager";
 import AttendanceStatusManager from "./systemAdmin/AttendanceStatusManager";
+import UnitsManager from "./systemAdmin/UnitsManager";
 
 type AdminSection =
   | "overview"
@@ -35,6 +36,8 @@ interface SystemAdminPanelProps {
   onAttendanceStatusesChanged?: (
     statuses: AttendanceStatusConfig[]
   ) => void;
+  unitConfigs: UnitConfig[];
+  onUnitConfigsChanged: (units: UnitConfig[]) => void;
 }
 
 const sections: Array<{
@@ -92,6 +95,8 @@ export default function SystemAdminPanel({
   users,
   onUpdateSystemRole,
   onAttendanceStatusesChanged,
+  unitConfigs,
+  onUnitConfigsChanged,
 }: SystemAdminPanelProps) {
   const [activeSection, setActiveSection] =
     useState<AdminSection>("overview");
@@ -166,6 +171,12 @@ export default function SystemAdminPanel({
         <AttendanceStatusManager
           currentUser={currentUser}
           onStatusesChanged={onAttendanceStatusesChanged}
+        />
+      ) : activeSection === "units" ? (
+        <UnitsManager
+          currentUser={currentUser}
+          units={unitConfigs}
+          onUnitsChanged={onUnitConfigsChanged}
         />
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
