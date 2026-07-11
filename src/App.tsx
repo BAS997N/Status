@@ -443,24 +443,31 @@ setSystemLogs(updatedSystemLogs);
     showAppMessage("שגיאה", "אירעה שגיאה במחיקת החייל", "error");
   }
 };
-  const handleSyncOldReportsToSheets = async () => {
-    try {
-      await dataService.syncAllReportsToGoogleSheets();
-      showAppMessage(
-        "ייבוא לגוגל שיטס",
-        "ייבוא הדיווחים הישנים לגוגל שיטס הסתיים בהצלחה",
-        "success"
-      );
-    } catch (error) {
-      console.error("Failed syncing old reports to Google Sheets:", error);
-      showAppMessage(
-        "שגיאה",
-        "אירעה שגיאה בייבוא הדיווחים לגוגל שיטס",
-        "error"
-      );
-      throw error;
-    }
-  };
+ const handleSyncOldReportsToSheets = async () => {
+  showAppMessage(
+    "הסנכרון התחיל",
+    "הדיווחים נשלחים כעת לגוגל שיטס. הפעולה עשויה להימשך עד מספר דקות — אין ללחוץ שוב על כפתור הייבוא.",
+    "info"
+  );
+
+  try {
+    await dataService.syncAllReportsToGoogleSheets();
+
+    showAppMessage(
+      "הסנכרון הושלם",
+      "כל הדיווחים התקינים יוצאו לגוגל שיטס בהצלחה.",
+      "success"
+    );
+  } catch (error) {
+    console.error("Failed syncing old reports to Google Sheets:", error);
+
+    showAppMessage(
+      "שגיאה בסנכרון",
+      "אירעה שגיאה במהלך הייצוא לגוגל שיטס. בדוק את מסוף הדפדפן ואת ה־Apps Script.",
+      "error"
+    );
+  }
+};
 
 const handleDeleteReport = async (reportId: string) => {
   try {
