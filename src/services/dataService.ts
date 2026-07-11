@@ -23,6 +23,7 @@ import {
   IDF_UNITS,
   AttendanceStatusConfig,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS,
+  SystemRole,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -432,6 +433,46 @@ export const dataService = {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   },
+  async updateUserSystemRole(
+    userId: string,
+    systemRole: SystemRole
+  ): Promise<void> {
+    if (!userId) {
+      throw new Error("Missing userId for system role update");
+    }
+
+    if (!isFirebaseActive()) {
+      const profiles: UserProfile[] = JSON.parse(
+        localStorage.getItem("idf_profiles") || "[]"
+      );
+      const index = profiles.findIndex((profile) => profile.userId === userId);
+
+      if (index === -1) {
+        throw new Error("User profile not found");
+      }
+
+      profiles[index] = {
+        ...profiles[index],
+        systemRole,
+      };
+
+      localStorage.setItem("idf_profiles", JSON.stringify(profiles));
+      return;
+    }
+
+    const path = `users/${userId}`;
+
+    try {
+      await updateDoc(doc(db, "users", userId), {
+        systemRole,
+        systemRoleUpdatedAt: new Date().toISOString(),
+        systemRoleUpdatedBy: auth?.currentUser?.uid || "unknown",
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  },
+
   async getSystemLogs(): Promise<any[]> {
   if (!isFirebaseActive()) {
     return JSON.parse(
