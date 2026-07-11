@@ -10,11 +10,12 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { AttendanceStatusConfig, SystemRole, UnitConfig, UserProfile } from "../types";
+import { AttendanceStatusConfig, MedicalRoleConfig, SystemRole, UnitConfig, UserProfile } from "../types";
 import UsersManager from "./systemAdmin/UsersManager";
 import PermissionsManager from "./systemAdmin/PermissionsManager";
 import AttendanceStatusManager from "./systemAdmin/AttendanceStatusManager";
 import UnitsManager from "./systemAdmin/UnitsManager";
+import MedicalRolesManager from "./systemAdmin/MedicalRolesManager";
 
 type AdminSection =
   | "overview"
@@ -38,6 +39,8 @@ interface SystemAdminPanelProps {
   ) => void;
   unitConfigs: UnitConfig[];
   onUnitConfigsChanged: (units: UnitConfig[]) => void;
+  medicalRoleConfigs: MedicalRoleConfig[];
+  onMedicalRoleConfigsChanged: (roles: MedicalRoleConfig[]) => void;
 }
 
 const sections: Array<{
@@ -97,6 +100,8 @@ export default function SystemAdminPanel({
   onAttendanceStatusesChanged,
   unitConfigs,
   onUnitConfigsChanged,
+  medicalRoleConfigs,
+  onMedicalRoleConfigsChanged,
 }: SystemAdminPanelProps) {
   const [activeSection, setActiveSection] =
     useState<AdminSection>("overview");
@@ -171,6 +176,12 @@ export default function SystemAdminPanel({
         <AttendanceStatusManager
           currentUser={currentUser}
           onStatusesChanged={onAttendanceStatusesChanged}
+        />
+      ) : activeSection === "roles" ? (
+        <MedicalRolesManager
+          currentUser={currentUser}
+          roles={medicalRoleConfigs}
+          onRolesChanged={onMedicalRoleConfigsChanged}
         />
       ) : activeSection === "units" ? (
         <UnitsManager
