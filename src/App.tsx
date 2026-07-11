@@ -36,7 +36,7 @@ import {
   RolePermissionConfig
 } from "./types";
 import { dataService } from "./services/dataService";
-import { getPermissionsForUser, hasPermission, PermissionMap } from "./security/permissions";
+import { getEffectiveSystemRole, getPermissionsForUser, hasPermission, PermissionMap } from "./security/permissions";
 import Header from "./components/Header";
 import SoldierReporter from "./components/SoldierReporter";
 import CommandDashboard from "./components/CommandDashboard";
@@ -174,6 +174,17 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const isSuperAdmin = hasPermission(permissions, "system_admin.view");
   const canViewReporter = hasPermission(permissions, "reporter.view");
   const canViewDashboard = hasPermission(permissions, "dashboard.view");
+
+  const getInitialTabForProfile = (profile: UserProfile) => {
+    const effectiveProfile =
+      profile.personalId === "5749199"
+        ? { ...profile, systemRole: "super_admin" as SystemRole }
+        : profile;
+
+    return getEffectiveSystemRole(effectiveProfile) === "reporter"
+      ? "reporter"
+      : "dashboard";
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -375,11 +386,7 @@ useEffect(() => {
           setReports(reps);
           setNotifications(nots);
 
-          if (profile.role === "commander" || profile.role === "adjutant_officer") {
-            setActiveTab("dashboard");
-          } else {
-            setActiveTab("reporter");
-          }
+          setActiveTab(getInitialTabForProfile(profile));
         } else {
           setUserProfile(null);
           localStorage.removeItem("idf_active_user_id");
@@ -794,11 +801,7 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
     setReports(reps);
     setNotifications(nots);
 
-    if (foundProfile.role === "commander" || foundProfile.role === "adjutant_officer") {
-      setActiveTab("dashboard");
-    } else {
-      setActiveTab("reporter");
-    }
+    setActiveTab(getInitialTabForProfile(foundProfile));
   } catch (error: any) {
     console.error("Login verification error:", error);
 
@@ -878,11 +881,7 @@ setUserProfile(newProfile);
       setReports(reps);
       setSimCounter(prev => prev + 1);
 
-      if (newProfile.role === "commander" || newProfile.role === "adjutant_officer") {
-        setActiveTab("dashboard");
-      } else {
-        setActiveTab("reporter");
-      }
+      setActiveTab(getInitialTabForProfile(newProfile));
      } catch (err: any) {
   console.error("Error creating new ID account:", err);
 
@@ -938,8 +937,7 @@ setUserProfile(newProfile);
         }
       : {}),
 
-    ...(userProfile.role === "commander" ||
-    userProfile.role === "adjutant_officer"
+    ...(hasPermission(permissions, "reports.verify")
       ? {
           verifiedBy: userProfile.userId,
           verifiedAt: new Date().toISOString(),
@@ -1627,7 +1625,7 @@ const handleAdminSaveReport = async (reportData: {
         onClearAllNotifications={handleClearAllNotifications}
         onLogout={handleLogout}
         medicalUnits={medicalUnits}
-        canEdit={userProfile.role === "commander" || userProfile.role === "adjutant_officer"}
+        canEdit={hasPermission(permissions, "soldiers.edit")}
       />
 
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 w-full flex-grow">
