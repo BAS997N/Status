@@ -3,6 +3,28 @@ export type UserRole =
   | "commander"
   | "adjutant_officer";
 
+export type SystemRole =
+  | "super_admin"
+  | "admin"
+  | "viewer"
+  | "reporter";
+
+export interface PermissionDefinition {
+  id: string;
+  label: string;
+  description?: string;
+  category?: string;
+  enabled: boolean;
+  sortOrder: number;
+}
+
+export interface RolePermissionConfig {
+  systemRole: SystemRole;
+  permissions: Record<string, boolean>;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export interface UserProfile {
   userId: string;
   fullName: string;
@@ -15,6 +37,7 @@ export interface UserProfile {
   isDischarged?: boolean;
   className?: string;
   medicalRole?: string;
+  systemRole?: SystemRole;
 }
 
 /*
