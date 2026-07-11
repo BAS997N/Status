@@ -37,6 +37,7 @@ import { dataService } from "./services/dataService";
 import Header from "./components/Header";
 import SoldierReporter from "./components/SoldierReporter";
 import CommandDashboard from "./components/CommandDashboard";
+import SystemAdminPanel from "./components/SystemAdminPanel";
 import AppMessageModal from "./components/AppMessageModal";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -82,7 +83,9 @@ export default function App() {
   const [reports, setReports] = useState<AttendanceReport[]>([]);
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
   const [systemLogs, setSystemLogs] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"reporter" | "dashboard">("reporter");
+  const [activeTab, setActiveTab] = useState<
+    "reporter" | "dashboard" | "system_admin"
+  >("reporter");
 
   // ID-based login states
   const [personalIdInput, setPersonalIdInput] = useState("");
@@ -148,6 +151,12 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
   const [medicalUnits, setMedicalUnits] = useState<string[]>([]);
   const [customRoles, setCustomRoles] = useState<string[]>([]);
+
+  // גישת אתחול ראשונית לסופר־אדמין.
+  // בהמשך ההרשאה תנוהל מתוך מסך ניהול המערכת בלבד.
+  const isSuperAdmin =
+    userProfile?.systemRole === "super_admin" ||
+    userProfile?.personalId === "5749199";
 
   useEffect(() => {
   const loadMedicalSettings = async () => {
@@ -1567,7 +1576,7 @@ const handleAdminSaveReport = async (reportData: {
         )}
 
         {/* Navigation Tabs (Only if Commander) */}
-        {userProfile.role === "commander" && (
+        {(userProfile.role === "commander" || isSuperAdmin) && (
           <div className="flex border-b border-slate-200/80 mb-6 gap-2">
             <button
               onClick={() => setActiveTab("reporter")}
@@ -1592,11 +1601,36 @@ const handleAdminSaveReport = async (reportData: {
               <LayoutDashboard className="w-4 h-4" />
               <span>לוח בקרה מפקדים (סגל)</span>
             </button>
+
+            {isSuperAdmin && (
+              <button
+                onClick={() => setActiveTab("system_admin")}
+                className={`pb-3.5 px-4 font-bold text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === "system_admin"
+                    ? "border-rose-600 text-rose-700"
+                    : "border-transparent text-slate-400 hover:text-slate-500"
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>ניהול מערכת</span>
+              </button>
+            )}
           </div>
         )}
 
         <AnimatePresence mode="wait">
-          {activeTab === "reporter" && userProfile.role !== "adjutant_officer" ? (
+          {activeTab === "system_admin" && isSuperAdmin ? (
+            <motion.div
+              key="system-admin-tab"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.15 }}
+            >
+              <SystemAdminPanel currentUser={userProfile} />
+            </motion.div>
+          ) : activeTab === "reporter" &&
+            userProfile.role !== "adjutant_officer" ? (
             <motion.div
               key="reporter-tab"
               initial={{ opacity: 0, y: 15 }}
@@ -1604,7 +1638,7 @@ const handleAdminSaveReport = async (reportData: {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.15 }}
             >
-              <SoldierReporter 
+              <SoldierReporter
                 currentUser={userProfile}
                 reports={reports}
                 onSubmitReport={handleSubmitReport}
@@ -1618,25 +1652,25 @@ const handleAdminSaveReport = async (reportData: {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.15 }}
             >
-             <CommandDashboard
-  currentUser={userProfile}
-  reports={reports}
-  attendanceLogs={attendanceLogs}
-  systemLogs={systemLogs}
-  notifications={notifications}
-  allSoldiers={allUsers}
-  onVerifyReport={handleVerifyReport}
-  onAdminUpdateSoldier={handleAdminUpdateSoldier}
-  onAdminSaveReport={handleAdminSaveReport}
-  onDeleteSoldier={handleDeleteSoldier}
-  onDeleteReport={handleDeleteReport}
-  onResetReport={handleResetReport}
-  onShowMessage={showAppMessage}
-  medicalUnits={medicalUnits}
-  customRoles={customRoles}
-  onUpdateMedicalSettings={handleUpdateMedicalSettings}
-  onSyncOldReportsToSheets={handleSyncOldReportsToSheets}
-/>
+              <CommandDashboard
+                currentUser={userProfile}
+                reports={reports}
+                attendanceLogs={attendanceLogs}
+                systemLogs={systemLogs}
+                notifications={notifications}
+                allSoldiers={allUsers}
+                onVerifyReport={handleVerifyReport}
+                onAdminUpdateSoldier={handleAdminUpdateSoldier}
+                onAdminSaveReport={handleAdminSaveReport}
+                onDeleteSoldier={handleDeleteSoldier}
+                onDeleteReport={handleDeleteReport}
+                onResetReport={handleResetReport}
+                onShowMessage={showAppMessage}
+                medicalUnits={medicalUnits}
+                customRoles={customRoles}
+                onUpdateMedicalSettings={handleUpdateMedicalSettings}
+                onSyncOldReportsToSheets={handleSyncOldReportsToSheets}
+              />
             </motion.div>
           )}
         </AnimatePresence>
