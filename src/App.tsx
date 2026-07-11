@@ -29,11 +29,12 @@ import {
   AttendanceReport, 
   AttendanceStatus, 
   AppNotification,
-  ATTENDANCE_STATUS_LABELS,
   IDF_UNITS,
   UserRole,
   SystemRole,
-  RolePermissionConfig
+  RolePermissionConfig,
+  AttendanceStatusConfig,
+  DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "./types";
 import { dataService } from "./services/dataService";
 import { getEffectiveSystemRole, getPermissionsForUser, hasPermission, PermissionMap } from "./security/permissions";
@@ -156,6 +157,9 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const [customRoles, setCustomRoles] = useState<string[]>([]);
   const [permissionConfigs, setPermissionConfigs] = useState<RolePermissionConfig[]>([]);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const [attendanceStatuses, setAttendanceStatuses] = useState<AttendanceStatusConfig[]>(
+    DEFAULT_ATTENDANCE_STATUS_CONFIGS
+  );
 
 
   // גישת אתחול ראשונית לסופר־אדמין.
@@ -170,6 +174,50 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     permissionUser,
     permissionConfigs
   );
+
+
+  const statusLabels = React.useMemo(
+    () =>
+      Object.fromEntries(
+        attendanceStatuses.map((status) => [
+          status.id,
+          {
+            label: status.label,
+            color: status.color,
+            bg: status.bg,
+            border: status.border,
+          },
+        ])
+      ),
+    [attendanceStatuses]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAttendanceStatuses = async () => {
+      try {
+        const statuses = await dataService.getAttendanceStatusConfigs();
+        if (!cancelled) setAttendanceStatuses(statuses);
+      } catch (error) {
+        console.error("Failed loading attendance statuses:", error);
+      }
+    };
+
+    loadAttendanceStatuses();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "system_admin") return;
+
+    dataService
+      .getAttendanceStatusConfigs()
+      .then(setAttendanceStatuses)
+      .catch((error) =>
+        console.error("Failed refreshing attendance statuses:", error)
+      );
+  }, [activeTab]);
 
   const isSuperAdmin = hasPermission(permissions, "system_admin.view");
   const canViewReporter = hasPermission(permissions, "reporter.view");
@@ -656,7 +704,7 @@ const handleResetReport = async (reportId: string) => {
             updatedNots.forEach(not => {
               if (prev.length > 0 && !prevIds.has(not.notificationId) && !not.isRead) {
                 // Pop a gorgeous live floating banner
-                const labelObj = ATTENDANCE_STATUS_LABELS[not.status] || { label: not.status };
+                const labelObj = statusLabels[not.status] || { label: not.status };
                 const newToast: ToastMessage = {
                   id: `toast_${Date.now()}_${not.notificationId}`,
                   title: `חייל/ת מחוץ לבסיס: ${not.soldierName}`,
@@ -948,7 +996,7 @@ setUserProfile(newProfile);
   const showAlertToast = () => {
     if (status === "base") return;
 
-    const labelObj = ATTENDANCE_STATUS_LABELS[status] || { label: status };
+    const labelObj = statusLabels[status] || { label: status };
     const localToast: ToastMessage = {
       id: `toast_${Date.now()}`,
       title: "דיווח חריג נשלח בהצלחה",
@@ -1720,6 +1768,7 @@ const handleAdminSaveReport = async (reportData: {
               <SoldierReporter
                 currentUser={userProfile}
                 reports={reports}
+                attendanceStatuses={attendanceStatuses}
                 onSubmitReport={handleSubmitReport}
               />
             </motion.div>
@@ -1734,6 +1783,7 @@ const handleAdminSaveReport = async (reportData: {
               <CommandDashboard
                 currentUser={userProfile}
                 permissions={permissions}
+                attendanceStatuses={attendanceStatuses}
                 reports={reports}
                 attendanceLogs={attendanceLogs}
                 systemLogs={systemLogs}
