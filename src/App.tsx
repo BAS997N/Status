@@ -32,9 +32,11 @@ import {
   ATTENDANCE_STATUS_LABELS,
   IDF_UNITS,
   UserRole,
-  SystemRole
+  SystemRole,
+  RolePermissionConfig
 } from "./types";
 import { dataService } from "./services/dataService";
+import { getPermissionsForUser, hasPermission, PermissionMap } from "./security/permissions";
 import Header from "./components/Header";
 import SoldierReporter from "./components/SoldierReporter";
 import CommandDashboard from "./components/CommandDashboard";
@@ -152,12 +154,56 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
   const [medicalUnits, setMedicalUnits] = useState<string[]>([]);
   const [customRoles, setCustomRoles] = useState<string[]>([]);
+  const [permissionConfigs, setPermissionConfigs] = useState<RolePermissionConfig[]>([]);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
 
   // גישת אתחול ראשונית לסופר־אדמין.
   // בהמשך ההרשאה תנוהל מתוך מסך ניהול המערכת בלבד.
-  const isSuperAdmin =
-    userProfile?.systemRole === "super_admin" ||
-    userProfile?.personalId === "5749199";
+  const isBootstrapSuperAdmin = userProfile?.personalId === "5749199";
+  const permissionUser =
+    userProfile && isBootstrapSuperAdmin
+      ? { ...userProfile, systemRole: "super_admin" as SystemRole }
+      : userProfile;
+
+  const permissions: PermissionMap = getPermissionsForUser(
+    permissionUser,
+    permissionConfigs
+  );
+
+  const isSuperAdmin = hasPermission(permissions, "system_admin.view");
+  const canViewReporter = hasPermission(permissions, "reporter.view");
+  const canViewDashboard = hasPermission(permissions, "dashboard.view");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPermissions = async () => {
+      try {
+        const configs = await dataService.getRolePermissionConfigs();
+        if (!cancelled) setPermissionConfigs(configs);
+      } catch (error) {
+        console.error("Failed loading role permissions:", error);
+      } finally {
+        if (!cancelled) setPermissionsLoaded(true);
+      }
+    };
+
+    loadPermissions();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!userProfile || !permissionsLoaded) return;
+
+    if (activeTab === "system_admin" && !isSuperAdmin) {
+      setActiveTab(canViewDashboard ? "dashboard" : "reporter");
+    } else if (activeTab === "dashboard" && !canViewDashboard) {
+      setActiveTab("reporter");
+    } else if (activeTab === "reporter" && !canViewReporter && canViewDashboard) {
+      setActiveTab("dashboard");
+    }
+  }, [userProfile, permissionsLoaded, activeTab, isSuperAdmin, canViewDashboard, canViewReporter]);
 
   useEffect(() => {
   const loadMedicalSettings = async () => {
@@ -1604,8 +1650,9 @@ const handleAdminSaveReport = async (reportData: {
         )}
 
         {/* Navigation Tabs (Only if Commander) */}
-        {(userProfile.role === "commander" || isSuperAdmin) && (
+        {(canViewReporter || canViewDashboard || isSuperAdmin) && (
           <div className="flex border-b border-slate-200/80 mb-6 gap-2">
+            {canViewReporter && (
             <button
               onClick={() => setActiveTab("reporter")}
               className={`pb-3.5 px-4 font-bold text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
@@ -1617,7 +1664,9 @@ const handleAdminSaveReport = async (reportData: {
               <UserCheck className="w-4 h-4" />
               <span>דיווח נוכחות אישי</span>
             </button>
+            )}
 
+            {canViewDashboard && (
             <button
               onClick={() => setActiveTab("dashboard")}
               className={`pb-3.5 px-4 font-bold text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
@@ -1629,6 +1678,7 @@ const handleAdminSaveReport = async (reportData: {
               <LayoutDashboard className="w-4 h-4" />
               <span>לוח בקרה מפקדים (סגל)</span>
             </button>
+            )}
 
             {isSuperAdmin && (
               <button
@@ -1661,8 +1711,7 @@ const handleAdminSaveReport = async (reportData: {
                 onUpdateSystemRole={handleUpdateUserSystemRole}
               />
             </motion.div>
-          ) : activeTab === "reporter" &&
-            userProfile.role !== "adjutant_officer" ? (
+          ) : activeTab === "reporter" && canViewReporter ? (
             <motion.div
               key="reporter-tab"
               initial={{ opacity: 0, y: 15 }}
@@ -1686,6 +1735,7 @@ const handleAdminSaveReport = async (reportData: {
             >
               <CommandDashboard
                 currentUser={userProfile}
+                permissions={permissions}
                 reports={reports}
                 attendanceLogs={attendanceLogs}
                 systemLogs={systemLogs}
