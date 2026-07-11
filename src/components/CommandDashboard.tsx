@@ -157,6 +157,40 @@ export default function CommandDashboard({
     ])
   ) as Record<string, { label: string; color: string; bg: string; border: string }>;
 
+  const legacyChartCategoryByStatus: Record<string, string> = {
+    base: "present",
+    field: "present",
+    course: "present",
+    home: "absent",
+    sick: "medical",
+    cut_order: "administrative",
+    not_on_order: "not_on_order",
+    processing_days: "administrative",
+    refresh_days: "administrative",
+    other: "neutral",
+  };
+
+  const getStatusConfig = (statusId?: string) =>
+    attendanceStatuses.find((item) => item.id === statusId);
+
+  const getChartCategory = (statusId?: string) => {
+    if (!statusId) return "exclude";
+    const config = getStatusConfig(statusId);
+    return config?.chartCategory || legacyChartCategoryByStatus[statusId] || "neutral";
+  };
+
+  const STATUS_COLOR_HEX: Record<string, string> = {
+    emerald: "#10b981", green: "#22c55e", lime: "#84cc16", teal: "#14b8a6",
+    cyan: "#06b6d4", sky: "#0ea5e9", blue: "#3b82f6", indigo: "#6366f1",
+    violet: "#8b5cf6", purple: "#a855f7", fuchsia: "#d946ef", pink: "#ec4899",
+    rose: "#f43f5e", red: "#ef4444", orange: "#f97316", amber: "#f59e0b",
+    yellow: "#eab308", stone: "#78716c", slate: "#64748b", gray: "#6b7280",
+  };
+
+  const getStatusHexColor = (status: AttendanceStatusConfig, index = 0) =>
+    status.customColor || STATUS_COLOR_HEX[status.colorKey || ""] ||
+    ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b"][index % 6];
+
   const [dashboardTab, setDashboardTab] = useState<
   "attendance" | "directory" | "summary" | "settings" | "history" | "systemlogs" | "notifications"
 >("attendance");
@@ -609,26 +643,24 @@ const exitHomeTodayCount = reportedTodayList.filter(
   (s) => s.latestTodayReport?.dayMarker === "exit_home"
 ).length;
 
-  const statusStats = {
-    base: reportedTodayList.filter(s => s.latestTodayReport?.status === "base").length,
-    field: reportedTodayList.filter(s => s.latestTodayReport?.status === "field").length,
-    course: reportedTodayList.filter(s => s.latestTodayReport?.status === "course").length,
-    sick: reportedTodayList.filter(s => s.latestTodayReport?.status === "sick").length,
-    home: reportedTodayList.filter(s => s.latestTodayReport?.status === "home").length,
-    cut_order: reportedTodayList.filter(s => s.latestTodayReport?.status === "cut_order").length,
-    not_on_order: reportedTodayList.filter(s => s.latestTodayReport?.status === "not_on_order").length,
-    other: reportedTodayList.filter(s => s.latestTodayReport?.status === "other").length,
-  };
+  const statusStats = reportedTodayList.reduce<Record<string, number>>((acc, item) => {
+    const statusId = item.latestTodayReport?.status;
+    if (statusId) acc[statusId] = (acc[statusId] || 0) + 1;
+    return acc;
+  }, {});
 
-  const presentCount =
-  statusStats.base +
-  statusStats.field;
+  const chartCategoryCounts = reportedTodayList.reduce<Record<string, number>>((acc, item) => {
+    const category = getChartCategory(item.latestTodayReport?.status);
+    if (category !== "exclude") acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {});
 
-const absentCount =
-  statusStats.home +
-  statusStats.sick +
-  statusStats.course +
-  statusStats.other;
+  const presentCount = chartCategoryCounts.present || 0;
+  const absentCount = chartCategoryCounts.absent || 0;
+  const medicalCount = chartCategoryCounts.medical || 0;
+  const administrativeCount = chartCategoryCounts.administrative || 0;
+  const notOnOrderCount = chartCategoryCounts.not_on_order || 0;
+  const neutralCount = chartCategoryCounts.neutral || 0;
   
   const pendingVerificationCount = reportedTodayList.filter(s => s.latestTodayReport && !s.latestTodayReport.verifiedBy).length;
 
@@ -664,7 +696,7 @@ const latestTodayReport = [...todayReports].sort(
 )[0];
     
     const currentStatus = latestTodayReport ? latestTodayReport.status : "unreported";
-    const isPresent = latestTodayReport ? ["base", "field", "course"].includes(latestTodayReport.status) : false;
+    const isPresent = latestTodayReport ? getChartCategory(latestTodayReport.status) === "present" : false;
     
     return {
       profile: soldier,
@@ -696,24 +728,28 @@ const latestTodayReport = [...todayReports].sort(
 
   // Recharts data sets for the visual distribution dashboards
   const presenceDistributionData = [
-  { name: "נוכחים ביחידה / במשימה", value: presentCount, color: "#10b981" },
-  { name: "מחוץ ליחידה / גימלים", value: absentCount, color: "#06b6d4" },
-  { name: "חיתוך צו / משוחרר זמנית", value: statusStats.cut_order, color: "#dc2626" },
-  { name: "לא בצו",value: statusStats.not_on_order,color: "#f97316"},
-  { name: "טרם ביצעו דיווח היום", value: unreportedCount, color: "#ef4444" }
-].filter(d => d.value > 0);
+    { name: "נוכחים", value: presentCount, color: "#10b981" },
+    { name: "נעדרים", value: absentCount, color: "#6366f1" },
+    { name: "רפואי", value: medicalCount, color: "#ef4444" },
+    { name: "מנהלתי", value: administrativeCount, color: "#8b5cf6" },
+    { name: "לא בצו", value: notOnOrderCount, color: "#f97316" },
+    { name: "אחר / ניטרלי", value: neutralCount, color: "#64748b" },
+    { name: "טרם דיווחו", value: unreportedCount, color: "#94a3b8" },
+  ].filter((item) => item.value > 0);
 
-  const detailedStatusData = [
-    { name: "בבסיס", כמות: statusStats.base, fill: "#10b981" },
-    { name: "בשטח", כמות: statusStats.field, fill: "#f59e0b" },
-    { name: "בקורס/אימון", כמות: statusStats.course, fill: "#06b6d4" },
-    { name: "בגימלים", כמות: statusStats.sick, fill: "#ef4444" },
-    { name: "בבית/אפטר", כמות: statusStats.home, fill: "#6366f1" },
-    { name: "חיתוך צו", כמות: statusStats.cut_order, fill: "#dc2626" },
-    { name: "לא בצו", כמות: statusStats.not_on_order, fill: "#f97316" },
-    { name: "אחר/מיוחד", כמות: statusStats.other, fill: "#64748b" },
-    { name: "לא דיווח", כמות: unreportedCount, fill: "#94a3b8" }
-  ];
+  const detailedStatusData = attendanceStatuses
+    .filter((status) => status.enabled && getChartCategory(status.id) !== "exclude")
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((status, index) => ({
+      name: status.label,
+      כמות: statusStats[status.id] || 0,
+      fill: getStatusHexColor(status, index),
+    }))
+    .filter((item) => item.כמות > 0);
+
+  if (unreportedCount > 0) {
+    detailedStatusData.push({ name: "לא דיווח", כמות: unreportedCount, fill: "#94a3b8" });
+  }
 
   // Generate 7-day attendance trend data ending on current system anchor date
   const getWeeklyTrendData = () => {
@@ -764,9 +800,10 @@ const latestTodayReport = [...todayReports].sort(
     getTimeMsFromTimestamp(a.updatedAt || a.timestamp)
 )[0];
           if (soldierRep) {
-            if (["base", "field", "course"].includes(soldierRep.status)) {
+            const category = getChartCategory(soldierRep.status);
+            if (category === "present") {
               present++;
-            } else {
+            } else if (category !== "exclude") {
               absent++;
             }
           } else {
@@ -915,7 +952,7 @@ const latestTodayReport = [...todayReports].sort(
     getTimeMsFromTimestamp(b.updatedAt || b.timestamp) -
     getTimeMsFromTimestamp(a.updatedAt || a.timestamp)
 )[0];
-            if (soldierRep && ["base", "field", "course"].includes(soldierRep.status)) {
+            if (soldierRep && getChartCategory(soldierRep.status) === "present") {
               presentCount++;
             }
           });
@@ -2122,9 +2159,9 @@ const soldierReports = Array.from(latestReportByDate.values());
       לא בצו
     </span>
     <span className="text-2xl font-black text-orange-600 tracking-tight mt-1 block">
-      {statusStats.not_on_order}
+      {(statusStats.not_on_order || 0)}
       <span className="text-xs text-slate-400 font-normal pr-1.5">
-        ({totalSoldiersCount > 0 ? Math.round((statusStats.not_on_order / totalSoldiersCount) * 100) : 0}%)
+        ({totalSoldiersCount > 0 ? Math.round(((statusStats.not_on_order || 0) / totalSoldiersCount) * 100) : 0}%)
       </span>
     </span>
     <span className="text-[10px] text-slate-500 font-medium">
@@ -2143,9 +2180,9 @@ const soldierReports = Array.from(latestReportByDate.values());
       חיתוך צו / משוחרר זמנית
     </span>
     <span className="text-2xl font-black text-red-600 tracking-tight mt-1 block">
-      {statusStats.cut_order}
+      {(statusStats.cut_order || 0)}
       <span className="text-xs text-slate-400 font-normal pr-1.5">
-        ({totalSoldiersCount > 0 ? Math.round((statusStats.cut_order / totalSoldiersCount) * 100) : 0}%)
+        ({totalSoldiersCount > 0 ? Math.round(((statusStats.cut_order || 0) / totalSoldiersCount) * 100) : 0}%)
       </span>
     </span>
     <span className="text-[10px] text-slate-500 font-medium">
@@ -2498,7 +2535,7 @@ const soldierReports = Array.from(latestReportByDate.values());
   {!isBaseVsOutsideCardCollapsed && (
     <div className="space-y-4">
       {(() => {
-        const inBaseCount = statusStats.base;
+        const inBaseCount = (statusStats.base || 0);
         const outsideBaseCount = totalSoldiersCount - inBaseCount;
         const inBasePercentage =
           totalSoldiersCount > 0
@@ -2625,9 +2662,9 @@ const soldierReports = Array.from(latestReportByDate.values());
                   <div className="space-y-0.5">
                     <span>מחוץ לבסיס / לא זמינים:</span>
                     <span className="block text-[9px] text-slate-400 leading-tight">
-                      כולל {statusStats.field} בשטח, {statusStats.home} בבית,
-                      {statusStats.course} בקורס, {statusStats.sick} בגימלים,
-                      {statusStats.cut_order} בחיתוך צו, ו־{unreportedCount} טרם דיווחו.
+                      כולל {(statusStats.field || 0)} בשטח, {(statusStats.home || 0)} בבית,
+                      {(statusStats.course || 0)} בקורס, {(statusStats.sick || 0)} בגימלים,
+                      {(statusStats.cut_order || 0)} בחיתוך צו, ו־{unreportedCount} טרם דיווחו.
                     </span>
                   </div>
                 </div>
