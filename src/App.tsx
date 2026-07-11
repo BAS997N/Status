@@ -161,6 +161,14 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     DEFAULT_ATTENDANCE_STATUS_CONFIGS
   );
 
+  const handleAttendanceStatusesChanged = (
+    statuses: AttendanceStatusConfig[]
+  ) => {
+    setAttendanceStatuses(
+      [...statuses].sort((a, b) => a.sortOrder - b.sortOrder)
+    );
+  };
+
 
   // גישת אתחול ראשונית לסופר־אדמין.
   // בהמשך ההרשאה תנוהל מתוך מסך ניהול המערכת בלבד.
@@ -1755,6 +1763,7 @@ const handleAdminSaveReport = async (reportData: {
                 currentUser={userProfile}
                 users={allUsers}
                 onUpdateSystemRole={handleUpdateUserSystemRole}
+                onAttendanceStatusesChanged={handleAttendanceStatusesChanged}
               />
             </motion.div>
           ) : activeTab === "reporter" && canViewReporter ? (
