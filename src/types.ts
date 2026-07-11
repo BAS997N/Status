@@ -25,6 +25,18 @@ export interface RolePermissionConfig {
   updatedBy?: string;
 }
 
+
+export interface UnitConfig {
+  id: string;
+  name: string;
+  enabled: boolean;
+  sortOrder: number;
+  systemUnit?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export interface UserProfile {
   userId: string;
   fullName: string;
@@ -444,3 +456,13 @@ export const IDF_UNITS = [
   "חוליית רפואה",
   "מחלקת טנא (חמוש)",
 ];
+
+export const DEFAULT_UNIT_CONFIGS: UnitConfig[] = IDF_UNITS.map(
+  (name, index) => ({
+    id: `unit_${index + 1}`,
+    name,
+    enabled: true,
+    sortOrder: index + 1,
+    systemUnit: index === 0,
+  })
+);
