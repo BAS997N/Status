@@ -461,3 +461,4 @@ export default function AttendanceStatusManager({ currentUser }: AttendanceStatu
       </div>
     </div>
   );
+}
