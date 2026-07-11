@@ -36,7 +36,8 @@ import {
   AttendanceReport, 
   AttendanceStatus, 
   AppNotification,
-  ATTENDANCE_STATUS_LABELS, 
+  AttendanceStatusConfig,
+  DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   IDF_UNITS 
 } from "../types";
 import { motion, AnimatePresence } from "motion/react";
@@ -63,6 +64,7 @@ import {
 interface CommandDashboardProps {
   currentUser: UserProfile;
   permissions: PermissionMap;
+  attendanceStatuses?: AttendanceStatusConfig[];
   reports: AttendanceReport[];
   allSoldiers: UserProfile[];
   systemLogs: any[];
@@ -99,7 +101,8 @@ interface CommandDashboardProps {
 
 export default function CommandDashboard({ 
   currentUser, 
-  permissions, 
+  permissions,
+  attendanceStatuses = DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   reports, 
   attendanceLogs,
   systemLogs,
@@ -119,13 +122,13 @@ export default function CommandDashboard({
 }: CommandDashboardProps) {
   const can = (permissionId: string) => hasPermission(permissions, permissionId);
 
-  const canViewAttendance = canViewAttendance;
-  const canViewDirectory = canViewDirectory;
-  const canViewSummary = canViewSummary;
-  const canViewHistory = canViewHistory;
-  const canViewSystemLogs = canViewSystemLogs;
-  const canViewNotifications = canViewNotifications;
-  const canViewSettings = canViewSettings;
+  const canViewAttendance = can("dashboard.attendance.view");
+  const canViewDirectory = can("dashboard.directory.view");
+  const canViewSummary = can("dashboard.summary.view");
+  const canViewHistory = can("dashboard.history.view");
+  const canViewSystemLogs = can("dashboard.system_logs.view");
+  const canViewNotifications = can("dashboard.notifications.view");
+  const canViewSettings = can("dashboard.settings.view");
 
   const canManageReports = can("reports.manage");
   const canVerifyReport = can("reports.verify");
@@ -137,6 +140,22 @@ export default function CommandDashboard({
   const canDeleteSoldier = can("soldiers.delete");
 
   const canExportSheets = can("sheets.export");
+
+  const commanderStatusOptions = attendanceStatuses
+    .filter((item) => item.enabled && item.visibleToCommanders)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const statusLabels = Object.fromEntries(
+    attendanceStatuses.map((item) => [
+      item.id,
+      {
+        label: item.label,
+        color: item.color,
+        bg: item.bg,
+        border: item.border,
+      },
+    ])
+  ) as Record<string, { label: string; color: string; bg: string; border: string }>;
 
   const [dashboardTab, setDashboardTab] = useState<
   "attendance" | "directory" | "summary" | "settings" | "history" | "systemlogs" | "notifications"
@@ -940,7 +959,7 @@ const latestTodayReport = [...todayReports].sort(
     
     // Resolve attendance status label text for the search box
     const statusLabelText = latestTodayReport
-      ? (ATTENDANCE_STATUS_LABELS[latestTodayReport.status]?.label || "").toLowerCase()
+      ? (statusLabels[latestTodayReport.status]?.label || "").toLowerCase()
       : "טרם דיווחו היום";
 
     const query = searchQuery.toLowerCase().trim();
@@ -1000,7 +1019,7 @@ const latestTodayReport = [...todayReports].sort(
         ];
 
     const rows = targetList.map(({ profile, latestTodayReport }) => {
-      const statusInfo = latestTodayReport ? (ATTENDANCE_STATUS_LABELS[latestTodayReport.status]?.label || latestTodayReport.status) : "טרם דיווח";
+      const statusInfo = latestTodayReport ? (statusLabels[latestTodayReport.status]?.label || latestTodayReport.status) : "טרם דיווח";
       const location = latestTodayReport ? latestTodayReport.location : "—";
       const timeStr = latestTodayReport ? new Date(latestTodayReport.timestamp).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }) : "—";
       const note = latestTodayReport?.note || "—";
@@ -1137,7 +1156,7 @@ const dates = getDateRange(startDate, endDate);
     if (!report) return "";
 
     const statusText =
-      ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status;
+      statusLabels[report.status]?.label || report.status;
 
     const markerText = getMarkerText(report);
 
@@ -1591,9 +1610,9 @@ const dates = getDateRange(startDate, endDate);
       className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold bg-white"
     >
       <option value="all">כל סוגי ההתראות</option>
-      {Object.entries(ATTENDANCE_STATUS_LABELS).map(([key, value]) => (
-        <option key={key} value={key}>
-          {value.label}
+      {commanderStatusOptions.map((statusConfig) => (
+        <option key={statusConfig.id} value={statusConfig.id}>
+          {statusConfig.label}
         </option>
       ))}
     </select>
@@ -1634,7 +1653,7 @@ const dates = getDateRange(startDate, endDate);
             </tr>
           ) : (
             filteredNotifications.map((notification) => {
-              const statusInfo = ATTENDANCE_STATUS_LABELS[notification.status];
+              const statusInfo = statusLabels[notification.status];
 
               return (
                 <tr key={notification.notificationId} className="hover:bg-slate-50">
@@ -3018,7 +3037,7 @@ return (
                   // Detail for status label
                   const hasReportedToday = !!displayedTodayReport;
                   const statusInfo = hasReportedToday
-                    ? (ATTENDANCE_STATUS_LABELS[displayedTodayReport.status] || {
+                    ? (statusLabels[displayedTodayReport.status] || {
                         label: displayedTodayReport.status || "לא מוגדר",
                         color: "text-slate-600 dark:text-slate-300",
                         bg: "bg-slate-50 dark:bg-slate-905/40",
@@ -4021,6 +4040,19 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
 
     if (!onAdminSaveReport || !editingReportData) return;
 
+    const selectedConfig = attendanceStatuses.find(
+      (item) => item.id === editingReportData.status
+    );
+
+    if (selectedConfig?.requiresNote && !editingReportData.note?.trim()) {
+      onShowMessage?.(
+        "חסרה הערה",
+        "בסטטוס שנבחר חובה להזין הערה לפני השמירה.",
+        "error"
+      );
+      return;
+    }
+
     try {
       const dataToSave = {
         ...editingReportData,
@@ -4081,9 +4113,9 @@ await onAdminSaveReport(dataToSave);
 }}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 text-xs font-bold focus:bg-white focus:ring-2 focus:ring-military-400 outline-none transition cursor-pointer text-slate-800"
                   >
-                    {(Object.keys(ATTENDANCE_STATUS_LABELS) as AttendanceStatus[]).map(st => (
-                      <option key={st} value={st}>
-                        {ATTENDANCE_STATUS_LABELS[st].label}
+                    {commanderStatusOptions.map((statusConfig) => (
+                      <option key={statusConfig.id} value={statusConfig.id}>
+                        {statusConfig.label}
                       </option>
                     ))}
                   </select>
