@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Shield, User, Sliders, Database, Wifi, WifiOff, RefreshCw, Layers, Bell, Check, Trash2, MailOpen, AlertTriangle, LogOut } from "lucide-react";
-import { UserProfile, IDF_UNITS, AppNotification, ATTENDANCE_STATUS_LABELS } from "../types";
+import { UserProfile, AppNotification, ATTENDANCE_STATUS_LABELS } from "../types";
 import { isFirebaseActive } from "../firebase";
 import { motion, AnimatePresence } from "motion/react";
 import { getReliableServerNow } from "../services/dataService";
@@ -302,7 +302,7 @@ export default function Header({
                         onChange={(e) => setEditUnit(e.target.value)}
                         className="w-full bg-military-800 text-white border border-military-600 rounded px-2 py-1.5 text-xs focus:ring-1 focus:ring-military-400 outline-none"
                       >
-                        {(medicalUnits.length > 0 ? medicalUnits : IDF_UNITS).map((unit) => (
+                        {(medicalUnits.length > 0 ? medicalUnits : [currentUser.unit]).map((unit) => (
                           <option key={unit} value={unit}>{unit}</option>
                         ))}
                       </select>
