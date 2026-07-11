@@ -1,4 +1,7 @@
-export type UserRole = "soldier" | "commander" | "adjutant_officer";
+export type UserRole =
+  | "soldier"
+  | "commander"
+  | "adjutant_officer";
 
 export interface UserProfile {
   userId: string;
@@ -7,14 +10,105 @@ export interface UserProfile {
   unit: string;
   email: string;
   createdAt: string;
-  personalId?: string; // Military ID (מספר אישי) or National ID (ת.ז)
-  phoneNumber?: string; // Phone number (מספר טלפון)
-  isDischarged?: boolean; // Discharged soldier status (חייל נגרע)
-  className?: string; // Optional presentation styling
-  medicalRole?: string; // Custom medical role (doctor, medic, paramedic, etc)
+  personalId?: string;
+  phoneNumber?: string;
+  isDischarged?: boolean;
+  className?: string;
+  medicalRole?: string;
 }
 
-export type AttendanceStatus = "base" | "home" | "field" | "sick" | "course" | "other"| "cut_order" | "not_on_order";
+/*
+ * הסטטוסים המובנים של המערכת.
+ * בעתיד יהיה אפשר להוסיף סטטוסים דרך מסך ההגדרות
+ * בלי להוסיף אותם ידנית לכאן.
+ */
+export type BuiltInAttendanceStatus =
+  | "base"
+  | "home"
+  | "field"
+  | "sick"
+  | "course"
+  | "other"
+  | "cut_order"
+  | "not_on_order"
+  | "processing_days"
+  | "refresh_days";
+
+/*
+ * מאפשר גם סטטוסים דינמיים חדשים שיישמרו ב־Firestore.
+ *
+ * החלק `(string & {})` משאיר השלמה אוטומטית
+ * לסטטוסים המובנים, אך אינו מגביל אותנו רק אליהם.
+ */
+export type AttendanceStatus =
+  | BuiltInAttendanceStatus
+  | (string & {});
+
+/*
+ * מבנה ההגדרות של כל סטטוס.
+ */
+export interface AttendanceStatusConfig {
+  /*
+   * מזהה פנימי קבוע באנגלית.
+   * לדוגמה: processing_days
+   */
+  id: string;
+
+  /*
+   * שם שמוצג באתר.
+   * לדוגמה: ימי עיבוד
+   */
+  label: string;
+
+  /*
+   * האם הסטטוס פעיל במערכת.
+   */
+  enabled: boolean;
+
+  /*
+   * האם חייל יכול לראות ולבחור את הסטטוס.
+   */
+  visibleToSoldiers: boolean;
+
+  /*
+   * האם מפקד יכול לראות ולבחור את הסטטוס.
+   */
+  visibleToCommanders: boolean;
+
+  /*
+   * סדר ההצגה ברשימות.
+   */
+  sortOrder: number;
+
+  /*
+   * סטטוס מערכת מוגן לא יהיה ניתן למחיקה מלאה.
+   */
+  systemStatus: boolean;
+
+  /*
+   * עיצוב הסטטוס במערכת.
+   */
+  color: string;
+  bg: string;
+  border: string;
+
+  /*
+   * מפתח צבע פשוט לשימוש עתידי במסך ההגדרות.
+   */
+  colorKey?: string;
+
+  /*
+   * האם יש לחייב הערה בעת בחירת הסטטוס.
+   */
+  requiresNote?: boolean;
+
+  /*
+   * מי יצר או עדכן את הסטטוס.
+   */
+  createdAt?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
 
 export interface AttendanceReport {
   reportId: string;
@@ -23,18 +117,40 @@ export interface AttendanceReport {
   unit: string;
   status: AttendanceStatus;
   location: string;
+
   latitude?: number;
   longitude?: number;
-  timestamp: string; // ISO String / server timestamp representation
+
+  timestamp: string;
+  reportDate?: string;
+  updatedAt?: string;
+
   note?: string;
-  verifiedBy?: string; // commander UID who acknowledged
+
+  verifiedBy?: string;
   verifiedAt?: string;
-  dayMarker?: "return_to_base" | "exit_home" | "after_hours";
-afterHours?: number;
+
+  createdBy?: string;
+  createdByName?: string;
+  createdByRole?: UserRole | string;
+
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedByRole?: UserRole | string;
+
+  dayMarker?:
+    | "return_to_base"
+    | "exit_home"
+    | "after_hours";
+
+  afterHours?: number;
+
   isReset?: boolean;
-resetAt?: string;
-resetBy?: string;
-resetByName?: string;
+  resetAt?: string;
+  resetBy?: string;
+  resetByName?: string;
+
+  personalId?: string;
 }
 
 export interface AppNotification {
@@ -46,30 +162,205 @@ export interface AppNotification {
   status: AttendanceStatus;
   location: string;
   timestamp: string;
+  reportTimestamp?: string;
+  reportDate?: string;
   isRead: boolean;
   message: string;
 }
 
-export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, { label: string; color: string; bg: string; border: string }> = {
-  base: { label: "בבסיס", color: "text-emerald-700 dark:text-emerald-300", bg: "bg-emerald-50 dark:bg-emerald-950/40", border: "border-emerald-200 dark:border-emerald-800/60" },
-  home: { label: "בבית / אפטר", color: "text-indigo-700 dark:text-indigo-300", bg: "bg-indigo-50 dark:bg-indigo-950/40", border: "border-indigo-200 dark:border-indigo-800/60" },
-  field: { label: "פעילות שטח / אימון", color: "text-amber-700 dark:text-amber-300", bg: "bg-amber-50 dark:bg-amber-950/40", border: "border-amber-200 dark:border-amber-800/60" },
-  sick: { label: "גימלים / חולים", color: "text-rose-700 dark:text-rose-300", bg: "bg-rose-50 dark:bg-rose-950/40", border: "border-rose-200 dark:border-rose-800/60" },
-  course: { label: "קורס / הכשרה", color: "text-cyan-700 dark:text-cyan-300", bg: "bg-cyan-50 dark:bg-cyan-950/40", border: "border-cyan-200 dark:border-cyan-800/60" },
-  cut_order: {
-  label: "חיתוך צו",
-  color: "text-red-700",
-  bg: "bg-red-50",
-  border: "border-red-200"
-},
-  not_on_order: {
-  label: "לא בצו",
-  color: "text-orange-700",
-  bg: "bg-orange-50",
-  border: "border-orange-200",
-},
-  other: { label: "אחר (ראה הערה)", color: "text-slate-600 dark:text-slate-300", bg: "bg-slate-50 dark:bg-slate-950/40", border: "border-slate-200 dark:border-slate-800/60" },
-};
+/*
+ * ברירת המחדל של כל הסטטוסים.
+ *
+ * המערך הזה ישמש רק כאשר עדיין אין הגדרה ב־Firestore,
+ * או כאשר המערכת עובדת במצב מקומי.
+ */
+export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
+  AttendanceStatusConfig[] = [
+  {
+    id: "base",
+    label: "בבסיס",
+    enabled: true,
+    visibleToSoldiers: true,
+    visibleToCommanders: true,
+    sortOrder: 1,
+    systemStatus: true,
+    colorKey: "emerald",
+    color:
+      "text-emerald-700 dark:text-emerald-300",
+    bg:
+      "bg-emerald-50 dark:bg-emerald-950/40",
+    border:
+      "border-emerald-200 dark:border-emerald-800/60",
+  },
+  {
+    id: "home",
+    label: "בבית / אפטר",
+    enabled: true,
+    visibleToSoldiers: true,
+    visibleToCommanders: true,
+    sortOrder: 2,
+    systemStatus: true,
+    colorKey: "indigo",
+    color:
+      "text-indigo-700 dark:text-indigo-300",
+    bg:
+      "bg-indigo-50 dark:bg-indigo-950/40",
+    border:
+      "border-indigo-200 dark:border-indigo-800/60",
+  },
+  {
+    id: "field",
+    label: "פעילות שטח / אימון",
+    enabled: true,
+    visibleToSoldiers: true,
+    visibleToCommanders: true,
+    sortOrder: 3,
+    systemStatus: true,
+    colorKey: "amber",
+    color:
+      "text-amber-700 dark:text-amber-300",
+    bg:
+      "bg-amber-50 dark:bg-amber-950/40",
+    border:
+      "border-amber-200 dark:border-amber-800/60",
+  },
+  {
+    id: "sick",
+    label: "גימלים / חולים",
+    enabled: true,
+    visibleToSoldiers: true,
+    visibleToCommanders: true,
+    sortOrder: 4,
+    systemStatus: true,
+    colorKey: "rose",
+    color:
+      "text-rose-700 dark:text-rose-300",
+    bg:
+      "bg-rose-50 dark:bg-rose-950/40",
+    border:
+      "border-rose-200 dark:border-rose-800/60",
+  },
+  {
+    id: "course",
+    label: "קורס / הכשרה",
+    enabled: true,
+    visibleToSoldiers: true,
+    visibleToCommanders: true,
+    sortOrder: 5,
+    systemStatus: true,
+    colorKey: "cyan",
+    color:
+      "text-cyan-700 dark:text-cyan-300",
+    bg:
+      "bg-cyan-50 dark:bg-cyan-950/40",
+    border:
+      "border-cyan-200 dark:border-cyan-800/60",
+  },
+  {
+    id: "cut_order",
+    label: "חיתוך צו",
+    enabled: true,
+    visibleToSoldiers: true,
+    visibleToCommanders: true,
+    sortOrder: 6,
+    systemStatus: true,
+    colorKey: "red",
+    color: "text-red-700",
+    bg: "bg-red-50",
+    border: "border-red-200",
+  },
+  {
+    id: "not_on_order",
+    label: "לא בצו",
+    enabled: true,
+    visibleToSoldiers: false,
+    visibleToCommanders: true,
+    sortOrder: 7,
+    systemStatus: true,
+    colorKey: "orange",
+    color: "text-orange-700",
+    bg: "bg-orange-50",
+    border: "border-orange-200",
+  },
+  {
+    id: "processing_days",
+    label: "ימי עיבוד",
+    enabled: true,
+    visibleToSoldiers: false,
+    visibleToCommanders: true,
+    sortOrder: 8,
+    systemStatus: false,
+    colorKey: "purple",
+    color:
+      "text-purple-700 dark:text-purple-300",
+    bg:
+      "bg-purple-50 dark:bg-purple-950/40",
+    border:
+      "border-purple-200 dark:border-purple-800/60",
+  },
+  {
+    id: "refresh_days",
+    label: "ימי התרעננות",
+    enabled: true,
+    visibleToSoldiers: false,
+    visibleToCommanders: true,
+    sortOrder: 9,
+    systemStatus: false,
+    colorKey: "sky",
+    color:
+      "text-sky-700 dark:text-sky-300",
+    bg:
+      "bg-sky-50 dark:bg-sky-950/40",
+    border:
+      "border-sky-200 dark:border-sky-800/60",
+  },
+  {
+    id: "other",
+    label: "אחר (ראה הערה)",
+    enabled: true,
+    visibleToSoldiers: true,
+    visibleToCommanders: true,
+    sortOrder: 10,
+    systemStatus: true,
+    colorKey: "slate",
+    requiresNote: true,
+    color:
+      "text-slate-600 dark:text-slate-300",
+    bg:
+      "bg-slate-50 dark:bg-slate-950/40",
+    border:
+      "border-slate-200 dark:border-slate-800/60",
+  },
+];
+
+/*
+ * תאימות לקוד הקיים.
+ *
+ * רכיבים שכבר משתמשים ב־ATTENDANCE_STATUS_LABELS
+ * ימשיכו לעבוד כרגיל.
+ */
+export const ATTENDANCE_STATUS_LABELS:
+  Record<
+    string,
+    {
+      label: string;
+      color: string;
+      bg: string;
+      border: string;
+    }
+  > = Object.fromEntries(
+  DEFAULT_ATTENDANCE_STATUS_CONFIGS.map(
+    (status) => [
+      status.id,
+      {
+        label: status.label,
+        color: status.color,
+        bg: status.bg,
+        border: status.border,
+      },
+    ]
+  )
+);
 
 export const IDF_UNITS = [
   "פלוגה א' - רובאית",
