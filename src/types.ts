@@ -86,6 +86,15 @@ export interface EmergencyEventConfig {
   closedBy?: string;
 }
 
+export interface WhatsAppGroupConfig {
+  id: string;
+  name: string;
+  link: string;
+  enabled: boolean;
+  isDefault: boolean;
+  sortOrder: number;
+}
+
 export interface SystemSettingsConfig {
   systemName: string;
   unitName: string;
@@ -109,6 +118,7 @@ export interface SystemSettingsConfig {
   systemMode: SystemMode;
   operationalMessage: string;
   emergencyEvent: EmergencyEventConfig;
+  whatsappGroups: WhatsAppGroupConfig[];
   adminTabOrder: string[];
   mainTabOrder: string[];
   updatedAt?: string;

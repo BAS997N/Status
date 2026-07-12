@@ -45,6 +45,7 @@ import {
   ExternalStaffMember,
   ShiftTypeConfig,
   EmergencyResponse,
+  WhatsAppGroupConfig,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -154,6 +155,7 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
     assemblyLocation: "",
     assemblyTime: "",
   },
+  whatsappGroups: [],
   adminTabOrder: [
     "users",
     "permissions",
@@ -182,6 +184,42 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
     const parsed = Number(candidate);
     return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
   };
+  const normalizeWhatsAppGroups = (
+    candidate: unknown
+  ): WhatsAppGroupConfig[] => {
+    if (!Array.isArray(candidate)) return [];
+
+    const normalized = candidate
+      .filter(
+        (item): item is Partial<WhatsAppGroupConfig> =>
+          !!item && typeof item === "object"
+      )
+      .map((item, index) => ({
+        id:
+          typeof item.id === "string" && item.id.trim()
+            ? item.id.trim()
+            : `whatsapp_group_${index + 1}`,
+        name:
+          typeof item.name === "string" && item.name.trim()
+            ? item.name.trim()
+            : `קבוצה ${index + 1}`,
+        link: typeof item.link === "string" ? item.link.trim() : "",
+        enabled: item.enabled !== false,
+        isDefault: item.isDefault === true,
+        sortOrder:
+          typeof item.sortOrder === "number" ? item.sortOrder : index + 1,
+      }))
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+
+    let defaultWasSet = false;
+
+    return normalized.map((item) => {
+      const isDefault = item.isDefault && !defaultWasSet;
+      if (isDefault) defaultWasSet = true;
+      return { ...item, isDefault };
+    });
+  };
+
   const normalizeAllowedRoles = (
     candidate: unknown,
     fallback: SystemRole[]
@@ -252,6 +290,7 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
             ...raw.emergencyEvent,
           }
         : { ...DEFAULT_SYSTEM_SETTINGS.emergencyEvent },
+    whatsappGroups: normalizeWhatsAppGroups(raw.whatsappGroups),
     adminTabOrder:
       Array.isArray(raw.adminTabOrder) && raw.adminTabOrder.length
         ? raw.adminTabOrder.filter((item): item is string => typeof item === "string")

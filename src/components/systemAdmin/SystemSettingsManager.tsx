@@ -7,8 +7,18 @@ import {
   Save,
   Settings,
   ShieldAlert,
+  MessageCircle,
+  Plus,
+  Trash2,
+  Star,
 } from "lucide-react";
-import { SystemMode, SystemRole, SystemSettingsConfig, UserProfile } from "../../types";
+import {
+  SystemMode,
+  SystemRole,
+  SystemSettingsConfig,
+  UserProfile,
+  WhatsAppGroupConfig,
+} from "../../types";
 import { dataService } from "../../services/dataService";
 
 interface SystemSettingsManagerProps {
@@ -47,6 +57,7 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
     assemblyLocation: "",
     assemblyTime: "",
   },
+  whatsappGroups: [],
   adminTabOrder: [],
   mainTabOrder: [],
 };
@@ -166,6 +177,65 @@ export default function SystemSettingsManager({
     }));
     setIsDirty(true);
     setMessage(null);
+  };
+
+  const createWhatsAppGroupId = () =>
+    `whatsapp_group_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 7)}`;
+
+  const updateWhatsAppGroups = (groups: WhatsAppGroupConfig[]) => {
+    update(
+      "whatsappGroups",
+      groups.map((group, index) => ({
+        ...group,
+        sortOrder: index + 1,
+      }))
+    );
+  };
+
+  const addWhatsAppGroup = () => {
+    const currentGroups = draft.whatsappGroups || [];
+
+    updateWhatsAppGroups([
+      ...currentGroups,
+      {
+        id: createWhatsAppGroupId(),
+        name: `קבוצה ${currentGroups.length + 1}`,
+        link: "",
+        enabled: true,
+        isDefault: currentGroups.length === 0,
+        sortOrder: currentGroups.length + 1,
+      },
+    ]);
+  };
+
+  const updateWhatsAppGroup = (
+    groupId: string,
+    changes: Partial<WhatsAppGroupConfig>
+  ) => {
+    const currentGroups = draft.whatsappGroups || [];
+
+    updateWhatsAppGroups(
+      currentGroups.map((group) => {
+        if (group.id !== groupId) {
+          return changes.isDefault ? { ...group, isDefault: false } : group;
+        }
+
+        return { ...group, ...changes };
+      })
+    );
+  };
+
+  const removeWhatsAppGroup = (groupId: string) => {
+    const currentGroups = draft.whatsappGroups || [];
+    const remaining = currentGroups.filter((group) => group.id !== groupId);
+
+    if (remaining.length > 0 && !remaining.some((group) => group.isDefault)) {
+      remaining[0] = { ...remaining[0], isDefault: true };
+    }
+
+    updateWhatsAppGroups(remaining);
   };
 
   const handleSave = async () => {
@@ -444,6 +514,126 @@ export default function SystemSettingsManager({
           {message.text}
         </div>
       )}
+
+      <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <MessageCircle className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-slate-900">
+                קבוצות WhatsApp
+              </h3>
+              <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                שמור שמות וקישורים לקבוצות. בעת שיתוף לוח משמרות ניתן
+                לבחור קבוצה, לפתוח WhatsApp כללי או להעתיק את ההודעה.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={addWhatsAppGroup}
+            className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white hover:bg-emerald-700"
+          >
+            <Plus className="h-4 w-4" />
+            הוסף קבוצה
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {(draft.whatsappGroups || []).length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-xs font-bold text-slate-400">
+              לא הוגדרו קבוצות WhatsApp.
+            </div>
+          ) : (
+            (draft.whatsappGroups || [])
+              .slice()
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map((group) => (
+                <div
+                  key={group.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-end">
+                    <Field label="שם הקבוצה">
+                      <input
+                        value={group.name}
+                        onChange={(event) =>
+                          updateWhatsAppGroup(group.id, {
+                            name: event.target.value,
+                          })
+                        }
+                        className="input"
+                        placeholder='לדוגמה: קבוצת תאג"ד'
+                      />
+                    </Field>
+
+                    <Field label="קישור לקבוצה">
+                      <input
+                        value={group.link}
+                        onChange={(event) =>
+                          updateWhatsAppGroup(group.id, {
+                            link: event.target.value,
+                          })
+                        }
+                        className="input"
+                        placeholder="https://chat.whatsapp.com/..."
+                        dir="ltr"
+                      />
+                    </Field>
+
+                    <button
+                      type="button"
+                      onClick={() => removeWhatsAppGroup(group.id)}
+                      className="flex h-10 items-center justify-center rounded-xl border border-rose-200 px-3 text-rose-700 hover:bg-rose-50"
+                      title="מחיקת קבוצה"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-4">
+                    <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={group.enabled}
+                        onChange={(event) =>
+                          updateWhatsAppGroup(group.id, {
+                            enabled: event.target.checked,
+                          })
+                        }
+                      />
+                      קבוצה פעילה
+                    </label>
+
+                    <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                      <input
+                        type="radio"
+                        name="default_whatsapp_group"
+                        checked={group.isDefault}
+                        onChange={() =>
+                          updateWhatsAppGroup(group.id, {
+                            isDefault: true,
+                          })
+                        }
+                      />
+                      <Star className="h-3.5 w-3.5 text-amber-500" />
+                      קבוצת ברירת מחדל
+                    </label>
+                  </div>
+                </div>
+              ))
+          )}
+        </div>
+
+        <div className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-[10px] font-bold leading-5 text-amber-800">
+          בדפדפן לא ניתן להזין טקסט ישירות לתוך קבוצה דרך קישור הזמנה.
+          לכן בעת בחירת קבוצה ההודעה תועתק ללוח והקבוצה תיפתח; לאחר מכן
+          מדביקים את ההודעה בשדה השליחה.
+        </div>
+      </section>
 
       {isDirty && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800">

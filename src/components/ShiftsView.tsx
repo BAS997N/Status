@@ -24,7 +24,9 @@ import {
   ShiftSlotConfig,
   ShiftTypeConfig,
   SystemRole,
+  SystemSettingsConfig,
   UserProfile,
+  WhatsAppGroupConfig,
 } from "../types";
 import { dataService } from "../services/dataService";
 import ShiftFilters, { ShiftViewMode } from "./shifts/ShiftFilters";
@@ -167,6 +169,19 @@ export default function ShiftsView({
     useState(true);
   const [includeNotesInWhatsApp, setIncludeNotesInWhatsApp] =
     useState(false);
+  const [includePhonesInWhatsApp, setIncludePhonesInWhatsApp] =
+    useState(true);
+  const [phoneRoleMode, setPhoneRoleMode] = useState<"all" | "custom">(
+    "all"
+  );
+  const [selectedPhoneRoles, setSelectedPhoneRoles] = useState<string[]>(
+    []
+  );
+  const [whatsAppGroups, setWhatsAppGroups] = useState<
+    WhatsAppGroupConfig[]
+  >([]);
+  const [selectedWhatsAppTarget, setSelectedWhatsAppTarget] =
+    useState("__general__");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<ShiftRecord | null>(null);
   const [message, setMessage] = useState<{
@@ -348,6 +363,24 @@ export default function ShiftsView({
 
   useEffect(() => {
     loadShifts();
+    dataService
+      .getSystemSettings()
+      .then((settings: SystemSettingsConfig) => {
+        const groups = (settings.whatsappGroups || [])
+          .filter((group) => group.enabled)
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+
+        setWhatsAppGroups(groups);
+
+        const defaultGroup = groups.find((group) => group.isDefault);
+        if (defaultGroup) {
+          setSelectedWhatsAppTarget(defaultGroup.id);
+        }
+      })
+      .catch((error) =>
+        console.error("Failed loading WhatsApp groups:", error)
+      );
+
     dataService
       .getShiftTypeConfigs()
       .then((items) =>
@@ -1314,6 +1347,69 @@ export default function ShiftsView({
     setIsWhatsAppOptionsOpen(true);
   };
 
+  const whatsappRangeShifts = useMemo(
+    () =>
+      visibleShifts
+        .filter((shift) => {
+          const shiftDate = toLocalParts(shift.startAt).date;
+          return (
+            !!whatsAppStartDate &&
+            !!whatsAppEndDate &&
+            shiftDate >= whatsAppStartDate &&
+            shiftDate <= whatsAppEndDate
+          );
+        })
+        .sort((first, second) =>
+          first.startAt.localeCompare(second.startAt)
+        ),
+    [visibleShifts, whatsAppStartDate, whatsAppEndDate]
+  );
+
+  const availablePhoneRoles = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          whatsappRangeShifts.flatMap((shift) =>
+            shift.assignments.map(
+              (assignment) => assignment.slotLabel || "תפקיד"
+            )
+          )
+        )
+      ).sort((first, second) => first.localeCompare(second, "he")),
+    [whatsappRangeShifts]
+  );
+
+  useEffect(() => {
+    if (phoneRoleMode !== "custom") return;
+
+    setSelectedPhoneRoles((current) =>
+      current.filter((role) => availablePhoneRoles.includes(role))
+    );
+  }, [availablePhoneRoles, phoneRoleMode]);
+
+  const getAssignmentPhoneNumber = (assignment: ShiftAssignment) => {
+    if (assignment.assigneeType === "external") {
+      const externalId =
+        assignment.externalStaffId ||
+        assignment.userId.replace("external:", "");
+
+      return (
+        externalStaff.find((item) => item.id === externalId)
+          ?.phoneNumber || ""
+      );
+    }
+
+    return (
+      allUsers.find((user) => user.userId === assignment.userId)
+        ?.phoneNumber || ""
+    );
+  };
+
+  const shouldIncludePhoneForRole = (roleLabel: string) =>
+    includePhonesInWhatsApp &&
+    (phoneRoleMode === "all" ||
+      selectedPhoneRoles.includes(roleLabel));
+
   const shareMultipleShiftsOnWhatsApp = async () => {
     if (!whatsAppStartDate || !whatsAppEndDate) {
       setMessage({
@@ -1331,15 +1427,7 @@ export default function ShiftsView({
       return;
     }
 
-    const selectedShifts = visibleShifts
-      .filter((shift) => {
-        const shiftDate = toLocalParts(shift.startAt).date;
-        return (
-          shiftDate >= whatsAppStartDate &&
-          shiftDate <= whatsAppEndDate
-        );
-      })
-      .sort((first, second) => first.startAt.localeCompare(second.startAt));
+    const selectedShifts = whatsappRangeShifts;
 
     if (selectedShifts.length === 0) {
       setMessage({
@@ -1374,12 +1462,17 @@ export default function ShiftsView({
         const shiftsText = dayShifts
           .map((shift) => {
             const assignments = shift.assignments
-              .map(
-                (assignment) =>
-                  `• ${assignment.slotLabel || "תפקיד"} — ${
-                    assignment.userName
-                  }`
-              )
+              .map((assignment) => {
+                const roleLabel =
+                  assignment.slotLabel || "תפקיד";
+                const phoneNumber = shouldIncludePhoneForRole(roleLabel)
+                  ? getAssignmentPhoneNumber(assignment)
+                  : "";
+
+                return `• ${roleLabel} — ${assignment.userName}${
+                  phoneNumber ? ` — ${phoneNumber}` : ""
+                }`;
+              })
               .join("\n");
 
             return [
@@ -1436,6 +1529,51 @@ export default function ShiftsView({
         setMessage({
           type: "error",
           text: "ההודעה ארוכה מדי ולא ניתן היה להעתיק אותה.",
+        });
+      }
+      return;
+    }
+
+    const selectedGroup = whatsAppGroups.find(
+      (group) => group.id === selectedWhatsAppTarget
+    );
+
+    if (selectedWhatsAppTarget === "__copy__") {
+      try {
+        await navigator.clipboard.writeText(completeMessage);
+        setIsWhatsAppOptionsOpen(false);
+        setMessage({
+          type: "success",
+          text: "לוח המשמרות הועתק ללוח.",
+        });
+      } catch (error) {
+        console.error("Failed copying WhatsApp schedule:", error);
+        setMessage({
+          type: "error",
+          text: "העתקת ההודעה נכשלה.",
+        });
+      }
+      return;
+    }
+
+    if (selectedGroup?.link) {
+      try {
+        await navigator.clipboard.writeText(completeMessage);
+        setIsWhatsAppOptionsOpen(false);
+        setMessage({
+          type: "success",
+          text: `ההודעה הועתקה. קבוצת "${selectedGroup.name}" נפתחת כעת — הדבק ושלח.`,
+        });
+        window.open(
+          selectedGroup.link,
+          "_blank",
+          "noopener,noreferrer"
+        );
+      } catch (error) {
+        console.error("Failed preparing group share:", error);
+        setMessage({
+          type: "error",
+          text: "לא ניתן היה להעתיק את ההודעה לפני פתיחת הקבוצה.",
         });
       }
       return;
@@ -1674,7 +1812,147 @@ export default function ShiftsView({
               </Field>
             </div>
 
+            <div className="mt-4">
+              <Field label="יעד השליחה">
+                <select
+                  value={selectedWhatsAppTarget}
+                  onChange={(event) =>
+                    setSelectedWhatsAppTarget(event.target.value)
+                  }
+                  className="input"
+                >
+                  <option value="__general__">
+                    WhatsApp כללי — בחירת קבוצה ידנית
+                  </option>
+                  {whatsAppGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                      {group.isDefault ? " — ברירת מחדל" : ""}
+                    </option>
+                  ))}
+                  <option value="__copy__">העתק הודעה בלבד</option>
+                </select>
+              </Field>
+
+              {selectedWhatsAppTarget !== "__general__" &&
+                selectedWhatsAppTarget !== "__copy__" && (
+                  <div className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[10px] font-bold leading-5 text-amber-800">
+                    ההודעה תועתק ללוח והקבוצה תיפתח. יש להדביק את
+                    ההודעה בתוך הקבוצה.
+                  </div>
+                )}
+            </div>
+
             <div className="mt-4 space-y-2">
+              <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={includePhonesInWhatsApp}
+                  onChange={(event) =>
+                    setIncludePhonesInWhatsApp(event.target.checked)
+                  }
+                />
+                כלול מספרי טלפון
+              </label>
+
+              {includePhonesInWhatsApp && (
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-xs font-black text-slate-800">
+                    מספרי טלפון לצירוף
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                      <input
+                        type="radio"
+                        name="phone_role_mode"
+                        checked={phoneRoleMode === "all"}
+                        onChange={() => setPhoneRoleMode("all")}
+                      />
+                      כל בעלי התפקידים המשובצים
+                    </label>
+
+                    <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                      <input
+                        type="radio"
+                        name="phone_role_mode"
+                        checked={phoneRoleMode === "custom"}
+                        onChange={() => setPhoneRoleMode("custom")}
+                      />
+                      בחירת תפקידים ידנית
+                    </label>
+                  </div>
+
+                  {phoneRoleMode === "custom" && (
+                    <div className="mt-4">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedPhoneRoles(availablePhoneRoles)
+                          }
+                          className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-black text-slate-600"
+                        >
+                          בחר הכול
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPhoneRoles([])}
+                          className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-black text-slate-600"
+                        >
+                          נקה הכול
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedPhoneRoles(
+                              availablePhoneRoles.filter((role) =>
+                                role.includes("נהג")
+                              )
+                            )
+                          }
+                          className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-black text-emerald-700"
+                        >
+                          רק נהגים
+                        </button>
+                      </div>
+
+                      <div className="mt-3 grid max-h-44 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+                        {availablePhoneRoles.map((role) => (
+                          <label
+                            key={role}
+                            className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedPhoneRoles.includes(role)}
+                              onChange={(event) =>
+                                setSelectedPhoneRoles((current) =>
+                                  event.target.checked
+                                    ? Array.from(
+                                        new Set([...current, role])
+                                      )
+                                    : current.filter(
+                                        (item) => item !== role
+                                      )
+                                )
+                              }
+                            />
+                            {role}
+                          </label>
+                        ))}
+                      </div>
+
+                      {availablePhoneRoles.length === 0 && (
+                        <div className="mt-3 text-[10px] font-bold text-slate-400">
+                          אין תפקידים בטווח התאריכים שנבחר.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-700">
                 <input
                   type="checkbox"
