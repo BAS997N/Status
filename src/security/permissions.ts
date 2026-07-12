@@ -22,6 +22,8 @@ export const PERMISSION_DEFINITIONS = [
   { id: "soldiers.add", label: "הוספת חיילים", category: "חיילים" },
   { id: "soldiers.edit", label: "עריכת חיילים", category: "חיילים" },
   { id: "soldiers.delete", label: "מחיקת חיילים", category: "חיילים" },
+  { id: "shifts.view", label: "צפייה במשמרות", category: "משמרות" },
+  { id: "shifts.manage", label: "יצירה, עריכה ומחיקת משמרות", category: "משמרות" },
   { id: "sheets.export", label: "ייצוא ל־Google Sheets", category: "ייצוא" },
   { id: "system_admin.view", label: "כניסה לניהול מערכת", category: "ניהול מערכת" },
   { id: "system_admin.statuses.manage", label: "ניהול סטטוסים", category: "ניהול מערכת" },

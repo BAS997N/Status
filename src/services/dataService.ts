@@ -40,6 +40,7 @@ import {
   BackupSection,
   SystemBackupFile,
   BackupRestoreResult,
+  ShiftRecord,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -889,6 +890,196 @@ const normalizeBackupDocument = (value: unknown, index: number) => {
 };
 
 export const dataService = {
+
+
+  async getShifts(): Promise<ShiftRecord[]> {
+    if (!isFirebaseActive()) {
+      const raw = JSON.parse(localStorage.getItem("idf_shifts") || "[]");
+      return Array.isArray(raw)
+        ? raw.sort((a: ShiftRecord, b: ShiftRecord) =>
+            String(a.startAt).localeCompare(String(b.startAt))
+          )
+        : [];
+    }
+
+    try {
+      const snapshot = await getDocs(
+        query(collection(db, "shifts"), orderBy("startAt", "asc"))
+      );
+      return snapshot.docs.map((item) => ({
+        shiftId: item.id,
+        ...(item.data() as Omit<ShiftRecord, "shiftId">),
+      }));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, "shifts");
+      return [];
+    }
+  },
+
+  async createShift(
+    shift: Omit<ShiftRecord, "shiftId" | "createdAt">,
+    actor?: UserProfile
+  ): Promise<ShiftRecord> {
+    const createdAt = new Date().toISOString();
+    const payload = removeUndefinedValues({
+      ...shift,
+      status: shift.status || "scheduled",
+      createdAt,
+      createdBy: actor?.userId || auth?.currentUser?.uid || shift.createdBy || "unknown",
+      createdByName: actor?.fullName || shift.createdByName || "משתמש לא ידוע",
+    });
+
+    if (!isFirebaseActive()) {
+      const current = JSON.parse(localStorage.getItem("idf_shifts") || "[]");
+      const created: ShiftRecord = {
+        shiftId: `shift_${Date.now()}`,
+        ...(payload as Omit<ShiftRecord, "shiftId">),
+      };
+      localStorage.setItem("idf_shifts", JSON.stringify([created, ...current]));
+      await writeAuditLog({
+        action: "create",
+        module: "shifts",
+        targetId: created.shiftId,
+        targetLabel: created.title,
+        after: created,
+      });
+      return created;
+    }
+
+    try {
+      const ref = await addDoc(collection(db, "shifts"), payload);
+      const created: ShiftRecord = {
+        shiftId: ref.id,
+        ...(payload as Omit<ShiftRecord, "shiftId">),
+      };
+      await writeAuditLog({
+        action: "create",
+        module: "shifts",
+        targetId: created.shiftId,
+        targetLabel: created.title,
+        after: created,
+      });
+      return created;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, "shifts");
+      throw error;
+    }
+  },
+
+  async updateShift(
+    shiftId: string,
+    changes: Partial<ShiftRecord>,
+    actor?: UserProfile
+  ): Promise<ShiftRecord> {
+    const before = (await this.getShifts()).find((item) => item.shiftId === shiftId);
+    if (!before) throw new Error("המשמרת לא נמצאה.");
+
+    const updated: ShiftRecord = {
+      ...before,
+      ...changes,
+      shiftId,
+      updatedAt: new Date().toISOString(),
+      updatedBy: actor?.userId || auth?.currentUser?.uid || "unknown",
+      updatedByName: actor?.fullName || "משתמש לא ידוע",
+    };
+
+    if (!isFirebaseActive()) {
+      const current = JSON.parse(localStorage.getItem("idf_shifts") || "[]");
+      localStorage.setItem(
+        "idf_shifts",
+        JSON.stringify(
+          current.map((item: ShiftRecord) =>
+            item.shiftId === shiftId ? updated : item
+          )
+        )
+      );
+    } else {
+      try {
+        const { shiftId: _shiftId, ...safeUpdated } = updated;
+        await setDoc(
+          doc(db, "shifts", shiftId),
+          removeUndefinedValues(safeUpdated),
+          { merge: true }
+        );
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `shifts/${shiftId}`);
+        throw error;
+      }
+    }
+
+    await writeAuditLog({
+      action: "update",
+      module: "shifts",
+      targetId: shiftId,
+      targetLabel: updated.title,
+      before,
+      after: updated,
+    });
+
+    return updated;
+  },
+
+  async deleteShift(shiftId: string): Promise<void> {
+    const before = (await this.getShifts()).find((item) => item.shiftId === shiftId);
+
+    if (!isFirebaseActive()) {
+      const current = JSON.parse(localStorage.getItem("idf_shifts") || "[]");
+      localStorage.setItem(
+        "idf_shifts",
+        JSON.stringify(
+          current.filter((item: ShiftRecord) => item.shiftId !== shiftId)
+        )
+      );
+    } else {
+      try {
+        await deleteDoc(doc(db, "shifts", shiftId));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `shifts/${shiftId}`);
+        throw error;
+      }
+    }
+
+    await writeAuditLog({
+      action: "delete",
+      module: "shifts",
+      targetId: shiftId,
+      targetLabel: before?.title || "משמרת",
+      before,
+    });
+  },
+
+  async markShiftAsRead(
+    shiftId: string,
+    userId: string,
+    actor?: UserProfile
+  ): Promise<ShiftRecord> {
+    const shift = (await this.getShifts()).find((item) => item.shiftId === shiftId);
+    if (!shift) throw new Error("המשמרת לא נמצאה.");
+
+    const now = new Date().toISOString();
+    const assignments = shift.assignments.map((assignment) =>
+      assignment.userId === userId
+        ? { ...assignment, readStatus: "read" as const, readAt: now }
+        : assignment
+    );
+
+    const updated = await this.updateShift(
+      shiftId,
+      { assignments },
+      actor
+    );
+
+    await writeAuditLog({
+      action: "acknowledge",
+      module: "shifts",
+      targetId: shiftId,
+      targetLabel: shift.title,
+      metadata: { userId, readAt: now },
+    });
+
+    return updated;
+  },
+
 
 
   async createSystemBackup(

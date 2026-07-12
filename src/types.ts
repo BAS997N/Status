@@ -132,7 +132,7 @@ export interface GoogleSheetsConfig {
 }
 
 
-export type AuditAction = "create" | "update" | "delete" | "sync" | "reset" | "backup" | "restore";
+export type AuditAction = "create" | "update" | "delete" | "sync" | "reset" | "backup" | "restore" | "acknowledge";
 export type AuditModule =
   | "users"
   | "permissions"
@@ -142,7 +142,8 @@ export type AuditModule =
   | "google_sheets"
   | "reports"
   | "system_settings"
-  | "backups";
+  | "backups"
+  | "shifts";
 
 export interface AuditLogEntry {
   id: string;
@@ -189,6 +190,39 @@ export interface BackupRestoreResult {
   restoredDocuments: number;
   skippedDocuments: number;
   completedAt: string;
+}
+
+
+
+export type ShiftStatus = "scheduled" | "cancelled";
+export type ShiftReadStatus = "unread" | "read";
+
+export interface ShiftAssignment {
+  userId: string;
+  userName: string;
+  personalId?: string;
+  unit?: string;
+  medicalRole?: string;
+  readStatus?: ShiftReadStatus;
+  readAt?: string;
+}
+
+export interface ShiftRecord {
+  shiftId: string;
+  title: string;
+  shiftType: string;
+  startAt: string;
+  endAt: string;
+  location?: string;
+  note?: string;
+  status: ShiftStatus;
+  assignments: ShiftAssignment[];
+  createdAt: string;
+  createdBy: string;
+  createdByName?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+  updatedByName?: string;
 }
 
 export interface UserProfile {

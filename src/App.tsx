@@ -38,6 +38,7 @@ import {
   MedicalRoleConfig,
   GoogleSheetsConfig,
   SystemSettingsConfig,
+  ShiftRecord,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "./types";
 import { dataService } from "./services/dataService";
@@ -47,6 +48,7 @@ import SoldierReporter from "./components/SoldierReporter";
 import CommandDashboard from "./components/CommandDashboard";
 import SystemAdminPanel from "./components/SystemAdminPanel";
 import AppMessageModal from "./components/AppMessageModal";
+import ShiftsView from "./components/ShiftsView";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   ShieldCheck, 
@@ -55,7 +57,8 @@ import {
   AlertTriangle, 
   KeyRound, 
   Info,
-  LogOut
+  LogOut,
+  CalendarDays
 } from "lucide-react";
 
 //שעה לפי אזור זמן ולא לפי חייל
@@ -91,8 +94,9 @@ export default function App() {
   const [reports, setReports] = useState<AttendanceReport[]>([]);
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
   const [systemLogs, setSystemLogs] = useState<any[]>([]);
+  const [shifts, setShifts] = useState<ShiftRecord[]>([]);
   const [activeTab, setActiveTab] = useState<
-    "reporter" | "dashboard" | "system_admin"
+    "reporter" | "dashboard" | "system_admin" | "shifts"
   >("reporter");
 
   // ID-based login states
@@ -294,6 +298,12 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const isSuperAdmin = hasPermission(permissions, "system_admin.view");
   const canViewReporter = hasPermission(permissions, "reporter.view");
   const canViewDashboard = hasPermission(permissions, "dashboard.view");
+  const effectiveSystemRole = getEffectiveSystemRole(permissionUser);
+  const canViewShifts = permissions["shifts.view"] !== false;
+  const canManageShifts =
+    permissions["shifts.manage"] === true ||
+    effectiveSystemRole === "admin" ||
+    effectiveSystemRole === "super_admin";
 
   const getInitialTabForProfile = (profile: UserProfile) => {
     const effectiveProfile =
@@ -578,6 +588,10 @@ setSystemLogs(updatedSystemLogs);
   useEffect(() => {
   if (!userProfile) return;
   refreshReports();
+  dataService
+    .getShifts()
+    .then(setShifts)
+    .catch((error) => console.error("Failed loading shifts:", error));
 }, [userProfile]);
 
   // Notification actions
@@ -1826,7 +1840,7 @@ const handleAdminSaveReport = async (reportData: {
         )}
 
         {/* Navigation Tabs (Only if Commander) */}
-        {(canViewReporter || canViewDashboard || isSuperAdmin) && (
+        {(canViewReporter || canViewDashboard || canViewShifts || isSuperAdmin) && (
           <div className="flex border-b border-slate-200/80 mb-6 gap-2">
             {canViewReporter && (
             <button
@@ -1854,6 +1868,20 @@ const handleAdminSaveReport = async (reportData: {
               <LayoutDashboard className="w-4 h-4" />
               <span>לוח בקרה מפקדים (סגל)</span>
             </button>
+            )}
+
+            {canViewShifts && (
+              <button
+                onClick={() => setActiveTab("shifts")}
+                className={`pb-3.5 px-4 font-bold text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === "shifts"
+                    ? "border-indigo-600 text-indigo-700"
+                    : "border-transparent text-slate-400 hover:text-slate-500"
+                }`}
+              >
+                <CalendarDays className="w-4 h-4" />
+                <span>משמרות</span>
+              </button>
             )}
 
             {isSuperAdmin && (
@@ -1894,6 +1922,20 @@ const handleAdminSaveReport = async (reportData: {
                 onGoogleSheetsConfigChanged={handleGoogleSheetsConfigChanged}
                 systemSettings={systemSettings}
                 onSystemSettingsChanged={handleSystemSettingsChanged}
+              />
+            </motion.div>
+          ) : activeTab === "shifts" && canViewShifts ? (
+            <motion.div
+              key="shifts-tab"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.15 }}
+            >
+              <ShiftsView
+                currentUser={userProfile}
+                allUsers={allUsers}
+                canManage={canManageShifts}
               />
             </motion.div>
           ) : activeTab === "reporter" && canViewReporter ? (
