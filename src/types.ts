@@ -59,6 +59,41 @@ export interface GoogleSheetsConfig {
   lastTestMessage?: string;
   updatedAt?: string;
   updatedBy?: string;
+  lastSyncAt?: string;
+  lastSyncStatus?: "success" | "partial" | "error" | "idle";
+  lastSyncSentCount?: number;
+  lastSyncFailedCount?: number;
+  lastSyncDurationMs?: number;
+  lastSyncError?: string;
+  lastSyncStartDate?: string;
+  lastSyncEndDate?: string;
+  syncHistory?: GoogleSheetsSyncLog[];
+}
+
+
+export interface GoogleSheetsSyncLog {
+  id: string;
+  startedAt: string;
+  completedAt: string;
+  startDate?: string;
+  endDate?: string;
+  sentCount: number;
+  failedCount: number;
+  durationMs: number;
+  status: "success" | "partial" | "error";
+  errorMessage?: string;
+}
+
+export interface GoogleSheetsSyncResult {
+  startedAt: string;
+  completedAt: string;
+  startDate?: string;
+  endDate?: string;
+  sentCount: number;
+  failedCount: number;
+  durationMs: number;
+  status: "success" | "partial" | "error";
+  errorMessage?: string;
 }
 
 export interface UserProfile {
