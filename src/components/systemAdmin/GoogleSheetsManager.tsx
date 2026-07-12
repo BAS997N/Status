@@ -227,7 +227,7 @@ export default function GoogleSheetsManager({
       if (result.status === "success") {
         setMessage({
           type: "success",
-          text: `הסנכרון הסתיים בהצלחה. נשלחו ${result.sentCount} דיווחים.`,
+          text: `הסנכרון הסתיים בהצלחה. נמצאו ${result.foundCount || result.sentCount}, נשלחו ${result.sentCount}, דולגו ${result.skippedCount || 0}.`,
         });
       } else if (result.status === "partial") {
         setMessage({
@@ -508,11 +508,19 @@ export default function GoogleSheetsManager({
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <Clock3 className="mb-2 h-5 w-5 text-slate-500" />
           <div className="text-[11px] font-black text-slate-500">סנכרון אחרון</div>
           <div className="mt-1 text-xs font-bold text-slate-800">{formattedLastSync}</div>
+        </div>
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+          <div className="text-[11px] font-black text-blue-700">נמצאו בטווח</div>
+          <div className="mt-1 text-2xl font-black text-blue-800">{draft.lastSyncFoundCount || 0}</div>
+        </div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="text-[11px] font-black text-amber-700">דולגו</div>
+          <div className="mt-1 text-2xl font-black text-amber-800">{draft.lastSyncSkippedCount || 0}</div>
         </div>
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
           <div className="text-[11px] font-black text-emerald-700">נשלחו</div>
@@ -533,6 +541,25 @@ export default function GoogleSheetsManager({
           </div>
         </div>
       </div>
+
+      {(draft.lastSyncSkippedCount || 0) > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="mb-3 text-xs font-black text-amber-800">פירוט דיווחים שדולגו</div>
+          <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ["reset", "דיווחים שאופסו"],
+              ["statusNotExported", "סטטוס שאינו מיוצא"],
+              ["missingUser", "חסר משתמש / מספר אישי"],
+              ["missingDate", "חסר תאריך"],
+              ["outsideRange", "מחוץ לטווח שנבחר"],
+              ["duplicate", "דיווח קודם לאותו חייל באותו יום"],
+            ].map(([key, label]) => {
+              const count = draft.lastSyncSkippedReasons?.[key] || 0;
+              return count > 0 ? <div key={key} className="flex items-center justify-between rounded-xl bg-white px-3 py-2 font-bold text-slate-700"><span>{label}</span><span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">{count}</span></div> : null;
+            })}
+          </div>
+        </div>
+      )}
 
       {message && (
         <div
@@ -576,6 +603,9 @@ export default function GoogleSheetsManager({
                 <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
                   <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
                     נשלחו {item.sentCount}
+                  </span>
+                  <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-700">
+                    דולגו {item.skippedCount || 0}
                   </span>
                   <span className="rounded-full bg-rose-50 px-2 py-1 text-rose-700">
                     נכשלו {item.failedCount}

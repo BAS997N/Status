@@ -60,6 +60,9 @@ export interface GoogleSheetsSyncHistoryItem {
   endDate?: string;
   sentCount: number;
   failedCount: number;
+  foundCount?: number;
+  skippedCount?: number;
+  skippedReasons?: Record<string, number>;
   durationMs: number;
   status: Exclude<GoogleSheetsSyncStatus, "idle">;
   errorMessage?: string;
@@ -69,6 +72,9 @@ export interface GoogleSheetsSyncResult {
   status: Exclude<GoogleSheetsSyncStatus, "idle">;
   sentCount: number;
   failedCount: number;
+  foundCount?: number;
+  skippedCount?: number;
+  skippedReasons?: Record<string, number>;
   durationMs: number;
   startedAt: string;
   completedAt: string;
@@ -90,11 +96,40 @@ export interface GoogleSheetsConfig {
   lastSyncEndDate?: string;
   lastSyncSentCount?: number;
   lastSyncFailedCount?: number;
+  lastSyncFoundCount?: number;
+  lastSyncSkippedCount?: number;
+  lastSyncSkippedReasons?: Record<string, number>;
   lastSyncDurationMs?: number;
   lastSyncError?: string;
   syncHistory?: GoogleSheetsSyncHistoryItem[];
   updatedAt?: string;
   updatedBy?: string;
+}
+
+
+export type AuditAction = "create" | "update" | "delete" | "sync" | "reset";
+export type AuditModule =
+  | "users"
+  | "permissions"
+  | "attendance_statuses"
+  | "units"
+  | "medical_roles"
+  | "google_sheets"
+  | "reports";
+
+export interface AuditLogEntry {
+  id: string;
+  action: AuditAction;
+  module: AuditModule;
+  actorId: string;
+  actorName: string;
+  actorRole?: string;
+  targetId?: string;
+  targetLabel?: string;
+  before?: unknown;
+  after?: unknown;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
 }
 
 export interface UserProfile {

@@ -3,6 +3,7 @@ import {
   BadgeCheck,
   Building2,
   Database,
+  ClipboardList,
   FileSpreadsheet,
   ListChecks,
   Settings,
@@ -17,6 +18,7 @@ import AttendanceStatusManager from "./systemAdmin/AttendanceStatusManager";
 import UnitsManager from "./systemAdmin/UnitsManager";
 import MedicalRolesManager from "./systemAdmin/MedicalRolesManager";
 import GoogleSheetsManager from "./systemAdmin/GoogleSheetsManager";
+import AuditManager from "./systemAdmin/AuditManager";
 
 type AdminSection =
   | "overview"
@@ -26,6 +28,7 @@ type AdminSection =
   | "roles"
   | "units"
   | "sheets"
+  | "audit"
   | "settings";
 
 interface SystemAdminPanelProps {
@@ -87,6 +90,12 @@ const sections: Array<{
     title: "Google Sheets",
     description: "ניהול ייצוא, טווחי תאריכים והגדרות הסנכרון.",
     icon: FileSpreadsheet,
+  },
+  {
+    id: "audit",
+    title: "Audit — יומן ביקורת",
+    description: "מעקב אחר שינויים במשתמשים, הרשאות, הגדרות וסנכרונים.",
+    icon: ClipboardList,
   },
   {
     id: "settings",
@@ -200,6 +209,8 @@ export default function SystemAdminPanel({
           config={googleSheetsConfig}
           onConfigChanged={onGoogleSheetsConfigChanged}
         />
+      ) : activeSection === "audit" ? (
+        <AuditManager />
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-start gap-3">

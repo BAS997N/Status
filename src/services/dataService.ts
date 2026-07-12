@@ -32,6 +32,9 @@ import {
   GoogleSheetsConfig,
   GoogleSheetsSyncResult,
   GoogleSheetsSyncHistoryItem,
+  AuditLogEntry,
+  AuditAction,
+  AuditModule,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -178,6 +181,49 @@ const removeUndefinedValues = <T>(value: T): T => {
   }
 
   return value;
+};
+
+
+const getAuditActor = async () => {
+  const actorId = auth?.currentUser?.uid || "unknown";
+  if (!isFirebaseActive() || actorId === "unknown") {
+    return { actorId, actorName: auth?.currentUser?.email || "משתמש לא ידוע", actorRole: "unknown" };
+  }
+  try {
+    const snap = await getDoc(doc(db, "users", actorId));
+    const data = snap.exists() ? snap.data() : {};
+    return {
+      actorId,
+      actorName: data.fullName || auth?.currentUser?.email || "משתמש לא ידוע",
+      actorRole: data.systemRole || data.role || "unknown",
+    };
+  } catch {
+    return { actorId, actorName: auth?.currentUser?.email || "משתמש לא ידוע", actorRole: "unknown" };
+  }
+};
+
+const writeAuditLog = async (entry: {
+  action: AuditAction;
+  module: AuditModule;
+  targetId?: string;
+  targetLabel?: string;
+  before?: unknown;
+  after?: unknown;
+  metadata?: Record<string, unknown>;
+}) => {
+  const actor = await getAuditActor();
+  const createdAt = new Date().toISOString();
+  const safeEntry = removeUndefinedValues({ ...entry, ...actor, createdAt });
+  if (!isFirebaseActive()) {
+    const current = JSON.parse(localStorage.getItem("idf_audit_logs") || "[]");
+    localStorage.setItem("idf_audit_logs", JSON.stringify([{ id: `audit_${Date.now()}`, ...safeEntry }, ...current].slice(0, 500)));
+    return;
+  }
+  try {
+    await addDoc(collection(db, "system_logs"), { ...safeEntry, logType: "audit", timestamp: createdAt });
+  } catch (error) {
+    console.warn("Audit log write failed:", error);
+  }
 };
 
 const saveGoogleSheetsConfigToCache = (config: GoogleSheetsConfig) => {
@@ -672,6 +718,25 @@ const getSheetsPersonalId = (...values: any[]): string => {
 };
 
 export const dataService = {
+  async createAuditLog(entry: { action: AuditAction; module: AuditModule; targetId?: string; targetLabel?: string; before?: unknown; after?: unknown; metadata?: Record<string, unknown> }) {
+    await writeAuditLog(entry);
+  },
+
+  async getAuditLogs(): Promise<AuditLogEntry[]> {
+    if (!isFirebaseActive()) {
+      return JSON.parse(localStorage.getItem("idf_audit_logs") || "[]");
+    }
+    try {
+      const snapshot = await getDocs(query(collection(db, "system_logs"), orderBy("timestamp", "desc")));
+      return snapshot.docs
+        .filter((item) => item.data()?.logType === "audit")
+        .map((item) => ({ id: item.id, ...item.data(), createdAt: item.data()?.createdAt || item.data()?.timestamp } as AuditLogEntry));
+    } catch (error) {
+      console.warn("Audit logs load failed:", error);
+      return [];
+    }
+  },
+
   async getGoogleSheetsConfig(
     forceRefresh = false
   ): Promise<GoogleSheetsConfig> {
@@ -722,6 +787,7 @@ export const dataService = {
     config: GoogleSheetsConfig,
     updatedBy?: string
   ): Promise<GoogleSheetsConfig> {
+    const beforeConfig = await this.getGoogleSheetsConfig(true).catch(() => null);
     const normalized = normalizeGoogleSheetsConfig({
       ...config,
       updatedAt: new Date().toISOString(),
@@ -730,6 +796,7 @@ export const dataService = {
 
     if (!isFirebaseActive()) {
       saveGoogleSheetsConfigToCache(normalized);
+      await writeAuditLog({ action: "update", module: "google_sheets", targetId: "google_sheets", targetLabel: "Google Sheets", before: beforeConfig, after: normalized });
       return normalized;
     }
 
@@ -844,6 +911,7 @@ export const dataService = {
     configs: RolePermissionConfig[],
     updatedBy?: string
   ): Promise<RolePermissionConfig[]> {
+    const beforeValue = await this.getRolePermissionConfigs(true).catch(() => []);
     const normalized = normalizeRolePermissionConfigs(configs).map(
       (config) => ({
         ...config,
@@ -871,6 +939,7 @@ export const dataService = {
       );
 
       saveRolePermissionsToCache(normalized);
+      await writeAuditLog({ action: "update", module: "permissions", targetId: "settings", targetLabel: "הרשאות", before: beforeValue, after: normalized });
       return normalized;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
@@ -937,6 +1006,7 @@ export const dataService = {
     units: UnitConfig[],
     updatedBy?: string
   ): Promise<UnitConfig[]> {
+    const beforeValue = await this.getUnitConfigs(true).catch(() => []);
     const normalized = normalizeUnitConfigs(units).map((unit) => ({
       ...unit,
       updatedAt: new Date().toISOString(),
@@ -962,6 +1032,7 @@ export const dataService = {
       );
 
       saveUnitConfigsToCache(normalized);
+      await writeAuditLog({ action: "update", module: "units", targetId: "settings", targetLabel: "יחידות", before: beforeValue, after: normalized });
       return normalized;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
@@ -1026,6 +1097,7 @@ export const dataService = {
     roles: MedicalRoleConfig[],
     updatedBy?: string
   ): Promise<MedicalRoleConfig[]> {
+    const beforeValue = await this.getMedicalRoleConfigs(true).catch(() => []);
     const normalized = normalizeMedicalRoleConfigs(roles).map((role) => ({
       ...role,
       updatedAt: new Date().toISOString(),
@@ -1051,6 +1123,7 @@ export const dataService = {
       );
 
       saveMedicalRoleConfigsToCache(normalized);
+      await writeAuditLog({ action: "update", module: "medical_roles", targetId: "settings", targetLabel: "תפקידי רפואה", before: beforeValue, after: normalized });
       return normalized;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
@@ -1119,6 +1192,7 @@ export const dataService = {
     statuses: AttendanceStatusConfig[],
     updatedBy?: string
   ): Promise<AttendanceStatusConfig[]> {
+    const beforeValue = await this.getAttendanceStatusConfigs(true).catch(() => []);
     const normalizedStatuses = normalizeAttendanceStatusConfigs(statuses);
 
     if (!isFirebaseActive()) {
@@ -1141,6 +1215,7 @@ export const dataService = {
       );
 
       saveAttendanceStatusesToCache(normalizedStatuses);
+      await writeAuditLog({ action: "update", module: "attendance_statuses", targetId: "settings", targetLabel: "סטטוסי נוכחות", before: beforeValue, after: normalizedStatuses });
       return normalizedStatuses;
     } catch (error) {
       handleFirestoreError(
@@ -1298,12 +1373,16 @@ export const dataService = {
 
     const path = `users/${userId}`;
 
+    let beforeUser: any = null;
     try {
+      const beforeSnap = await getDoc(doc(db, "users", userId));
+      beforeUser = beforeSnap.exists() ? beforeSnap.data() : null;
       await updateDoc(doc(db, "users", userId), {
         systemRole,
         systemRoleUpdatedAt: new Date().toISOString(),
         systemRoleUpdatedBy: auth?.currentUser?.uid || "unknown",
       });
+      await writeAuditLog({ action: "update", module: "users", targetId: userId, targetLabel: beforeUser?.fullName || userId, before: beforeUser, after: { ...beforeUser, systemRole } });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }
@@ -1469,11 +1548,17 @@ async createSystemLog(logData: {
       status: "success" | "partial" | "error",
       sentCount: number,
       failedCount: number,
-      errorMessage?: string
+      errorMessage?: string,
+      foundCount = 0,
+      skippedCount = 0,
+      skippedReasons: Record<string, number> = {}
     ): GoogleSheetsSyncResult => ({
       status,
       sentCount,
       failedCount,
+      foundCount,
+      skippedCount,
+      skippedReasons,
       durationMs: Date.now() - startedMs,
       startedAt,
       completedAt: new Date().toISOString(),
@@ -1491,6 +1576,9 @@ async createSystemLog(logData: {
         endDate: result.endDate,
         sentCount: result.sentCount,
         failedCount: result.failedCount,
+        foundCount: result.foundCount,
+        skippedCount: result.skippedCount,
+        skippedReasons: result.skippedReasons,
         durationMs: result.durationMs,
         status: result.status,
         errorMessage: result.errorMessage,
@@ -1505,13 +1593,16 @@ async createSystemLog(logData: {
           lastSyncEndDate: endDate,
           lastSyncSentCount: result.sentCount,
           lastSyncFailedCount: result.failedCount,
+          lastSyncFoundCount: result.foundCount || 0,
+          lastSyncSkippedCount: result.skippedCount || 0,
+          lastSyncSkippedReasons: result.skippedReasons || {},
           lastSyncDurationMs: result.durationMs,
           lastSyncError: result.errorMessage || "",
           syncHistory: [historyItem, ...(googleSheetsConfig.syncHistory || [])].slice(0, 20),
         },
         auth?.currentUser?.uid || "SYSTEM_SYNC"
       );
-
+      await writeAuditLog({ action: "sync", module: "google_sheets", targetId: historyItem.id, targetLabel: `${startDate || ""}–${endDate || ""}`, after: result });
       return result;
     };
 
@@ -1531,17 +1622,29 @@ async createSystemLog(logData: {
         attendanceStatusConfigs.map((status) => [status.id, status])
       );
 
-      const activeReports = reports.filter((report) => {
-        if ((report as any).isReset || !report.userId) return false;
+      const skippedReasons: Record<string, number> = {
+        reset: 0,
+        statusNotExported: 0,
+        missingUser: 0,
+        missingDate: 0,
+        outsideRange: 0,
+        duplicate: 0,
+      };
+      const reportsInRange: AttendanceReport[] = [];
+      reports.forEach((report) => {
+        if ((report as any).isReset) { skippedReasons.reset++; return; }
+        if (!report.userId) { skippedReasons.missingUser++; return; }
         const statusConfig = attendanceStatusById.get(report.status);
-        if (statusConfig?.exportToSheets === false) return false;
+        if (statusConfig?.exportToSheets === false) { skippedReasons.statusNotExported++; return; }
         const reportDate = (report as any).reportDate ||
           (typeof report.timestamp === "string" ? report.timestamp.split("T")[0] : "");
-        if (!reportDate) return false;
-        if (startDate && reportDate < startDate) return false;
-        if (endDate && reportDate > endDate) return false;
-        return true;
+        if (!reportDate) { skippedReasons.missingDate++; return; }
+        if ((startDate && reportDate < startDate) || (endDate && reportDate > endDate)) {
+          skippedReasons.outsideRange++; return;
+        }
+        reportsInRange.push(report);
       });
+      const activeReports = reportsInRange;
 
       const latestReportBySoldierAndDate = new Map<string, AttendanceReport>();
       activeReports.forEach((report) => {
@@ -1562,13 +1665,16 @@ async createSystemLog(logData: {
           ? new Date(existing.updatedAt || existing.timestamp || 0).getTime()
           : 0;
         if (!existing || reportTime >= existingTime) {
+          if (existing) skippedReasons.duplicate++;
           latestReportBySoldierAndDate.set(key, report);
+        } else {
+          skippedReasons.duplicate++;
         }
       });
 
       const reportsToSync = Array.from(latestReportBySoldierAndDate.values());
       if (reportsToSync.length === 0) {
-        return persistResult(buildResult("success", 0, 0));
+        return persistResult(buildResult("success", 0, 0, undefined, reportsInRange.length, Object.values(skippedReasons).reduce((a, b) => a + b, 0), skippedReasons));
       }
 
       const userById = new Map(users.map((user) => [user.userId, user]));
@@ -1649,11 +1755,15 @@ async createSystemLog(logData: {
       }
 
       const status = failedCount === 0 ? "success" : sentCount > 0 ? "partial" : "error";
+      const skippedCount = Object.values(skippedReasons).reduce((total, count) => total + count, 0);
       return persistResult(buildResult(
         status,
         sentCount,
         failedCount,
-        status === "error" ? "כל הדיווחים נכשלו בשליחה." : undefined
+        status === "error" ? "כל הדיווחים נכשלו בשליחה." : undefined,
+        reportsInRange.length,
+        skippedCount,
+        skippedReasons
       ));
     } catch (error) {
       const message = error instanceof Error ? error.message : "הסנכרון נכשל.";
