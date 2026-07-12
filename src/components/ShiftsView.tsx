@@ -55,7 +55,7 @@ const isDoctorOrParamedic = (user: UserProfile) =>
   includesAny(user.medicalRole, ["רופא", "פרמדיק", "פארמדיק"]);
 
 const isEventManager = (user: UserProfile) =>
-  includesAny(user.medicalRole, ["מנהל אירוע"]);
+  includesAny(user.medicalRole, ["מנהל/ת אירוע"]);
 
 const isCommander = (user: UserProfile) =>
   user.role === "commander" ||
