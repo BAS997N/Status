@@ -589,7 +589,7 @@ export default function ShiftsView({
     setMessage(null);
   };
 
-  const saveShift = async () => {
+  const saveShift = async (targetStatus: "draft" | "published") => {
     setMessage(null);
     const resolvedTitle =
       selectedShiftTypeId === "custom" ? customTitle.trim() : title.trim();
@@ -621,12 +621,13 @@ export default function ShiftsView({
     const missing = expandedSlots.filter(
       (slot) => slot.required && !slotAssignments[slot.key]
     );
-    if (missing.length) {
+
+    if (targetStatus === "published" && missing.length) {
       setMessage({
         type: "error",
-        text: `יש לבחור חייל עבור: ${missing
+        text: `לא ניתן לפרסם לפני השלמת השיבוץ עבור: ${missing
           .map((slot) => slot.label)
-          .join(", ")}.`,
+          .join(", ")}. ניתן לשמור את המשמרת כטיוטה.`,
       });
       return;
     }
@@ -712,7 +713,7 @@ export default function ShiftsView({
         location: location.trim(),
         note: note.trim(),
         assignments,
-        status: editingShift?.status || "draft",
+        status: targetStatus,
       };
       if (editingShift) {
         await dataService.updateShift(editingShift.shiftId, values, currentUser);
@@ -720,7 +721,7 @@ export default function ShiftsView({
         await dataService.createShift(
           {
             ...values,
-            status: "draft",
+            status: targetStatus,
             createdBy: currentUser.userId,
             createdByName: currentUser.fullName,
           },
@@ -730,7 +731,15 @@ export default function ShiftsView({
       await loadShifts();
       setIsFormOpen(false);
       resetForm();
-      setMessage({ type: "success", text: "המשמרת נשמרה בהצלחה." });
+      setMessage({
+        type: "success",
+        text:
+          targetStatus === "published"
+            ? "המשמרת נשמרה ופורסמה בהצלחה."
+            : missing.length
+            ? `המשמרת נשמרה כטיוטה עם ${missing.length} תפקידים שעדיין לא שובצו.`
+            : "המשמרת נשמרה כטיוטה בהצלחה.",
+      });
     } catch (error) {
       console.error("Failed saving shift:", error);
       setMessage({ type: "error", text: "שמירת המשמרת נכשלה." });
@@ -809,6 +818,35 @@ export default function ShiftsView({
   const togglePublishShift = async (shift: ShiftRecord) => {
     try {
       const nextStatus = isPublishedShift(shift) ? "draft" : "published";
+
+      if (nextStatus === "published") {
+        const assignedSlotIds = new Set(
+          shift.assignments.map((assignment) => assignment.slotId)
+        );
+        const assignedSlotLabels = new Set(
+          shift.assignments.map(
+            (assignment) => assignment.slotLabel || "תפקיד"
+          )
+        );
+
+        const missingRequiredSlots = expandedSlots.filter(
+          (slot) =>
+            slot.required &&
+            !assignedSlotIds.has(slot.key) &&
+            !assignedSlotLabels.has(slot.label)
+        );
+
+        if (missingRequiredSlots.length) {
+          setMessage({
+            type: "error",
+            text: `לא ניתן לפרסם את המשמרת. חסר שיבוץ עבור: ${missingRequiredSlots
+              .map((slot) => slot.label)
+              .join(", ")}.`,
+          });
+          return;
+        }
+      }
+
       await dataService.updateShift(
         shift.shiftId,
         { status: nextStatus },
@@ -2995,22 +3033,37 @@ export default function ShiftsView({
               </div>
             )}
 
-            <div className="mt-5 flex gap-3">
+            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
               <button
                 type="button"
                 onClick={() => setIsFormOpen(false)}
-                className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-xs font-black text-slate-600"
+                className="rounded-xl border border-slate-200 px-4 py-3 text-xs font-black text-slate-600"
               >
                 ביטול
               </button>
+
               <button
                 type="button"
-                onClick={saveShift}
+                onClick={() => saveShift("draft")}
                 disabled={saving}
-                className="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-xs font-black text-white disabled:opacity-50"
+                className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-black text-amber-800 disabled:opacity-50"
               >
-                {saving ? "שומר..." : "שמור משמרת"}
+                {saving ? "שומר..." : "שמור כטיוטה"}
               </button>
+
+              <button
+                type="button"
+                onClick={() => saveShift("published")}
+                disabled={saving}
+                className="rounded-xl bg-indigo-600 px-4 py-3 text-xs font-black text-white disabled:opacity-50"
+              >
+                {saving ? "שומר..." : "שמור ופרסם"}
+              </button>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[10px] font-bold leading-5 text-amber-800">
+              ניתן לשמור טיוטה גם כאשר לא כל תפקידי החובה שובצו.
+              פרסום המשמרת יתאפשר רק לאחר השלמת כל השיבוצים הנדרשים.
             </div>
           </div>
         </div>
