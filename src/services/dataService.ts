@@ -35,6 +35,7 @@ import {
   AuditLogEntry,
   AuditAction,
   AuditModule,
+  SystemSettingsConfig,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -113,6 +114,67 @@ const initSimStorage = () => {
   }
 };
 initSimStorage();
+
+const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
+  systemName: "מערכת נוכחות חיילים",
+  unitName: "תאג״ד 997",
+  footerText: "Created by AviElias",
+  systemVersion: "1.0.0",
+  timeZone: "Asia/Jerusalem",
+  defaultStartScreen: "dashboard",
+  notificationsEnabled: true,
+  toastNotificationsEnabled: true,
+  notificationSoundEnabled: false,
+  cacheMinutes: 30,
+  autoRefreshSeconds: 60,
+  maintenanceMode: false,
+  maintenanceMessage: "המערכת נמצאת כרגע בתחזוקה. נסו שוב מאוחר יותר.",
+};
+
+const SYSTEM_SETTINGS_CACHE_KEY = "idf_system_settings";
+const SYSTEM_SETTINGS_CACHE_TIME_KEY = "idf_system_settings_cached_at";
+
+const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
+  const raw = value && typeof value === "object"
+    ? (value as Partial<SystemSettingsConfig>)
+    : {};
+  const numberInRange = (candidate: unknown, fallback: number, min: number, max: number) => {
+    const parsed = Number(candidate);
+    return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
+  };
+  return {
+    ...DEFAULT_SYSTEM_SETTINGS,
+    ...raw,
+    systemName: typeof raw.systemName === "string" && raw.systemName.trim() ? raw.systemName.trim() : DEFAULT_SYSTEM_SETTINGS.systemName,
+    unitName: typeof raw.unitName === "string" && raw.unitName.trim() ? raw.unitName.trim() : DEFAULT_SYSTEM_SETTINGS.unitName,
+    footerText: typeof raw.footerText === "string" ? raw.footerText.trim() : DEFAULT_SYSTEM_SETTINGS.footerText,
+    systemVersion: typeof raw.systemVersion === "string" && raw.systemVersion.trim() ? raw.systemVersion.trim() : DEFAULT_SYSTEM_SETTINGS.systemVersion,
+    timeZone: typeof raw.timeZone === "string" && raw.timeZone.trim() ? raw.timeZone.trim() : DEFAULT_SYSTEM_SETTINGS.timeZone,
+    defaultStartScreen: raw.defaultStartScreen === "reporter" ? "reporter" : "dashboard",
+    notificationsEnabled: raw.notificationsEnabled !== false,
+    toastNotificationsEnabled: raw.toastNotificationsEnabled !== false,
+    notificationSoundEnabled: raw.notificationSoundEnabled === true,
+    cacheMinutes: numberInRange(raw.cacheMinutes, 30, 1, 1440),
+    autoRefreshSeconds: numberInRange(raw.autoRefreshSeconds, 60, 10, 3600),
+    maintenanceMode: raw.maintenanceMode === true,
+    maintenanceMessage: typeof raw.maintenanceMessage === "string" && raw.maintenanceMessage.trim() ? raw.maintenanceMessage.trim() : DEFAULT_SYSTEM_SETTINGS.maintenanceMessage,
+  };
+};
+
+const saveSystemSettingsToCache = (settings: SystemSettingsConfig) => {
+  localStorage.setItem(SYSTEM_SETTINGS_CACHE_KEY, JSON.stringify(settings));
+  localStorage.setItem(SYSTEM_SETTINGS_CACHE_TIME_KEY, String(Date.now()));
+};
+
+const getSystemSettingsFromCache = (): SystemSettingsConfig | null => {
+  try {
+    const raw = localStorage.getItem(SYSTEM_SETTINGS_CACHE_KEY);
+    return raw ? normalizeSystemSettings(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+};
+
 const DEFAULT_GOOGLE_SHEETS_CONFIG: GoogleSheetsConfig = {
   enabled: true,
   webAppUrl:
@@ -761,6 +823,65 @@ const getSheetsPersonalId = (...values: any[]): string => {
 };
 
 export const dataService = {
+
+  async getSystemSettings(forceRefresh = false): Promise<SystemSettingsConfig> {
+    if (!forceRefresh) {
+      const cached = getSystemSettingsFromCache();
+      if (cached) return cached;
+    }
+    if (!isFirebaseActive()) {
+      const local = getSystemSettingsFromCache() || normalizeSystemSettings(DEFAULT_SYSTEM_SETTINGS);
+      saveSystemSettingsToCache(local);
+      return local;
+    }
+    try {
+      const ref = doc(db, "settings", "system_settings");
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const settings = normalizeSystemSettings(snap.data());
+        saveSystemSettingsToCache(settings);
+        return settings;
+      }
+      const defaults = normalizeSystemSettings(DEFAULT_SYSTEM_SETTINGS);
+      await setDoc(ref, removeUndefinedValues({
+        ...defaults,
+        updatedAt: new Date().toISOString(),
+        updatedBy: auth?.currentUser?.uid || "SYSTEM_INIT",
+      }));
+      saveSystemSettingsToCache(defaults);
+      return defaults;
+    } catch (error) {
+      console.warn("Failed loading system settings:", error);
+      const fallback = getSystemSettingsFromCache() || normalizeSystemSettings(DEFAULT_SYSTEM_SETTINGS);
+      saveSystemSettingsToCache(fallback);
+      return fallback;
+    }
+  },
+
+  async saveSystemSettings(settings: SystemSettingsConfig, updatedBy?: string): Promise<SystemSettingsConfig> {
+    const before = await this.getSystemSettings(true).catch(() => null);
+    const normalized = normalizeSystemSettings({
+      ...settings,
+      updatedAt: new Date().toISOString(),
+      updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
+    });
+    if (!isFirebaseActive()) {
+      saveSystemSettingsToCache(normalized);
+      await writeAuditLog({ action: "update", module: "system_settings", targetId: "system_settings", targetLabel: "הגדרות מערכת", before, after: normalized });
+      return normalized;
+    }
+    try {
+      await setDoc(doc(db, "settings", "system_settings"), removeUndefinedValues(normalized), { merge: true });
+      saveSystemSettingsToCache(normalized);
+      await writeAuditLog({ action: "update", module: "system_settings", targetId: "system_settings", targetLabel: "הגדרות מערכת", before, after: normalized });
+      return normalized;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, "settings/system_settings");
+      return normalized;
+    }
+  },
+
+
   async createAuditLog(entry: { action: AuditAction; module: AuditModule; targetId?: string; targetLabel?: string; before?: unknown; after?: unknown; metadata?: Record<string, unknown> }) {
     await writeAuditLog(entry);
   },

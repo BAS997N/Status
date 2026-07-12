@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Shield, User, Sliders, Database, Wifi, WifiOff, RefreshCw, Layers, Bell, Check, Trash2, MailOpen, AlertTriangle, LogOut } from "lucide-react";
-import { UserProfile, AppNotification, ATTENDANCE_STATUS_LABELS } from "../types";
+import { UserProfile, AppNotification, ATTENDANCE_STATUS_LABELS, SystemSettingsConfig } from "../types";
 import { isFirebaseActive } from "../firebase";
 import { motion, AnimatePresence } from "motion/react";
 import { getReliableServerNow } from "../services/dataService";
@@ -17,6 +17,7 @@ interface HeaderProps {
   onLogout: () => void;
   medicalUnits?: string[];
   canEdit?: boolean;
+  systemSettings?: SystemSettingsConfig | null;
 }
 
 export default function Header({ 
@@ -30,7 +31,8 @@ export default function Header({
   onClearAllNotifications,
   onLogout,
   medicalUnits = [],
-  canEdit = false
+  canEdit = false,
+  systemSettings
 }: HeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
@@ -87,12 +89,14 @@ export default function Header({
     setIsProfileOpen(false);
   };
 
-  const formattedTime = time.toLocaleTimeString("he-IL", { hour12: false });
+  const configuredTimeZone = systemSettings?.timeZone || "Asia/Jerusalem";
+  const formattedTime = time.toLocaleTimeString("he-IL", { hour12: false, timeZone: configuredTimeZone });
   const formattedDate = time.toLocaleDateString("he-IL", { 
     weekday: "long", 
     year: "numeric", 
     month: "long", 
-    day: "numeric" 
+    day: "numeric",
+    timeZone: configuredTimeZone
   });
 
   return (
@@ -107,9 +111,9 @@ export default function Header({
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-military-100 flex items-center gap-2">
-                מערכת נוכחות חיילים
+                {systemSettings?.systemName || "מערכת נוכחות חיילים"}
                 <span className="text-xs bg-military-600 font-normal px-2.5 py-0.5 rounded-full border border-military-400">
-                  תאג״ד 997
+                  {systemSettings?.unitName || "תאג״ד 997"}
                 </span>
               </h1>
               <p className="text-xs text-military-200 mt-0.5 font-mono">
@@ -161,7 +165,7 @@ export default function Header({
             </button>
 
             {/* Notification Bell (Only for commander) */}
-            {currentUser.role === "commander" && (
+            {systemSettings?.notificationsEnabled !== false && currentUser.role === "commander" && (
               <div id="commander-notifications-panel" className="relative">
                 <button
                   onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}

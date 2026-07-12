@@ -37,6 +37,7 @@ import {
   UnitConfig,
   MedicalRoleConfig,
   GoogleSheetsConfig,
+  SystemSettingsConfig,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "./types";
 import { dataService } from "./services/dataService";
@@ -135,6 +136,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   message: string,
   status: AttendanceStatus = "base"
 ) => {
+  if (systemSettings?.notificationsEnabled === false || systemSettings?.toastNotificationsEnabled === false) return;
   const toastId = `toast_${Date.now()}_${Math.random()}`;
 
   const newToast: ToastMessage = {
@@ -167,6 +169,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     [medicalRoleConfigs]
   );
   const [googleSheetsConfig, setGoogleSheetsConfig] = useState<GoogleSheetsConfig | null>(null);
+  const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   const [permissionConfigs, setPermissionConfigs] = useState<RolePermissionConfig[]>([]);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [attendanceStatuses, setAttendanceStatuses] = useState<AttendanceStatusConfig[]>(
@@ -197,6 +200,10 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
   const handleGoogleSheetsConfigChanged = (config: GoogleSheetsConfig) => {
     setGoogleSheetsConfig(config);
+  };
+
+  const handleSystemSettingsChanged = (settings: SystemSettingsConfig) => {
+    setSystemSettings(settings);
   };
 
 
@@ -294,9 +301,10 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
         ? { ...profile, systemRole: "super_admin" as SystemRole }
         : profile;
 
-    return getEffectiveSystemRole(effectiveProfile) === "reporter"
-      ? "reporter"
-      : "dashboard";
+    const effectiveRole = getEffectiveSystemRole(effectiveProfile);
+    if (effectiveRole === "reporter") return "reporter";
+    if (systemSettings?.defaultStartScreen === "reporter" && hasPermission(getPermissionsForUser(effectiveProfile, permissionConfigs), "reporter.view")) return "reporter";
+    return "dashboard";
   };
 
   useEffect(() => {
@@ -312,6 +320,14 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     };
 
     loadGoogleSheetsConfig();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    dataService.getSystemSettings()
+      .then((settings) => { if (!cancelled) setSystemSettings(settings); })
+      .catch((error) => console.error("Failed loading system settings:", error));
     return () => { cancelled = true; };
   }, []);
 
@@ -722,7 +738,7 @@ const handleResetReport = async (reportId: string) => {
           setNotifications(prev => {
             const prevIds = new Set(prev.map(n => n.notificationId));
             updatedNots.forEach(not => {
-              if (prev.length > 0 && !prevIds.has(not.notificationId) && !not.isRead) {
+              if (systemSettings?.notificationsEnabled !== false && systemSettings?.toastNotificationsEnabled !== false && prev.length > 0 && !prevIds.has(not.notificationId) && !not.isRead) {
                 // Pop a gorgeous live floating banner
                 const labelObj = statusLabels[not.status] || { label: not.status };
                 const newToast: ToastMessage = {
@@ -745,9 +761,9 @@ const handleResetReport = async (reportId: string) => {
       }
     };
 
-    const interval = setInterval(poll, 60000);
+    const interval = setInterval(poll, Math.max(10, systemSettings?.autoRefreshSeconds || 60) * 1000);
     return () => clearInterval(interval);
-  }, [userProfile]);
+  }, [userProfile, systemSettings?.autoRefreshSeconds, systemSettings?.notificationsEnabled, systemSettings?.toastNotificationsEnabled]);
 
   if (loading) {
   return (
@@ -1694,7 +1710,14 @@ const handleAdminSaveReport = async (reportData: {
         onLogout={handleLogout}
         medicalUnits={medicalUnits}
         canEdit={hasPermission(permissions, "soldiers.edit")}
+        systemSettings={systemSettings}
       />
+
+      {systemSettings?.maintenanceMode && (
+        <div dir="rtl" className="border-b border-amber-300 bg-amber-100 px-4 py-3 text-center text-sm font-bold text-amber-900">
+          {systemSettings.maintenanceMessage}
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 w-full flex-grow">
         
@@ -1782,6 +1805,8 @@ const handleAdminSaveReport = async (reportData: {
                 onMedicalRoleConfigsChanged={handleMedicalRoleConfigsChanged}
                 googleSheetsConfig={googleSheetsConfig}
                 onGoogleSheetsConfigChanged={handleGoogleSheetsConfigChanged}
+                systemSettings={systemSettings}
+                onSystemSettingsChanged={handleSystemSettingsChanged}
               />
             </motion.div>
           ) : activeTab === "reporter" && canViewReporter ? (
@@ -1842,7 +1867,7 @@ const handleAdminSaveReport = async (reportData: {
       />
 
       <footer className="text-center py-6 text-cyan-500 font-bold text-sm select-none animate-fade-in" dir="rtl">
-        Created by AviElias
+        {systemSettings?.footerText || "Created by AviElias"}
       </footer>
     </div>
   );

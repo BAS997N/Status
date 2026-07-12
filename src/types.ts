@@ -50,6 +50,27 @@ export interface MedicalRoleConfig {
 
 
 
+
+export type DefaultStartScreen = "reporter" | "dashboard";
+
+export interface SystemSettingsConfig {
+  systemName: string;
+  unitName: string;
+  footerText: string;
+  systemVersion: string;
+  timeZone: string;
+  defaultStartScreen: DefaultStartScreen;
+  notificationsEnabled: boolean;
+  toastNotificationsEnabled: boolean;
+  notificationSoundEnabled: boolean;
+  cacheMinutes: number;
+  autoRefreshSeconds: number;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export type GoogleSheetsSyncStatus = "success" | "partial" | "error" | "idle";
 
 export interface GoogleSheetsSyncHistoryItem {
@@ -115,7 +136,8 @@ export type AuditModule =
   | "units"
   | "medical_roles"
   | "google_sheets"
-  | "reports";
+  | "reports"
+  | "system_settings";
 
 export interface AuditLogEntry {
   id: string;

@@ -11,7 +11,7 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { AttendanceStatusConfig, GoogleSheetsConfig, MedicalRoleConfig, SystemRole, UnitConfig, UserProfile } from "../types";
+import { AttendanceStatusConfig, GoogleSheetsConfig, MedicalRoleConfig, SystemRole, SystemSettingsConfig, UnitConfig, UserProfile } from "../types";
 import UsersManager from "./systemAdmin/UsersManager";
 import PermissionsManager from "./systemAdmin/PermissionsManager";
 import AttendanceStatusManager from "./systemAdmin/AttendanceStatusManager";
@@ -19,6 +19,7 @@ import UnitsManager from "./systemAdmin/UnitsManager";
 import MedicalRolesManager from "./systemAdmin/MedicalRolesManager";
 import GoogleSheetsManager from "./systemAdmin/GoogleSheetsManager";
 import AuditManager from "./systemAdmin/AuditManager";
+import SystemSettingsManager from "./systemAdmin/SystemSettingsManager";
 
 type AdminSection =
   | "overview"
@@ -47,6 +48,8 @@ interface SystemAdminPanelProps {
   onMedicalRoleConfigsChanged: (roles: MedicalRoleConfig[]) => void;
   googleSheetsConfig: GoogleSheetsConfig | null;
   onGoogleSheetsConfigChanged: (config: GoogleSheetsConfig) => void;
+  systemSettings: SystemSettingsConfig | null;
+  onSystemSettingsChanged: (settings: SystemSettingsConfig) => void;
 }
 
 const sections: Array<{
@@ -116,6 +119,8 @@ export default function SystemAdminPanel({
   onMedicalRoleConfigsChanged,
   googleSheetsConfig,
   onGoogleSheetsConfigChanged,
+  systemSettings,
+  onSystemSettingsChanged,
 }: SystemAdminPanelProps) {
   const [activeSection, setActiveSection] =
     useState<AdminSection>("overview");
@@ -211,6 +216,12 @@ export default function SystemAdminPanel({
         />
       ) : activeSection === "audit" ? (
         <AuditManager />
+      ) : activeSection === "settings" ? (
+        <SystemSettingsManager
+          currentUser={currentUser}
+          settings={systemSettings}
+          onSettingsChanged={onSystemSettingsChanged}
+        />
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-start gap-3">
