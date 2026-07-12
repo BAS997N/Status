@@ -1627,24 +1627,60 @@ async createSystemLog(logData: {
         statusNotExported: 0,
         missingUser: 0,
         missingDate: 0,
-        outsideRange: 0,
         duplicate: 0,
       };
-      const reportsInRange: AttendanceReport[] = [];
-      reports.forEach((report) => {
-        if ((report as any).isReset) { skippedReasons.reset++; return; }
-        if (!report.userId) { skippedReasons.missingUser++; return; }
-        const statusConfig = attendanceStatusById.get(report.status);
-        if (statusConfig?.exportToSheets === false) { skippedReasons.statusNotExported++; return; }
-        const reportDate = (report as any).reportDate ||
-          (typeof report.timestamp === "string" ? report.timestamp.split("T")[0] : "");
-        if (!reportDate) { skippedReasons.missingDate++; return; }
-        if ((startDate && reportDate < startDate) || (endDate && reportDate > endDate)) {
-          skippedReasons.outsideRange++; return;
-        }
-        reportsInRange.push(report);
+
+      /*
+       * תחילה מסננים רק לפי טווח התאריכים. דיווחים שמחוץ לטווח
+       * אינם נחשבים "דולגו" — הם פשוט לא היו מועמדים לסנכרון.
+       */
+      const reportsInSelectedRange = reports.filter((report) => {
+        const reportDate =
+          (report as any).reportDate ||
+          (typeof report.timestamp === "string"
+            ? report.timestamp.split("T")[0]
+            : "");
+
+        if (!reportDate) return false;
+        if (startDate && reportDate < startDate) return false;
+        if (endDate && reportDate > endDate) return false;
+        return true;
       });
-      const activeReports = reportsInRange;
+
+      /*
+       * רק בתוך הטווח סופרים סיבות דילוג אמיתיות.
+       */
+      const activeReports: AttendanceReport[] = [];
+      reportsInSelectedRange.forEach((report) => {
+        if ((report as any).isReset) {
+          skippedReasons.reset++;
+          return;
+        }
+
+        if (!report.userId) {
+          skippedReasons.missingUser++;
+          return;
+        }
+
+        const statusConfig = attendanceStatusById.get(report.status);
+        if (statusConfig?.exportToSheets === false) {
+          skippedReasons.statusNotExported++;
+          return;
+        }
+
+        const reportDate =
+          (report as any).reportDate ||
+          (typeof report.timestamp === "string"
+            ? report.timestamp.split("T")[0]
+            : "");
+
+        if (!reportDate) {
+          skippedReasons.missingDate++;
+          return;
+        }
+
+        activeReports.push(report);
+      });
 
       const latestReportBySoldierAndDate = new Map<string, AttendanceReport>();
       activeReports.forEach((report) => {
@@ -1674,7 +1710,17 @@ async createSystemLog(logData: {
 
       const reportsToSync = Array.from(latestReportBySoldierAndDate.values());
       if (reportsToSync.length === 0) {
-        return persistResult(buildResult("success", 0, 0, undefined, reportsInRange.length, Object.values(skippedReasons).reduce((a, b) => a + b, 0), skippedReasons));
+        return persistResult(
+          buildResult(
+            "success",
+            0,
+            0,
+            undefined,
+            reportsInSelectedRange.length,
+            Object.values(skippedReasons).reduce((a, b) => a + b, 0),
+            skippedReasons
+          )
+        );
       }
 
       const userById = new Map(users.map((user) => [user.userId, user]));
@@ -1761,7 +1807,7 @@ async createSystemLog(logData: {
         sentCount,
         failedCount,
         status === "error" ? "כל הדיווחים נכשלו בשליחה." : undefined,
-        reportsInRange.length,
+        reportsInSelectedRange.length,
         skippedCount,
         skippedReasons
       ));
