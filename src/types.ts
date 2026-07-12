@@ -246,7 +246,7 @@ export interface ShiftSlotConfig {
   updatedBy?: string;
 }
 
-export type ShiftStatus = "scheduled" | "cancelled";
+export type ShiftStatus = "draft" | "published" | "scheduled" | "cancelled";
 export type ShiftReadStatus = "unread" | "read";
 
 export interface ShiftAssignment {

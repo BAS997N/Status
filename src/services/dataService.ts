@@ -1624,7 +1624,7 @@ export const dataService = {
     const createdAt = new Date().toISOString();
     const payload = removeUndefinedValues({
       ...shift,
-      status: shift.status || "scheduled",
+      status: shift.status || "draft",
       createdAt,
       createdBy: actor?.userId || auth?.currentUser?.uid || shift.createdBy || "unknown",
       createdByName: actor?.fullName || shift.createdByName || "משתמש לא ידוע",

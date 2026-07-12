@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   CheckCircle2,
+  Copy,
   Clock3,
   Edit2,
   MapPin,
@@ -24,6 +25,12 @@ import {
   UserProfile,
 } from "../types";
 import { dataService } from "../services/dataService";
+import ShiftFilters, { ShiftViewMode } from "./shifts/ShiftFilters";
+import WeeklyShiftView from "./shifts/WeeklyShiftView";
+import CompactShiftList from "./shifts/CompactShiftList";
+import MonthlyShiftCalendar from "./shifts/MonthlyShiftCalendar";
+import ShiftDetailsModal from "./shifts/ShiftDetailsModal";
+import { isPublishedShift } from "./shifts/shiftViewUtils";
 
 interface ShiftsViewProps {
   currentUser: UserProfile;
@@ -106,6 +113,14 @@ export default function ShiftsView({
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [showPast, setShowPast] = useState(false);
+  const [viewMode, setViewMode] = useState<ShiftViewMode>(
+    canManage ? "week" : "list"
+  );
+  const [shiftTypeFilter, setShiftTypeFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [weekAnchor, setWeekAnchor] = useState(new Date());
+  const [monthAnchor, setMonthAnchor] = useState(new Date());
+  const [detailsShift, setDetailsShift] = useState<ShiftRecord | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<ShiftRecord | null>(null);
   const [message, setMessage] = useState<{
@@ -223,11 +238,20 @@ export default function ShiftsView({
       .filter((shift) =>
         canManage
           ? true
-          : shift.assignments.some(
+          : isPublishedShift(shift) &&
+            shift.assignments.some(
               (assignment) => assignment.userId === currentUser.userId
             )
       )
       .filter((shift) => showPast || new Date(shift.endAt).getTime() >= now)
+      .filter((shift) =>
+        shiftTypeFilter ? shift.title === shiftTypeFilter : true
+      )
+      .filter((shift) => {
+        if (!statusFilter) return true;
+        if (statusFilter === "published") return isPublishedShift(shift);
+        return shift.status === statusFilter;
+      })
       .filter((shift) => {
         if (!normalizedSearch) return true;
         return [
@@ -243,7 +267,15 @@ export default function ShiftsView({
           );
       })
       .sort((a, b) => a.startAt.localeCompare(b.startAt));
-  }, [shifts, canManage, currentUser.userId, showPast, search]);
+  }, [
+    shifts,
+    canManage,
+    currentUser.userId,
+    showPast,
+    search,
+    shiftTypeFilter,
+    statusFilter,
+  ]);
 
   const applyTimeRange = (
     nextStartTime: string,
@@ -453,6 +485,7 @@ export default function ShiftsView({
         location: location.trim(),
         note: note.trim(),
         assignments,
+        status: editingShift?.status || "draft",
       };
       if (editingShift) {
         await dataService.updateShift(editingShift.shiftId, values, currentUser);
@@ -460,7 +493,7 @@ export default function ShiftsView({
         await dataService.createShift(
           {
             ...values,
-            status: "scheduled",
+            status: "draft",
             createdBy: currentUser.userId,
             createdByName: currentUser.fullName,
           },
@@ -502,6 +535,185 @@ export default function ShiftsView({
     } catch {
       setMessage({ type: "error", text: "עדכון סטטוס הקריאה נכשל." });
     }
+  };
+
+  const duplicateShift = (shift: ShiftRecord) => {
+    const startParts = toLocalParts(shift.startAt);
+    const endParts = toLocalParts(shift.endAt);
+    const startDateValue = new Date(`${startParts.date}T12:00:00`);
+    startDateValue.setDate(startDateValue.getDate() + 7);
+    const endDateValue = new Date(`${endParts.date}T12:00:00`);
+    endDateValue.setDate(endDateValue.getDate() + 7);
+
+    setEditingShift(null);
+    setSelectedShiftTypeId("custom");
+    setTitle(`${shift.title} - עותק`);
+    setCustomTitle(`${shift.title} - עותק`);
+    setShiftType(shift.shiftType);
+    setStartDate(startDateValue.toISOString().slice(0, 10));
+    setStartTime(startParts.time);
+    setEndDate(endDateValue.toISOString().slice(0, 10));
+    setEndTime(endParts.time);
+    setLocation(shift.location || "");
+    setNote(shift.note || "");
+
+    const nextAssignments: Record<string, string> = {};
+    expandedSlots.forEach((slot, index) => {
+      const assignment =
+        shift.assignments.find((item) => item.slotId === slot.key) ||
+        shift.assignments[index];
+      nextAssignments[slot.key] = assignment
+        ? assignment.assigneeType === "external"
+          ? `external:${assignment.externalStaffId || assignment.userId.replace(
+              "external:",
+              ""
+            )}`
+          : `user:${assignment.userId}`
+        : "";
+    });
+    setSlotAssignments(nextAssignments);
+    setIsFormOpen(true);
+    setMessage({
+      type: "success",
+      text: "נוצר עותק לשבוע הבא. ניתן לשנות ולשמור.",
+    });
+  };
+
+  const togglePublishShift = async (shift: ShiftRecord) => {
+    try {
+      const nextStatus = isPublishedShift(shift) ? "draft" : "published";
+      await dataService.updateShift(
+        shift.shiftId,
+        { status: nextStatus },
+        currentUser
+      );
+      await loadShifts();
+      setMessage({
+        type: "success",
+        text:
+          nextStatus === "published"
+            ? "המשמרת פורסמה לחיילים."
+            : "המשמרת הוחזרה לטיוטה.",
+      });
+    } catch (error) {
+      console.error("Failed updating shift publication:", error);
+      setMessage({ type: "error", text: "עדכון סטטוס המשמרת נכשל." });
+    }
+  };
+
+  const exportShiftsCsv = () => {
+    const rows = [
+      [
+        "שם משמרת",
+        "סטטוס",
+        "התחלה",
+        "סיום",
+        "מיקום",
+        "תפקיד",
+        "משובץ",
+        "אישור קריאה",
+      ],
+      ...visibleShifts.flatMap((shift) =>
+        shift.assignments.length
+          ? shift.assignments.map((assignment) => [
+              shift.title,
+              shift.status === "draft"
+                ? "טיוטה"
+                : shift.status === "cancelled"
+                ? "בוטלה"
+                : "פורסמה",
+              new Date(shift.startAt).toLocaleString("he-IL"),
+              new Date(shift.endAt).toLocaleString("he-IL"),
+              shift.location || "",
+              assignment.slotLabel || "",
+              assignment.userName,
+              assignment.assigneeType === "external"
+                ? "לא נדרש"
+                : assignment.readStatus === "read"
+                ? "נקרא"
+                : "טרם נקרא",
+            ])
+          : [
+              [
+                shift.title,
+                shift.status,
+                new Date(shift.startAt).toLocaleString("he-IL"),
+                new Date(shift.endAt).toLocaleString("he-IL"),
+                shift.location || "",
+                "",
+                "",
+                "",
+              ],
+            ]
+      ),
+    ];
+
+    const csv = "\ufeff" + rows
+      .map((row) =>
+        row
+          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `shifts_${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const printShifts = () => {
+    const printWindow = window.open("", "_blank", "noopener,noreferrer");
+    if (!printWindow) return;
+
+    const cards = visibleShifts
+      .map(
+        (shift) => `
+          <section style="border:1px solid #cbd5e1;border-radius:12px;padding:14px;margin-bottom:12px;break-inside:avoid">
+            <h2 style="margin:0 0 6px">${shift.title}</h2>
+            <div>${new Date(shift.startAt).toLocaleString("he-IL")} — ${new Date(
+          shift.endAt
+        ).toLocaleString("he-IL")}</div>
+            ${shift.location ? `<div>מיקום: ${shift.location}</div>` : ""}
+            <ul>
+              ${shift.assignments
+                .map(
+                  (assignment) =>
+                    `<li><strong>${assignment.slotLabel || "תפקיד"}:</strong> ${
+                      assignment.userName
+                    }</li>`
+                )
+                .join("")}
+            </ul>
+          </section>
+        `
+      )
+      .join("");
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html dir="rtl">
+        <head>
+          <meta charset="utf-8" />
+          <title>לוח משמרות</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color:#0f172a; }
+            h1 { margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <h1>לוח משמרות</h1>
+          ${cards}
+          <script>window.onload=()=>window.print()</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const shareShiftOnWhatsApp = (shift: ShiftRecord) => {
@@ -571,25 +783,23 @@ export default function ShiftsView({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="חיפוש לפי שם, מיקום או חייל..."
-            className="w-full rounded-xl border border-slate-200 py-2.5 pl-3 pr-10 text-xs outline-none focus:border-indigo-400"
-          />
-        </div>
-        <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
-          <input
-            type="checkbox"
-            checked={showPast}
-            onChange={(event) => setShowPast(event.target.checked)}
-          />
-          הצג משמרות שעברו
-        </label>
-      </div>
+      <ShiftFilters
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        search={search}
+        onSearchChange={setSearch}
+        shiftTypeFilter={shiftTypeFilter}
+        onShiftTypeFilterChange={setShiftTypeFilter}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        showPast={showPast}
+        onShowPastChange={setShowPast}
+        shiftTypes={Array.from(new Set(shifts.map((shift) => shift.title))).sort(
+          (a, b) => a.localeCompare(b, "he")
+        )}
+        onPrint={printShifts}
+        onExport={exportShiftsCsv}
+      />
 
       {message && (
         <div
@@ -614,137 +824,37 @@ export default function ShiftsView({
             אין משמרות להצגה
           </div>
         </div>
+      ) : viewMode === "week" ? (
+        <WeeklyShiftView
+          shifts={visibleShifts}
+          anchorDate={weekAnchor}
+          onAnchorDateChange={setWeekAnchor}
+          onOpen={setDetailsShift}
+        />
+      ) : viewMode === "month" ? (
+        <MonthlyShiftCalendar
+          shifts={visibleShifts}
+          monthDate={monthAnchor}
+          onMonthDateChange={setMonthAnchor}
+          onOpen={setDetailsShift}
+        />
       ) : (
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          {visibleShifts.map((shift) => {
-            const myAssignment = shift.assignments.find(
-              (item) => item.userId === currentUser.userId
-            );
-            return (
-              <article
-                key={shift.shiftId}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-base font-black text-slate-900">
-                      {shift.title}
-                    </div>
-                    <div className="mt-1 inline-flex rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700">
-                      {shift.shiftType}
-                    </div>
-                  </div>
-                  {canManage && (
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        onClick={() => shareShiftOnWhatsApp(shift)}
-                        className="rounded-lg p-2 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
-                        title="שלח ב־WhatsApp"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openEdit(shift)}
-                        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-indigo-700"
-                        title="עריכה"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteShift(shift)}
-                        className="rounded-lg p-2 text-slate-500 hover:bg-rose-50 hover:text-rose-700"
-                        title="מחיקה"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-4 space-y-2 text-xs text-slate-600">
-                  <div className="flex items-center gap-2">
-                    <Clock3 className="h-4 w-4 text-indigo-500" />
-                    <span>
-                      {formatDateTime(shift.startAt)} —{" "}
-                      {formatDateTime(shift.endAt)}
-                    </span>
-                  </div>
-                  {shift.location && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-rose-500" />
-                      {shift.location}
-                    </div>
-                  )}
-
-                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                    <div className="mb-2 flex items-center gap-2 font-black text-slate-700">
-                      <Users className="h-4 w-4 text-sky-500" />
-                      שיבוץ המשמרת
-                    </div>
-                    <div className="space-y-2">
-                      {shift.assignments.map((assignment) => (
-                        <div
-                          key={`${assignment.slotId}_${assignment.userId}`}
-                          className={`flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 ${
-                            assignment.userId === currentUser.userId
-                              ? "border border-indigo-300 bg-indigo-50"
-                              : ""
-                          }`}
-                        >
-                          <span className="font-bold text-slate-600">
-                            {assignment.slotLabel || "תפקיד"}:
-                          </span>
-                          <span
-                            className={
-                              assignment.userId === currentUser.userId
-                                ? "text-base font-black text-indigo-800 underline decoration-indigo-300 decoration-2 underline-offset-4"
-                                : "font-bold text-slate-900"
-                            }
-                          >
-                            {assignment.userName}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {shift.note && (
-                    <div className="rounded-lg bg-slate-50 p-3 leading-5">
-                      {shift.note}
-                    </div>
-                  )}
-                </div>
-
-                {!canManage && myAssignment && (
-                  <div className="mt-4 border-t border-slate-100 pt-4">
-                    <div className="mb-3 text-xs font-black text-indigo-700">
-                      התפקיד שלך: {myAssignment.slotLabel || "משובץ למשמרת"}
-                    </div>
-                    {myAssignment.readStatus === "read" ? (
-                      <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
-                        <CheckCircle2 className="h-4 w-4" />
-                        נקרא ואושר
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => markRead(shift)}
-                        className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white hover:bg-emerald-700"
-                      >
-                        <UserRoundCheck className="h-4 w-4" />
-                        אישור שקראתי
-                      </button>
-                    )}
-                  </div>
-                )}
-              </article>
-            );
-          })}
-        </div>
+        <CompactShiftList
+          shifts={visibleShifts}
+          canManage={canManage}
+          onOpen={setDetailsShift}
+          onEdit={openEdit}
+          onDuplicate={duplicateShift}
+          onShare={shareShiftOnWhatsApp}
+          onDelete={deleteShift}
+          onTogglePublish={togglePublishShift}
+        />
       )}
+
+      <ShiftDetailsModal
+        shift={detailsShift}
+        onClose={() => setDetailsShift(null)}
+      />
 
       {isFormOpen && canManage && (
         <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
@@ -881,6 +991,31 @@ export default function ShiftsView({
                   </button>
                 </div>
               </div>
+
+              <Field label="מצב פרסום">
+                <select
+                  value={
+                    editingShift
+                      ? isPublishedShift(editingShift)
+                        ? "published"
+                        : editingShift.status
+                      : "draft"
+                  }
+                  onChange={(event) => {
+                    if (!editingShift) return;
+                    setEditingShift({
+                      ...editingShift,
+                      status: event.target.value as ShiftRecord["status"],
+                    });
+                  }}
+                  className="input"
+                  disabled={!editingShift}
+                >
+                  <option value="draft">טיוטה</option>
+                  <option value="published">פורסמה</option>
+                  <option value="cancelled">בוטלה</option>
+                </select>
+              </Field>
 
               <Field label="מיקום">
                 <input
