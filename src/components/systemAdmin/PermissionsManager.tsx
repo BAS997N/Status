@@ -82,6 +82,7 @@ export default function PermissionsManager({
   }, []);
 
   const isChecked = (role: SystemRole, permissionId: string) =>
+    role === "super_admin" ||
     configs.find((config) => config.systemRole === role)?.permissions[
       permissionId
     ] === true;
@@ -117,8 +118,22 @@ export default function PermissionsManager({
       setMessage("");
       setError("");
 
+      const normalizedConfigs = configs.map((config) =>
+        config.systemRole === "super_admin"
+          ? {
+              ...config,
+              permissions: Object.fromEntries(
+                PERMISSION_DEFINITIONS.map((permission) => [
+                  permission.id,
+                  true,
+                ])
+              ),
+            }
+          : config
+      );
+
       const saved = await dataService.saveRolePermissionConfigs(
-        configs,
+        normalizedConfigs,
         currentUser.userId
       );
 

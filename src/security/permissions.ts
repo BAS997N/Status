@@ -54,6 +54,14 @@ export const getPermissionsForRole = (
   role: SystemRole,
   configs: RolePermissionConfig[]
 ): PermissionMap => {
+  // The site administrator is a protected role and must always retain
+  // every permission, including permissions added in later versions.
+  if (role === "super_admin") {
+    return Object.fromEntries(
+      PERMISSION_DEFINITIONS.map((permission) => [permission.id, true])
+    );
+  }
+
   return (
     configs.find((config) => config.systemRole === role)?.permissions || {}
   );

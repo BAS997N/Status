@@ -1300,6 +1300,13 @@ const DEFAULT_ROLE_PERMISSION_CONFIGS: RolePermissionConfig[] = [
       "system_admin.view": true,
       "system_admin.statuses.manage": true,
       "system_admin.permissions.manage": true,
+      "shifts.view": true,
+      "shifts.manage": true,
+      "emergency.view": true,
+      "emergency.manage": true,
+      "system_admin.shift_roles.manage": true,
+      "system_admin.external_staff.manage": true,
+      "system_admin.shift_types.manage": true,
     },
   },
   {
@@ -1407,13 +1414,22 @@ const normalizeRolePermissionConfigs = (
 
   const builtIns = defaults.map((defaultConfig) => {
     const storedConfig = storedByRole.get(defaultConfig.systemRole);
+    const mergedPermissions = {
+      ...defaultConfig.permissions,
+      ...(storedConfig?.permissions || {}),
+    };
 
     return {
       systemRole: defaultConfig.systemRole,
-      permissions: {
-        ...defaultConfig.permissions,
-        ...(storedConfig?.permissions || {}),
-      },
+      permissions:
+        defaultConfig.systemRole === "super_admin"
+          ? Object.fromEntries(
+              Object.keys(defaultConfig.permissions).map((permissionId) => [
+                permissionId,
+                true,
+              ])
+            )
+          : mergedPermissions,
       updatedAt: storedConfig?.updatedAt,
       updatedBy: storedConfig?.updatedBy,
     };
