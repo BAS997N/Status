@@ -31,6 +31,9 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   autoRefreshSeconds: 60,
   maintenanceMode: false,
   maintenanceMessage: "המערכת נמצאת כרגע בתחזוקה. נסו שוב מאוחר יותר.",
+  attendanceReportingEnabled: true,
+  attendanceReportingDisabledMessage:
+    "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
 };
 
 export default function SystemSettingsManager({
@@ -167,13 +170,49 @@ export default function SystemSettingsManager({
       <section className="rounded-2xl border border-amber-200 bg-amber-50/40 p-5 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <ShieldAlert className="h-5 w-5 text-amber-700" />
-          <h3 className="text-sm font-black text-slate-900">מצב תחזוקה</h3>
+          <h3 className="text-sm font-black text-slate-900">מצבי מערכת</h3>
         </div>
-        <Toggle label="הצגת הודעת תחזוקה לכל המשתמשים" checked={draft.maintenanceMode} onChange={(value) => update("maintenanceMode", value)} />
-        <div className="mt-4">
-          <Field label="הודעת תחזוקה">
-            <textarea rows={3} value={draft.maintenanceMessage} onChange={(e) => update("maintenanceMessage", e.target.value)} className="input resize-y" />
-          </Field>
+
+        <div className="space-y-4">
+          <div className="rounded-xl border border-amber-200 bg-white p-4">
+            <Toggle
+              label="מצב תחזוקה מלא"
+              description="חוסם את המערכת לכל המשתמשים, למעט מנהל האתר, ומציג את הודעת התחזוקה."
+              checked={draft.maintenanceMode}
+              onChange={(value) => update("maintenanceMode", value)}
+            />
+            <div className="mt-4">
+              <Field label="הודעת תחזוקה">
+                <textarea
+                  rows={3}
+                  value={draft.maintenanceMessage}
+                  onChange={(e) => update("maintenanceMessage", e.target.value)}
+                  className="input resize-y"
+                />
+              </Field>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-sky-200 bg-white p-4">
+            <Toggle
+              label="קבלת דיווחי נוכחות"
+              description="כאשר האפשרות כבויה, רק עמוד הדיווח האישי מוחלף בהודעה. לוח הבקרה ושאר המערכת ממשיכים לפעול."
+              checked={draft.attendanceReportingEnabled}
+              onChange={(value) => update("attendanceReportingEnabled", value)}
+            />
+            <div className="mt-4">
+              <Field label="הודעה כאשר הדיווחים סגורים">
+                <textarea
+                  rows={3}
+                  value={draft.attendanceReportingDisabledMessage}
+                  onChange={(e) =>
+                    update("attendanceReportingDisabledMessage", e.target.value)
+                  }
+                  className="input resize-y"
+                />
+              </Field>
+            </div>
+          </div>
         </div>
       </section>
 

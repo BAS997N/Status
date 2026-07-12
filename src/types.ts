@@ -67,6 +67,8 @@ export interface SystemSettingsConfig {
   autoRefreshSeconds: number;
   maintenanceMode: boolean;
   maintenanceMessage: string;
+  attendanceReportingEnabled: boolean;
+  attendanceReportingDisabledMessage: string;
   updatedAt?: string;
   updatedBy?: string;
 }

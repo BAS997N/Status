@@ -994,6 +994,16 @@ setUserProfile(newProfile);
 ) => {
   if (!userProfile) return;
 
+  if (systemSettings?.attendanceReportingEnabled === false) {
+    showAppMessage(
+      "הדיווחים סגורים כעת",
+      systemSettings.attendanceReportingDisabledMessage ||
+        "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
+      "info"
+    );
+    return;
+  }
+
   const getReportDate = (dateStr?: string) => {
     return dateStr || getIsraelDateString();
   };
@@ -1786,7 +1796,36 @@ const handleAdminSaveReport = async (reportData: {
         )}
 
         <AnimatePresence mode="wait">
-          {activeTab === "system_admin" && isSuperAdmin ? (
+          {systemSettings?.maintenanceMode && !isSuperAdmin ? (
+            <motion.div
+              key="maintenance-mode"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.15 }}
+              dir="rtl"
+              className="mx-auto max-w-2xl rounded-3xl border border-amber-200 bg-gradient-to-b from-amber-50 to-white p-8 text-center shadow-lg"
+            >
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <AlertTriangle className="h-9 w-9" />
+              </div>
+              <h2 className="text-2xl font-black text-slate-900">
+                המערכת נמצאת בתחזוקה
+              </h2>
+              <p className="mx-auto mt-3 max-w-xl text-sm font-medium leading-7 text-slate-600">
+                {systemSettings.maintenanceMessage ||
+                  "המערכת נמצאת כרגע בתחזוקה. נסו שוב מאוחר יותר."}
+              </p>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="mt-6 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+              >
+                <LogOut className="h-4 w-4" />
+                יציאה מהמערכת
+              </button>
+            </motion.div>
+          ) : activeTab === "system_admin" && isSuperAdmin ? (
             <motion.div
               key="system-admin-tab"
               initial={{ opacity: 0, y: 15 }}
@@ -1817,12 +1856,33 @@ const handleAdminSaveReport = async (reportData: {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.15 }}
             >
-              <SoldierReporter
-                currentUser={userProfile}
-                reports={reports}
-                attendanceStatuses={attendanceStatuses}
-                onSubmitReport={handleSubmitReport}
-              />
+              {systemSettings?.attendanceReportingEnabled === false ? (
+                <div
+                  dir="rtl"
+                  className="mx-auto max-w-2xl rounded-3xl border border-sky-200 bg-gradient-to-b from-sky-50 to-white p-8 text-center shadow-sm"
+                >
+                  <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                    <Info className="h-9 w-9" />
+                  </div>
+                  <h2 className="text-2xl font-black text-slate-900">
+                    דיווחי הנוכחות סגורים כעת
+                  </h2>
+                  <p className="mx-auto mt-3 max-w-xl text-sm font-medium leading-7 text-slate-600">
+                    {systemSettings.attendanceReportingDisabledMessage ||
+                      "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס."}
+                  </p>
+                  <div className="mt-5 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-bold text-sky-800">
+                    אין צורך לבצע דיווח עד להפעלה מחדש על ידי מנהל המערכת.
+                  </div>
+                </div>
+              ) : (
+                <SoldierReporter
+                  currentUser={userProfile}
+                  reports={reports}
+                  attendanceStatuses={attendanceStatuses}
+                  onSubmitReport={handleSubmitReport}
+                />
+              )}
             </motion.div>
           ) : (
             <motion.div

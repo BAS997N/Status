@@ -129,6 +129,9 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   autoRefreshSeconds: 60,
   maintenanceMode: false,
   maintenanceMessage: "המערכת נמצאת כרגע בתחזוקה. נסו שוב מאוחר יותר.",
+  attendanceReportingEnabled: true,
+  attendanceReportingDisabledMessage:
+    "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
 };
 
 const SYSTEM_SETTINGS_CACHE_KEY = "idf_system_settings";
@@ -157,7 +160,16 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
     cacheMinutes: numberInRange(raw.cacheMinutes, 30, 1, 1440),
     autoRefreshSeconds: numberInRange(raw.autoRefreshSeconds, 60, 10, 3600),
     maintenanceMode: raw.maintenanceMode === true,
-    maintenanceMessage: typeof raw.maintenanceMessage === "string" && raw.maintenanceMessage.trim() ? raw.maintenanceMessage.trim() : DEFAULT_SYSTEM_SETTINGS.maintenanceMessage,
+    maintenanceMessage:
+      typeof raw.maintenanceMessage === "string" && raw.maintenanceMessage.trim()
+        ? raw.maintenanceMessage.trim()
+        : DEFAULT_SYSTEM_SETTINGS.maintenanceMessage,
+    attendanceReportingEnabled: raw.attendanceReportingEnabled !== false,
+    attendanceReportingDisabledMessage:
+      typeof raw.attendanceReportingDisabledMessage === "string" &&
+      raw.attendanceReportingDisabledMessage.trim()
+        ? raw.attendanceReportingDisabledMessage.trim()
+        : DEFAULT_SYSTEM_SETTINGS.attendanceReportingDisabledMessage,
   };
 };
 
