@@ -2538,11 +2538,13 @@ export const dataService = {
     updatedBy?: string
   ): Promise<SystemRoleConfig[]> {
     const beforeValue = await this.getSystemRoleConfigs(true).catch(() => []);
-    const normalized = normalizeSystemRoleConfigs(roles).map((role) => ({
-      ...role,
-      updatedAt: new Date().toISOString(),
-      updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
-    }));
+    const normalized = removeUndefinedValues(
+      normalizeSystemRoleConfigs(roles).map((role) => ({
+        ...role,
+        updatedAt: new Date().toISOString(),
+        updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
+      }))
+    );
 
     if (!isFirebaseActive()) {
       saveSystemRolesToCache(normalized);
@@ -2554,11 +2556,11 @@ export const dataService = {
     try {
       await setDoc(
         doc(db, "settings", "system_roles"),
-        {
+        removeUndefinedValues({
           roles: normalized,
           updatedAt: new Date().toISOString(),
           updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
-        },
+        }),
         { merge: true }
       );
 
