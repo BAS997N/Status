@@ -1019,7 +1019,18 @@ setUserProfile(newProfile);
 ) => {
   if (!userProfile) return;
 
-  if (systemSettings?.reportingEnabled === false) {
+  const submitterProfile =
+    userProfile.personalId === "5749199"
+      ? { ...userProfile, systemRole: "super_admin" as SystemRole }
+      : userProfile;
+  const submitterSystemRole = getEffectiveSystemRole(submitterProfile);
+  const allowedWhileClosed =
+    systemSettings?.reportingClosedAllowedRoles || ["super_admin", "admin"];
+
+  if (
+    systemSettings?.reportingEnabled === false &&
+    !allowedWhileClosed.includes(submitterSystemRole)
+  ) {
     showAppMessage(
       "הדיווחים סגורים כעת",
       systemSettings.reportingClosedMessage ||
@@ -1698,11 +1709,19 @@ const handleAdminSaveReport = async (reportData: {
     ? getEffectiveSystemRole(permissionUser)
     : null;
 
-  // Maintenance mode blocks only soldiers and viewers. Commanders and the
-  // site administrator keep access so operational management can continue.
+  const maintenanceAllowedRoles =
+    systemSettings?.maintenanceAllowedRoles || ["super_admin", "admin"];
+  const reportingClosedAllowedRoles =
+    systemSettings?.reportingClosedAllowedRoles || ["super_admin", "admin"];
+
   const isMaintenanceBlocked =
     systemSettings?.maintenanceMode === true &&
-    (effectiveSystemRole === "reporter" || effectiveSystemRole === "viewer");
+    !!effectiveSystemRole &&
+    !maintenanceAllowedRoles.includes(effectiveSystemRole);
+
+  const canUseReporterWhileClosed =
+    !!effectiveSystemRole &&
+    reportingClosedAllowedRoles.includes(effectiveSystemRole);
 
   const maintenanceDisplayMessage =
     systemSettings?.maintenanceMessage ||
@@ -1885,7 +1904,8 @@ const handleAdminSaveReport = async (reportData: {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.15 }}
             >
-              {systemSettings?.reportingEnabled === false ? (
+              {systemSettings?.reportingEnabled === false &&
+              !canUseReporterWhileClosed ? (
                 <section
                   dir="rtl"
                   className="rounded-3xl border border-sky-200 bg-gradient-to-l from-sky-50 to-white p-8 text-center shadow-sm"

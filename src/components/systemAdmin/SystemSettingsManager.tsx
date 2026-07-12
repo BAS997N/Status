@@ -8,7 +8,7 @@ import {
   Settings,
   ShieldAlert,
 } from "lucide-react";
-import { SystemSettingsConfig, UserProfile } from "../../types";
+import { SystemRole, SystemSettingsConfig, UserProfile } from "../../types";
 import { dataService } from "../../services/dataService";
 
 interface SystemSettingsManagerProps {
@@ -31,9 +31,38 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   autoRefreshSeconds: 60,
   maintenanceMode: false,
   maintenanceMessage: "המערכת נמצאת כרגע בתחזוקה. נסו שוב מאוחר יותר.",
+  maintenanceAllowedRoles: ["super_admin", "admin"],
   reportingEnabled: true,
   reportingClosedMessage: "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
+  reportingClosedAllowedRoles: ["super_admin", "admin"],
 };
+
+const SYSTEM_ROLE_OPTIONS: Array<{
+  value: SystemRole;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "super_admin",
+    label: "מנהל אתר",
+    description: "גישה מלאה לניהול המערכת.",
+  },
+  {
+    value: "admin",
+    label: "מפקד",
+    description: "ניהול שוטף ולוח בקרה.",
+  },
+  {
+    value: "viewer",
+    label: "שליש",
+    description: "צפייה בנתונים בהתאם להרשאות.",
+  },
+  {
+    value: "reporter",
+    label: "חייל",
+    description: "גישה למסך הדיווח האישי.",
+  },
+];
 
 export default function SystemSettingsManager({
   currentUser,
@@ -58,6 +87,25 @@ export default function SystemSettingsManager({
     value: SystemSettingsConfig[K]
   ) => {
     setDraft((current) => ({ ...current, [key]: value }));
+    setMessage(null);
+  };
+
+  const toggleAllowedRole = (
+    key: "maintenanceAllowedRoles" | "reportingClosedAllowedRoles",
+    role: SystemRole,
+    checked: boolean
+  ) => {
+    setDraft((current) => {
+      const currentRoles = current[key] || [];
+      const nextRoles = checked
+        ? Array.from(new Set([...currentRoles, role]))
+        : currentRoles.filter((item) => item !== role);
+
+      return {
+        ...current,
+        [key]: nextRoles,
+      };
+    });
     setMessage(null);
   };
 
@@ -190,6 +238,14 @@ export default function SystemSettingsManager({
                 />
               </Field>
             </div>
+
+            <RoleAccessGrid
+              title="מי יכול להמשיך להשתמש באתר בזמן תחזוקה?"
+              selectedRoles={draft.maintenanceAllowedRoles || []}
+              onRoleChange={(role, checked) =>
+                toggleAllowedRole("maintenanceAllowedRoles", role, checked)
+              }
+            />
           </div>
 
           <div className="rounded-xl border border-sky-200 bg-white p-4">
@@ -209,6 +265,18 @@ export default function SystemSettingsManager({
                 />
               </Field>
             </div>
+
+            <RoleAccessGrid
+              title="מי יכול עדיין לראות ולהשתמש בעמוד הדיווח כשהדיווחים סגורים?"
+              selectedRoles={draft.reportingClosedAllowedRoles || []}
+              onRoleChange={(role, checked) =>
+                toggleAllowedRole(
+                  "reportingClosedAllowedRoles",
+                  role,
+                  checked
+                )
+              }
+            />
           </div>
         </div>
       </section>
@@ -227,6 +295,60 @@ export default function SystemSettingsManager({
       </div>
 
       <style>{`.input{width:100%;border-radius:.75rem;border:1px solid rgb(226 232 240);background:white;padding:.7rem .85rem;font-size:.8rem;outline:none}.input:focus{border-color:rgb(139 92 246);box-shadow:0 0 0 2px rgb(237 233 254)}`}</style>
+    </div>
+  );
+}
+
+function RoleAccessGrid({
+  title,
+  selectedRoles,
+  onRoleChange,
+}: {
+  title: string;
+  selectedRoles: SystemRole[];
+  onRoleChange: (role: SystemRole, checked: boolean) => void;
+}) {
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mb-3 text-xs font-black text-slate-800">{title}</div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {SYSTEM_ROLE_OPTIONS.map((option) => {
+          const checked = selectedRoles.includes(option.value);
+
+          return (
+            <label
+              key={option.value}
+              className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${
+                checked
+                  ? "border-violet-300 bg-violet-50"
+                  : "border-slate-200 bg-white hover:border-slate-300"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(event) =>
+                  onRoleChange(option.value, event.target.checked)
+                }
+                className="mt-0.5 h-4 w-4 accent-violet-600"
+              />
+              <span>
+                <span className="block text-xs font-black text-slate-800">
+                  {option.label}
+                </span>
+                <span className="mt-1 block text-[10px] leading-4 text-slate-500">
+                  {option.description}
+                </span>
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      {selectedRoles.length === 0 && (
+        <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700">
+          אף תפקיד לא מורשה כרגע.
+        </div>
+      )}
     </div>
   );
 }

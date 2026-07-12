@@ -129,8 +129,10 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   autoRefreshSeconds: 60,
   maintenanceMode: false,
   maintenanceMessage: "המערכת נמצאת כרגע בתחזוקה. נסו שוב מאוחר יותר.",
+  maintenanceAllowedRoles: ["super_admin", "admin"],
   reportingEnabled: true,
   reportingClosedMessage: "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
+  reportingClosedAllowedRoles: ["super_admin", "admin"],
 };
 
 const SYSTEM_SETTINGS_CACHE_KEY = "idf_system_settings";
@@ -143,6 +145,26 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
   const numberInRange = (candidate: unknown, fallback: number, min: number, max: number) => {
     const parsed = Number(candidate);
     return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
+  };
+  const normalizeAllowedRoles = (
+    candidate: unknown,
+    fallback: SystemRole[]
+  ): SystemRole[] => {
+    const validRoles: SystemRole[] = [
+      "super_admin",
+      "admin",
+      "viewer",
+      "reporter",
+    ];
+    if (!Array.isArray(candidate)) return [...fallback];
+
+    const normalized = candidate.filter(
+      (role): role is SystemRole =>
+        typeof role === "string" &&
+        validRoles.includes(role as SystemRole)
+    );
+
+    return Array.from(new Set(normalized));
   };
   return {
     ...DEFAULT_SYSTEM_SETTINGS,
@@ -160,11 +182,19 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
     autoRefreshSeconds: numberInRange(raw.autoRefreshSeconds, 60, 10, 3600),
     maintenanceMode: raw.maintenanceMode === true,
     maintenanceMessage: typeof raw.maintenanceMessage === "string" && raw.maintenanceMessage.trim() ? raw.maintenanceMessage.trim() : DEFAULT_SYSTEM_SETTINGS.maintenanceMessage,
+    maintenanceAllowedRoles: normalizeAllowedRoles(
+      raw.maintenanceAllowedRoles,
+      DEFAULT_SYSTEM_SETTINGS.maintenanceAllowedRoles
+    ),
     reportingEnabled: raw.reportingEnabled !== false,
     reportingClosedMessage:
       typeof raw.reportingClosedMessage === "string" && raw.reportingClosedMessage.trim()
         ? raw.reportingClosedMessage.trim()
         : DEFAULT_SYSTEM_SETTINGS.reportingClosedMessage,
+    reportingClosedAllowedRoles: normalizeAllowedRoles(
+      raw.reportingClosedAllowedRoles,
+      DEFAULT_SYSTEM_SETTINGS.reportingClosedAllowedRoles
+    ),
   };
 };
 
@@ -2072,10 +2102,17 @@ async createSystemLog(logData: {
   async createAttendanceReport(reportData: Omit<AttendanceReport, "reportId">): Promise<string> {
     const currentSystemSettings = await this.getSystemSettings(true);
     if (currentSystemSettings.reportingEnabled === false) {
-      throw new Error(
-        currentSystemSettings.reportingClosedMessage ||
-          "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס."
-      );
+      const actor = await getAuditActor();
+      const actorRole = actor.actorRole as SystemRole;
+      const allowedRoles =
+        currentSystemSettings.reportingClosedAllowedRoles || [];
+
+      if (!allowedRoles.includes(actorRole)) {
+        throw new Error(
+          currentSystemSettings.reportingClosedMessage ||
+            "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס."
+        );
+      }
     }
 
     const attendanceStatusConfigs = await this.getAttendanceStatusConfigs();

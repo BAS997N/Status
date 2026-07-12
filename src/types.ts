@@ -67,8 +67,10 @@ export interface SystemSettingsConfig {
   autoRefreshSeconds: number;
   maintenanceMode: boolean;
   maintenanceMessage: string;
+  maintenanceAllowedRoles: SystemRole[];
   reportingEnabled: boolean;
   reportingClosedMessage: string;
+  reportingClosedAllowedRoles: SystemRole[];
   updatedAt?: string;
   updatedBy?: string;
 }
