@@ -325,6 +325,32 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     permissions["emergency.manage"] === true ||
     shiftsSystemRole === "admin" ||
     shiftsSystemRole === "super_admin";
+  const isEmergencyActive =
+    systemSettings?.systemMode === "emergency" &&
+    systemSettings?.emergencyEvent?.active === true;
+
+  // Managers keep access so they can prepare or operate the emergency center.
+  // Regular soldiers only see the tab while an emergency event is active.
+  const shouldShowEmergencyTab =
+    canManageEmergency || (canViewEmergency && isEmergencyActive);
+
+  useEffect(() => {
+    if (activeTab === "emergency" && !shouldShowEmergencyTab) {
+      if (canViewReporter) {
+        setActiveTab("reporter");
+      } else if (canViewDashboard) {
+        setActiveTab("dashboard");
+      } else if (canViewShifts) {
+        setActiveTab("shifts");
+      }
+    }
+  }, [
+    activeTab,
+    shouldShowEmergencyTab,
+    canViewReporter,
+    canViewDashboard,
+    canViewShifts,
+  ]);
 
   const getInitialTabForProfile = (profile: UserProfile) => {
     const effectiveProfile =
@@ -1940,7 +1966,7 @@ const handleAdminSaveReport = async (reportData: {
               </button>
             )}
 
-            {canViewEmergency && (
+            {shouldShowEmergencyTab && (
               <button
                 onClick={() => setActiveTab("emergency")}
                 className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
@@ -1998,7 +2024,7 @@ const handleAdminSaveReport = async (reportData: {
                 onExternalStaffChanged={handleExternalStaffChanged}
               />
             </motion.div>
-          ) : activeTab === "emergency" && canViewEmergency ? (
+          ) : activeTab === "emergency" && shouldShowEmergencyTab ? (
             <motion.div
               key="emergency-tab"
               initial={{ opacity: 0, y: 15 }}
