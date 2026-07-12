@@ -29,7 +29,6 @@ import ShiftFilters, { ShiftViewMode } from "./shifts/ShiftFilters";
 import WeeklyShiftView from "./shifts/WeeklyShiftView";
 import CompactShiftList from "./shifts/CompactShiftList";
 import MonthlyShiftCalendar from "./shifts/MonthlyShiftCalendar";
-import ShiftDetailsModal from "./shifts/ShiftDetailsModal";
 import { isPublishedShift } from "./shifts/shiftViewUtils";
 
 interface ShiftsViewProps {
@@ -343,7 +342,10 @@ export default function ShiftsView({
         shift.assignments[index];
       next[slot.key] = assignment
         ? assignment.assigneeType === "external"
-          ? `external:${assignment.externalStaffId || assignment.userId}`
+          ? `external:${
+              assignment.externalStaffId ||
+              assignment.userId.replace("external:", "")
+            }`
           : `user:${assignment.userId}`
         : "";
     });
@@ -418,10 +420,19 @@ export default function ShiftsView({
       (userId, index) => selected.indexOf(userId) !== index
     );
     if (duplicate) {
-      const user = selectableUsers.find((item) => item.userId === duplicate);
+      const duplicateUserId = duplicate.replace("user:", "");
+      const user = selectableUsers.find(
+        (item) => item.userId === duplicateUserId
+      );
+      const externalId = duplicate.replace("external:", "");
+      const externalPerson = activeExternalStaff.find(
+        (item) => item.id === externalId
+      );
       setMessage({
         type: "error",
-        text: `${user?.fullName || "אותו חייל"} נבחר ליותר מתפקיד אחד.`,
+        text: `${
+          user?.fullName || externalPerson?.fullName || "אותו אדם"
+        } נבחר ליותר מתפקיד אחד.`,
       });
       return;
     }
@@ -668,48 +679,216 @@ export default function ShiftsView({
   };
 
   const printShifts = () => {
-    const printWindow = window.open("", "_blank", "noopener,noreferrer");
-    if (!printWindow) return;
+    if (visibleShifts.length === 0) {
+      setMessage({
+        type: "error",
+        text: "אין משמרות להדפסה.",
+      });
+      return;
+    }
 
-    const cards = visibleShifts
-      .map(
-        (shift) => `
-          <section style="border:1px solid #cbd5e1;border-radius:12px;padding:14px;margin-bottom:12px;break-inside:avoid">
-            <h2 style="margin:0 0 6px">${shift.title}</h2>
-            <div>${new Date(shift.startAt).toLocaleString("he-IL")} — ${new Date(
-          shift.endAt
-        ).toLocaleString("he-IL")}</div>
-            ${shift.location ? `<div>מיקום: ${shift.location}</div>` : ""}
-            <ul>
-              ${shift.assignments
-                .map(
-                  (assignment) =>
-                    `<li><strong>${assignment.slotLabel || "תפקיד"}:</strong> ${
-                      assignment.userName
-                    }</li>`
-                )
-                .join("")}
-            </ul>
+    const printWindow = window.open("", "_blank");
+
+    if (!printWindow) {
+      setMessage({
+        type: "error",
+        text: "הדפדפן חסם את חלון ההדפסה. יש לאפשר חלונות קופצים לאתר.",
+      });
+      return;
+    }
+
+    const escapeHtml = (value: unknown) =>
+      String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+    const shiftsHtml = visibleShifts
+      .map((shift) => {
+        const assignmentsHtml = shift.assignments
+          .map(
+            (assignment) => `
+              <tr>
+                <td>${escapeHtml(assignment.slotLabel || "תפקיד")}</td>
+                <td>${escapeHtml(assignment.userName)}</td>
+                <td>
+                  ${
+                    assignment.assigneeType === "external"
+                      ? "לא נדרש"
+                      : assignment.readStatus === "read"
+                      ? "נקרא"
+                      : "טרם נקרא"
+                  }
+                </td>
+              </tr>
+            `
+          )
+          .join("");
+
+        return `
+          <section class="shift-card">
+            <div class="shift-header">
+              <div>
+                <h2>${escapeHtml(shift.title)}</h2>
+                <div class="shift-type">${escapeHtml(shift.shiftType)}</div>
+              </div>
+              <div class="status">
+                ${
+                  shift.status === "draft"
+                    ? "טיוטה"
+                    : shift.status === "cancelled"
+                    ? "בוטלה"
+                    : "פורסמה"
+                }
+              </div>
+            </div>
+
+            <div class="details">
+              <div><strong>התחלה:</strong> ${escapeHtml(
+                new Date(shift.startAt).toLocaleString("he-IL")
+              )}</div>
+              <div><strong>סיום:</strong> ${escapeHtml(
+                new Date(shift.endAt).toLocaleString("he-IL")
+              )}</div>
+              ${
+                shift.location
+                  ? `<div><strong>מיקום:</strong> ${escapeHtml(
+                      shift.location
+                    )}</div>`
+                  : ""
+              }
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>תפקיד</th>
+                  <th>משובץ</th>
+                  <th>אישור קריאה</th>
+                </tr>
+              </thead>
+              <tbody>${assignmentsHtml}</tbody>
+            </table>
+
+            ${
+              shift.note
+                ? `<div class="note"><strong>הערות:</strong> ${escapeHtml(
+                    shift.note
+                  )}</div>`
+                : ""
+            }
           </section>
-        `
-      )
+        `;
+      })
       .join("");
 
+    printWindow.document.open();
     printWindow.document.write(`
       <!doctype html>
-      <html dir="rtl">
+      <html lang="he" dir="rtl">
         <head>
-          <meta charset="utf-8" />
+          <meta charset="UTF-8" />
           <title>לוח משמרות</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 24px; color:#0f172a; }
-            h1 { margin-bottom: 20px; }
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              padding: 24px;
+              direction: rtl;
+              font-family: Arial, sans-serif;
+              color: #0f172a;
+              background: #ffffff;
+            }
+            .print-header {
+              margin-bottom: 24px;
+              padding-bottom: 14px;
+              border-bottom: 2px solid #0f172a;
+            }
+            .print-header h1 { margin: 0; font-size: 25px; }
+            .print-header p {
+              margin: 7px 0 0;
+              color: #64748b;
+              font-size: 13px;
+            }
+            .shift-card {
+              margin-bottom: 18px;
+              padding: 16px;
+              border: 1px solid #cbd5e1;
+              border-radius: 12px;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+            .shift-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              gap: 14px;
+              margin-bottom: 14px;
+            }
+            .shift-header h2 { margin: 0; font-size: 19px; }
+            .shift-type {
+              margin-top: 5px;
+              color: #64748b;
+              font-size: 12px;
+            }
+            .status {
+              padding: 5px 10px;
+              border-radius: 999px;
+              background: #f1f5f9;
+              font-size: 11px;
+              font-weight: bold;
+              white-space: nowrap;
+            }
+            .details {
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 8px 16px;
+              margin-bottom: 14px;
+              font-size: 13px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 12px;
+            }
+            th, td {
+              padding: 9px;
+              border: 1px solid #cbd5e1;
+              text-align: right;
+            }
+            th { background: #f8fafc; }
+            .note {
+              margin-top: 12px;
+              padding: 10px;
+              border-radius: 8px;
+              background: #fffbeb;
+              font-size: 12px;
+              line-height: 1.6;
+            }
+            @media print {
+              body { padding: 0; }
+              .shift-card { box-shadow: none; }
+            }
           </style>
         </head>
         <body>
-          <h1>לוח משמרות</h1>
-          ${cards}
-          <script>window.onload=()=>window.print()</script>
+          <header class="print-header">
+            <h1>לוח משמרות</h1>
+            <p>הופק בתאריך: ${escapeHtml(
+              new Date().toLocaleString("he-IL")
+            )}</p>
+          </header>
+          ${shiftsHtml}
+          <script>
+            window.addEventListener("load", function () {
+              setTimeout(function () {
+                window.focus();
+                window.print();
+              }, 300);
+            });
+          </script>
         </body>
       </html>
     `);
@@ -851,10 +1030,163 @@ export default function ShiftsView({
         />
       )}
 
-      <ShiftDetailsModal
-        shift={detailsShift}
-        onClose={() => setDetailsShift(null)}
-      />
+      {detailsShift && (
+        <div className="fixed inset-0 z-[11900] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div
+            dir="rtl"
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  {detailsShift.title}
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-700">
+                    {formatDateTime(detailsShift.startAt)} —{" "}
+                    {formatDateTime(detailsShift.endAt)}
+                  </span>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${
+                      detailsShift.status === "draft"
+                        ? "border-amber-200 bg-amber-50 text-amber-800"
+                        : detailsShift.status === "cancelled"
+                        ? "border-slate-300 bg-slate-100 text-slate-600"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    }`}
+                  >
+                    {detailsShift.status === "draft"
+                      ? "טיוטה"
+                      : detailsShift.status === "cancelled"
+                      ? "בוטלה"
+                      : "פורסמה"}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setDetailsShift(null)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {detailsShift.location && (
+              <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs">
+                <span className="font-black text-slate-500">מיקום: </span>
+                <span className="font-bold text-slate-800">
+                  {detailsShift.location}
+                </span>
+              </div>
+            )}
+
+            <div className="mt-5 space-y-2">
+              {detailsShift.assignments.map((assignment) => (
+                <div
+                  key={`${assignment.slotId}_${assignment.userId}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2"
+                >
+                  <span className="text-xs font-bold text-slate-500">
+                    {assignment.slotLabel || "תפקיד"}
+                  </span>
+                  <div className="text-left">
+                    <div className="text-xs font-black text-slate-900">
+                      {assignment.userName}
+                    </div>
+                    {assignment.assigneeType !== "external" && (
+                      <div
+                        className={`mt-0.5 text-[9px] font-bold ${
+                          assignment.readStatus === "read"
+                            ? "text-emerald-600"
+                            : "text-amber-600"
+                        }`}
+                      >
+                        {assignment.readStatus === "read"
+                          ? "קרא/ה"
+                          : "טרם נקרא"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {detailsShift.note && (
+              <div className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-6 text-amber-900">
+                {detailsShift.note}
+              </div>
+            )}
+
+            {canManage && (
+              <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const shift = detailsShift;
+                    setDetailsShift(null);
+                    openEdit(shift);
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2.5 text-xs font-black text-white hover:bg-indigo-700"
+                >
+                  <Edit2 className="h-4 w-4" />
+                  עריכה
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => shareShiftOnWhatsApp(detailsShift)}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-black text-white hover:bg-emerald-700"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  WhatsApp
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const shift = detailsShift;
+                    setDetailsShift(null);
+                    duplicateShift(shift);
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50"
+                >
+                  <Copy className="h-4 w-4" />
+                  שכפול
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const shift = detailsShift;
+                    setDetailsShift(null);
+                    await togglePublishShift(shift);
+                  }}
+                  className="rounded-xl border border-amber-200 px-3 py-2.5 text-xs font-black text-amber-800 hover:bg-amber-50"
+                >
+                  {isPublishedShift(detailsShift)
+                    ? "החזר לטיוטה"
+                    : "פרסם"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const shift = detailsShift;
+                    setDetailsShift(null);
+                    await deleteShift(shift);
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-rose-200 px-3 py-2.5 text-xs font-black text-rose-700 hover:bg-rose-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  מחיקה
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {isFormOpen && canManage && (
         <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
