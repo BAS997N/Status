@@ -298,12 +298,12 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const isSuperAdmin = hasPermission(permissions, "system_admin.view");
   const canViewReporter = hasPermission(permissions, "reporter.view");
   const canViewDashboard = hasPermission(permissions, "dashboard.view");
-  const effectiveSystemRole = getEffectiveSystemRole(permissionUser);
+  const shiftsSystemRole = getEffectiveSystemRole(permissionUser);
   const canViewShifts = permissions["shifts.view"] !== false;
   const canManageShifts =
     permissions["shifts.manage"] === true ||
-    effectiveSystemRole === "admin" ||
-    effectiveSystemRole === "super_admin";
+    shiftsSystemRole === "admin" ||
+    shiftsSystemRole === "super_admin";
 
   const getInitialTabForProfile = (profile: UserProfile) => {
     const effectiveProfile =
