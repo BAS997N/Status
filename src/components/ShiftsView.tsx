@@ -120,6 +120,8 @@ export default function ShiftsView({
   const [weekAnchor, setWeekAnchor] = useState(new Date());
   const [monthAnchor, setMonthAnchor] = useState(new Date());
   const [detailsShift, setDetailsShift] = useState<ShiftRecord | null>(null);
+  const [includeReadStatusInPrint, setIncludeReadStatusInPrint] =
+    useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<ShiftRecord | null>(null);
   const [message, setMessage] = useState<{
@@ -713,15 +715,17 @@ export default function ShiftsView({
               <tr>
                 <td>${escapeHtml(assignment.slotLabel || "תפקיד")}</td>
                 <td>${escapeHtml(assignment.userName)}</td>
-                <td>
-                  ${
-                    assignment.assigneeType === "external"
-                      ? "לא נדרש"
-                      : assignment.readStatus === "read"
-                      ? "נקרא"
-                      : "טרם נקרא"
-                  }
-                </td>
+                ${
+                  includeReadStatusInPrint
+                    ? `<td>${
+                        assignment.assigneeType === "external"
+                          ? "לא נדרש"
+                          : assignment.readStatus === "read"
+                          ? "נקרא"
+                          : "טרם נקרא"
+                      }</td>`
+                    : ""
+                }
               </tr>
             `
           )
@@ -766,7 +770,7 @@ export default function ShiftsView({
                 <tr>
                   <th>תפקיד</th>
                   <th>משובץ</th>
-                  <th>אישור קריאה</th>
+                  ${includeReadStatusInPrint ? "<th>אישור קריאה</th>" : ""}
                 </tr>
               </thead>
               <tbody>${assignmentsHtml}</tbody>
@@ -979,6 +983,19 @@ export default function ShiftsView({
         onPrint={printShifts}
         onExport={exportShiftsCsv}
       />
+
+      {canManage && (
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-600 shadow-sm">
+          <input
+            type="checkbox"
+            checked={includeReadStatusInPrint}
+            onChange={(event) =>
+              setIncludeReadStatusInPrint(event.target.checked)
+            }
+          />
+          כלול אישור קריאה בהדפסה / PDF
+        </label>
+      )}
 
       {message && (
         <div
