@@ -31,6 +31,8 @@ import ShiftFilters, { ShiftViewMode } from "./shifts/ShiftFilters";
 import WeeklyShiftView from "./shifts/WeeklyShiftView";
 import CompactShiftList from "./shifts/CompactShiftList";
 import MonthlyShiftCalendar from "./shifts/MonthlyShiftCalendar";
+import DailyShiftView from "./shifts/DailyShiftView";
+import battalionLogo from "../assets/battalion-logo.png";
 import { isPublishedShift } from "./shifts/shiftViewUtils";
 
 interface ShiftsViewProps {
@@ -145,9 +147,15 @@ export default function ShiftsView({
   const [statusFilter, setStatusFilter] = useState("");
   const [weekAnchor, setWeekAnchor] = useState(new Date());
   const [monthAnchor, setMonthAnchor] = useState(new Date());
+  const [dayAnchor, setDayAnchor] = useState(new Date());
   const [detailsShift, setDetailsShift] = useState<ShiftRecord | null>(null);
   const [includeReadStatusInPrint, setIncludeReadStatusInPrint] =
     useState(false);
+  const [isPrintOptionsOpen, setIsPrintOptionsOpen] = useState(false);
+  const [printStartDate, setPrintStartDate] = useState(getTodayInputDate());
+  const [printEndDate, setPrintEndDate] = useState(
+    addDaysToInputDate(getTodayInputDate(), 6)
+  );
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<ShiftRecord | null>(null);
   const [message, setMessage] = useState<{
@@ -791,11 +799,47 @@ export default function ShiftsView({
     URL.revokeObjectURL(url);
   };
 
+  const openPrintOptions = () => {
+    const firstShift = visibleShifts[0];
+    const lastShift = visibleShifts[visibleShifts.length - 1];
+
+    setPrintStartDate(
+      firstShift ? toLocalParts(firstShift.startAt).date : getTodayInputDate()
+    );
+    setPrintEndDate(
+      lastShift
+        ? toLocalParts(lastShift.startAt).date
+        : addDaysToInputDate(getTodayInputDate(), 6)
+    );
+    setIsPrintOptionsOpen(true);
+  };
+
   const printShifts = () => {
-    if (visibleShifts.length === 0) {
+    if (!printStartDate || !printEndDate) {
       setMessage({
         type: "error",
-        text: "אין משמרות להדפסה.",
+        text: "יש לבחור תאריך התחלה ותאריך סיום לייצוא.",
+      });
+      return;
+    }
+
+    if (printEndDate < printStartDate) {
+      setMessage({
+        type: "error",
+        text: "תאריך הסיום לא יכול להיות מוקדם מתאריך ההתחלה.",
+      });
+      return;
+    }
+
+    const shiftsForPrint = visibleShifts.filter((shift) => {
+      const shiftDate = toLocalParts(shift.startAt).date;
+      return shiftDate >= printStartDate && shiftDate <= printEndDate;
+    });
+
+    if (shiftsForPrint.length === 0) {
+      setMessage({
+        type: "error",
+        text: "אין משמרות בטווח התאריכים שנבחר.",
       });
       return;
     }
@@ -810,6 +854,8 @@ export default function ShiftsView({
       return;
     }
 
+    setIsPrintOptionsOpen(false);
+
     const escapeHtml = (value: unknown) =>
       String(value ?? "")
         .replace(/&/g, "&amp;")
@@ -817,17 +863,6 @@ export default function ShiftsView({
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
-
-    const logoDataUrl =
-      "data:image/png;base64,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...";
-
-    const getLocalDateKeyForPrint = (value: string | Date) => {
-      const date = typeof value === "string" ? new Date(value) : value;
-      const offset = date.getTimezoneOffset();
-      return new Date(date.getTime() - offset * 60_000)
-        .toISOString()
-        .slice(0, 10);
-    };
 
     const formatDateForPrint = (value: string | Date) =>
       new Date(value).toLocaleDateString("he-IL", {
@@ -847,186 +882,136 @@ export default function ShiftsView({
         weekday: "long",
       });
 
-    const printableShifts = [...visibleShifts].sort((a, b) =>
-      a.startAt.localeCompare(b.startAt)
-    );
-
     const shiftsByDate = new Map<string, ShiftRecord[]>();
 
-    printableShifts.forEach((shift) => {
-      const dateKey = getLocalDateKeyForPrint(shift.startAt);
+    [...shiftsForPrint]
+      .sort((a, b) => a.startAt.localeCompare(b.startAt))
+      .forEach((shift) => {
+        const dateKey = toLocalParts(shift.startAt).date;
+        const current = shiftsByDate.get(dateKey) || [];
+        current.push(shift);
+        shiftsByDate.set(dateKey, current);
+      });
 
-      if (!shiftsByDate.has(dateKey)) {
-        shiftsByDate.set(dateKey, []);
-      }
+    const orderedDays = Array.from(shiftsByDate.entries()).sort(
+      ([firstDate], [secondDate]) => firstDate.localeCompare(secondDate)
+    );
 
-      shiftsByDate.get(dateKey)?.push(shift);
-    });
+    const daySections = orderedDays
+      .map(([dateKey, dayShifts]) => {
+        const dateValue = new Date(`${dateKey}T12:00:00`);
 
-    const MAX_SHIFTS_PER_PAGE = 5;
-
-    const dayPages = Array.from(shiftsByDate.entries())
-      .sort(([firstDate], [secondDate]) => firstDate.localeCompare(secondDate))
-      .flatMap(([dateKey, dayShifts]) => {
-        const pages: ShiftRecord[][] = [];
-
-        for (
-          let index = 0;
-          index < dayShifts.length;
-          index += MAX_SHIFTS_PER_PAGE
-        ) {
-          pages.push(dayShifts.slice(index, index + MAX_SHIFTS_PER_PAGE));
-        }
-
-        return pages.map((pageShifts, pageIndex) => {
-          const dayDate = new Date(`${dateKey}T12:00:00`);
-
-          const orderedRoleLabels = Array.from(
-            new Set(
-              pageShifts.flatMap((shift) =>
-                shift.assignments.map(
-                  (assignment) => assignment.slotLabel || "תפקיד"
-                )
+        const roleLabels = Array.from(
+          new Set(
+            dayShifts.flatMap((shift) =>
+              shift.assignments.map(
+                (assignment) => assignment.slotLabel || "תפקיד"
               )
             )
-          ).sort((first, second) => {
-            const firstIndex = expandedSlots.findIndex(
-              (slot) => slot.label === first
-            );
-            const secondIndex = expandedSlots.findIndex(
-              (slot) => slot.label === second
-            );
-
-            if (firstIndex >= 0 && secondIndex >= 0) {
-              return firstIndex - secondIndex;
-            }
-
-            if (firstIndex >= 0) return -1;
-            if (secondIndex >= 0) return 1;
-            return first.localeCompare(second, "he");
-          });
-
-          const assignmentCount = pageShifts.reduce(
-            (total, shift) => total + shift.assignments.length,
-            0
+          )
+        ).sort((first, second) => {
+          const firstIndex = expandedSlots.findIndex(
+            (slot) => slot.label === first
+          );
+          const secondIndex = expandedSlots.findIndex(
+            (slot) => slot.label === second
           );
 
-          const shiftHeaders = pageShifts
-            .map(
-              (shift) => `
-                <th class="shift-column">
-                  <div class="shift-title">${escapeHtml(shift.title)}</div>
-                  <div class="shift-time">
-                    ${escapeHtml(formatTimeForPrint(shift.startAt))}–${escapeHtml(
-                formatTimeForPrint(shift.endAt)
-              )}
-                  </div>
-                  ${
-                    shift.location
-                      ? `<div class="shift-location">${escapeHtml(
-                          shift.location
-                        )}</div>`
-                      : ""
-                  }
-                </th>
-              `
-            )
-            .join("");
+          if (firstIndex >= 0 && secondIndex >= 0) {
+            return firstIndex - secondIndex;
+          }
 
-          const rows = orderedRoleLabels
-            .map((roleLabel) => {
-              const cells = pageShifts
-                .map((shift) => {
-                  const assignment = shift.assignments.find(
-                    (item) => (item.slotLabel || "תפקיד") === roleLabel
-                  );
+          if (firstIndex >= 0) return -1;
+          if (secondIndex >= 0) return 1;
+          return first.localeCompare(second, "he");
+        });
 
-                  if (!assignment) {
-                    return '<td class="assignment-cell empty-cell">—</td>';
-                  }
-
-                  const readStatus =
-                    includeReadStatusInPrint &&
-                    assignment.assigneeType !== "external"
-                      ? assignment.readStatus === "read"
-                        ? '<span class="read-status read">✓</span>'
-                        : '<span class="read-status unread">○</span>'
-                      : "";
-
-                  return `
-                    <td class="assignment-cell">
-                      <div class="assignee-name">
-                        ${escapeHtml(assignment.userName)} ${readStatus}
-                      </div>
-                    </td>
-                  `;
-                })
-                .join("");
-
-              return `
-                <tr>
-                  <th class="role-cell">${escapeHtml(roleLabel)}</th>
-                  ${cells}
-                </tr>
-              `;
-            })
-            .join("");
-
-          return `
-            <section class="day-sheet">
-              <header class="document-header">
-                <div class="logo-wrap">
-                  <img src="${logoDataUrl}" alt="לוגו היחידה" />
+        const shiftHeaders = dayShifts
+          .map(
+            (shift) => `
+              <th class="shift-column">
+                <div class="shift-title">${escapeHtml(shift.title)}</div>
+                <div class="shift-time">
+                  ${escapeHtml(formatTimeForPrint(shift.startAt))}–${escapeHtml(
+              formatTimeForPrint(shift.endAt)
+            )}
                 </div>
-
-                <div class="document-title">
-                  <h1>לוח משמרות יומי</h1>
-                  <div class="day-title">
-                    ${escapeHtml(formatWeekdayForPrint(dayDate))} ·
-                    ${escapeHtml(formatDateForPrint(dayDate))}
-                  </div>
-                  ${
-                    pages.length > 1
-                      ? `<div class="page-part">חלק ${pageIndex + 1} מתוך ${
-                          pages.length
-                        }</div>`
-                      : ""
-                  }
-                </div>
-
-                <div class="summary-box">
-                  <div><strong>משמרות:</strong> ${pageShifts.length}</div>
-                  <div><strong>שיבוצים:</strong> ${assignmentCount}</div>
-                </div>
-              </header>
-
-              <div class="table-wrap">
-                <table class="roster-table">
-                  <thead>
-                    <tr>
-                      <th class="role-heading">תפקיד</th>
-                      ${shiftHeaders}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${rows}
-                  </tbody>
-                </table>
-              </div>
-
-              <footer class="document-footer">
-                <span>הופק בתאריך: ${escapeHtml(
-                  new Date().toLocaleString("he-IL")
-                )}</span>
                 ${
-                  includeReadStatusInPrint
-                    ? '<span>✓ נקרא · ○ טרם נקרא</span>'
+                  shift.location
+                    ? `<div class="shift-location">${escapeHtml(
+                        shift.location
+                      )}</div>`
                     : ""
                 }
-              </footer>
-            </section>
-          `;
-        });
+              </th>
+            `
+          )
+          .join("");
+
+        const rows = roleLabels
+          .map((roleLabel) => {
+            const cells = dayShifts
+              .map((shift) => {
+                const assignment = shift.assignments.find(
+                  (item) => (item.slotLabel || "תפקיד") === roleLabel
+                );
+
+                if (!assignment) {
+                  return '<td class="assignment-cell empty-cell">—</td>';
+                }
+
+                const readStatus =
+                  includeReadStatusInPrint &&
+                  assignment.assigneeType !== "external"
+                    ? assignment.readStatus === "read"
+                      ? '<span class="read-status read">✓</span>'
+                      : '<span class="read-status unread">○</span>'
+                    : "";
+
+                return `
+                  <td class="assignment-cell">
+                    <div class="assignee-name">
+                      ${escapeHtml(assignment.userName)} ${readStatus}
+                    </div>
+                  </td>
+                `;
+              })
+              .join("");
+
+            return `
+              <tr>
+                <th class="role-cell">${escapeHtml(roleLabel)}</th>
+                ${cells}
+              </tr>
+            `;
+          })
+          .join("");
+
+        return `
+          <section class="day-block">
+            <div class="day-heading">
+              <div>
+                <strong>${escapeHtml(
+                  formatWeekdayForPrint(dateValue)
+                )}</strong>
+                <span>${escapeHtml(formatDateForPrint(dateValue))}</span>
+              </div>
+              <span>${dayShifts.length} משמרות</span>
+            </div>
+
+            <div class="table-wrap">
+              <table class="roster-table">
+                <thead>
+                  <tr>
+                    <th class="role-heading">תפקיד</th>
+                    ${shiftHeaders}
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </section>
+        `;
       })
       .join("");
 
@@ -1041,7 +1026,7 @@ export default function ShiftsView({
           <style>
             @page {
               size: A4 landscape;
-              margin: 8mm;
+              margin: 7mm;
             }
 
             * {
@@ -1060,22 +1045,13 @@ export default function ShiftsView({
               print-color-adjust: exact;
             }
 
-            .day-sheet {
-              min-height: 185mm;
-              display: flex;
-              flex-direction: column;
-              page-break-after: always;
-              break-after: page;
-            }
-
-            .day-sheet:last-child {
-              page-break-after: auto;
-              break-after: auto;
+            body {
+              padding: 0;
             }
 
             .document-header {
               display: grid;
-              grid-template-columns: 95px 1fr 150px;
+              grid-template-columns: 100px 1fr 180px;
               align-items: center;
               gap: 12px;
               margin-bottom: 8px;
@@ -1087,16 +1063,14 @@ export default function ShiftsView({
               display: flex;
               align-items: center;
               justify-content: flex-start;
-              width: 95px;
-              height: 58px;
-              overflow: hidden;
+              height: 60px;
             }
 
             .logo-wrap img {
               display: block;
               width: auto;
-              height: 56px;
-              max-width: 92px;
+              height: 58px;
+              max-width: 98px;
               object-fit: contain;
             }
 
@@ -1107,21 +1081,12 @@ export default function ShiftsView({
             .document-title h1 {
               margin: 0;
               font-size: 20px;
-              line-height: 1.15;
             }
 
-            .day-title {
-              margin-top: 4px;
-              font-size: 15px;
-              font-weight: 800;
-              color: #334155;
-            }
-
-            .page-part {
-              margin-top: 3px;
-              font-size: 9px;
-              font-weight: 700;
-              color: #64748b;
+            .document-title p {
+              margin: 4px 0 0;
+              font-size: 10px;
+              color: #475569;
             }
 
             .summary-box {
@@ -1133,22 +1098,45 @@ export default function ShiftsView({
               line-height: 1.7;
             }
 
+            .day-block {
+              margin-bottom: 8px;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+
+            .day-heading {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 10px;
+              padding: 4px 7px;
+              border: 1px solid #64748b;
+              border-bottom: 0;
+              background: #dbeafe;
+              font-size: 10px;
+            }
+
+            .day-heading strong {
+              margin-left: 6px;
+              font-size: 11px;
+            }
+
             .table-wrap {
-              flex: 1;
               width: 100%;
+              overflow: hidden;
             }
 
             .roster-table {
               width: 100%;
               table-layout: fixed;
               border-collapse: collapse;
-              font-size: 10px;
+              font-size: 8.5px;
             }
 
             .roster-table th,
             .roster-table td {
               border: 1px solid #64748b;
-              padding: 5px 4px;
+              padding: 3px 3px;
               text-align: center;
               vertical-align: middle;
               overflow-wrap: anywhere;
@@ -1156,10 +1144,9 @@ export default function ShiftsView({
 
             .role-heading,
             .role-cell {
-              width: 118px;
+              width: 105px;
               background: #e2e8f0;
               font-weight: 900;
-              color: #0f172a;
             }
 
             .shift-column {
@@ -1169,33 +1156,30 @@ export default function ShiftsView({
             }
 
             .shift-title {
-              font-size: 11px;
+              font-size: 9px;
               font-weight: 900;
-              line-height: 1.2;
+              line-height: 1.15;
             }
 
             .shift-time {
-              margin-top: 3px;
-              font-size: 9px;
-              font-weight: 700;
+              margin-top: 2px;
+              font-size: 7.5px;
             }
 
             .shift-location {
-              margin-top: 2px;
-              font-size: 8px;
-              font-weight: 600;
+              margin-top: 1px;
+              font-size: 7px;
               opacity: 0.9;
             }
 
             .assignment-cell {
-              min-height: 28px;
               background: #ffffff;
             }
 
             .assignee-name {
-              font-size: 10px;
+              font-size: 8.5px;
               font-weight: 800;
-              line-height: 1.25;
+              line-height: 1.15;
             }
 
             .empty-cell {
@@ -1207,11 +1191,11 @@ export default function ShiftsView({
               display: inline-flex;
               align-items: center;
               justify-content: center;
-              width: 13px;
-              height: 13px;
-              margin-right: 3px;
+              width: 11px;
+              height: 11px;
+              margin-right: 2px;
               border-radius: 50%;
-              font-size: 8px;
+              font-size: 7px;
               font-weight: 900;
             }
 
@@ -1227,33 +1211,57 @@ export default function ShiftsView({
 
             .document-footer {
               display: flex;
-              align-items: center;
               justify-content: space-between;
               gap: 10px;
-              margin-top: 6px;
-              padding-top: 5px;
+              margin-top: 5px;
+              padding-top: 4px;
               border-top: 1px solid #cbd5e1;
               color: #64748b;
-              font-size: 8px;
-            }
-
-            @media print {
-              .day-sheet {
-                min-height: auto;
-              }
+              font-size: 7.5px;
             }
           </style>
         </head>
 
         <body>
-          ${dayPages}
+          <header class="document-header">
+            <div class="logo-wrap">
+              <img src="${battalionLogo}" alt="לוגו הגדוד" />
+            </div>
+
+            <div class="document-title">
+              <h1>לוח משמרות</h1>
+              <p>
+                ${escapeHtml(formatDateForPrint(`${printStartDate}T12:00:00`))}
+                —
+                ${escapeHtml(formatDateForPrint(`${printEndDate}T12:00:00`))}
+              </p>
+            </div>
+
+            <div class="summary-box">
+              <div><strong>מספר ימים:</strong> ${orderedDays.length}</div>
+              <div><strong>מספר משמרות:</strong> ${shiftsForPrint.length}</div>
+            </div>
+          </header>
+
+          ${daySections}
+
+          <footer class="document-footer">
+            <span>הופק בתאריך: ${escapeHtml(
+              new Date().toLocaleString("he-IL")
+            )}</span>
+            ${
+              includeReadStatusInPrint
+                ? '<span>✓ נקרא · ○ טרם נקרא</span>'
+                : ""
+            }
+          </footer>
 
           <script>
             window.addEventListener("load", function () {
               setTimeout(function () {
                 window.focus();
                 window.print();
-              }, 400);
+              }, 500);
             });
           </script>
         </body>
@@ -1344,22 +1352,10 @@ export default function ShiftsView({
         shiftTypes={Array.from(new Set(shifts.map((shift) => shift.title))).sort(
           (a, b) => a.localeCompare(b, "he")
         )}
-        onPrint={printShifts}
+        onPrint={openPrintOptions}
         onExport={exportShiftsCsv}
       />
 
-      {canManage && (
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-600 shadow-sm">
-          <input
-            type="checkbox"
-            checked={includeReadStatusInPrint}
-            onChange={(event) =>
-              setIncludeReadStatusInPrint(event.target.checked)
-            }
-          />
-          כלול אישור קריאה בהדפסה / PDF
-        </label>
-      )}
 
       {message && (
         <div
@@ -1391,6 +1387,13 @@ export default function ShiftsView({
           onAnchorDateChange={setWeekAnchor}
           onOpen={setDetailsShift}
         />
+      ) : viewMode === "day" ? (
+        <DailyShiftView
+          shifts={visibleShifts}
+          date={dayAnchor}
+          onDateChange={setDayAnchor}
+          onOpen={setDetailsShift}
+        />
       ) : viewMode === "month" ? (
         <MonthlyShiftCalendar
           shifts={visibleShifts}
@@ -1409,6 +1412,81 @@ export default function ShiftsView({
           onDelete={deleteShift}
           onTogglePublish={togglePublishShift}
         />
+      )}
+
+      {isPrintOptionsOpen && (
+        <div className="fixed inset-0 z-[11850] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div
+            dir="rtl"
+            className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  הגדרות ייצוא ל־PDF
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  בחר טווח תאריכים. יוצגו רק משמרות שקיימות בטווח.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPrintOptionsOpen(false)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="מתאריך">
+                <input
+                  type="date"
+                  value={printStartDate}
+                  onChange={(event) => setPrintStartDate(event.target.value)}
+                  className="input"
+                />
+              </Field>
+
+              <Field label="עד תאריך">
+                <input
+                  type="date"
+                  value={printEndDate}
+                  onChange={(event) => setPrintEndDate(event.target.value)}
+                  className="input"
+                />
+              </Field>
+            </div>
+
+            <label className="mt-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-700">
+              <input
+                type="checkbox"
+                checked={includeReadStatusInPrint}
+                onChange={(event) =>
+                  setIncludeReadStatusInPrint(event.target.checked)
+                }
+              />
+              כלול סימון אישור קריאה ליד השמות
+            </label>
+
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setIsPrintOptionsOpen(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-600"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                onClick={printShifts}
+                className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white hover:bg-indigo-700"
+              >
+                הפק PDF
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {detailsShift && (

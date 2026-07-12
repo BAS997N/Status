@@ -7,7 +7,7 @@ import {
   Search,
 } from "lucide-react";
 
-export type ShiftViewMode = "week" | "list" | "month";
+export type ShiftViewMode = "day" | "week" | "list" | "month";
 
 interface Props {
   viewMode: ShiftViewMode;
@@ -90,6 +90,7 @@ export default function ShiftFilters({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1">
           {[
+            { id: "day" as const, label: "יום", icon: CalendarDays },
             { id: "week" as const, label: "שבוע", icon: Rows3 },
             { id: "list" as const, label: "רשימה", icon: List },
             { id: "month" as const, label: "חודש", icon: CalendarDays },
