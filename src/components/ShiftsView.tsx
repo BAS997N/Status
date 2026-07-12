@@ -156,6 +156,17 @@ export default function ShiftsView({
   const [printEndDate, setPrintEndDate] = useState(
     addDaysToInputDate(getTodayInputDate(), 6)
   );
+  const [isWhatsAppOptionsOpen, setIsWhatsAppOptionsOpen] = useState(false);
+  const [whatsAppStartDate, setWhatsAppStartDate] = useState(
+    getTodayInputDate()
+  );
+  const [whatsAppEndDate, setWhatsAppEndDate] = useState(
+    addDaysToInputDate(getTodayInputDate(), 6)
+  );
+  const [includeLocationInWhatsApp, setIncludeLocationInWhatsApp] =
+    useState(true);
+  const [includeNotesInWhatsApp, setIncludeNotesInWhatsApp] =
+    useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<ShiftRecord | null>(null);
   const [message, setMessage] = useState<{
@@ -1271,6 +1282,173 @@ export default function ShiftsView({
     printWindow.document.close();
   };
 
+  const openWhatsAppOptions = (
+    preset: "today" | "week" | "range" = "range"
+  ) => {
+    const today = getTodayInputDate();
+
+    if (preset === "today") {
+      setWhatsAppStartDate(today);
+      setWhatsAppEndDate(today);
+    } else if (preset === "week") {
+      const current = new Date(`${today}T12:00:00`);
+      const weekStart = new Date(current);
+      weekStart.setDate(current.getDate() - current.getDay());
+      const startValue = weekStart.toISOString().slice(0, 10);
+      setWhatsAppStartDate(startValue);
+      setWhatsAppEndDate(addDaysToInputDate(startValue, 6));
+    } else {
+      const firstShift = visibleShifts[0];
+      const lastShift = visibleShifts[visibleShifts.length - 1];
+
+      setWhatsAppStartDate(
+        firstShift ? toLocalParts(firstShift.startAt).date : today
+      );
+      setWhatsAppEndDate(
+        lastShift
+          ? toLocalParts(lastShift.startAt).date
+          : addDaysToInputDate(today, 6)
+      );
+    }
+
+    setIsWhatsAppOptionsOpen(true);
+  };
+
+  const shareMultipleShiftsOnWhatsApp = async () => {
+    if (!whatsAppStartDate || !whatsAppEndDate) {
+      setMessage({
+        type: "error",
+        text: "יש לבחור תאריך התחלה ותאריך סיום לשליחה.",
+      });
+      return;
+    }
+
+    if (whatsAppEndDate < whatsAppStartDate) {
+      setMessage({
+        type: "error",
+        text: "תאריך הסיום לא יכול להיות מוקדם מתאריך ההתחלה.",
+      });
+      return;
+    }
+
+    const selectedShifts = visibleShifts
+      .filter((shift) => {
+        const shiftDate = toLocalParts(shift.startAt).date;
+        return (
+          shiftDate >= whatsAppStartDate &&
+          shiftDate <= whatsAppEndDate
+        );
+      })
+      .sort((first, second) => first.startAt.localeCompare(second.startAt));
+
+    if (selectedShifts.length === 0) {
+      setMessage({
+        type: "error",
+        text: "אין משמרות בטווח התאריכים שנבחר.",
+      });
+      return;
+    }
+
+    const shiftsByDate = new Map<string, ShiftRecord[]>();
+
+    selectedShifts.forEach((shift) => {
+      const dateKey = toLocalParts(shift.startAt).date;
+      const current = shiftsByDate.get(dateKey) || [];
+      current.push(shift);
+      shiftsByDate.set(dateKey, current);
+    });
+
+    const dayMessages = Array.from(shiftsByDate.entries())
+      .sort(([firstDate], [secondDate]) =>
+        firstDate.localeCompare(secondDate)
+      )
+      .map(([dateKey, dayShifts]) => {
+        const dateValue = new Date(`${dateKey}T12:00:00`);
+        const dayHeader = `*${dateValue.toLocaleDateString("he-IL", {
+          weekday: "long",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })}*`;
+
+        const shiftsText = dayShifts
+          .map((shift) => {
+            const assignments = shift.assignments
+              .map(
+                (assignment) =>
+                  `• ${assignment.slotLabel || "תפקיד"} — ${
+                    assignment.userName
+                  }`
+              )
+              .join("\n");
+
+            return [
+              `*${shift.title}*`,
+              `🕒 ${new Date(shift.startAt).toLocaleTimeString("he-IL", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}–${new Date(shift.endAt).toLocaleTimeString("he-IL", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}`,
+              includeLocationInWhatsApp && shift.location
+                ? `📍 ${shift.location}`
+                : "",
+              assignments || "• טרם שובצו חיילים",
+              includeNotesInWhatsApp && shift.note
+                ? `📝 ${shift.note}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join("\n");
+          })
+          .join("\n\n");
+
+        return `${dayHeader}\n${shiftsText}`;
+      });
+
+    const header = [
+      "*לוח משמרות*",
+      `${new Date(`${whatsAppStartDate}T12:00:00`).toLocaleDateString(
+        "he-IL"
+      )}–${new Date(`${whatsAppEndDate}T12:00:00`).toLocaleDateString(
+        "he-IL"
+      )}`,
+      "",
+    ].join("\n");
+
+    const completeMessage = `${header}${dayMessages.join(
+      "\n\n━━━━━━━━━━━━\n\n"
+    )}`;
+
+    // WhatsApp links can become unreliable with very long text.
+    // Keep one-click sharing for normal ranges, and copy oversized schedules.
+    if (completeMessage.length > 7000) {
+      try {
+        await navigator.clipboard.writeText(completeMessage);
+        setIsWhatsAppOptionsOpen(false);
+        setMessage({
+          type: "success",
+          text: "ההודעה ארוכה מדי לפתיחה ישירה. כל לוח המשמרות הועתק ללוח — פתח WhatsApp והדבק בקבוצה.",
+        });
+      } catch (error) {
+        console.error("Failed copying WhatsApp schedule:", error);
+        setMessage({
+          type: "error",
+          text: "ההודעה ארוכה מדי ולא ניתן היה להעתיק אותה.",
+        });
+      }
+      return;
+    }
+
+    setIsWhatsAppOptionsOpen(false);
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(completeMessage)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
+
   const shareShiftOnWhatsApp = (shift: ShiftRecord) => {
     const start = new Date(shift.startAt).toLocaleString("he-IL", {
       dateStyle: "medium",
@@ -1326,14 +1504,24 @@ export default function ShiftsView({
             </div>
           </div>
           {canManage && (
-            <button
-              type="button"
-              onClick={openNew}
-              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white hover:bg-indigo-700"
-            >
-              <Plus className="h-4 w-4" />
-              משמרת חדשה
-            </button>
+            <div className="grid grid-cols-1 gap-2 sm:flex">
+              <button
+                type="button"
+                onClick={() => openWhatsAppOptions("range")}
+                className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-black text-emerald-700 hover:bg-emerald-100"
+              >
+                <MessageCircle className="h-4 w-4" />
+                שליחת כמה משמרות
+              </button>
+              <button
+                type="button"
+                onClick={openNew}
+                className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white hover:bg-indigo-700"
+              >
+                <Plus className="h-4 w-4" />
+                משמרת חדשה
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -1412,6 +1600,123 @@ export default function ShiftsView({
           onDelete={deleteShift}
           onTogglePublish={togglePublishShift}
         />
+      )}
+
+      {isWhatsAppOptionsOpen && (
+        <div className="fixed inset-0 z-[11840] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div
+            dir="rtl"
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  שליחת משמרות ל־WhatsApp
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  ההודעה תסודר לפי ימים ותכלול רק משמרות שקיימות.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsWhatsAppOptionsOpen(false)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => openWhatsAppOptions("today")}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"
+              >
+                היום
+              </button>
+              <button
+                type="button"
+                onClick={() => openWhatsAppOptions("week")}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"
+              >
+                השבוע
+              </button>
+              <button
+                type="button"
+                onClick={() => openWhatsAppOptions("range")}
+                className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700"
+              >
+                כל הטווח
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="מתאריך">
+                <input
+                  type="date"
+                  value={whatsAppStartDate}
+                  onChange={(event) =>
+                    setWhatsAppStartDate(event.target.value)
+                  }
+                  className="input"
+                />
+              </Field>
+
+              <Field label="עד תאריך">
+                <input
+                  type="date"
+                  value={whatsAppEndDate}
+                  onChange={(event) =>
+                    setWhatsAppEndDate(event.target.value)
+                  }
+                  className="input"
+                />
+              </Field>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={includeLocationInWhatsApp}
+                  onChange={(event) =>
+                    setIncludeLocationInWhatsApp(event.target.checked)
+                  }
+                />
+                כלול מיקום
+              </label>
+
+              <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={includeNotesInWhatsApp}
+                  onChange={(event) =>
+                    setIncludeNotesInWhatsApp(event.target.checked)
+                  }
+                />
+                כלול הערות
+              </label>
+            </div>
+
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setIsWhatsAppOptionsOpen(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-600"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                onClick={shareMultipleShiftsOnWhatsApp}
+                className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white hover:bg-emerald-700"
+              >
+                <MessageCircle className="h-4 w-4" />
+                פתח ב־WhatsApp
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {isPrintOptionsOpen && (

@@ -63,13 +63,11 @@ export default function DailyShiftView({
           אין משמרות ביום שנבחר
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {dayShifts.map((shift) => (
-            <button
+            <article
               key={shift.shiftId}
-              type="button"
-              onClick={() => onOpen(shift)}
-              className="rounded-2xl border border-slate-200 bg-white p-4 text-right shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50"
+              className="rounded-2xl border border-slate-200 bg-white p-4 text-right shadow-sm"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -96,10 +94,58 @@ export default function DailyShiftView({
                 </div>
               )}
 
-              <div className="mt-3 text-[10px] font-black text-slate-600">
-                {getAssignedCount(shift)} משובצים
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="text-[10px] font-black text-slate-600">
+                  {getAssignedCount(shift)} משובצים
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpen(shift)}
+                  className="rounded-lg border border-indigo-200 px-2.5 py-1.5 text-[10px] font-black text-indigo-700 hover:bg-indigo-50"
+                >
+                  פרטים ופעולות
+                </button>
               </div>
-            </button>
+
+              <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
+                {shift.assignments.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-[10px] font-bold text-slate-400">
+                    טרם שובצו חיילים למשמרת
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {shift.assignments.map((assignment) => (
+                      <div
+                        key={`${shift.shiftId}_${assignment.slotId}_${assignment.userId}`}
+                        className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center gap-3 px-3 py-2.5"
+                      >
+                        <div className="truncate text-[10px] font-bold text-slate-500">
+                          {assignment.slotLabel || "תפקיד"}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-black text-slate-900">
+                            {assignment.userName}
+                          </div>
+                          {assignment.assigneeType !== "external" && (
+                            <div
+                              className={`mt-0.5 text-[9px] font-bold ${
+                                assignment.readStatus === "read"
+                                  ? "text-emerald-600"
+                                  : "text-amber-600"
+                              }`}
+                            >
+                              {assignment.readStatus === "read"
+                                ? "נקרא"
+                                : "טרם נקרא"}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </article>
           ))}
         </div>
       )}
