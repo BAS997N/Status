@@ -1160,10 +1160,49 @@ export const dataService = {
       const snapshot = await getDocs(
         query(collection(db, "shifts"), orderBy("startAt", "asc"))
       );
-      return snapshot.docs.map((item) => ({
+
+      const shifts = snapshot.docs.map((item) => ({
         shiftId: item.id,
         ...(item.data() as Omit<ShiftRecord, "shiftId">),
       }));
+
+      const currentUserId = auth?.currentUser?.uid;
+      if (!currentUserId) return shifts;
+
+      const acknowledgementsSnapshot = await getDocs(
+        query(
+          collection(db, "shift_acknowledgements"),
+          where("userId", "==", currentUserId)
+        )
+      );
+
+      const acknowledgementByShiftId = new Map(
+        acknowledgementsSnapshot.docs.map((item) => {
+          const data = item.data() as {
+            shiftId?: string;
+            readAt?: string;
+          };
+          return [data.shiftId || "", data.readAt || ""];
+        })
+      );
+
+      return shifts.map((shift) => {
+        const readAt = acknowledgementByShiftId.get(shift.shiftId);
+        if (!readAt) return shift;
+
+        return {
+          ...shift,
+          assignments: shift.assignments.map((assignment) =>
+            assignment.userId === currentUserId
+              ? {
+                  ...assignment,
+                  readStatus: "read" as const,
+                  readAt,
+                }
+              : assignment
+          ),
+        };
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, "shifts");
       return [];
@@ -1307,21 +1346,78 @@ export const dataService = {
     userId: string,
     actor?: UserProfile
   ): Promise<ShiftRecord> {
-    const shift = (await this.getShifts()).find((item) => item.shiftId === shiftId);
+    const shift = (await this.getShifts()).find(
+      (item) => item.shiftId === shiftId
+    );
     if (!shift) throw new Error("המשמרת לא נמצאה.");
 
-    const now = new Date().toISOString();
-    const assignments = shift.assignments.map((assignment) =>
-      assignment.userId === userId
-        ? { ...assignment, readStatus: "read" as const, readAt: now }
-        : assignment
+    const isAssigned = shift.assignments.some(
+      (assignment) => assignment.userId === userId
     );
+    if (!isAssigned) {
+      throw new Error("המשתמש אינו משובץ למשמרת הזאת.");
+    }
 
-    const updated = await this.updateShift(
-      shiftId,
-      { assignments },
-      actor
-    );
+    const currentAuthUserId = auth?.currentUser?.uid;
+    if (isFirebaseActive() && currentAuthUserId !== userId) {
+      throw new Error("אין הרשאה לאשר קריאה עבור משתמש אחר.");
+    }
+
+    const now = new Date().toISOString();
+
+    if (!isFirebaseActive()) {
+      const acknowledgements = JSON.parse(
+        localStorage.getItem("idf_shift_acknowledgements") || "[]"
+      );
+      const withoutCurrent = acknowledgements.filter(
+        (item: any) =>
+          !(item.shiftId === shiftId && item.userId === userId)
+      );
+      localStorage.setItem(
+        "idf_shift_acknowledgements",
+        JSON.stringify([
+          {
+            id: `${shiftId}_${userId}`,
+            shiftId,
+            userId,
+            readAt: now,
+          },
+          ...withoutCurrent,
+        ])
+      );
+    } else {
+      try {
+        await setDoc(
+          doc(db, "shift_acknowledgements", `${shiftId}_${userId}`),
+          {
+            shiftId,
+            userId,
+            readAt: now,
+            acknowledgedBy: actor?.userId || currentAuthUserId || userId,
+          }
+        );
+      } catch (error) {
+        handleFirestoreError(
+          error,
+          OperationType.WRITE,
+          `shift_acknowledgements/${shiftId}_${userId}`
+        );
+        throw error;
+      }
+    }
+
+    const updated: ShiftRecord = {
+      ...shift,
+      assignments: shift.assignments.map((assignment) =>
+        assignment.userId === userId
+          ? {
+              ...assignment,
+              readStatus: "read",
+              readAt: now,
+            }
+          : assignment
+      ),
+    };
 
     await writeAuditLog({
       action: "acknowledge",

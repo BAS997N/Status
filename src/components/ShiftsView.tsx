@@ -5,6 +5,7 @@ import {
   Clock3,
   Edit2,
   MapPin,
+  MessageCircle,
   Plus,
   Search,
   Trash2,
@@ -346,6 +347,41 @@ export default function ShiftsView({
     }
   };
 
+  const shareShiftOnWhatsApp = (shift: ShiftRecord) => {
+    const start = new Date(shift.startAt).toLocaleString("he-IL", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+    const end = new Date(shift.endAt).toLocaleString("he-IL", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+
+    const assignmentsText = shift.assignments
+      .map(
+        (assignment) =>
+          `${assignment.slotLabel || "תפקיד"}: ${assignment.userName}`
+      )
+      .join("\n");
+
+    const message = [
+      `*${shift.title}*`,
+      shift.shiftType ? `סוג: ${shift.shiftType}` : "",
+      `התחלה: ${start}`,
+      `סיום: ${end}`,
+      shift.location ? `מיקום: ${shift.location}` : "",
+      "",
+      "*שיבוץ המשמרת:*",
+      assignmentsText,
+      shift.note ? `\nהערות: ${shift.note}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <section dir="rtl" className="space-y-5">
       <div className="rounded-2xl border border-indigo-200 bg-gradient-to-l from-indigo-50 to-white p-5 shadow-sm">
@@ -445,8 +481,17 @@ export default function ShiftsView({
                     <div className="flex gap-1">
                       <button
                         type="button"
+                        onClick={() => shareShiftOnWhatsApp(shift)}
+                        className="rounded-lg p-2 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
+                        title="שלח ב־WhatsApp"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => openEdit(shift)}
                         className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-indigo-700"
+                        title="עריכה"
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
@@ -454,6 +499,7 @@ export default function ShiftsView({
                         type="button"
                         onClick={() => deleteShift(shift)}
                         className="rounded-lg p-2 text-slate-500 hover:bg-rose-50 hover:text-rose-700"
+                        title="מחיקה"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

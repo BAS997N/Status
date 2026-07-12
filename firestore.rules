@@ -81,6 +81,30 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+
+    match /shift_acknowledgements/{ackId} {
+      allow read: if signedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow create: if signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.shiftId is string &&
+        request.resource.data.readAt is string &&
+        request.resource.data.acknowledgedBy == request.auth.uid;
+
+      allow update: if signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.shiftId == resource.data.shiftId &&
+        request.resource.data.acknowledgedBy == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["readAt", "acknowledgedBy"]);
+
+      allow delete: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
