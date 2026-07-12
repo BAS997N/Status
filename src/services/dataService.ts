@@ -29,6 +29,7 @@ import {
   DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   SystemRole,
   RolePermissionConfig,
+  GoogleSheetsConfig,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -107,8 +108,70 @@ const initSimStorage = () => {
   }
 };
 initSimStorage();
-const GOOGLE_SHEETS_WEB_APP_URL =
-  "https://script.google.com/macros/s/AKfycbzoMH-OzKtGCCWW0rdqaf8TPwlEXoPPSTV3tqjaC4DtFe5o4hVutyzK_FB5HeJRDj_VeQ/exec";
+const DEFAULT_GOOGLE_SHEETS_CONFIG: GoogleSheetsConfig = {
+  enabled: true,
+  webAppUrl:
+    "https://script.google.com/macros/s/AKfycbzoMH-OzKtGCCWW0rdqaf8TPwlEXoPPSTV3tqjaC4DtFe5o4hVutyzK_FB5HeJRDj_VeQ/exec",
+  spreadsheetName: "",
+  lastTestStatus: "idle",
+};
+
+const GOOGLE_SHEETS_CONFIG_CACHE_KEY = "idf_google_sheets_config";
+const GOOGLE_SHEETS_CONFIG_CACHE_TIME_KEY =
+  "idf_google_sheets_config_cached_at";
+const GOOGLE_SHEETS_CONFIG_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const normalizeGoogleSheetsConfig = (
+  value: unknown
+): GoogleSheetsConfig => {
+  const raw = value && typeof value === "object" ? (value as Partial<GoogleSheetsConfig>) : {};
+
+  return {
+    ...DEFAULT_GOOGLE_SHEETS_CONFIG,
+    ...raw,
+    enabled: raw.enabled !== false,
+    webAppUrl:
+      typeof raw.webAppUrl === "string"
+        ? raw.webAppUrl.trim()
+        : DEFAULT_GOOGLE_SHEETS_CONFIG.webAppUrl,
+    spreadsheetName:
+      typeof raw.spreadsheetName === "string"
+        ? raw.spreadsheetName.trim()
+        : "",
+    lastTestStatus:
+      raw.lastTestStatus === "success" || raw.lastTestStatus === "error"
+        ? raw.lastTestStatus
+        : "idle",
+  };
+};
+
+const saveGoogleSheetsConfigToCache = (config: GoogleSheetsConfig) => {
+  localStorage.setItem(GOOGLE_SHEETS_CONFIG_CACHE_KEY, JSON.stringify(config));
+  localStorage.setItem(GOOGLE_SHEETS_CONFIG_CACHE_TIME_KEY, String(Date.now()));
+};
+
+const getGoogleSheetsConfigFromCache = (
+  allowExpired = false
+): GoogleSheetsConfig | null => {
+  try {
+    const raw = localStorage.getItem(GOOGLE_SHEETS_CONFIG_CACHE_KEY);
+    const cachedAt = Number(
+      localStorage.getItem(GOOGLE_SHEETS_CONFIG_CACHE_TIME_KEY) || 0
+    );
+
+    if (!raw) return null;
+
+    const isExpired =
+      !cachedAt || Date.now() - cachedAt > GOOGLE_SHEETS_CONFIG_CACHE_TTL_MS;
+
+    if (isExpired && !allowExpired) return null;
+
+    return normalizeGoogleSheetsConfig(JSON.parse(raw));
+  } catch (error) {
+    console.warn("Invalid Google Sheets config cache:", error);
+    return null;
+  }
+};
 
 const normalizeFirestoreDate = (value: any) => {
   if (!value) return value;
@@ -574,6 +637,126 @@ const getSheetsPersonalId = (...values: any[]): string => {
 };
 
 export const dataService = {
+  async getGoogleSheetsConfig(
+    forceRefresh = false
+  ): Promise<GoogleSheetsConfig> {
+    if (!forceRefresh) {
+      const cached = getGoogleSheetsConfigFromCache();
+      if (cached) return cached;
+    }
+
+    if (!isFirebaseActive()) {
+      const localConfig =
+        getGoogleSheetsConfigFromCache(true) ||
+        normalizeGoogleSheetsConfig(DEFAULT_GOOGLE_SHEETS_CONFIG);
+      saveGoogleSheetsConfigToCache(localConfig);
+      return localConfig;
+    }
+
+    const path = "settings/google_sheets";
+
+    try {
+      const ref = doc(db, "settings", "google_sheets");
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        const config = normalizeGoogleSheetsConfig(snap.data());
+        saveGoogleSheetsConfigToCache(config);
+        return config;
+      }
+
+      const defaults = normalizeGoogleSheetsConfig(DEFAULT_GOOGLE_SHEETS_CONFIG);
+      await setDoc(ref, {
+        ...defaults,
+        updatedAt: new Date().toISOString(),
+        updatedBy: auth?.currentUser?.uid || "SYSTEM_INIT",
+      });
+      saveGoogleSheetsConfigToCache(defaults);
+      return defaults;
+    } catch (error) {
+      console.error("Failed loading Google Sheets config:", error);
+      const fallback =
+        getGoogleSheetsConfigFromCache(true) ||
+        normalizeGoogleSheetsConfig(DEFAULT_GOOGLE_SHEETS_CONFIG);
+      saveGoogleSheetsConfigToCache(fallback);
+      return fallback;
+    }
+  },
+
+  async saveGoogleSheetsConfig(
+    config: GoogleSheetsConfig,
+    updatedBy?: string
+  ): Promise<GoogleSheetsConfig> {
+    const normalized = normalizeGoogleSheetsConfig({
+      ...config,
+      updatedAt: new Date().toISOString(),
+      updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
+    });
+
+    if (!isFirebaseActive()) {
+      saveGoogleSheetsConfigToCache(normalized);
+      return normalized;
+    }
+
+    const path = "settings/google_sheets";
+
+    try {
+      await setDoc(
+        doc(db, "settings", "google_sheets"),
+        normalized,
+        { merge: true }
+      );
+      saveGoogleSheetsConfigToCache(normalized);
+      return normalized;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+      return normalized;
+    }
+  },
+
+  async testGoogleSheetsConnection(
+    config?: GoogleSheetsConfig
+  ): Promise<{ success: boolean; message: string; testedAt: string }> {
+    const effectiveConfig = normalizeGoogleSheetsConfig(
+      config || (await this.getGoogleSheetsConfig(true))
+    );
+    const testedAt = new Date().toISOString();
+
+    if (!effectiveConfig.webAppUrl) {
+      return {
+        success: false,
+        message: "לא הוגדרה כתובת Web App.",
+        testedAt,
+      };
+    }
+
+    try {
+      await fetch(effectiveConfig.webAppUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
+        body: JSON.stringify({
+          action: "connection_test",
+          source: "attendance_system",
+          timestamp: testedAt,
+        }),
+      });
+
+      return {
+        success: true,
+        message: "הבקשה נשלחה בהצלחה ל־Google Sheets Web App.",
+        testedAt,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "בדיקת החיבור נכשלה.",
+        testedAt,
+      };
+    }
+  },
   async getRolePermissionConfigs(
     forceRefresh = false
   ): Promise<RolePermissionConfig[]> {
@@ -1241,6 +1424,9 @@ async createSystemLog(logData: {
     startDate?: string,
     endDate?: string
   ): Promise<void> {
+  const googleSheetsConfig = await this.getGoogleSheetsConfig();
+  if (!googleSheetsConfig.enabled || !googleSheetsConfig.webAppUrl) return;
+
   const reports = await this.fetchAllReports();
   const users = await this.getAllUsers();
   const attendanceStatusConfigs = await this.getAttendanceStatusConfigs();
@@ -1408,7 +1594,7 @@ async createSystemLog(logData: {
 
     try {
       await fetch(
-        GOOGLE_SHEETS_WEB_APP_URL,
+        googleSheetsConfig.webAppUrl,
         {
           method: "POST",
           mode: "no-cors",
@@ -1635,12 +1821,16 @@ const personalIdForSheets = getSheetsPersonalId(
   (reportPayload as any).personalId
 );
 
+const googleSheetsConfig = await this.getGoogleSheetsConfig();
+
 if (
+  googleSheetsConfig.enabled &&
+  !!googleSheetsConfig.webAppUrl &&
   selectedStatusConfig?.exportToSheets !== false &&
   personalIdForSheets
 ) {
   try {
-    await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+    await fetch(googleSheetsConfig.webAppUrl, {
       method: "POST",
       mode: "no-cors",
       headers: {
@@ -1818,12 +2008,16 @@ const formattedDate =
       (updatedReport as any).personalId
     );
 
+    const googleSheetsConfig = await this.getGoogleSheetsConfig();
+
     if (
+      googleSheetsConfig.enabled &&
+      !!googleSheetsConfig.webAppUrl &&
       selectedStatusConfig?.exportToSheets !== false &&
       personalIdForSheets
     ) {
       try {
-        await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
+        await fetch(googleSheetsConfig.webAppUrl, {
           method: "POST",
           mode: "no-cors",
           headers: {

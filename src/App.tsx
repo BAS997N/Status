@@ -36,6 +36,7 @@ import {
   AttendanceStatusConfig,
   UnitConfig,
   MedicalRoleConfig,
+  GoogleSheetsConfig,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "./types";
 import { dataService } from "./services/dataService";
@@ -165,6 +166,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     () => medicalRoleConfigs.filter((role) => role.enabled).sort((a, b) => a.sortOrder - b.sortOrder).map((role) => role.name),
     [medicalRoleConfigs]
   );
+  const [googleSheetsConfig, setGoogleSheetsConfig] = useState<GoogleSheetsConfig | null>(null);
   const [permissionConfigs, setPermissionConfigs] = useState<RolePermissionConfig[]>([]);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [attendanceStatuses, setAttendanceStatuses] = useState<AttendanceStatusConfig[]>(
@@ -191,6 +193,10 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
   const handleMedicalRoleConfigsChanged = (roles: MedicalRoleConfig[]) => {
     setMedicalRoleConfigs([...roles].sort((a, b) => a.sortOrder - b.sortOrder));
+  };
+
+  const handleGoogleSheetsConfigChanged = (config: GoogleSheetsConfig) => {
+    setGoogleSheetsConfig(config);
   };
 
 
@@ -292,6 +298,22 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       ? "reporter"
       : "dashboard";
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadGoogleSheetsConfig = async () => {
+      try {
+        const config = await dataService.getGoogleSheetsConfig();
+        if (!cancelled) setGoogleSheetsConfig(config);
+      } catch (error) {
+        console.error("Failed loading Google Sheets config:", error);
+      }
+    };
+
+    loadGoogleSheetsConfig();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1758,6 +1780,8 @@ const handleAdminSaveReport = async (reportData: {
                 onUnitConfigsChanged={handleUnitConfigsChanged}
                 medicalRoleConfigs={medicalRoleConfigs}
                 onMedicalRoleConfigsChanged={handleMedicalRoleConfigsChanged}
+                googleSheetsConfig={googleSheetsConfig}
+                onGoogleSheetsConfigChanged={handleGoogleSheetsConfigChanged}
               />
             </motion.div>
           ) : activeTab === "reporter" && canViewReporter ? (

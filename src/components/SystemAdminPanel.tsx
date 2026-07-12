@@ -10,12 +10,13 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { AttendanceStatusConfig, MedicalRoleConfig, SystemRole, UnitConfig, UserProfile } from "../types";
+import { AttendanceStatusConfig, GoogleSheetsConfig, MedicalRoleConfig, SystemRole, UnitConfig, UserProfile } from "../types";
 import UsersManager from "./systemAdmin/UsersManager";
 import PermissionsManager from "./systemAdmin/PermissionsManager";
 import AttendanceStatusManager from "./systemAdmin/AttendanceStatusManager";
 import UnitsManager from "./systemAdmin/UnitsManager";
 import MedicalRolesManager from "./systemAdmin/MedicalRolesManager";
+import GoogleSheetsManager from "./systemAdmin/GoogleSheetsManager";
 
 type AdminSection =
   | "overview"
@@ -41,6 +42,8 @@ interface SystemAdminPanelProps {
   onUnitConfigsChanged: (units: UnitConfig[]) => void;
   medicalRoleConfigs: MedicalRoleConfig[];
   onMedicalRoleConfigsChanged: (roles: MedicalRoleConfig[]) => void;
+  googleSheetsConfig: GoogleSheetsConfig | null;
+  onGoogleSheetsConfigChanged: (config: GoogleSheetsConfig) => void;
 }
 
 const sections: Array<{
@@ -102,6 +105,8 @@ export default function SystemAdminPanel({
   onUnitConfigsChanged,
   medicalRoleConfigs,
   onMedicalRoleConfigsChanged,
+  googleSheetsConfig,
+  onGoogleSheetsConfigChanged,
 }: SystemAdminPanelProps) {
   const [activeSection, setActiveSection] =
     useState<AdminSection>("overview");
@@ -188,6 +193,12 @@ export default function SystemAdminPanel({
           currentUser={currentUser}
           units={unitConfigs}
           onUnitsChanged={onUnitConfigsChanged}
+        />
+      ) : activeSection === "sheets" ? (
+        <GoogleSheetsManager
+          currentUser={currentUser}
+          config={googleSheetsConfig}
+          onConfigChanged={onGoogleSheetsConfigChanged}
         />
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

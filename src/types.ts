@@ -48,6 +48,19 @@ export interface MedicalRoleConfig {
   updatedBy?: string;
 }
 
+
+
+export interface GoogleSheetsConfig {
+  enabled: boolean;
+  webAppUrl: string;
+  spreadsheetName?: string;
+  lastTestAt?: string;
+  lastTestStatus?: "success" | "error" | "idle";
+  lastTestMessage?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export interface UserProfile {
   userId: string;
   fullName: string;
