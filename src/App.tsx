@@ -40,6 +40,7 @@ import {
   SystemSettingsConfig,
   ShiftRecord,
   ShiftSlotConfig,
+  ExternalStaffMember,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "./types";
 import { dataService } from "./services/dataService";
@@ -97,6 +98,7 @@ export default function App() {
   const [systemLogs, setSystemLogs] = useState<any[]>([]);
   const [shifts, setShifts] = useState<ShiftRecord[]>([]);
   const [shiftSlotConfigs, setShiftSlotConfigs] = useState<ShiftSlotConfig[]>([]);
+  const [externalStaff, setExternalStaff] = useState<ExternalStaffMember[]>([]);
   const [activeTab, setActiveTab] = useState<
     "reporter" | "dashboard" | "system_admin" | "shifts"
   >("reporter");
@@ -214,6 +216,10 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
   const handleShiftSlotConfigsChanged = (configs: ShiftSlotConfig[]) => {
     setShiftSlotConfigs([...configs].sort((a, b) => a.sortOrder - b.sortOrder));
+  };
+
+  const handleExternalStaffChanged = (items: ExternalStaffMember[]) => {
+    setExternalStaff([...items].sort((a, b) => a.sortOrder - b.sortOrder));
   };
 
 
@@ -603,6 +609,12 @@ setSystemLogs(updatedSystemLogs);
     .then(setShiftSlotConfigs)
     .catch((error) =>
       console.error("Failed loading shift slot configs:", error)
+    );
+  dataService
+    .getExternalStaff()
+    .then(setExternalStaff)
+    .catch((error) =>
+      console.error("Failed loading external staff:", error)
     );
 }, [userProfile]);
 
@@ -1936,6 +1948,8 @@ const handleAdminSaveReport = async (reportData: {
                 onSystemSettingsChanged={handleSystemSettingsChanged}
                 shiftSlotConfigs={shiftSlotConfigs}
                 onShiftSlotConfigsChanged={handleShiftSlotConfigsChanged}
+                externalStaff={externalStaff}
+                onExternalStaffChanged={handleExternalStaffChanged}
               />
             </motion.div>
           ) : activeTab === "shifts" && canViewShifts ? (
@@ -1969,6 +1983,7 @@ const handleAdminSaveReport = async (reportData: {
                   canManage={canManageShifts}
                   shiftSlotConfigs={shiftSlotConfigs}
                   medicalRoleConfigs={medicalRoleConfigs}
+                  externalStaff={externalStaff}
                 />
               )}
             </motion.div>

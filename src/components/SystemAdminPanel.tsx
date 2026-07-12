@@ -9,11 +9,12 @@ import {
   ListChecks,
   Settings,
   CalendarCog,
+  UserRoundPlus,
   ShieldCheck,
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { AttendanceStatusConfig, GoogleSheetsConfig, MedicalRoleConfig, ShiftSlotConfig, SystemRole, SystemSettingsConfig, UnitConfig, UserProfile } from "../types";
+import { AttendanceStatusConfig, ExternalStaffMember, GoogleSheetsConfig, MedicalRoleConfig, ShiftSlotConfig, SystemRole, SystemSettingsConfig, UnitConfig, UserProfile } from "../types";
 import UsersManager from "./systemAdmin/UsersManager";
 import PermissionsManager from "./systemAdmin/PermissionsManager";
 import AttendanceStatusManager from "./systemAdmin/AttendanceStatusManager";
@@ -24,6 +25,7 @@ import AuditManager from "./systemAdmin/AuditManager";
 import SystemSettingsManager from "./systemAdmin/SystemSettingsManager";
 import BackupsManager from "./systemAdmin/BackupsManager";
 import ShiftRolesManager from "./systemAdmin/ShiftRolesManager";
+import ExternalStaffManager from "./systemAdmin/ExternalStaffManager";
 
 type AdminSection =
   | "overview"
@@ -36,7 +38,8 @@ type AdminSection =
   | "audit"
   | "settings"
   | "backups"
-  | "shift_roles";
+  | "shift_roles"
+  | "external_staff";
 
 interface SystemAdminPanelProps {
   currentUser: UserProfile;
@@ -58,6 +61,8 @@ interface SystemAdminPanelProps {
   onSystemSettingsChanged: (settings: SystemSettingsConfig) => void;
   shiftSlotConfigs: ShiftSlotConfig[];
   onShiftSlotConfigsChanged: (configs: ShiftSlotConfig[]) => void;
+  externalStaff: ExternalStaffMember[];
+  onExternalStaffChanged: (items: ExternalStaffMember[]) => void;
 }
 
 const sections: Array<{
@@ -121,6 +126,12 @@ const sections: Array<{
     icon: CalendarCog,
   },
   {
+    id: "external_staff",
+    title: "אנשי צוות חיצוניים",
+    description: "ניהול נהגים ואנשי צוות שאינם משתמשים רשומים באתר.",
+    icon: UserRoundPlus,
+  },
+  {
     id: "settings",
     title: "הגדרות מערכת",
     description: "הגדרות כלליות, התראות, תצוגה ותחזוקה.",
@@ -143,6 +154,8 @@ export default function SystemAdminPanel({
   onSystemSettingsChanged,
   shiftSlotConfigs,
   onShiftSlotConfigsChanged,
+  externalStaff,
+  onExternalStaffChanged,
 }: SystemAdminPanelProps) {
   const [activeSection, setActiveSection] =
     useState<AdminSection>("overview");
@@ -248,8 +261,15 @@ export default function SystemAdminPanel({
         <ShiftRolesManager
           currentUser={currentUser}
           medicalRoles={medicalRoleConfigs}
+          externalStaff={externalStaff}
           configs={shiftSlotConfigs}
           onConfigsChanged={onShiftSlotConfigsChanged}
+        />
+      ) : activeSection === "external_staff" ? (
+        <ExternalStaffManager
+          currentUser={currentUser}
+          items={externalStaff}
+          onItemsChanged={onExternalStaffChanged}
         />
       ) : activeSection === "settings" ? (
         <SystemSettingsManager

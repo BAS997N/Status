@@ -82,6 +82,12 @@ service cloud.firestore {
     }
 
 
+    match /external_staff/{staffId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+
     match /shift_acknowledgements/{ackId} {
       allow read: if signedIn() && (
         resource.data.userId == request.auth.uid ||

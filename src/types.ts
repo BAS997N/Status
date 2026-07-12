@@ -198,6 +198,21 @@ export interface BackupRestoreResult {
 
 
 
+
+
+export interface ExternalStaffMember {
+  id: string;
+  fullName: string;
+  staffType: string;
+  phoneNumber?: string;
+  note?: string;
+  enabled: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export interface ShiftSlotConfig {
   id: string;
   name: string;
@@ -207,6 +222,10 @@ export interface ShiftSlotConfig {
   sortOrder: number;
   allowedMedicalRoleIds: string[];
   allowedSystemRoles: SystemRole[];
+  allowSystemUsers?: boolean;
+  allowDischargedUsers?: boolean;
+  allowExternalStaff?: boolean;
+  allowedExternalStaffTypes?: string[];
   createdAt?: string;
   updatedAt?: string;
   updatedBy?: string;

@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  ExternalStaffMember,
   MedicalRoleConfig,
   ShiftSlotConfig,
   SystemRole,
@@ -23,6 +24,7 @@ import { dataService } from "../../services/dataService";
 interface ShiftRolesManagerProps {
   currentUser: UserProfile;
   medicalRoles: MedicalRoleConfig[];
+  externalStaff: ExternalStaffMember[];
   configs: ShiftSlotConfig[];
   onConfigsChanged: (configs: ShiftSlotConfig[]) => void;
 }
@@ -40,6 +42,7 @@ const createId = () =>
 export default function ShiftRolesManager({
   currentUser,
   medicalRoles,
+  externalStaff,
   configs,
   onConfigsChanged,
 }: ShiftRolesManagerProps) {
@@ -53,6 +56,19 @@ export default function ShiftRolesManager({
         .filter((role) => role.enabled)
         .sort((a, b) => a.sortOrder - b.sortOrder),
     [medicalRoles]
+  );
+
+  const externalStaffTypes = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          externalStaff
+            .filter((item) => item.enabled)
+            .map((item) => item.staffType.trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b, "he")),
+    [externalStaff]
   );
 
   const [draft, setDraft] = useState<ShiftSlotConfig[]>(sorted);
@@ -100,6 +116,10 @@ export default function ShiftRolesManager({
         sortOrder: draft.length + 1,
         allowedMedicalRoleIds: [],
         allowedSystemRoles: [],
+        allowSystemUsers: true,
+        allowDischargedUsers: false,
+        allowExternalStaff: false,
+        allowedExternalStaffTypes: [],
         createdAt: new Date().toISOString(),
         updatedBy: currentUser.userId,
       },
@@ -140,6 +160,22 @@ export default function ShiftRolesManager({
           allowedSystemRoles: selected
             ? slot.allowedSystemRoles.filter((item) => item !== role)
             : [...slot.allowedSystemRoles, role],
+        };
+      })
+    );
+  };
+
+  const toggleExternalStaffType = (slotId: string, staffType: string) => {
+    updateDraft(
+      draft.map((slot) => {
+        if (slot.id !== slotId) return slot;
+        const current = slot.allowedExternalStaffTypes || [];
+        const selected = current.includes(staffType);
+        return {
+          ...slot,
+          allowedExternalStaffTypes: selected
+            ? current.filter((item) => item !== staffType)
+            : [...current, staffType],
         };
       })
     );
@@ -402,6 +438,109 @@ export default function ShiftRolesManager({
                     })}
                   </div>
                 </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={slot.allowSystemUsers !== false}
+                      onChange={(event) =>
+                        updateDraft(
+                          draft.map((item) =>
+                            item.id === slot.id
+                              ? {
+                                  ...item,
+                                  allowSystemUsers: event.target.checked,
+                                }
+                              : item
+                          )
+                        )
+                      }
+                    />
+                    <span className="text-xs font-bold text-slate-700">
+                      אפשר משתמשי מערכת
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={slot.allowExternalStaff === true}
+                      onChange={(event) =>
+                        updateDraft(
+                          draft.map((item) =>
+                            item.id === slot.id
+                              ? {
+                                  ...item,
+                                  allowExternalStaff: event.target.checked,
+                                }
+                              : item
+                          )
+                        )
+                      }
+                    />
+                    <span className="text-xs font-bold text-slate-700">
+                      אפשר אנשי צוות חיצוניים
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 md:col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={slot.allowDischargedUsers === true}
+                      disabled={slot.allowSystemUsers === false}
+                      onChange={(event) =>
+                        updateDraft(
+                          draft.map((item) =>
+                            item.id === slot.id
+                              ? {
+                                  ...item,
+                                  allowDischargedUsers: event.target.checked,
+                                }
+                              : item
+                          )
+                        )
+                      }
+                    />
+                    <span className="text-xs font-bold text-slate-700">
+                      אפשר גם משתמשים שמסומנים כנגרעו
+                    </span>
+                  </label>
+                </div>
+
+                {slot.allowExternalStaff === true && (
+                  <div className="mt-4">
+                    <div className="mb-2 text-xs font-black text-slate-700">
+                      סוגי אנשי צוות חיצוניים מותרים
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {externalStaffTypes.map((staffType) => {
+                        const checked = (
+                          slot.allowedExternalStaffTypes || []
+                        ).includes(staffType);
+                        return (
+                          <label
+                            key={staffType}
+                            className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-xs font-bold ${
+                              checked
+                                ? "border-cyan-300 bg-cyan-50 text-cyan-800"
+                                : "border-slate-200 bg-white text-slate-600"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                toggleExternalStaffType(slot.id, staffType)
+                              }
+                            />
+                            {staffType}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-1">

@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  ExternalStaffMember,
   MedicalRoleConfig,
   ShiftAssignment,
   ShiftRecord,
@@ -29,6 +30,7 @@ interface ShiftsViewProps {
   canManage: boolean;
   shiftSlotConfigs: ShiftSlotConfig[];
   medicalRoleConfigs: MedicalRoleConfig[];
+  externalStaff: ExternalStaffMember[];
 }
 
 interface ExpandedSlot {
@@ -38,6 +40,10 @@ interface ExpandedSlot {
   required: boolean;
   allowedMedicalRoleIds: string[];
   allowedSystemRoles: SystemRole[];
+  allowSystemUsers: boolean;
+  allowDischargedUsers: boolean;
+  allowExternalStaff: boolean;
+  allowedExternalStaffTypes: string[];
   index: number;
 }
 
@@ -67,6 +73,7 @@ export default function ShiftsView({
   canManage,
   shiftSlotConfigs,
   medicalRoleConfigs,
+  externalStaff,
 }: ShiftsViewProps) {
   const [shifts, setShifts] = useState<ShiftRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,6 +109,10 @@ export default function ShiftsView({
             required: config.required,
             allowedMedicalRoleIds: config.allowedMedicalRoleIds || [],
             allowedSystemRoles: config.allowedSystemRoles || [],
+            allowSystemUsers: config.allowSystemUsers !== false,
+            allowDischargedUsers: config.allowDischargedUsers === true,
+            allowExternalStaff: config.allowExternalStaff === true,
+            allowedExternalStaffTypes: config.allowedExternalStaffTypes || [],
             index,
           }))
         ),
@@ -119,12 +130,20 @@ export default function ShiftsView({
     [medicalRoleConfigs]
   );
 
-  const activeUsers = useMemo(
+  const selectableUsers = useMemo(
     () =>
-      allUsers
-        .filter((user) => !user.isDischarged)
-        .sort((a, b) => a.fullName.localeCompare(b.fullName, "he")),
+      [...allUsers].sort((a, b) =>
+        a.fullName.localeCompare(b.fullName, "he")
+      ),
     [allUsers]
+  );
+
+  const activeExternalStaff = useMemo(
+    () =>
+      externalStaff
+        .filter((item) => item.enabled)
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    [externalStaff]
   );
 
   const isAllowedForSlot = (user: UserProfile, slot: ExpandedSlot) => {
@@ -206,7 +225,11 @@ export default function ShiftsView({
       const assignment =
         shift.assignments.find((item) => item.slotId === slot.key) ||
         shift.assignments[index];
-      next[slot.key] = assignment?.userId || "";
+      next[slot.key] = assignment
+        ? assignment.assigneeType === "external"
+          ? `external:${assignment.externalStaffId || assignment.userId}`
+          : `user:${assignment.userId}`
+        : "";
     });
     setEditingShift(shift);
     setTitle(shift.title);
@@ -255,7 +278,7 @@ export default function ShiftsView({
       (userId, index) => selected.indexOf(userId) !== index
     );
     if (duplicate) {
-      const user = activeUsers.find((item) => item.userId === duplicate);
+      const user = selectableUsers.find((item) => item.userId === duplicate);
       setMessage({
         type: "error",
         text: `${user?.fullName || "אותו חייל"} נבחר ליותר מתפקיד אחד.`,
@@ -266,16 +289,39 @@ export default function ShiftsView({
     const assignments: ShiftAssignment[] = expandedSlots
       .filter((slot) => slotAssignments[slot.key])
       .map((slot) => {
-        const user = activeUsers.find(
-          (item) => item.userId === slotAssignments[slot.key]
-        );
+        const selectedValue = slotAssignments[slot.key];
+
+        if (selectedValue.startsWith("external:")) {
+          const externalId = selectedValue.replace("external:", "");
+          const person = activeExternalStaff.find(
+            (item) => item.id === externalId
+          );
+          if (!person) throw new Error("איש צוות חיצוני לא נמצא");
+
+          return {
+            slotId: slot.key,
+            slotLabel: slot.label,
+            assigneeType: "external",
+            externalStaffId: person.id,
+            userId: `external:${person.id}`,
+            userName: person.fullName,
+            medicalRole: person.staffType,
+            readStatus: "unread",
+          };
+        }
+
+        const userId = selectedValue.replace("user:", "");
+        const user = selectableUsers.find((item) => item.userId === userId);
         if (!user) throw new Error("משתמש לא נמצא");
+
         const previous = editingShift?.assignments.find(
           (item) => item.slotId === slot.key && item.userId === user.userId
         );
+
         return {
           slotId: slot.key,
           slotLabel: slot.label,
+          assigneeType: "user",
           userId: user.userId,
           userName: user.fullName,
           personalId: user.personalId,
@@ -658,9 +704,21 @@ export default function ShiftsView({
                 שיבוץ בעלי תפקידים
               </div>
               {expandedSlots.map((slot) => {
-                const available = activeUsers.filter((user) =>
-                  isAllowedForSlot(user, slot)
-                );
+                const availableUsers = slot.allowSystemUsers
+                  ? selectableUsers.filter(
+                      (user) =>
+                        (slot.allowDischargedUsers || !user.isDischarged) &&
+                        isAllowedForSlot(user, slot)
+                    )
+                  : [];
+
+                const availableExternal = slot.allowExternalStaff
+                  ? activeExternalStaff.filter(
+                      (item) =>
+                        slot.allowedExternalStaffTypes.length === 0 ||
+                        slot.allowedExternalStaffTypes.includes(item.staffType)
+                    )
+                  : [];
                 return (
                   <div
                     key={slot.key}
@@ -690,15 +748,28 @@ export default function ShiftsView({
                         <option value="">
                           {slot.required ? "בחר חייל..." : "ללא שיבוץ"}
                         </option>
-                        {available.map((user) => (
-                          <option key={user.userId} value={user.userId}>
+                        {availableUsers.map((user) => (
+                          <option
+                            key={`user:${user.userId}`}
+                            value={`user:${user.userId}`}
+                          >
                             {user.fullName}
                             {user.medicalRole ? ` — ${user.medicalRole}` : ""}
                           </option>
                         ))}
+                        {availableExternal.map((item) => (
+                          <option
+                            key={`external:${item.id}`}
+                            value={`external:${item.id}`}
+                          >
+                            {item.fullName}
+                            {item.staffType ? ` — ${item.staffType}` : ""}
+                          </option>
+                        ))}
                       </select>
                     </div>
-                    {available.length === 0 && (
+                    {availableUsers.length === 0 &&
+                      availableExternal.length === 0 && (
                       <div className="mt-2 text-[10px] font-bold text-rose-600">
                         אין מועמדים מתאימים. ניתן להרחיב את התפקידים המותרים
                         דרך ניהול מערכת → ניהול תפקידי משמרת.

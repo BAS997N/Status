@@ -42,6 +42,7 @@ import {
   BackupRestoreResult,
   ShiftRecord,
   ShiftSlotConfig,
+  ExternalStaffMember,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -681,6 +682,10 @@ const DEFAULT_SHIFT_SLOT_CONFIGS: ShiftSlotConfig[] = [
     sortOrder: 1,
     allowedMedicalRoleIds: [],
     allowedSystemRoles: ["admin", "super_admin"],
+    allowSystemUsers: true,
+    allowDischargedUsers: false,
+    allowExternalStaff: false,
+    allowedExternalStaffTypes: [],
   },
   {
     id: "event_manager",
@@ -691,6 +696,10 @@ const DEFAULT_SHIFT_SLOT_CONFIGS: ShiftSlotConfig[] = [
     sortOrder: 2,
     allowedMedicalRoleIds: [],
     allowedSystemRoles: [],
+    allowSystemUsers: true,
+    allowDischargedUsers: false,
+    allowExternalStaff: false,
+    allowedExternalStaffTypes: [],
   },
   {
     id: "matab",
@@ -701,6 +710,10 @@ const DEFAULT_SHIFT_SLOT_CONFIGS: ShiftSlotConfig[] = [
     sortOrder: 3,
     allowedMedicalRoleIds: [],
     allowedSystemRoles: [],
+    allowSystemUsers: true,
+    allowDischargedUsers: false,
+    allowExternalStaff: false,
+    allowedExternalStaffTypes: [],
   },
   {
     id: "medic",
@@ -711,6 +724,10 @@ const DEFAULT_SHIFT_SLOT_CONFIGS: ShiftSlotConfig[] = [
     sortOrder: 4,
     allowedMedicalRoleIds: [],
     allowedSystemRoles: [],
+    allowSystemUsers: true,
+    allowDischargedUsers: false,
+    allowExternalStaff: false,
+    allowedExternalStaffTypes: [],
   },
   {
     id: "outpost_medic",
@@ -721,6 +738,10 @@ const DEFAULT_SHIFT_SLOT_CONFIGS: ShiftSlotConfig[] = [
     sortOrder: 5,
     allowedMedicalRoleIds: [],
     allowedSystemRoles: [],
+    allowSystemUsers: true,
+    allowDischargedUsers: false,
+    allowExternalStaff: false,
+    allowedExternalStaffTypes: [],
   },
 ];
 
@@ -733,6 +754,7 @@ const cloneDefaultShiftSlotConfigs = (): ShiftSlotConfig[] =>
     ...item,
     allowedMedicalRoleIds: [...item.allowedMedicalRoleIds],
     allowedSystemRoles: [...item.allowedSystemRoles],
+    allowedExternalStaffTypes: [...(item.allowedExternalStaffTypes || [])],
   }));
 
 const normalizeShiftSlotConfigs = (value: unknown): ShiftSlotConfig[] => {
@@ -787,6 +809,19 @@ const normalizeShiftSlotConfigs = (value: unknown): ShiftSlotConfig[] => {
               )
             )
           : [],
+        allowSystemUsers: item.allowSystemUsers !== false,
+        allowDischargedUsers: item.allowDischargedUsers === true,
+        allowExternalStaff: item.allowExternalStaff === true,
+        allowedExternalStaffTypes: Array.isArray(item.allowedExternalStaffTypes)
+          ? Array.from(
+              new Set(
+                item.allowedExternalStaffTypes.filter(
+                  (value): value is string =>
+                    typeof value === "string" && value.trim().length > 0
+                )
+              )
+            )
+          : [],
       };
     })
     .filter((item) => {
@@ -818,6 +853,72 @@ const getShiftSlotConfigsFromCache = (
       !cachedAt || Date.now() - cachedAt > SHIFT_SLOT_CONFIGS_CACHE_TTL_MS;
     if (expired && !allowExpired) return null;
     return normalizeShiftSlotConfigs(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+};
+
+
+const EXTERNAL_STAFF_CACHE_KEY = "idf_external_staff";
+const EXTERNAL_STAFF_CACHE_TIME_KEY = "idf_external_staff_cached_at";
+const EXTERNAL_STAFF_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const normalizeExternalStaff = (value: unknown): ExternalStaffMember[] => {
+  if (!Array.isArray(value)) return [];
+
+  const seen = new Set<string>();
+  return value
+    .filter(
+      (item): item is ExternalStaffMember =>
+        !!item &&
+        typeof item === "object" &&
+        typeof (item as ExternalStaffMember).id === "string" &&
+        typeof (item as ExternalStaffMember).fullName === "string" &&
+        typeof (item as ExternalStaffMember).staffType === "string"
+    )
+    .map((item, index) => ({
+      ...item,
+      id: item.id.trim(),
+      fullName: item.fullName.trim(),
+      staffType: item.staffType.trim(),
+      phoneNumber:
+        typeof item.phoneNumber === "string" ? item.phoneNumber.trim() : "",
+      note: typeof item.note === "string" ? item.note.trim() : "",
+      enabled: item.enabled !== false,
+      sortOrder:
+        typeof item.sortOrder === "number" ? item.sortOrder : index + 1,
+    }))
+    .filter((item) => {
+      if (!item.id || !item.fullName || !item.staffType || seen.has(item.id)) {
+        return false;
+      }
+      seen.add(item.id);
+      return true;
+    })
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((item, index) => ({ ...item, sortOrder: index + 1 }));
+};
+
+const saveExternalStaffToCache = (items: ExternalStaffMember[]) => {
+  localStorage.setItem(EXTERNAL_STAFF_CACHE_KEY, JSON.stringify(items));
+  localStorage.setItem(EXTERNAL_STAFF_CACHE_TIME_KEY, String(Date.now()));
+};
+
+const getExternalStaffFromCache = (
+  allowExpired = false
+): ExternalStaffMember[] | null => {
+  try {
+    const raw = localStorage.getItem(EXTERNAL_STAFF_CACHE_KEY);
+    const cachedAt = Number(
+      localStorage.getItem(EXTERNAL_STAFF_CACHE_TIME_KEY) || 0
+    );
+    if (!raw) return null;
+
+    const expired =
+      !cachedAt || Date.now() - cachedAt > EXTERNAL_STAFF_CACHE_TTL_MS;
+    if (expired && !allowExpired) return null;
+
+    return normalizeExternalStaff(JSON.parse(raw));
   } catch {
     return null;
   }
@@ -1052,6 +1153,98 @@ const normalizeBackupDocument = (value: unknown, index: number) => {
 };
 
 export const dataService = {
+
+
+  async getExternalStaff(forceRefresh = false): Promise<ExternalStaffMember[]> {
+    if (!forceRefresh) {
+      const cached = getExternalStaffFromCache();
+      if (cached) return cached;
+    }
+
+    if (!isFirebaseActive()) {
+      const local = getExternalStaffFromCache(true) || [];
+      saveExternalStaffToCache(local);
+      return local;
+    }
+
+    try {
+      const snapshot = await getDocs(
+        query(collection(db, "external_staff"), orderBy("sortOrder", "asc"))
+      );
+      const items = normalizeExternalStaff(
+        snapshot.docs.map((item) => ({
+          id: item.id,
+          ...(item.data() as Omit<ExternalStaffMember, "id">),
+        }))
+      );
+      saveExternalStaffToCache(items);
+      return items;
+    } catch (error) {
+      const fallback = getExternalStaffFromCache(true) || [];
+      saveExternalStaffToCache(fallback);
+      console.warn("Failed loading external staff:", error);
+      return fallback;
+    }
+  },
+
+  async saveExternalStaff(
+    items: ExternalStaffMember[],
+    updatedBy?: string
+  ): Promise<ExternalStaffMember[]> {
+    const before = await this.getExternalStaff(true).catch(() => []);
+    const normalized = normalizeExternalStaff(items);
+    const now = new Date().toISOString();
+    const saved = normalized.map((item) => ({
+      ...item,
+      updatedAt: now,
+      updatedBy,
+    }));
+
+    if (!isFirebaseActive()) {
+      saveExternalStaffToCache(saved);
+    } else {
+      try {
+        const existingSnapshot = await getDocs(collection(db, "external_staff"));
+        const batch = writeBatch(db);
+        const incomingIds = new Set(saved.map((item) => item.id));
+
+        existingSnapshot.docs.forEach((item) => {
+          if (!incomingIds.has(item.id)) batch.delete(item.ref);
+        });
+
+        saved.forEach((item) => {
+          const { id, ...payload } = item;
+          batch.set(
+            doc(db, "external_staff", id),
+            removeUndefinedValues(payload),
+            { merge: true }
+          );
+        });
+
+        await batch.commit();
+        saveExternalStaffToCache(saved);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, "external_staff");
+        throw error;
+      }
+    }
+
+    await writeAuditLog({
+      action: "update",
+      module: "shifts",
+      targetId: "external_staff",
+      targetLabel: "אנשי צוות חיצוניים",
+      before,
+      after: saved,
+      metadata: buildCollectionAuditMetadata(
+        before as Array<Record<string, any>>,
+        saved as Array<Record<string, any>>
+      ),
+    });
+
+    return saved;
+  },
+
 
 
   async getShiftSlotConfigs(forceRefresh = false): Promise<ShiftSlotConfig[]> {
