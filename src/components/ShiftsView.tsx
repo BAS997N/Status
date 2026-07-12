@@ -153,6 +153,17 @@ export default function ShiftsView({
   const [detailsShift, setDetailsShift] = useState<ShiftRecord | null>(null);
   const [includeReadStatusInPrint, setIncludeReadStatusInPrint] =
     useState(false);
+  const [includePhonesInPrint, setIncludePhonesInPrint] = useState(false);
+  const [printPhoneRoleMode, setPrintPhoneRoleMode] = useState<
+    "all" | "custom"
+  >("all");
+  const [selectedPrintPhoneRoles, setSelectedPrintPhoneRoles] = useState<
+    string[]
+  >([]);
+  const [includeLocationInPrint, setIncludeLocationInPrint] = useState(true);
+  const [includeNotesInPrint, setIncludeNotesInPrint] = useState(false);
+  const [addContactSheetInPrint, setAddContactSheetInPrint] =
+    useState(false);
   const [isPrintOptionsOpen, setIsPrintOptionsOpen] = useState(false);
   const [printStartDate, setPrintStartDate] = useState(getTodayInputDate());
   const [printEndDate, setPrintEndDate] = useState(
@@ -440,6 +451,46 @@ export default function ShiftsView({
     shiftTypeFilter,
     statusFilter,
   ]);
+
+  const printRangeShifts = useMemo(
+    () =>
+      visibleShifts
+        .filter((shift) => {
+          const shiftDate = toLocalParts(shift.startAt).date;
+          return (
+            !!printStartDate &&
+            !!printEndDate &&
+            shiftDate >= printStartDate &&
+            shiftDate <= printEndDate
+          );
+        })
+        .sort((first, second) =>
+          first.startAt.localeCompare(second.startAt)
+        ),
+    [visibleShifts, printStartDate, printEndDate]
+  );
+
+  const availablePrintPhoneRoles = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          printRangeShifts.flatMap((shift) =>
+            shift.assignments.map(
+              (assignment) => assignment.slotLabel || "תפקיד"
+            )
+          )
+        )
+      ).sort((first, second) => first.localeCompare(second, "he")),
+    [printRangeShifts]
+  );
+
+  useEffect(() => {
+    if (printPhoneRoleMode !== "custom") return;
+
+    setSelectedPrintPhoneRoles((current) =>
+      current.filter((role) => availablePrintPhoneRoles.includes(role))
+    );
+  }, [availablePrintPhoneRoles, printPhoneRoleMode]);
 
   const applyTimeRange = (
     nextStartTime: string,
@@ -875,15 +926,24 @@ export default function ShiftsView({
       return;
     }
 
-    const shiftsForPrint = visibleShifts.filter((shift) => {
-      const shiftDate = toLocalParts(shift.startAt).date;
-      return shiftDate >= printStartDate && shiftDate <= printEndDate;
-    });
+    const shiftsForPrint = printRangeShifts;
 
     if (shiftsForPrint.length === 0) {
       setMessage({
         type: "error",
         text: "אין משמרות בטווח התאריכים שנבחר.",
+      });
+      return;
+    }
+
+    if (
+      includePhonesInPrint &&
+      printPhoneRoleMode === "custom" &&
+      selectedPrintPhoneRoles.length === 0
+    ) {
+      setMessage({
+        type: "error",
+        text: "בחר לפחות תפקיד אחד להצגת מספרי טלפון ב־PDF.",
       });
       return;
     }
@@ -926,33 +986,78 @@ export default function ShiftsView({
         weekday: "long",
       });
 
+    const getPhoneNumber = (assignment: ShiftAssignment) => {
+      if (assignment.assigneeType === "external") {
+        const externalId =
+          assignment.externalStaffId ||
+          assignment.userId.replace("external:", "");
+
+        return (
+          externalStaff.find((item) => item.id === externalId)
+            ?.phoneNumber || ""
+        );
+      }
+
+      return (
+        allUsers.find((user) => user.userId === assignment.userId)
+          ?.phoneNumber || ""
+      );
+    };
+
+    const shouldIncludePhone = (roleLabel: string) =>
+      includePhonesInPrint &&
+      (printPhoneRoleMode === "all" ||
+        selectedPrintPhoneRoles.includes(roleLabel));
+
     const shiftsByDate = new Map<string, ShiftRecord[]>();
 
-    [...shiftsForPrint]
-      .sort((a, b) => a.startAt.localeCompare(b.startAt))
-      .forEach((shift) => {
-        const dateKey = toLocalParts(shift.startAt).date;
-        const current = shiftsByDate.get(dateKey) || [];
-        current.push(shift);
-        shiftsByDate.set(dateKey, current);
-      });
+    shiftsForPrint.forEach((shift) => {
+      const dateKey = toLocalParts(shift.startAt).date;
+      const current = shiftsByDate.get(dateKey) || [];
+      current.push(shift);
+      shiftsByDate.set(dateKey, current);
+    });
 
     const orderedDays = Array.from(shiftsByDate.entries()).sort(
       ([firstDate], [secondDate]) => firstDate.localeCompare(secondDate)
     );
+
+    const requiredSlotLabels = expandedSlots
+      .filter((slot) => slot.required)
+      .map((slot) => slot.label);
+
+    const assignedCount = shiftsForPrint.reduce(
+      (total, shift) => total + shift.assignments.length,
+      0
+    );
+
+    const missingCount = shiftsForPrint.reduce((total, shift) => {
+      const assignedLabels = new Set(
+        shift.assignments.map(
+          (assignment) => assignment.slotLabel || "תפקיד"
+        )
+      );
+
+      return (
+        total +
+        requiredSlotLabels.filter((label) => !assignedLabels.has(label))
+          .length
+      );
+    }, 0);
 
     const daySections = orderedDays
       .map(([dateKey, dayShifts]) => {
         const dateValue = new Date(`${dateKey}T12:00:00`);
 
         const roleLabels = Array.from(
-          new Set(
-            dayShifts.flatMap((shift) =>
+          new Set([
+            ...requiredSlotLabels,
+            ...dayShifts.flatMap((shift) =>
               shift.assignments.map(
                 (assignment) => assignment.slotLabel || "תפקיד"
               )
-            )
-          )
+            ),
+          ])
         ).sort((first, second) => {
           const firstIndex = expandedSlots.findIndex(
             (slot) => slot.label === first
@@ -981,10 +1086,15 @@ export default function ShiftsView({
             )}
                 </div>
                 ${
-                  shift.location
+                  includeLocationInPrint && shift.location
                     ? `<div class="shift-location">${escapeHtml(
                         shift.location
                       )}</div>`
+                    : ""
+                }
+                ${
+                  includeNotesInPrint && shift.note
+                    ? `<div class="shift-note">${escapeHtml(shift.note)}</div>`
                     : ""
                 }
               </th>
@@ -994,6 +1104,8 @@ export default function ShiftsView({
 
         const rows = roleLabels
           .map((roleLabel) => {
+            const isRequired = requiredSlotLabels.includes(roleLabel);
+
             const cells = dayShifts
               .map((shift) => {
                 const assignment = shift.assignments.find(
@@ -1001,7 +1113,9 @@ export default function ShiftsView({
                 );
 
                 if (!assignment) {
-                  return '<td class="assignment-cell empty-cell">—</td>';
+                  return isRequired
+                    ? '<td class="assignment-cell missing-cell">חסר</td>'
+                    : '<td class="assignment-cell empty-cell">—</td>';
                 }
 
                 const readStatus =
@@ -1012,11 +1126,22 @@ export default function ShiftsView({
                       : '<span class="read-status unread">○</span>'
                     : "";
 
+                const phoneNumber = shouldIncludePhone(roleLabel)
+                  ? getPhoneNumber(assignment)
+                  : "";
+
                 return `
                   <td class="assignment-cell">
                     <div class="assignee-name">
                       ${escapeHtml(assignment.userName)} ${readStatus}
                     </div>
+                    ${
+                      phoneNumber
+                        ? `<div class="phone-number">${escapeHtml(
+                            phoneNumber
+                          )}</div>`
+                        : ""
+                    }
                   </td>
                 `;
               })
@@ -1059,6 +1184,99 @@ export default function ShiftsView({
       })
       .join("");
 
+    const contactEntries = Array.from(
+      new Map(
+        shiftsForPrint
+          .flatMap((shift) =>
+            shift.assignments
+              .map((assignment) => {
+                const roleLabel = assignment.slotLabel || "תפקיד";
+
+                if (!shouldIncludePhone(roleLabel)) return null;
+
+                const phoneNumber = getPhoneNumber(assignment);
+                if (!phoneNumber) return null;
+
+                const uniqueKey = `${
+                  assignment.assigneeType || "user"
+                }_${assignment.userId}_${phoneNumber}`;
+
+                return [
+                  uniqueKey,
+                  {
+                    roleLabel,
+                    userName: assignment.userName,
+                    phoneNumber,
+                  },
+                ] as const;
+              })
+              .filter(
+                (
+                  item
+                ): item is readonly [
+                  string,
+                  {
+                    roleLabel: string;
+                    userName: string;
+                    phoneNumber: string;
+                  }
+                ] => item !== null
+              )
+          )
+      ).values()
+    ).sort((first, second) =>
+      first.roleLabel === second.roleLabel
+        ? first.userName.localeCompare(second.userName, "he")
+        : first.roleLabel.localeCompare(second.roleLabel, "he")
+    );
+
+    const contactSheet =
+      addContactSheetInPrint &&
+      includePhonesInPrint &&
+      contactEntries.length > 0
+        ? `
+          <section class="contact-sheet">
+            <div class="contact-sheet-heading">
+              <h2>דף קשר למשמרות</h2>
+              <p>
+                ${escapeHtml(
+                  formatDateForPrint(`${printStartDate}T12:00:00`)
+                )}
+                —
+                ${escapeHtml(
+                  formatDateForPrint(`${printEndDate}T12:00:00`)
+                )}
+              </p>
+            </div>
+
+            <table class="contact-table">
+              <thead>
+                <tr>
+                  <th>תפקיד</th>
+                  <th>שם</th>
+                  <th>מספר טלפון</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${contactEntries
+                  .map(
+                    (entry) => `
+                      <tr>
+                        <td>${escapeHtml(entry.roleLabel)}</td>
+                        <td>${escapeHtml(entry.userName)}</td>
+                        <td class="contact-phone">${escapeHtml(
+                          entry.phoneNumber
+                        )}</td>
+                      </tr>
+                    `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </section>
+        `
+        : "";
+
     printWindow.document.open();
     printWindow.document.write(`
       <!doctype html>
@@ -1089,13 +1307,9 @@ export default function ShiftsView({
               print-color-adjust: exact;
             }
 
-            body {
-              padding: 0;
-            }
-
             .document-header {
               display: grid;
-              grid-template-columns: 100px 1fr 180px;
+              grid-template-columns: 100px 1fr 190px;
               align-items: center;
               gap: 12px;
               margin-bottom: 8px;
@@ -1138,8 +1352,8 @@ export default function ShiftsView({
               border-radius: 7px;
               padding: 6px 8px;
               background: #f8fafc;
-              font-size: 9px;
-              line-height: 1.7;
+              font-size: 8.5px;
+              line-height: 1.65;
             }
 
             .day-block {
@@ -1174,13 +1388,13 @@ export default function ShiftsView({
               width: 100%;
               table-layout: fixed;
               border-collapse: collapse;
-              font-size: 8.5px;
+              font-size: 8.2px;
             }
 
             .roster-table th,
             .roster-table td {
               border: 1px solid #64748b;
-              padding: 3px 3px;
+              padding: 3px;
               text-align: center;
               vertical-align: middle;
               overflow-wrap: anywhere;
@@ -1210,10 +1424,17 @@ export default function ShiftsView({
               font-size: 7.5px;
             }
 
-            .shift-location {
-              margin-top: 1px;
-              font-size: 7px;
-              opacity: 0.9;
+            .shift-location,
+            .shift-note {
+              margin-top: 2px;
+              font-size: 6.8px;
+              line-height: 1.2;
+              opacity: 0.95;
+            }
+
+            .shift-note {
+              padding-top: 2px;
+              border-top: 1px solid rgba(255, 255, 255, 0.35);
             }
 
             .assignment-cell {
@@ -1226,9 +1447,23 @@ export default function ShiftsView({
               line-height: 1.15;
             }
 
+            .phone-number {
+              margin-top: 2px;
+              direction: ltr;
+              font-size: 7px;
+              font-weight: 700;
+              color: #334155;
+            }
+
             .empty-cell {
               color: #94a3b8;
               background: #f8fafc;
+            }
+
+            .missing-cell {
+              background: #fee2e2;
+              color: #b91c1c;
+              font-weight: 900;
             }
 
             .read-status {
@@ -1263,6 +1498,53 @@ export default function ShiftsView({
               color: #64748b;
               font-size: 7.5px;
             }
+
+            .contact-sheet {
+              page-break-before: always;
+              break-before: page;
+            }
+
+            .contact-sheet-heading {
+              margin-bottom: 10px;
+              padding-bottom: 8px;
+              border-bottom: 2px solid #334155;
+              text-align: center;
+            }
+
+            .contact-sheet-heading h2 {
+              margin: 0;
+              font-size: 20px;
+            }
+
+            .contact-sheet-heading p {
+              margin: 4px 0 0;
+              color: #64748b;
+              font-size: 10px;
+            }
+
+            .contact-table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 11px;
+            }
+
+            .contact-table th,
+            .contact-table td {
+              border: 1px solid #64748b;
+              padding: 7px;
+              text-align: right;
+            }
+
+            .contact-table th {
+              background: #e2e8f0;
+              font-weight: 900;
+            }
+
+            .contact-phone {
+              direction: ltr;
+              text-align: left !important;
+              font-weight: 800;
+            }
           </style>
         </head>
 
@@ -1275,15 +1557,21 @@ export default function ShiftsView({
             <div class="document-title">
               <h1>לוח משמרות</h1>
               <p>
-                ${escapeHtml(formatDateForPrint(`${printStartDate}T12:00:00`))}
+                ${escapeHtml(
+                  formatDateForPrint(`${printStartDate}T12:00:00`)
+                )}
                 —
-                ${escapeHtml(formatDateForPrint(`${printEndDate}T12:00:00`))}
+                ${escapeHtml(
+                  formatDateForPrint(`${printEndDate}T12:00:00`)
+                )}
               </p>
             </div>
 
             <div class="summary-box">
-              <div><strong>מספר ימים:</strong> ${orderedDays.length}</div>
-              <div><strong>מספר משמרות:</strong> ${shiftsForPrint.length}</div>
+              <div><strong>ימים:</strong> ${orderedDays.length}</div>
+              <div><strong>משמרות:</strong> ${shiftsForPrint.length}</div>
+              <div><strong>משובצים:</strong> ${assignedCount}</div>
+              <div><strong>חוסרים:</strong> ${missingCount}</div>
             </div>
           </header>
 
@@ -1293,12 +1581,21 @@ export default function ShiftsView({
             <span>הופק בתאריך: ${escapeHtml(
               new Date().toLocaleString("he-IL")
             )}</span>
-            ${
-              includeReadStatusInPrint
-                ? '<span>✓ נקרא · ○ טרם נקרא</span>'
-                : ""
-            }
+            <span>
+              ${
+                includeReadStatusInPrint
+                  ? "✓ נקרא · ○ טרם נקרא"
+                  : ""
+              }
+              ${
+                includePhonesInPrint
+                  ? `${includeReadStatusInPrint ? " · " : ""}כולל טלפונים`
+                  : ""
+              }
+            </span>
           </footer>
+
+          ${contactSheet}
 
           <script>
             window.addEventListener("load", function () {
@@ -2001,7 +2298,7 @@ export default function ShiftsView({
         <div className="fixed inset-0 z-[11850] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
           <div
             dir="rtl"
-            className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl"
+            className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl"
           >
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -2009,7 +2306,7 @@ export default function ShiftsView({
                   הגדרות ייצוא ל־PDF
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  בחר טווח תאריכים. יוצגו רק משמרות שקיימות בטווח.
+                  בחר טווח תאריכים ואת המידע שיופיע במסמך.
                 </p>
               </div>
               <button
@@ -2041,16 +2338,168 @@ export default function ShiftsView({
               </Field>
             </div>
 
-            <label className="mt-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-700">
-              <input
-                type="checkbox"
-                checked={includeReadStatusInPrint}
-                onChange={(event) =>
-                  setIncludeReadStatusInPrint(event.target.checked)
-                }
-              />
-              כלול סימון אישור קריאה ליד השמות
-            </label>
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={includeReadStatusInPrint}
+                  onChange={(event) =>
+                    setIncludeReadStatusInPrint(event.target.checked)
+                  }
+                />
+                כלול אישורי קריאה
+              </label>
+
+              <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={includeLocationInPrint}
+                  onChange={(event) =>
+                    setIncludeLocationInPrint(event.target.checked)
+                  }
+                />
+                כלול מיקום
+              </label>
+
+              <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={includeNotesInPrint}
+                  onChange={(event) =>
+                    setIncludeNotesInPrint(event.target.checked)
+                  }
+                />
+                כלול הערות
+              </label>
+
+              <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={includePhonesInPrint}
+                  onChange={(event) => {
+                    setIncludePhonesInPrint(event.target.checked);
+                    if (!event.target.checked) {
+                      setAddContactSheetInPrint(false);
+                    }
+                  }}
+                />
+                כלול מספרי טלפון
+              </label>
+            </div>
+
+            {includePhonesInPrint && (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                <div className="text-xs font-black text-slate-800">
+                  מספרי טלפון לצירוף
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                    <input
+                      type="radio"
+                      name="print_phone_role_mode"
+                      checked={printPhoneRoleMode === "all"}
+                      onChange={() => setPrintPhoneRoleMode("all")}
+                    />
+                    כל בעלי התפקידים המשובצים
+                  </label>
+
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                    <input
+                      type="radio"
+                      name="print_phone_role_mode"
+                      checked={printPhoneRoleMode === "custom"}
+                      onChange={() => setPrintPhoneRoleMode("custom")}
+                    />
+                    בחירת תפקידים ידנית
+                  </label>
+                </div>
+
+                {printPhoneRoleMode === "custom" && (
+                  <div className="mt-4">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedPrintPhoneRoles(
+                            availablePrintPhoneRoles
+                          )
+                        }
+                        className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-black text-slate-600"
+                      >
+                        בחר הכול
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPrintPhoneRoles([])}
+                        className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-black text-slate-600"
+                      >
+                        נקה הכול
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedPrintPhoneRoles(
+                            availablePrintPhoneRoles.filter((role) =>
+                              role.includes("נהג")
+                            )
+                          )
+                        }
+                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-black text-emerald-700"
+                      >
+                        רק נהגים
+                      </button>
+                    </div>
+
+                    <div className="mt-3 grid max-h-44 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+                      {availablePrintPhoneRoles.map((role) => (
+                        <label
+                          key={role}
+                          className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedPrintPhoneRoles.includes(role)}
+                            onChange={(event) =>
+                              setSelectedPrintPhoneRoles((current) =>
+                                event.target.checked
+                                  ? Array.from(new Set([...current, role]))
+                                  : current.filter((item) => item !== role)
+                              )
+                            }
+                          />
+                          {role}
+                        </label>
+                      ))}
+                    </div>
+
+                    {availablePrintPhoneRoles.length === 0 && (
+                      <div className="mt-3 text-[10px] font-bold text-slate-400">
+                        אין תפקידים בטווח התאריכים שנבחר.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <label className="mt-4 flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs font-bold text-indigo-800">
+                  <input
+                    type="checkbox"
+                    checked={addContactSheetInPrint}
+                    onChange={(event) =>
+                      setAddContactSheetInPrint(event.target.checked)
+                    }
+                  />
+                  הוסף דף קשר בסוף ה־PDF ללא כפילויות
+                </label>
+              </div>
+            )}
+
+            <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[10px] font-bold leading-5 text-rose-800">
+              תפקיד חובה שלא שובץ יסומן בתא אדום כ״חסר״. מספר טלפון
+              יוצג רק אם הוזן בפרופיל החייל או באיש הצוות החיצוני.
+            </div>
 
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
@@ -2060,6 +2509,7 @@ export default function ShiftsView({
               >
                 ביטול
               </button>
+
               <button
                 type="button"
                 onClick={printShifts}
