@@ -1,6 +1,0 @@
-הוסף את הבלוק הבא בתוך service cloud.firestore, לצד שאר match-ים הקיימים. אל תחליף בעזרתו את כל קובץ החוקים:
-
-match /shifts/{shiftId} {
-  allow read: if signedIn();
-  allow create, update, delete: if isAdmin() || isSuperAdmin();
-}

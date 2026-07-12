@@ -9,6 +9,7 @@ import {
   ListChecks,
   Settings,
   CalendarCog,
+  CalendarClock,
   UserRoundPlus,
   ShieldCheck,
   SlidersHorizontal,
@@ -26,6 +27,7 @@ import SystemSettingsManager from "./systemAdmin/SystemSettingsManager";
 import BackupsManager from "./systemAdmin/BackupsManager";
 import ShiftRolesManager from "./systemAdmin/ShiftRolesManager";
 import ExternalStaffManager from "./systemAdmin/ExternalStaffManager";
+import ShiftTypesManager from "./systemAdmin/ShiftTypesManager";
 
 type AdminSection =
   | "overview"
@@ -39,7 +41,8 @@ type AdminSection =
   | "settings"
   | "backups"
   | "shift_roles"
-  | "external_staff";
+  | "external_staff"
+  | "shift_types";
 
 interface SystemAdminPanelProps {
   currentUser: UserProfile;
@@ -130,6 +133,12 @@ const sections: Array<{
     title: "אנשי צוות חיצוניים",
     description: "ניהול נהגים ואנשי צוות שאינם משתמשים רשומים באתר.",
     icon: UserRoundPlus,
+  },
+  {
+    id: "shift_types",
+    title: "שמות וסוגי משמרות",
+    description: "ניהול שמות משמרות ושעות ברירת מחדל לבחירה מהירה.",
+    icon: CalendarClock,
   },
   {
     id: "settings",
@@ -271,6 +280,8 @@ export default function SystemAdminPanel({
           items={externalStaff}
           onItemsChanged={onExternalStaffChanged}
         />
+      ) : activeSection === "shift_types" ? (
+        <ShiftTypesManager currentUser={currentUser} />
       ) : activeSection === "settings" ? (
         <SystemSettingsManager
           currentUser={currentUser}

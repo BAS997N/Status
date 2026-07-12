@@ -213,6 +213,21 @@ export interface ExternalStaffMember {
   updatedBy?: string;
 }
 
+
+
+export interface ShiftTypeConfig {
+  id: string;
+  name: string;
+  enabled: boolean;
+  sortOrder: number;
+  defaultStartTime?: string;
+  defaultEndTime?: string;
+  crossesMidnight?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export interface ShiftSlotConfig {
   id: string;
   name: string;
@@ -235,6 +250,10 @@ export type ShiftStatus = "scheduled" | "cancelled";
 export type ShiftReadStatus = "unread" | "read";
 
 export interface ShiftAssignment {
+  slotId?: string;
+  slotLabel?: string;
+  assigneeType?: "user" | "external";
+  externalStaffId?: string;
   userId: string;
   userName: string;
   personalId?: string;

@@ -43,6 +43,7 @@ import {
   ShiftRecord,
   ShiftSlotConfig,
   ExternalStaffMember,
+  ShiftTypeConfig,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -672,6 +673,124 @@ const getMedicalRoleConfigsFromCache = (allowExpired = false): MedicalRoleConfig
 };
 
 
+
+const DEFAULT_SHIFT_TYPE_CONFIGS: ShiftTypeConfig[] = [
+  {
+    id: "tagbatz_morning",
+    name: 'תגב"ץ בוקר',
+    enabled: true,
+    sortOrder: 1,
+    defaultStartTime: "05:30",
+    defaultEndTime: "18:30",
+    crossesMidnight: false,
+  },
+  {
+    id: "tagbatz_evening",
+    name: 'תגב"ץ ערב',
+    enabled: true,
+    sortOrder: 2,
+    defaultStartTime: "18:30",
+    defaultEndTime: "05:30",
+    crossesMidnight: true,
+  },
+  {
+    id: "hipak",
+    name: 'חיפ"ק',
+    enabled: true,
+    sortOrder: 3,
+    defaultStartTime: "",
+    defaultEndTime: "",
+    crossesMidnight: false,
+  },
+];
+
+const SHIFT_TYPE_CONFIGS_CACHE_KEY = "idf_shift_type_configs";
+const SHIFT_TYPE_CONFIGS_CACHE_TIME_KEY = "idf_shift_type_configs_cached_at";
+const SHIFT_TYPE_CONFIGS_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const cloneDefaultShiftTypeConfigs = (): ShiftTypeConfig[] =>
+  DEFAULT_SHIFT_TYPE_CONFIGS.map((item) => ({ ...item }));
+
+const isValidTimeText = (value: unknown): value is string =>
+  typeof value === "string" &&
+  (value === "" || /^([01]\d|2[0-3]):[0-5]\d$/.test(value));
+
+const normalizeShiftTypeConfigs = (value: unknown): ShiftTypeConfig[] => {
+  if (!Array.isArray(value)) return cloneDefaultShiftTypeConfigs();
+
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+
+  const normalized = value
+    .filter(
+      (item): item is ShiftTypeConfig =>
+        !!item &&
+        typeof item === "object" &&
+        typeof (item as ShiftTypeConfig).id === "string" &&
+        typeof (item as ShiftTypeConfig).name === "string"
+    )
+    .map((item, index) => ({
+      ...item,
+      id: item.id.trim(),
+      name: item.name.trim(),
+      enabled: item.enabled !== false,
+      sortOrder:
+        typeof item.sortOrder === "number" ? item.sortOrder : index + 1,
+      defaultStartTime: isValidTimeText(item.defaultStartTime)
+        ? item.defaultStartTime
+        : "",
+      defaultEndTime: isValidTimeText(item.defaultEndTime)
+        ? item.defaultEndTime
+        : "",
+      crossesMidnight: item.crossesMidnight === true,
+    }))
+    .filter((item) => {
+      const normalizedName = item.name.toLocaleLowerCase("he");
+      if (
+        !item.id ||
+        !item.name ||
+        seenIds.has(item.id) ||
+        seenNames.has(normalizedName)
+      ) {
+        return false;
+      }
+      seenIds.add(item.id);
+      seenNames.add(normalizedName);
+      return true;
+    })
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((item, index) => ({ ...item, sortOrder: index + 1 }));
+
+  return normalized.length > 0
+    ? normalized
+    : cloneDefaultShiftTypeConfigs();
+};
+
+const saveShiftTypeConfigsToCache = (items: ShiftTypeConfig[]) => {
+  localStorage.setItem(SHIFT_TYPE_CONFIGS_CACHE_KEY, JSON.stringify(items));
+  localStorage.setItem(SHIFT_TYPE_CONFIGS_CACHE_TIME_KEY, String(Date.now()));
+};
+
+const getShiftTypeConfigsFromCache = (
+  allowExpired = false
+): ShiftTypeConfig[] | null => {
+  try {
+    const raw = localStorage.getItem(SHIFT_TYPE_CONFIGS_CACHE_KEY);
+    const cachedAt = Number(
+      localStorage.getItem(SHIFT_TYPE_CONFIGS_CACHE_TIME_KEY) || 0
+    );
+    if (!raw) return null;
+
+    const expired =
+      !cachedAt || Date.now() - cachedAt > SHIFT_TYPE_CONFIGS_CACHE_TTL_MS;
+    if (expired && !allowExpired) return null;
+
+    return normalizeShiftTypeConfigs(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+};
+
 const DEFAULT_SHIFT_SLOT_CONFIGS: ShiftSlotConfig[] = [
   {
     id: "duty_commander",
@@ -1153,6 +1272,102 @@ const normalizeBackupDocument = (value: unknown, index: number) => {
 };
 
 export const dataService = {
+
+
+  async getShiftTypeConfigs(
+    forceRefresh = false
+  ): Promise<ShiftTypeConfig[]> {
+    if (!forceRefresh) {
+      const cached = getShiftTypeConfigsFromCache();
+      if (cached) return cached;
+    }
+
+    if (!isFirebaseActive()) {
+      const local =
+        getShiftTypeConfigsFromCache(true) ||
+        cloneDefaultShiftTypeConfigs();
+      saveShiftTypeConfigsToCache(local);
+      return local;
+    }
+
+    try {
+      const reference = doc(db, "settings", "shift_types");
+      const snapshot = await getDoc(reference);
+
+      if (snapshot.exists()) {
+        const items = normalizeShiftTypeConfigs(snapshot.data().items);
+        saveShiftTypeConfigsToCache(items);
+        return items;
+      }
+
+      const defaults = cloneDefaultShiftTypeConfigs();
+      await setDoc(reference, {
+        items: defaults,
+        updatedAt: new Date().toISOString(),
+      });
+      saveShiftTypeConfigsToCache(defaults);
+      return defaults;
+    } catch (error) {
+      const fallback =
+        getShiftTypeConfigsFromCache(true) ||
+        cloneDefaultShiftTypeConfigs();
+      saveShiftTypeConfigsToCache(fallback);
+      console.warn("Failed loading shift type configs:", error);
+      return fallback;
+    }
+  },
+
+  async saveShiftTypeConfigs(
+    items: ShiftTypeConfig[],
+    updatedBy?: string
+  ): Promise<ShiftTypeConfig[]> {
+    const before = await this.getShiftTypeConfigs(true).catch(() => []);
+    const now = new Date().toISOString();
+    const normalized = normalizeShiftTypeConfigs(items).map((item) => ({
+      ...item,
+      updatedAt: now,
+      updatedBy,
+    }));
+
+    if (!isFirebaseActive()) {
+      saveShiftTypeConfigsToCache(normalized);
+    } else {
+      try {
+        await setDoc(
+          doc(db, "settings", "shift_types"),
+          removeUndefinedValues({
+            items: normalized,
+            updatedAt: now,
+            updatedBy,
+          })
+        );
+        saveShiftTypeConfigsToCache(normalized);
+      } catch (error) {
+        handleFirestoreError(
+          error,
+          OperationType.WRITE,
+          "settings/shift_types"
+        );
+        throw error;
+      }
+    }
+
+    await writeAuditLog({
+      action: "update",
+      module: "shifts",
+      targetId: "shift_types",
+      targetLabel: "שמות וסוגי משמרות",
+      before,
+      after: normalized,
+      metadata: buildCollectionAuditMetadata(
+        before as Array<Record<string, any>>,
+        normalized as Array<Record<string, any>>
+      ),
+    });
+
+    return normalized;
+  },
+
 
 
   async getExternalStaff(forceRefresh = false): Promise<ExternalStaffMember[]> {

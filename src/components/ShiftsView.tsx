@@ -19,6 +19,7 @@ import {
   ShiftAssignment,
   ShiftRecord,
   ShiftSlotConfig,
+  ShiftTypeConfig,
   SystemRole,
   UserProfile,
 } from "../types";
@@ -47,12 +48,37 @@ interface ExpandedSlot {
   index: number;
 }
 
-const toInputDateTime = (value?: string) => {
-  if (!value) return "";
+const toLocalParts = (value?: string) => {
+  if (!value) return { date: "", time: "" };
   const date = new Date(value);
   const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
+  const localValue = new Date(date.getTime() - offset * 60_000)
+    .toISOString()
+    .slice(0, 16);
+
+  return {
+    date: localValue.slice(0, 10),
+    time: localValue.slice(11, 16),
+  };
 };
+
+const getTodayInputDate = () => {
+  const now = new Date();
+  const offset = now.getTimezoneOffset();
+  return new Date(now.getTime() - offset * 60_000)
+    .toISOString()
+    .slice(0, 10);
+};
+
+const addDaysToInputDate = (value: string, days: number) => {
+  if (!value) return "";
+  const date = new Date(`${value}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
+const combineDateAndTime = (date: string, time: string) =>
+  new Date(`${date}T${time}:00`).toISOString();
 
 const formatDateTime = (value: string) =>
   new Date(value).toLocaleString("he-IL", {
@@ -87,10 +113,15 @@ export default function ShiftsView({
     text: string;
   } | null>(null);
 
+  const [shiftTypes, setShiftTypes] = useState<ShiftTypeConfig[]>([]);
+  const [selectedShiftTypeId, setSelectedShiftTypeId] = useState("");
   const [title, setTitle] = useState("");
+  const [customTitle, setCustomTitle] = useState("");
   const [shiftType, setShiftType] = useState("משמרת");
-  const [startAt, setStartAt] = useState("");
-  const [endAt, setEndAt] = useState("");
+  const [startDate, setStartDate] = useState(getTodayInputDate());
+  const [startTime, setStartTime] = useState("05:30");
+  const [endDate, setEndDate] = useState(getTodayInputDate());
+  const [endTime, setEndTime] = useState("18:30");
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [slotAssignments, setSlotAssignments] = useState<Record<string, string>>({});
@@ -171,6 +202,18 @@ export default function ShiftsView({
 
   useEffect(() => {
     loadShifts();
+    dataService
+      .getShiftTypeConfigs()
+      .then((items) =>
+        setShiftTypes(
+          [...items]
+            .filter((item) => item.enabled)
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+        )
+      )
+      .catch((error) =>
+        console.error("Failed loading shift types:", error)
+      );
   }, []);
 
   const visibleShifts = useMemo(() => {
@@ -202,12 +245,53 @@ export default function ShiftsView({
       .sort((a, b) => a.startAt.localeCompare(b.startAt));
   }, [shifts, canManage, currentUser.userId, showPast, search]);
 
+  const applyTimeRange = (
+    nextStartTime: string,
+    nextEndTime: string,
+    crossesMidnight: boolean
+  ) => {
+    const baseDate = startDate || getTodayInputDate();
+    setStartDate(baseDate);
+    setStartTime(nextStartTime);
+    setEndDate(addDaysToInputDate(baseDate, crossesMidnight ? 1 : 0));
+    setEndTime(nextEndTime);
+  };
+
+  const handleShiftTypeSelection = (value: string) => {
+    setSelectedShiftTypeId(value);
+
+    if (value === "custom") {
+      setTitle(customTitle.trim());
+      setShiftType("אחר");
+      return;
+    }
+
+    const selected = shiftTypes.find((item) => item.id === value);
+    if (!selected) return;
+
+    setTitle(selected.name);
+    setShiftType(selected.name);
+    setCustomTitle("");
+
+    if (selected.defaultStartTime && selected.defaultEndTime) {
+      applyTimeRange(
+        selected.defaultStartTime,
+        selected.defaultEndTime,
+        selected.crossesMidnight === true
+      );
+    }
+  };
+
   const resetForm = () => {
     setEditingShift(null);
+    setSelectedShiftTypeId("");
     setTitle("");
+    setCustomTitle("");
     setShiftType("משמרת");
-    setStartAt("");
-    setEndAt("");
+    setStartDate(getTodayInputDate());
+    setStartTime("05:30");
+    setEndDate(getTodayInputDate());
+    setEndTime("18:30");
     setLocation("");
     setNote("");
     setSlotAssignments({});
@@ -231,11 +315,23 @@ export default function ShiftsView({
           : `user:${assignment.userId}`
         : "";
     });
+    const startParts = toLocalParts(shift.startAt);
+    const endParts = toLocalParts(shift.endAt);
+    const matchedType = shiftTypes.find(
+      (item) =>
+        item.name.trim().toLocaleLowerCase("he") ===
+        shift.title.trim().toLocaleLowerCase("he")
+    );
+
     setEditingShift(shift);
+    setSelectedShiftTypeId(matchedType?.id || "custom");
     setTitle(shift.title);
+    setCustomTitle(matchedType ? "" : shift.title);
     setShiftType(shift.shiftType);
-    setStartAt(toInputDateTime(shift.startAt));
-    setEndAt(toInputDateTime(shift.endAt));
+    setStartDate(startParts.date);
+    setStartTime(startParts.time);
+    setEndDate(endParts.date);
+    setEndTime(endParts.time);
     setLocation(shift.location || "");
     setNote(shift.note || "");
     setSlotAssignments(next);
@@ -245,13 +341,25 @@ export default function ShiftsView({
 
   const saveShift = async () => {
     setMessage(null);
-    if (!title.trim() || !startAt || !endAt) {
+    const resolvedTitle =
+      selectedShiftTypeId === "custom" ? customTitle.trim() : title.trim();
+
+    if (
+      !resolvedTitle ||
+      !startDate ||
+      !startTime ||
+      !endDate ||
+      !endTime
+    ) {
       setMessage({
         type: "error",
         text: "יש להזין שם, שעת התחלה ושעת סיום.",
       });
       return;
     }
+    const startAt = combineDateAndTime(startDate, startTime);
+    const endAt = combineDateAndTime(endDate, endTime);
+
     if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
       setMessage({
         type: "error",
@@ -335,10 +443,13 @@ export default function ShiftsView({
     setSaving(true);
     try {
       const values = {
-        title: title.trim(),
-        shiftType: shiftType.trim() || "משמרת",
-        startAt: new Date(startAt).toISOString(),
-        endAt: new Date(endAt).toISOString(),
+        title: resolvedTitle,
+        shiftType:
+          selectedShiftTypeId === "custom"
+            ? "אחר"
+            : shiftType.trim() || resolvedTitle,
+        startAt,
+        endAt,
         location: location.trim(),
         note: note.trim(),
         assignments,
@@ -653,35 +764,124 @@ export default function ShiftsView({
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="שם המשמרת">
+                <select
+                  value={selectedShiftTypeId}
+                  onChange={(event) =>
+                    handleShiftTypeSelection(event.target.value)
+                  }
+                  className="input"
+                >
+                  <option value="">בחר שם משמרת...</option>
+                  {shiftTypes.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                  <option value="custom">אחר — הזנה ידנית</option>
+                </select>
+              </Field>
+
+              {selectedShiftTypeId === "custom" ? (
+                <Field label="שם משמרת ידני">
+                  <input
+                    value={customTitle}
+                    onChange={(event) => {
+                      setCustomTitle(event.target.value);
+                      setTitle(event.target.value);
+                    }}
+                    placeholder="הקלד שם משמרת"
+                    className="input"
+                  />
+                </Field>
+              ) : (
+                <Field label="שעות בחירה מהירה">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        applyTimeRange("05:30", "18:30", false)
+                      }
+                      className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-black text-amber-800 hover:bg-amber-100"
+                    >
+                      05:30–18:30
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        applyTimeRange("18:30", "05:30", true)
+                      }
+                      className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs font-black text-indigo-800 hover:bg-indigo-100"
+                    >
+                      18:30–05:30
+                    </button>
+                  </div>
+                </Field>
+              )}
+
+              <Field label="תאריך התחלה">
                 <input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
                   className="input"
                 />
               </Field>
-              <Field label="סוג משמרת">
+
+              <Field label="שעת התחלה — ניתן לבחור או להקליד">
                 <input
-                  value={shiftType}
-                  onChange={(event) => setShiftType(event.target.value)}
+                  type="time"
+                  value={startTime}
+                  onChange={(event) => setStartTime(event.target.value)}
+                  step={60}
                   className="input"
                 />
               </Field>
-              <Field label="התחלה">
+
+              <Field label="תאריך סיום">
                 <input
-                  type="datetime-local"
-                  value={startAt}
-                  onChange={(event) => setStartAt(event.target.value)}
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
                   className="input"
                 />
               </Field>
-              <Field label="סיום">
+
+              <Field label="שעת סיום — ניתן לבחור או להקליד">
                 <input
-                  type="datetime-local"
-                  value={endAt}
-                  onChange={(event) => setEndAt(event.target.value)}
+                  type="time"
+                  value={endTime}
+                  onChange={(event) => setEndTime(event.target.value)}
+                  step={60}
                   className="input"
                 />
               </Field>
+
+              <div className="md:col-span-2">
+                <div className="mb-2 text-xs font-bold text-slate-700">
+                  טווחי שעות קבועים
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      applyTimeRange("05:30", "18:30", false)
+                    }
+                    className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-black text-amber-800 hover:bg-amber-100"
+                  >
+                    משמרת יום · 05:30–18:30
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      applyTimeRange("18:30", "05:30", true)
+                    }
+                    className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs font-black text-indigo-800 hover:bg-indigo-100"
+                  >
+                    משמרת לילה · 18:30–05:30 למחרת
+                  </button>
+                </div>
+              </div>
+
               <Field label="מיקום">
                 <input
                   value={location}
