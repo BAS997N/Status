@@ -87,20 +87,24 @@ export default function SystemSettingsManager({
     settings || DEFAULT_SETTINGS
   );
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
 
   useEffect(() => {
-    if (settings) setDraft(settings);
-  }, [settings]);
+    if (settings && !isDirty && !saving) {
+      setDraft(settings);
+    }
+  }, [settings, isDirty, saving]);
 
   const update = <K extends keyof SystemSettingsConfig>(
     key: K,
     value: SystemSettingsConfig[K]
   ) => {
     setDraft((current) => ({ ...current, [key]: value }));
+    setIsDirty(true);
     setMessage(null);
   };
 
@@ -120,6 +124,7 @@ export default function SystemSettingsManager({
         [key]: nextRoles,
       };
     });
+    setIsDirty(true);
     setMessage(null);
   };
 
@@ -134,6 +139,7 @@ export default function SystemSettingsManager({
         [key]: value,
       },
     }));
+    setIsDirty(true);
     setMessage(null);
   };
 
@@ -158,6 +164,7 @@ export default function SystemSettingsManager({
               active: false,
             },
     }));
+    setIsDirty(true);
     setMessage(null);
   };
 
@@ -175,6 +182,7 @@ export default function SystemSettingsManager({
         currentUser.userId
       );
       setDraft(saved);
+      setIsDirty(false);
       onSettingsChanged(saved);
       setMessage({
         type: "success",
@@ -434,6 +442,12 @@ export default function SystemSettingsManager({
       {message && (
         <div className={`rounded-xl border px-4 py-3 text-xs font-bold ${message.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
           {message.text}
+        </div>
+      )}
+
+      {isDirty && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800">
+          קיימים שינויים שטרם נשמרו. הרענון האוטומטי לא ידרוס אותם.
         </div>
       )}
 

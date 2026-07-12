@@ -331,8 +331,11 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
   // Managers keep access so they can prepare or operate the emergency center.
   // Regular soldiers only see the tab while an emergency event is active.
+  const isEmergencyManagerRole =
+    shiftsSystemRole === "admin" || shiftsSystemRole === "super_admin";
+
   const shouldShowEmergencyTab =
-    canManageEmergency || (canViewEmergency && isEmergencyActive);
+    isEmergencyManagerRole || (canViewEmergency && isEmergencyActive);
 
   useEffect(() => {
     if (activeTab === "emergency" && !shouldShowEmergencyTab) {
@@ -1929,7 +1932,11 @@ const handleAdminSaveReport = async (reportData: {
               onClick={() => setActiveTab("reporter")}
               className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "reporter"
-                  ? "border-military-600 text-military-800"
+                  ? systemSettings?.systemMode === "operational"
+                    ? "border-orange-600 bg-orange-50 px-3 text-orange-800"
+                    : "border-military-600 text-military-800"
+                  : systemSettings?.systemMode === "operational"
+                  ? "border-orange-300 bg-orange-50 px-3 text-orange-700 hover:text-orange-800"
                   : "border-transparent text-slate-400 hover:text-slate-500"
               }`}
             >
@@ -1957,7 +1964,11 @@ const handleAdminSaveReport = async (reportData: {
                 onClick={() => setActiveTab("shifts")}
                 className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === "shifts"
-                    ? "border-indigo-600 text-indigo-700"
+                    ? systemSettings?.systemMode === "operational"
+                      ? "border-orange-600 bg-orange-50 px-3 text-orange-800"
+                      : "border-indigo-600 text-indigo-700"
+                    : systemSettings?.systemMode === "operational"
+                    ? "border-orange-300 bg-orange-50 px-3 text-orange-700 hover:text-orange-800"
                     : "border-transparent text-slate-400 hover:text-slate-500"
                 }`}
               >
