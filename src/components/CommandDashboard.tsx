@@ -2799,7 +2799,7 @@ const soldierReports = Array.from(latestReportByDate.values());
 )}
           
 {/* ATTENDANCE REPORTS CENTRAL GRID */}
-      <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-visible">
         <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 flex-wrap gap-2 text-right" dir="rtl">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-military-600" />
@@ -3090,6 +3090,19 @@ return (
   matchesMissing
 );
     })
+  .sort((first, second) => {
+    const roleComparison = compareMedicalRoles(
+      first.profile.medicalRole,
+      second.profile.medicalRole
+    );
+
+    if (roleComparison !== 0) return roleComparison;
+
+    return (first.profile.fullName || "").localeCompare(
+      second.profile.fullName || "",
+      "he"
+    );
+  })
   .map(({ profile, latestTodayReport }) => {
                   const useLocalReport =
                     lastSavedReport &&
