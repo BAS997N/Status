@@ -1984,6 +1984,8 @@ const handleAdminSaveReport = async (reportData: {
                   shiftSlotConfigs={shiftSlotConfigs}
                   medicalRoleConfigs={medicalRoleConfigs}
                   externalStaff={externalStaff}
+                  reports={reports}
+                  attendanceStatuses={attendanceStatuses}
                 />
               )}
             </motion.div>

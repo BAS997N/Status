@@ -15,6 +15,8 @@ import {
   X,
 } from "lucide-react";
 import {
+  AttendanceReport,
+  AttendanceStatusConfig,
   ExternalStaffMember,
   MedicalRoleConfig,
   ShiftAssignment,
@@ -38,6 +40,8 @@ interface ShiftsViewProps {
   shiftSlotConfigs: ShiftSlotConfig[];
   medicalRoleConfigs: MedicalRoleConfig[];
   externalStaff: ExternalStaffMember[];
+  reports: AttendanceReport[];
+  attendanceStatuses: AttendanceStatusConfig[];
 }
 
 interface ExpandedSlot {
@@ -99,6 +103,26 @@ const getSystemRole = (user: UserProfile): SystemRole => {
   return "reporter";
 };
 
+const DAY_MARKER_LABELS: Record<string, string> = {
+  return_to_base: "חזרה לבסיס",
+  exit_home: "יציאה לבית",
+  after_hours: "אחרי שעות",
+};
+
+const getReportDateKey = (report: AttendanceReport) => {
+  if (report.reportDate) return report.reportDate;
+  if (typeof report.timestamp === "string") {
+    return report.timestamp.slice(0, 10);
+  }
+  return "";
+};
+
+const getReportTimeMs = (report: AttendanceReport) => {
+  const value = report.updatedAt || report.timestamp;
+  const parsed = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 export default function ShiftsView({
   currentUser,
   allUsers,
@@ -106,6 +130,8 @@ export default function ShiftsView({
   shiftSlotConfigs,
   medicalRoleConfigs,
   externalStaff,
+  reports,
+  attendanceStatuses,
 }: ShiftsViewProps) {
   const [shifts, setShifts] = useState<ShiftRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,6 +218,91 @@ export default function ShiftsView({
         .sort((a, b) => a.sortOrder - b.sortOrder),
     [externalStaff]
   );
+
+  const attendanceStatusLabelById = useMemo(
+    () =>
+      new Map(
+        attendanceStatuses.map((status) => [status.id, status.label])
+      ),
+    [attendanceStatuses]
+  );
+
+  const latestReportByUserAndDate = useMemo(() => {
+    const map = new Map<string, AttendanceReport>();
+
+    reports
+      .filter((report) => report.isReset !== true)
+      .forEach((report) => {
+        const reportDate = getReportDateKey(report);
+        if (!reportDate) return;
+
+        const key = `${report.userId}_${reportDate}`;
+        const previous = map.get(key);
+
+        if (!previous || getReportTimeMs(report) > getReportTimeMs(previous)) {
+          map.set(key, report);
+        }
+      });
+
+    return map;
+  }, [reports]);
+
+  const getAttendanceInfo = (user: UserProfile) => {
+    const report = latestReportByUserAndDate.get(
+      `${user.userId}_${startDate}`
+    );
+
+    if (!report) {
+      return {
+        report: null,
+        label: "אין דיווח",
+        dayMarkerLabel: "",
+        priority: 2,
+      };
+    }
+
+    const label =
+      attendanceStatusLabelById.get(report.status) ||
+      String(report.status || "סטטוס לא ידוע");
+
+    return {
+      report,
+      label,
+      dayMarkerLabel: report.dayMarker
+        ? DAY_MARKER_LABELS[report.dayMarker] || report.dayMarker
+        : "",
+      priority: report.status === "base" ? 0 : 1,
+    };
+  };
+
+  const getOverlappingShift = (userId: string) => {
+    if (!startDate || !startTime || !endDate || !endTime) return null;
+
+    const candidateStart = new Date(
+      combineDateAndTime(startDate, startTime)
+    ).getTime();
+    const candidateEnd = new Date(
+      combineDateAndTime(endDate, endTime)
+    ).getTime();
+
+    return shifts.find((shift) => {
+      if (editingShift?.shiftId === shift.shiftId) return false;
+      if (
+        !shift.assignments.some(
+          (assignment) =>
+            assignment.assigneeType !== "external" &&
+            assignment.userId === userId
+        )
+      ) {
+        return false;
+      }
+
+      const shiftStart = new Date(shift.startAt).getTime();
+      const shiftEnd = new Date(shift.endAt).getTime();
+
+      return candidateStart < shiftEnd && candidateEnd > shiftStart;
+    });
+  };
 
   const isAllowedForSlot = (user: UserProfile, slot: ExpandedSlot) => {
     const medicalRoleName = (user.medicalRole || "")
@@ -1384,16 +1495,49 @@ export default function ShiftsView({
             </div>
 
             <div className="mt-6 space-y-3">
-              <div className="text-sm font-black text-slate-900">
-                שיבוץ בעלי תפקידים
+              <div>
+                <div className="text-sm font-black text-slate-900">
+                  שיבוץ בעלי תפקידים
+                </div>
+                <div className="mt-1 text-[10px] font-bold leading-5 text-slate-500">
+                  ליד כל חייל מוצגים סטטוס הנוכחות וסימון היום לתאריך
+                  המשמרת. חיילים בבסיס מוצגים ראשונים. סימון חפיפה הוא
+                  מידע בלבד ואינו חוסם את השיבוץ.
+                </div>
               </div>
               {expandedSlots.map((slot) => {
                 const availableUsers = slot.allowSystemUsers
-                  ? selectableUsers.filter(
-                      (user) =>
-                        (slot.allowDischargedUsers || !user.isDischarged) &&
-                        isAllowedForSlot(user, slot)
-                    )
+                  ? selectableUsers
+                      .filter(
+                        (user) =>
+                          (slot.allowDischargedUsers ||
+                            !user.isDischarged) &&
+                          isAllowedForSlot(user, slot)
+                      )
+                      .map((user) => ({
+                        user,
+                        attendance: getAttendanceInfo(user),
+                        overlappingShift: getOverlappingShift(user.userId),
+                      }))
+                      .sort((a, b) => {
+                        const dischargedDifference =
+                          Number(a.user.isDischarged === true) -
+                          Number(b.user.isDischarged === true);
+                        if (dischargedDifference !== 0) {
+                          return dischargedDifference;
+                        }
+
+                        const attendanceDifference =
+                          a.attendance.priority - b.attendance.priority;
+                        if (attendanceDifference !== 0) {
+                          return attendanceDifference;
+                        }
+
+                        return a.user.fullName.localeCompare(
+                          b.user.fullName,
+                          "he"
+                        );
+                      })
                   : [];
 
                 const availableExternal = slot.allowExternalStaff
@@ -1432,15 +1576,32 @@ export default function ShiftsView({
                         <option value="">
                           {slot.required ? "בחר חייל..." : "ללא שיבוץ"}
                         </option>
-                        {availableUsers.map((user) => (
-                          <option
-                            key={`user:${user.userId}`}
-                            value={`user:${user.userId}`}
-                          >
-                            {user.fullName}
-                            {user.medicalRole ? ` — ${user.medicalRole}` : ""}
-                          </option>
-                        ))}
+                        {availableUsers.map(
+                          ({ user, attendance, overlappingShift }) => {
+                            const details = [
+                              user.medicalRole,
+                              user.unit,
+                              attendance.label,
+                              attendance.dayMarkerLabel,
+                              user.isDischarged ? "נגרע" : "",
+                              overlappingShift
+                                ? `חפיפה: ${overlappingShift.title}`
+                                : "",
+                            ].filter(Boolean);
+
+                            return (
+                              <option
+                                key={`user:${user.userId}`}
+                                value={`user:${user.userId}`}
+                              >
+                                {user.fullName}
+                                {details.length
+                                  ? ` — ${details.join(" | ")}`
+                                  : ""}
+                              </option>
+                            );
+                          }
+                        )}
                         {availableExternal.map((item) => (
                           <option
                             key={`external:${item.id}`}
