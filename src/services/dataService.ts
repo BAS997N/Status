@@ -2070,6 +2070,14 @@ async createSystemLog(logData: {
   },
 
   async createAttendanceReport(reportData: Omit<AttendanceReport, "reportId">): Promise<string> {
+    const currentSystemSettings = await this.getSystemSettings(true);
+    if (currentSystemSettings.reportingEnabled === false) {
+      throw new Error(
+        currentSystemSettings.reportingClosedMessage ||
+          "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס."
+      );
+    }
+
     const attendanceStatusConfigs = await this.getAttendanceStatusConfigs();
     const selectedStatusConfig = attendanceStatusConfigs.find(
       (status) => status.id === reportData.status

@@ -325,10 +325,35 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    dataService.getSystemSettings()
-      .then((settings) => { if (!cancelled) setSystemSettings(settings); })
-      .catch((error) => console.error("Failed loading system settings:", error));
-    return () => { cancelled = true; };
+
+    const refreshSystemSettings = async () => {
+      try {
+        const settings = await dataService.getSystemSettings(true);
+        if (!cancelled) setSystemSettings(settings);
+      } catch (error) {
+        console.error("Failed loading system settings:", error);
+      }
+    };
+
+    refreshSystemSettings();
+
+    // Keep operational modes current on every open device, even when an old
+    // settings value is still present in local cache.
+    const intervalId = window.setInterval(refreshSystemSettings, 10000);
+    const handleFocus = () => refreshSystemSettings();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshSystemSettings();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -1669,8 +1694,15 @@ const handleAdminSaveReport = async (reportData: {
     );
   }
 
+  const effectiveSystemRole = permissionUser
+    ? getEffectiveSystemRole(permissionUser)
+    : null;
+
+  // Maintenance mode blocks only soldiers and viewers. Commanders and the
+  // site administrator keep access so operational management can continue.
   const isMaintenanceBlocked =
-    systemSettings?.maintenanceMode === true && !isSuperAdmin;
+    systemSettings?.maintenanceMode === true &&
+    (effectiveSystemRole === "reporter" || effectiveSystemRole === "viewer");
 
   const maintenanceDisplayMessage =
     systemSettings?.maintenanceMessage ||
