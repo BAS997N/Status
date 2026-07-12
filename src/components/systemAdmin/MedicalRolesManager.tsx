@@ -76,7 +76,6 @@ export default function MedicalRolesManager({
         name,
         enabled: true,
         sortOrder: draftRoles.length + 1,
-        systemRole: false,
         createdAt: new Date().toISOString(),
         updatedBy: currentUser.userId,
       },
@@ -143,13 +142,6 @@ export default function MedicalRolesManager({
   };
 
   const handleDelete = (role: MedicalRoleConfig) => {
-    if (role.systemRole) {
-      setMessage({
-        type: "error",
-        text: "תפקיד מערכת מוגן אינו ניתן למחיקה. ניתן להסתיר אותו.",
-      });
-      return;
-    }
 
     if (role.enabled && draftRoles.filter((item) => item.enabled).length <= 1) {
       setMessage({
@@ -298,11 +290,6 @@ export default function MedicalRolesManager({
                       <h3 className={`truncate text-sm font-black ${role.enabled ? "text-slate-800" : "text-slate-400"}`}>
                         {role.name}
                       </h3>
-                      {role.systemRole && (
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">
-                          תפקיד מערכת
-                        </span>
-                      )}
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
                           role.enabled

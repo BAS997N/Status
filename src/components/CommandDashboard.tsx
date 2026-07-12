@@ -141,6 +141,43 @@ export default function CommandDashboard({
 
   const canExportSheets = can("sheets.export");
 
+  const normalizeMedicalRoleName = (roleName = "") =>
+    roleName
+      .replace(/[״"׳']/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLocaleLowerCase("he");
+
+  const medicalRoleOrder = new Map(
+    customRoles.map((roleName, index) => [
+      normalizeMedicalRoleName(roleName),
+      index,
+    ])
+  );
+
+  const getMedicalRoleOrder = (roleName?: string) => {
+    const normalized = normalizeMedicalRoleName(roleName || "");
+    return medicalRoleOrder.get(normalized) ?? Number.MAX_SAFE_INTEGER;
+  };
+
+  const compareMedicalRoles = (
+    firstRole?: string,
+    secondRole?: string,
+    direction: "asc" | "desc" = "asc"
+  ) => {
+    const firstOrder = getMedicalRoleOrder(firstRole);
+    const secondOrder = getMedicalRoleOrder(secondRole);
+
+    if (firstOrder !== secondOrder) {
+      return direction === "asc"
+        ? firstOrder - secondOrder
+        : secondOrder - firstOrder;
+    }
+
+    const fallback = (firstRole || "").localeCompare(secondRole || "", "he");
+    return direction === "asc" ? fallback : -fallback;
+  };
+
   const commanderStatusOptions = attendanceStatuses
     .filter((item) => item.enabled && item.visibleToCommanders)
     .sort((a, b) => a.sortOrder - b.sortOrder);
@@ -1973,35 +2010,17 @@ const dates = getDateRange(startDate, endDate);
           {allSoldiers
   .sort((a, b) => {
   if (summarySortField === "medicalRole") {
-    const normalizeRole = (role: string = "") =>
-      role
-        .replace(/[״"׳']/g, "")
-        .trim();
+    const byRole = compareMedicalRoles(
+      a.medicalRole,
+      b.medicalRole,
+      summarySortDirection
+    );
 
-    const roleOrder: Record<string, number> = {
-      "מפ רפואה": 1,
-      "מפקד/ת תאגד": 2,
-      "רופא/ה": 3,
-      "פרמדיק/ית": 4,
-      "מנהל אירוע": 5,
-      "חובש/ת": 6,
-      "נהג/ת אמבולנס": 7,
-      "חייל/ת מדווח/ת": 8,
-    };
+    if (byRole !== 0) return byRole;
 
-    const aRole = normalizeRole(a.medicalRole || "");
-    const bRole = normalizeRole(b.medicalRole || "");
-
-    const aOrder = roleOrder[aRole] ?? 999;
-    const bOrder = roleOrder[bRole] ?? 999;
-
-    if (aOrder !== bOrder) {
-      return summarySortDirection === "asc"
-        ? aOrder - bOrder
-        : bOrder - aOrder;
-    }
-
-    return (a.fullName || "").localeCompare(b.fullName || "", "he");
+    return summarySortDirection === "asc"
+      ? (a.fullName || "").localeCompare(b.fullName || "", "he")
+      : (b.fullName || "").localeCompare(a.fullName || "", "he");
   }
 
   return summarySortDirection === "asc"
@@ -3704,6 +3723,18 @@ const matchesSoldierStatus =
 return matchesSearch && matchesUnit && matchesSoldierStatus;
   })
   .sort((a, b) => {
+    if (directorySortField === "medicalRole") {
+      const byRole = compareMedicalRoles(
+        a.medicalRole,
+        b.medicalRole,
+        directorySortDirection
+      );
+
+      if (byRole !== 0) return byRole;
+
+      return (a.fullName || "").localeCompare(b.fullName || "", "he");
+    }
+
     const aValue = String((a as any)[directorySortField] || "");
     const bValue = String((b as any)[directorySortField] || "");
 

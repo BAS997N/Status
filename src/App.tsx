@@ -368,7 +368,6 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
         name,
         enabled: true,
         sortOrder: index + 1,
-        systemRole: existing?.systemRole === true,
       };
     });
     const savedRoles = await dataService.saveMedicalRoleConfigs(

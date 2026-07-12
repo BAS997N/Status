@@ -43,7 +43,6 @@ export interface MedicalRoleConfig {
   name: string;
   enabled: boolean;
   sortOrder: number;
-  systemRole?: boolean;
   createdAt?: string;
   updatedAt?: string;
   updatedBy?: string;
@@ -497,5 +496,4 @@ export const DEFAULT_MEDICAL_ROLE_CONFIGS: MedicalRoleConfig[] =
     name,
     enabled: true,
     sortOrder: index + 1,
-    systemRole: index === 0,
   }));

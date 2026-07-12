@@ -327,13 +327,16 @@ const normalizeMedicalRoleConfigs = (value: unknown): MedicalRoleConfig[] => {
       while (seenIds.has(id)) id = `${id}_${index + 1}`;
       seenIds.add(id);
 
+      const { systemRole: _legacySystemRole, ...cleanRole } = role as MedicalRoleConfig & {
+        systemRole?: boolean;
+      };
+
       return {
-        ...role,
+        ...cleanRole,
         id,
         name,
         enabled: role.enabled !== false,
         sortOrder: typeof role.sortOrder === "number" ? role.sortOrder : index + 1,
-        systemRole: role.systemRole === true,
       };
     })
     .filter((role) => {
@@ -780,7 +783,6 @@ export const dataService = {
           name,
           enabled: true,
           sortOrder: index + 1,
-          systemRole: index === 0,
         }))
       );
 
