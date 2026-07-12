@@ -3,6 +3,7 @@ import {
   BadgeCheck,
   Building2,
   Database,
+  DatabaseBackup,
   ClipboardList,
   FileSpreadsheet,
   ListChecks,
@@ -20,6 +21,7 @@ import MedicalRolesManager from "./systemAdmin/MedicalRolesManager";
 import GoogleSheetsManager from "./systemAdmin/GoogleSheetsManager";
 import AuditManager from "./systemAdmin/AuditManager";
 import SystemSettingsManager from "./systemAdmin/SystemSettingsManager";
+import BackupsManager from "./systemAdmin/BackupsManager";
 
 type AdminSection =
   | "overview"
@@ -30,7 +32,8 @@ type AdminSection =
   | "units"
   | "sheets"
   | "audit"
-  | "settings";
+  | "settings"
+  | "backups";
 
 interface SystemAdminPanelProps {
   currentUser: UserProfile;
@@ -99,6 +102,12 @@ const sections: Array<{
     title: "Audit — יומן ביקורת",
     description: "מעקב אחר שינויים במשתמשים, הרשאות, הגדרות וסנכרונים.",
     icon: ClipboardList,
+  },
+  {
+    id: "backups",
+    title: "גיבויים ושחזור",
+    description: "יצירת גיבוי JSON ושחזור מבוקר של נתוני המערכת.",
+    icon: DatabaseBackup,
   },
   {
     id: "settings",
@@ -216,6 +225,12 @@ export default function SystemAdminPanel({
         />
       ) : activeSection === "audit" ? (
         <AuditManager />
+      ) : activeSection === "backups" ? (
+        <BackupsManager
+          currentUser={currentUser}
+          systemVersion={systemSettings?.systemVersion}
+          onRestoreCompleted={() => window.location.reload()}
+        />
       ) : activeSection === "settings" ? (
         <SystemSettingsManager
           currentUser={currentUser}

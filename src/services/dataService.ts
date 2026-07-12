@@ -11,7 +11,8 @@ import {
   orderBy, 
   updateDoc,
   deleteDoc,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch
 } from "firebase/firestore";
 import { db, auth, isFirebaseActive } from "../firebase";
 import {
@@ -36,6 +37,9 @@ import {
   AuditAction,
   AuditModule,
   SystemSettingsConfig,
+  BackupSection,
+  SystemBackupFile,
+  BackupRestoreResult,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -859,7 +863,191 @@ const getSheetsPersonalId = (...values: any[]): string => {
   return "";
 };
 
+
+const BACKUP_SECTIONS: BackupSection[] = [
+  "users",
+  "attendance",
+  "attendance_logs",
+  "notifications",
+  "settings",
+  "system_logs",
+];
+
+const LOCAL_BACKUP_KEYS: Record<BackupSection, string> = {
+  users: "idf_profiles",
+  attendance: "idf_reports",
+  attendance_logs: "idf_attendance_logs",
+  notifications: "idf_notifications",
+  settings: "idf_system_settings",
+  system_logs: "idf_system_logs",
+};
+
+const normalizeBackupDocument = (value: unknown, index: number) => {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const id = String(raw.id || raw.userId || raw.reportId || raw.notificationId || `item_${index + 1}`);
+  return { id, data: removeUndefinedValues({ ...raw }) };
+};
+
 export const dataService = {
+
+
+  async createSystemBackup(
+    selectedSections: BackupSection[] = BACKUP_SECTIONS,
+    createdBy?: string,
+    systemVersion?: string
+  ): Promise<SystemBackupFile> {
+    const safeSections = BACKUP_SECTIONS.filter((section) =>
+      selectedSections.includes(section)
+    );
+    const sections: SystemBackupFile["sections"] = {};
+    const counts: SystemBackupFile["counts"] = {};
+
+    if (!isFirebaseActive()) {
+      for (const section of safeSections) {
+        const raw = localStorage.getItem(LOCAL_BACKUP_KEYS[section]);
+        let parsed: unknown = raw ? JSON.parse(raw) : [];
+        if (section === "settings" && parsed && !Array.isArray(parsed)) {
+          parsed = [{ id: "system_settings", ...(parsed as Record<string, unknown>) }];
+        }
+        const items = Array.isArray(parsed) ? parsed : [];
+        const docs = items.map(normalizeBackupDocument);
+        sections[section] = docs;
+        counts[section] = docs.length;
+      }
+    } else {
+      for (const section of safeSections) {
+        const snapshot = await getDocs(collection(db, section));
+        const docs = snapshot.docs.map((item) => ({
+          id: item.id,
+          data: removeUndefinedValues(item.data() as Record<string, unknown>),
+        }));
+        sections[section] = docs;
+        counts[section] = docs.length;
+      }
+    }
+
+    const backup: SystemBackupFile = {
+      format: "idf-attendance-backup",
+      formatVersion: 1,
+      createdAt: new Date().toISOString(),
+      createdBy: createdBy || auth?.currentUser?.uid || "unknown",
+      systemVersion,
+      projectId: (db as any)?.app?.options?.projectId,
+      sections,
+      counts,
+    };
+
+    await writeAuditLog({
+      action: "backup",
+      module: "backups",
+      targetId: backup.createdAt,
+      targetLabel: "גיבוי מערכת",
+      after: {
+        createdAt: backup.createdAt,
+        counts: backup.counts,
+        sections: safeSections,
+      },
+    });
+
+    return backup;
+  },
+
+  async restoreSystemBackup(
+    backup: SystemBackupFile,
+    selectedSections?: BackupSection[],
+    restoredBy?: string
+  ): Promise<BackupRestoreResult> {
+    if (
+      !backup ||
+      backup.format !== "idf-attendance-backup" ||
+      backup.formatVersion !== 1 ||
+      !backup.sections
+    ) {
+      throw new Error("קובץ הגיבוי אינו בפורמט נתמך.");
+    }
+
+    const requested = selectedSections?.length
+      ? selectedSections
+      : (Object.keys(backup.sections) as BackupSection[]);
+    const sectionsToRestore = BACKUP_SECTIONS.filter(
+      (section) => requested.includes(section) && Array.isArray(backup.sections[section])
+    );
+
+    let restoredDocuments = 0;
+    let skippedDocuments = 0;
+
+    if (!isFirebaseActive()) {
+      for (const section of sectionsToRestore) {
+        const docs = backup.sections[section] || [];
+        const values = docs.map((item) => ({ id: item.id, ...item.data }));
+        if (section === "settings") {
+          const systemSettingsDoc = docs.find((item) => item.id === "system_settings");
+          if (systemSettingsDoc) {
+            localStorage.setItem(
+              LOCAL_BACKUP_KEYS[section],
+              JSON.stringify(systemSettingsDoc.data)
+            );
+          }
+        } else {
+          localStorage.setItem(LOCAL_BACKUP_KEYS[section], JSON.stringify(values));
+        }
+        restoredDocuments += docs.length;
+      }
+    } else {
+      let batch = writeBatch(db);
+      let operationsInBatch = 0;
+
+      const commitBatch = async () => {
+        if (operationsInBatch === 0) return;
+        await batch.commit();
+        batch = writeBatch(db);
+        operationsInBatch = 0;
+      };
+
+      for (const section of sectionsToRestore) {
+        for (const item of backup.sections[section] || []) {
+          if (!item?.id || !item.data || typeof item.data !== "object") {
+            skippedDocuments += 1;
+            continue;
+          }
+          batch.set(
+            doc(db, section, item.id),
+            removeUndefinedValues(item.data),
+            { merge: true }
+          );
+          restoredDocuments += 1;
+          operationsInBatch += 1;
+          if (operationsInBatch >= 400) await commitBatch();
+        }
+      }
+      await commitBatch();
+    }
+
+    const result: BackupRestoreResult = {
+      restoredSections: sectionsToRestore,
+      restoredDocuments,
+      skippedDocuments,
+      completedAt: new Date().toISOString(),
+    };
+
+    await writeAuditLog({
+      action: "restore",
+      module: "backups",
+      targetId: backup.createdAt,
+      targetLabel: "שחזור גיבוי מערכת",
+      before: {
+        backupCreatedAt: backup.createdAt,
+        backupCreatedBy: backup.createdBy,
+      },
+      after: {
+        ...result,
+        restoredBy: restoredBy || auth?.currentUser?.uid || "unknown",
+      },
+    });
+
+    return result;
+  },
+
 
   async getSystemSettings(forceRefresh = false): Promise<SystemSettingsConfig> {
     if (!forceRefresh) {

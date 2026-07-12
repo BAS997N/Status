@@ -4,6 +4,7 @@ import {
   Building2,
   ChevronDown,
   ClipboardList,
+  DatabaseBackup,
   FileSpreadsheet,
   ListChecks,
   RefreshCw,
@@ -21,6 +22,8 @@ const ACTION_LABELS: Record<string, string> = {
   delete: "מחיקה",
   sync: "סנכרון",
   reset: "איפוס",
+  backup: "גיבוי",
+  restore: "שחזור",
 };
 
 const MODULE_LABELS: Record<string, string> = {
@@ -31,6 +34,8 @@ const MODULE_LABELS: Record<string, string> = {
   medical_roles: "תפקידי רפואה",
   google_sheets: "Google Sheets",
   reports: "דיווחים",
+  system_settings: "הגדרות מערכת",
+  backups: "גיבויים ושחזור",
 };
 
 const MODULE_ICONS: Record<string, typeof ClipboardList> = {
@@ -41,6 +46,8 @@ const MODULE_ICONS: Record<string, typeof ClipboardList> = {
   medical_roles: BadgeCheck,
   google_sheets: FileSpreadsheet,
   reports: ClipboardList,
+  system_settings: UserCog,
+  backups: DatabaseBackup,
 };
 
 const ACTION_STYLES: Record<string, string> = {
@@ -49,6 +56,8 @@ const ACTION_STYLES: Record<string, string> = {
   delete: "border-rose-200 bg-rose-50 text-rose-700",
   sync: "border-blue-200 bg-blue-50 text-blue-700",
   reset: "border-violet-200 bg-violet-50 text-violet-700",
+  backup: "border-sky-200 bg-sky-50 text-sky-700",
+  restore: "border-orange-200 bg-orange-50 text-orange-700",
 };
 
 const FIELD_LABELS: Record<string, string> = {

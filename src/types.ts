@@ -132,7 +132,7 @@ export interface GoogleSheetsConfig {
 }
 
 
-export type AuditAction = "create" | "update" | "delete" | "sync" | "reset";
+export type AuditAction = "create" | "update" | "delete" | "sync" | "reset" | "backup" | "restore";
 export type AuditModule =
   | "users"
   | "permissions"
@@ -141,7 +141,8 @@ export type AuditModule =
   | "medical_roles"
   | "google_sheets"
   | "reports"
-  | "system_settings";
+  | "system_settings"
+  | "backups";
 
 export interface AuditLogEntry {
   id: string;
@@ -156,6 +157,38 @@ export interface AuditLogEntry {
   after?: unknown;
   metadata?: Record<string, unknown>;
   createdAt: string;
+}
+
+
+export type BackupSection =
+  | "users"
+  | "attendance"
+  | "attendance_logs"
+  | "notifications"
+  | "settings"
+  | "system_logs";
+
+export interface BackupDocument {
+  id: string;
+  data: Record<string, unknown>;
+}
+
+export interface SystemBackupFile {
+  format: "idf-attendance-backup";
+  formatVersion: 1;
+  createdAt: string;
+  createdBy?: string;
+  systemVersion?: string;
+  projectId?: string;
+  sections: Partial<Record<BackupSection, BackupDocument[]>>;
+  counts: Partial<Record<BackupSection, number>>;
+}
+
+export interface BackupRestoreResult {
+  restoredSections: BackupSection[];
+  restoredDocuments: number;
+  skippedDocuments: number;
+  completedAt: string;
 }
 
 export interface UserProfile {
