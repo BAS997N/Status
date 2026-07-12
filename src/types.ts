@@ -198,6 +198,8 @@ export type ShiftStatus = "scheduled" | "cancelled";
 export type ShiftReadStatus = "unread" | "read";
 
 export interface ShiftAssignment {
+  slotId?: string;
+  slotLabel?: string;
   userId: string;
   userName: string;
   personalId?: string;

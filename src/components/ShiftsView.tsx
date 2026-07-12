@@ -12,7 +12,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { ShiftRecord, UserProfile } from "../types";
+import { ShiftAssignment, ShiftRecord, UserProfile } from "../types";
 import { dataService } from "../services/dataService";
 
 interface ShiftsViewProps {
@@ -20,6 +20,101 @@ interface ShiftsViewProps {
   allUsers: UserProfile[];
   canManage: boolean;
 }
+
+type ShiftSlotId =
+  | "duty_commander"
+  | "event_manager"
+  | "matab"
+  | "medic_1"
+  | "medic_2"
+  | "outpost_medic";
+
+interface ShiftSlotDefinition {
+  id: ShiftSlotId;
+  label: string;
+  description: string;
+  isUserAllowed: (user: UserProfile) => boolean;
+}
+
+const normalize = (value = "") =>
+  value
+    .replace(/[״"׳']/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase("he");
+
+const includesAny = (value: string | undefined, options: string[]) => {
+  const normalized = normalize(value);
+  return options.some((option) => normalized.includes(normalize(option)));
+};
+
+const isMedic = (user: UserProfile) =>
+  includesAny(user.medicalRole, ["חובש"]);
+
+const isDoctorOrParamedic = (user: UserProfile) =>
+  includesAny(user.medicalRole, ["רופא", "פרמדיק", "פארמדיק"]);
+
+const isEventManager = (user: UserProfile) =>
+  includesAny(user.medicalRole, ["מנהל אירוע"]);
+
+const isCommander = (user: UserProfile) =>
+  user.role === "commander" ||
+  user.systemRole === "admin" ||
+  user.systemRole === "super_admin" ||
+  includesAny(user.medicalRole, [
+    'מ"פ רפואה',
+    "מפ רפואה",
+    "מפקד רפואה",
+    "מפקד",
+  ]);
+
+const SHIFT_SLOTS: ShiftSlotDefinition[] = [
+  {
+    id: "duty_commander",
+    label: "מפקד תורן",
+    description: 'מוצגים מפקדים ומ"פ רפואה בלבד.',
+    isUserAllowed: isCommander,
+  },
+  {
+    id: "event_manager",
+    label: "מנהל אירוע",
+    description: "מוצגים רק בעלי תפקיד מנהל אירוע.",
+    isUserAllowed: isEventManager,
+  },
+  {
+    id: "matab",
+    label: 'מט"ב',
+    description: "מוצגים רופאים ופרמדיקים בלבד.",
+    isUserAllowed: isDoctorOrParamedic,
+  },
+  {
+    id: "medic_1",
+    label: "חובש",
+    description: "מוצגים חובשים בלבד.",
+    isUserAllowed: isMedic,
+  },
+  {
+    id: "medic_2",
+    label: "חובש",
+    description: "מוצגים חובשים בלבד.",
+    isUserAllowed: isMedic,
+  },
+  {
+    id: "outpost_medic",
+    label: "חובש מוצב",
+    description: "מוצגים חובשים בלבד.",
+    isUserAllowed: isMedic,
+  },
+];
+
+const EMPTY_SLOT_ASSIGNMENTS: Record<ShiftSlotId, string> = {
+  duty_commander: "",
+  event_manager: "",
+  matab: "",
+  medic_1: "",
+  medic_2: "",
+  outpost_medic: "",
+};
 
 const toInputDateTime = (value?: string) => {
   if (!value) return "";
@@ -34,6 +129,14 @@ const formatDateTime = (value: string) =>
     timeStyle: "short",
   });
 
+const getAssignmentForSlot = (
+  shift: ShiftRecord,
+  slot: ShiftSlotDefinition,
+  slotIndex: number
+) =>
+  shift.assignments.find((assignment) => assignment.slotId === slot.id) ||
+  shift.assignments[slotIndex];
+
 export default function ShiftsView({
   currentUser,
   allUsers,
@@ -46,7 +149,10 @@ export default function ShiftsView({
   const [showPast, setShowPast] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<ShiftRecord | null>(null);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const [title, setTitle] = useState("");
   const [shiftType, setShiftType] = useState("משמרת");
@@ -54,7 +160,8 @@ export default function ShiftsView({
   const [endAt, setEndAt] = useState("");
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [slotAssignments, setSlotAssignments] =
+    useState<Record<ShiftSlotId, string>>(EMPTY_SLOT_ASSIGNMENTS);
 
   const loadShifts = async () => {
     setLoading(true);
@@ -88,7 +195,9 @@ export default function ShiftsView({
       .filter((shift) =>
         canManage
           ? true
-          : shift.assignments.some((assignment) => assignment.userId === currentUser.userId)
+          : shift.assignments.some(
+              (assignment) => assignment.userId === currentUser.userId
+            )
       )
       .filter((shift) => showPast || new Date(shift.endAt).getTime() >= now)
       .filter((shift) => {
@@ -116,7 +225,7 @@ export default function ShiftsView({
     setEndAt("");
     setLocation("");
     setNote("");
-    setSelectedUserIds([]);
+    setSlotAssignments({ ...EMPTY_SLOT_ASSIGNMENTS });
     setMessage(null);
   };
 
@@ -126,6 +235,13 @@ export default function ShiftsView({
   };
 
   const openEdit = (shift: ShiftRecord) => {
+    const nextAssignments = { ...EMPTY_SLOT_ASSIGNMENTS };
+
+    SHIFT_SLOTS.forEach((slot, index) => {
+      const assignment = getAssignmentForSlot(shift, slot, index);
+      nextAssignments[slot.id] = assignment?.userId || "";
+    });
+
     setEditingShift(shift);
     setTitle(shift.title);
     setShiftType(shift.shiftType);
@@ -133,51 +249,88 @@ export default function ShiftsView({
     setEndAt(toInputDateTime(shift.endAt));
     setLocation(shift.location || "");
     setNote(shift.note || "");
-    setSelectedUserIds(shift.assignments.map((assignment) => assignment.userId));
+    setSlotAssignments(nextAssignments);
     setIsFormOpen(true);
     setMessage(null);
   };
 
-  const toggleUser = (userId: string) => {
-    setSelectedUserIds((current) =>
-      current.includes(userId)
-        ? current.filter((item) => item !== userId)
-        : [...current, userId]
-    );
+  const updateSlotAssignment = (slotId: ShiftSlotId, userId: string) => {
+    setSlotAssignments((current) => ({ ...current, [slotId]: userId }));
+    setMessage(null);
   };
 
   const saveShift = async () => {
     setMessage(null);
+
     if (!title.trim() || !startAt || !endAt) {
-      setMessage({ type: "error", text: "יש להזין שם, שעת התחלה ושעת סיום." });
-      return;
-    }
-    if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
-      setMessage({ type: "error", text: "שעת הסיום חייבת להיות מאוחרת משעת ההתחלה." });
-      return;
-    }
-    if (selectedUserIds.length === 0) {
-      setMessage({ type: "error", text: "יש לבחור לפחות חייל אחד למשמרת." });
+      setMessage({
+        type: "error",
+        text: "יש להזין שם, שעת התחלה ושעת סיום.",
+      });
       return;
     }
 
-    const assignments = selectedUserIds
-      .map((userId) => activeUsers.find((user) => user.userId === userId))
-      .filter((user): user is UserProfile => Boolean(user))
-      .map((user) => {
-        const previous = editingShift?.assignments.find(
-          (assignment) => assignment.userId === user.userId
-        );
-        return {
-          userId: user.userId,
-          userName: user.fullName,
-          personalId: user.personalId,
-          unit: user.unit,
-          medicalRole: user.medicalRole,
-          readStatus: previous?.readStatus || ("unread" as const),
-          readAt: previous?.readAt,
-        };
+    if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
+      setMessage({
+        type: "error",
+        text: "שעת הסיום חייבת להיות מאוחרת משעת ההתחלה.",
       });
+      return;
+    }
+
+    const missingSlots = SHIFT_SLOTS.filter(
+      (slot) => !slotAssignments[slot.id]
+    );
+    if (missingSlots.length > 0) {
+      setMessage({
+        type: "error",
+        text: `יש לבחור חייל עבור: ${missingSlots
+          .map((slot) => slot.label)
+          .join(", ")}.`,
+      });
+      return;
+    }
+
+    const selectedIds = Object.values(slotAssignments).filter(Boolean);
+    const duplicateUserId = selectedIds.find(
+      (userId, index) => selectedIds.indexOf(userId) !== index
+    );
+    if (duplicateUserId) {
+      const duplicateUser = activeUsers.find(
+        (user) => user.userId === duplicateUserId
+      );
+      setMessage({
+        type: "error",
+        text: `${duplicateUser?.fullName || "אותו חייל"} נבחר ליותר מתפקיד אחד.`,
+      });
+      return;
+    }
+
+    const assignments: ShiftAssignment[] = SHIFT_SLOTS.map((slot) => {
+      const user = activeUsers.find(
+        (candidate) => candidate.userId === slotAssignments[slot.id]
+      );
+      if (!user) {
+        throw new Error(`לא נמצא משתמש עבור ${slot.label}`);
+      }
+
+      const previous = editingShift?.assignments.find(
+        (assignment) =>
+          assignment.slotId === slot.id || assignment.userId === user.userId
+      );
+
+      return {
+        slotId: slot.id,
+        slotLabel: slot.label,
+        userId: user.userId,
+        userName: user.fullName,
+        personalId: user.personalId,
+        unit: user.unit,
+        medicalRole: user.medicalRole,
+        readStatus: previous?.readStatus || "unread",
+        readAt: previous?.readAt,
+      };
+    });
 
     setSaving(true);
     try {
@@ -239,7 +392,11 @@ export default function ShiftsView({
 
   const markRead = async (shift: ShiftRecord) => {
     try {
-      await dataService.markShiftAsRead(shift.shiftId, currentUser.userId, currentUser);
+      await dataService.markShiftAsRead(
+        shift.shiftId,
+        currentUser.userId,
+        currentUser
+      );
       await loadShifts();
       setMessage({ type: "success", text: "המשמרת סומנה כנקראה." });
     } catch (error) {
@@ -262,11 +419,12 @@ export default function ShiftsView({
               </h2>
               <p className="mt-1 text-xs leading-5 text-slate-500">
                 {canManage
-                  ? "יצירה, עריכה ושיוך משמרות לחיילים."
-                  : "צפייה במשמרות שנקבעו עבורך ואישור שקראת אותן."}
+                  ? "שיבוץ תפקידים קבועים לפי הכשרת החייל ותפקידו במערכת."
+                  : "צפייה בתפקיד שנקבע עבורך ואישור שקראת את המשמרת."}
               </p>
             </div>
           </div>
+
           {canManage && (
             <button
               type="button"
@@ -290,6 +448,7 @@ export default function ShiftsView({
             className="w-full rounded-xl border border-slate-200 py-2.5 pl-3 pr-10 text-xs outline-none focus:border-indigo-400"
           />
         </div>
+
         <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
           <input
             type="checkbox"
@@ -329,6 +488,7 @@ export default function ShiftsView({
             const myAssignment = shift.assignments.find(
               (assignment) => assignment.userId === currentUser.userId
             );
+
             return (
               <article
                 key={shift.shiftId}
@@ -343,6 +503,7 @@ export default function ShiftsView({
                       {shift.shiftType}
                     </div>
                   </div>
+
                   {canManage && (
                     <div className="flex gap-1">
                       <button
@@ -369,21 +530,51 @@ export default function ShiftsView({
                   <div className="flex items-center gap-2">
                     <Clock3 className="h-4 w-4 text-indigo-500" />
                     <span>
-                      {formatDateTime(shift.startAt)} — {formatDateTime(shift.endAt)}
+                      {formatDateTime(shift.startAt)} —{" "}
+                      {formatDateTime(shift.endAt)}
                     </span>
                   </div>
+
                   {shift.location && (
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-rose-500" />
                       <span>{shift.location}</span>
                     </div>
                   )}
-                  <div className="flex items-start gap-2">
-                    <Users className="mt-0.5 h-4 w-4 text-sky-500" />
-                    <span>
-                      {shift.assignments.map((assignment) => assignment.userName).join(", ")}
-                    </span>
+
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    <div className="mb-2 flex items-center gap-2 font-black text-slate-700">
+                      <Users className="h-4 w-4 text-sky-500" />
+                      שיבוץ המשמרת
+                    </div>
+                    <div className="space-y-2">
+                      {SHIFT_SLOTS.map((slot, index) => {
+                        const assignment = getAssignmentForSlot(
+                          shift,
+                          slot,
+                          index
+                        );
+                        return (
+                          <div
+                            key={slot.id}
+                            className={`flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 ${
+                              assignment?.userId === currentUser.userId
+                                ? "ring-1 ring-indigo-300"
+                                : ""
+                            }`}
+                          >
+                            <span className="font-bold text-slate-600">
+                              {slot.label}:
+                            </span>
+                            <span className="text-left font-black text-slate-900">
+                              {assignment?.userName || "לא שובץ"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
+
                   {shift.note && (
                     <div className="rounded-lg bg-slate-50 p-3 leading-5 text-slate-600">
                       {shift.note}
@@ -393,6 +584,10 @@ export default function ShiftsView({
 
                 {!canManage && myAssignment && (
                   <div className="mt-4 border-t border-slate-100 pt-4">
+                    <div className="mb-3 text-xs font-black text-indigo-700">
+                      התפקיד שלך:{" "}
+                      {myAssignment.slotLabel || "משובץ למשמרת"}
+                    </div>
                     {myAssignment.readStatus === "read" ? (
                       <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
                         <CheckCircle2 className="h-4 w-4" />
@@ -434,48 +629,109 @@ export default function ShiftsView({
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="שם המשמרת">
-                <input value={title} onChange={(e) => setTitle(e.target.value)} className="input" />
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  className="input"
+                />
               </Field>
+
               <Field label="סוג משמרת">
-                <input value={shiftType} onChange={(e) => setShiftType(e.target.value)} className="input" />
+                <input
+                  value={shiftType}
+                  onChange={(event) => setShiftType(event.target.value)}
+                  className="input"
+                />
               </Field>
+
               <Field label="התחלה">
-                <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} className="input" />
+                <input
+                  type="datetime-local"
+                  value={startAt}
+                  onChange={(event) => setStartAt(event.target.value)}
+                  className="input"
+                />
               </Field>
+
               <Field label="סיום">
-                <input type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} className="input" />
+                <input
+                  type="datetime-local"
+                  value={endAt}
+                  onChange={(event) => setEndAt(event.target.value)}
+                  className="input"
+                />
               </Field>
+
               <Field label="מיקום">
-                <input value={location} onChange={(e) => setLocation(e.target.value)} className="input" />
+                <input
+                  value={location}
+                  onChange={(event) => setLocation(event.target.value)}
+                  className="input"
+                />
               </Field>
+
               <Field label="הערה">
-                <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} className="input resize-y" />
+                <textarea
+                  rows={3}
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  className="input resize-y"
+                />
               </Field>
             </div>
 
-            <div className="mt-5">
-              <div className="mb-2 text-xs font-black text-slate-700">
-                שיוך חיילים ({selectedUserIds.length} נבחרו)
+            <div className="mt-6">
+              <div className="mb-3 text-sm font-black text-slate-900">
+                שיבוץ בעלי תפקידים
               </div>
-              <div className="max-h-64 overflow-y-auto rounded-xl border border-slate-200 p-2">
-                {activeUsers.map((user) => (
-                  <label
-                    key={user.userId}
-                    className="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 hover:bg-slate-50"
-                  >
-                    <div>
-                      <div className="text-xs font-bold text-slate-800">{user.fullName}</div>
-                      <div className="text-[10px] text-slate-500">
-                        {user.medicalRole || user.role} · {user.unit}
+
+              <div className="space-y-3">
+                {SHIFT_SLOTS.map((slot) => {
+                  const availableUsers = activeUsers.filter(slot.isUserAllowed);
+
+                  return (
+                    <div
+                      key={slot.id}
+                      className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-[180px_1fr] md:items-center">
+                        <div>
+                          <div className="text-xs font-black text-slate-800">
+                            {slot.label}
+                          </div>
+                          <div className="mt-1 text-[10px] leading-4 text-slate-500">
+                            {slot.description}
+                          </div>
+                        </div>
+
+                        <select
+                          value={slotAssignments[slot.id]}
+                          onChange={(event) =>
+                            updateSlotAssignment(slot.id, event.target.value)
+                          }
+                          className="input"
+                        >
+                          <option value="">בחר חייל...</option>
+                          {availableUsers.map((user) => (
+                            <option key={user.userId} value={user.userId}>
+                              {user.fullName}
+                              {user.medicalRole
+                                ? ` — ${user.medicalRole}`
+                                : ""}
+                            </option>
+                          ))}
+                        </select>
                       </div>
+
+                      {availableUsers.length === 0 && (
+                        <div className="mt-2 text-[10px] font-bold text-rose-600">
+                          לא נמצאו משתמשים מתאימים. בדוק שתפקיד הרפואה שלהם
+                          מוגדר נכון בספר הטלפונים.
+                        </div>
+                      )}
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={selectedUserIds.includes(user.userId)}
-                      onChange={() => toggleUser(user.userId)}
-                    />
-                  </label>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -518,7 +774,9 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-bold text-slate-700">{label}</span>
+      <span className="mb-1.5 block text-xs font-bold text-slate-700">
+        {label}
+      </span>
       {children}
     </label>
   );
