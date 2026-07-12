@@ -50,28 +50,9 @@ export interface MedicalRoleConfig {
 
 
 
-export interface GoogleSheetsConfig {
-  enabled: boolean;
-  webAppUrl: string;
-  spreadsheetName?: string;
-  lastTestAt?: string;
-  lastTestStatus?: "success" | "error" | "idle";
-  lastTestMessage?: string;
-  updatedAt?: string;
-  updatedBy?: string;
-  lastSyncAt?: string;
-  lastSyncStatus?: "success" | "partial" | "error" | "idle";
-  lastSyncSentCount?: number;
-  lastSyncFailedCount?: number;
-  lastSyncDurationMs?: number;
-  lastSyncError?: string;
-  lastSyncStartDate?: string;
-  lastSyncEndDate?: string;
-  syncHistory?: GoogleSheetsSyncLog[];
-}
+export type GoogleSheetsSyncStatus = "success" | "partial" | "error" | "idle";
 
-
-export interface GoogleSheetsSyncLog {
+export interface GoogleSheetsSyncHistoryItem {
   id: string;
   startedAt: string;
   completedAt: string;
@@ -80,20 +61,40 @@ export interface GoogleSheetsSyncLog {
   sentCount: number;
   failedCount: number;
   durationMs: number;
-  status: "success" | "partial" | "error";
+  status: Exclude<GoogleSheetsSyncStatus, "idle">;
   errorMessage?: string;
 }
 
 export interface GoogleSheetsSyncResult {
+  status: Exclude<GoogleSheetsSyncStatus, "idle">;
+  sentCount: number;
+  failedCount: number;
+  durationMs: number;
   startedAt: string;
   completedAt: string;
   startDate?: string;
   endDate?: string;
-  sentCount: number;
-  failedCount: number;
-  durationMs: number;
-  status: "success" | "partial" | "error";
   errorMessage?: string;
+}
+
+export interface GoogleSheetsConfig {
+  enabled: boolean;
+  webAppUrl: string;
+  spreadsheetName?: string;
+  lastTestAt?: string;
+  lastTestStatus?: "success" | "error" | "idle";
+  lastTestMessage?: string;
+  lastSyncAt?: string;
+  lastSyncStatus?: GoogleSheetsSyncStatus;
+  lastSyncStartDate?: string;
+  lastSyncEndDate?: string;
+  lastSyncSentCount?: number;
+  lastSyncFailedCount?: number;
+  lastSyncDurationMs?: number;
+  lastSyncError?: string;
+  syncHistory?: GoogleSheetsSyncHistoryItem[];
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 export interface UserProfile {

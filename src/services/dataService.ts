@@ -31,7 +31,7 @@ import {
   RolePermissionConfig,
   GoogleSheetsConfig,
   GoogleSheetsSyncResult,
-  GoogleSheetsSyncLog,
+  GoogleSheetsSyncHistoryItem,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -116,6 +116,8 @@ const DEFAULT_GOOGLE_SHEETS_CONFIG: GoogleSheetsConfig = {
     "https://script.google.com/macros/s/AKfycbzoMH-OzKtGCCWW0rdqaf8TPwlEXoPPSTV3tqjaC4DtFe5o4hVutyzK_FB5HeJRDj_VeQ/exec",
   spreadsheetName: "",
   lastTestStatus: "idle",
+  lastSyncStatus: "idle",
+  syncHistory: [],
 };
 
 const GOOGLE_SHEETS_CONFIG_CACHE_KEY = "idf_google_sheets_config";
@@ -156,15 +158,7 @@ const normalizeGoogleSheetsConfig = (
       typeof raw.lastSyncFailedCount === "number" ? raw.lastSyncFailedCount : 0,
     lastSyncDurationMs:
       typeof raw.lastSyncDurationMs === "number" ? raw.lastSyncDurationMs : 0,
-    lastSyncError:
-      typeof raw.lastSyncError === "string" ? raw.lastSyncError : "",
-    lastSyncStartDate:
-      typeof raw.lastSyncStartDate === "string" ? raw.lastSyncStartDate : "",
-    lastSyncEndDate:
-      typeof raw.lastSyncEndDate === "string" ? raw.lastSyncEndDate : "",
-    syncHistory: Array.isArray(raw.syncHistory)
-      ? raw.syncHistory.slice(0, 20) as GoogleSheetsSyncLog[]
-      : [],
+    syncHistory: Array.isArray(raw.syncHistory) ? raw.syncHistory.slice(0, 20) : [],
   };
 };
 
@@ -1449,25 +1443,64 @@ async createSystemLog(logData: {
   ): Promise<GoogleSheetsSyncResult> {
     const startedAt = new Date().toISOString();
     const startedMs = Date.now();
-    let sentCount = 0;
-    let failedCount = 0;
-    let errorMessage = "";
-
     const googleSheetsConfig = await this.getGoogleSheetsConfig(true);
 
-    if (!googleSheetsConfig.enabled || !googleSheetsConfig.webAppUrl) {
-      const result: GoogleSheetsSyncResult = {
-        startedAt,
-        completedAt: new Date().toISOString(),
-        startDate,
-        endDate,
-        sentCount: 0,
-        failedCount: 0,
-        durationMs: Date.now() - startedMs,
-        status: "error",
-        errorMessage: "הסנכרון כבוי או שלא הוגדרה כתובת Web App.",
+    const buildResult = (
+      status: "success" | "partial" | "error",
+      sentCount: number,
+      failedCount: number,
+      errorMessage?: string
+    ): GoogleSheetsSyncResult => ({
+      status,
+      sentCount,
+      failedCount,
+      durationMs: Date.now() - startedMs,
+      startedAt,
+      completedAt: new Date().toISOString(),
+      startDate,
+      endDate,
+      errorMessage,
+    });
+
+    const persistResult = async (result: GoogleSheetsSyncResult) => {
+      const historyItem: GoogleSheetsSyncHistoryItem = {
+        id: `sheets_sync_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        startedAt: result.startedAt,
+        completedAt: result.completedAt,
+        startDate: result.startDate,
+        endDate: result.endDate,
+        sentCount: result.sentCount,
+        failedCount: result.failedCount,
+        durationMs: result.durationMs,
+        status: result.status,
+        errorMessage: result.errorMessage,
       };
+
+      await this.saveGoogleSheetsConfig(
+        {
+          ...googleSheetsConfig,
+          lastSyncAt: result.completedAt,
+          lastSyncStatus: result.status,
+          lastSyncStartDate: startDate,
+          lastSyncEndDate: endDate,
+          lastSyncSentCount: result.sentCount,
+          lastSyncFailedCount: result.failedCount,
+          lastSyncDurationMs: result.durationMs,
+          lastSyncError: result.errorMessage || "",
+          syncHistory: [historyItem, ...(googleSheetsConfig.syncHistory || [])].slice(0, 20),
+        },
+        auth?.currentUser?.uid || "SYSTEM_SYNC"
+      );
+
       return result;
+    };
+
+    if (!googleSheetsConfig.enabled) {
+      return persistResult(buildResult("error", 0, 0, "הסנכרון ל־Google Sheets כבוי."));
+    }
+
+    if (!googleSheetsConfig.webAppUrl) {
+      return persistResult(buildResult("error", 0, 0, "לא הוגדרה כתובת Google Sheets Web App."));
     }
 
     try {
@@ -1480,200 +1513,132 @@ async createSystemLog(logData: {
 
       const activeReports = reports.filter((report) => {
         if ((report as any).isReset || !report.userId) return false;
-
         const statusConfig = attendanceStatusById.get(report.status);
         if (statusConfig?.exportToSheets === false) return false;
-
-        const reportDate =
-          (report as any).reportDate ||
-          (typeof report.timestamp === "string"
-            ? report.timestamp.split("T")[0]
-            : "");
-
+        const reportDate = (report as any).reportDate ||
+          (typeof report.timestamp === "string" ? report.timestamp.split("T")[0] : "");
         if (!reportDate) return false;
         if (startDate && reportDate < startDate) return false;
         if (endDate && reportDate > endDate) return false;
         return true;
       });
 
-      const latestReportBySoldierAndDate =
-        new Map<string, AttendanceReport>();
-
+      const latestReportBySoldierAndDate = new Map<string, AttendanceReport>();
       activeReports.forEach((report) => {
-        const soldier = users.find(
-          (user) =>
-            user.userId === report.userId ||
-            user.personalId === (report as any).personalId
+        const soldier = users.find((user) =>
+          user.userId === report.userId || user.personalId === (report as any).personalId
         );
-
         const stablePersonalId = getSheetsPersonalId(
           soldier?.personalId,
           (report as any).personalId
         );
-
-        const reportDate =
-          (report as any).reportDate ||
-          (typeof report.timestamp === "string"
-            ? report.timestamp.split("T")[0]
-            : "");
-
+        const reportDate = (report as any).reportDate ||
+          (typeof report.timestamp === "string" ? report.timestamp.split("T")[0] : "");
         if (!stablePersonalId || !reportDate) return;
-
-        const uniqueKey = `${stablePersonalId}_${reportDate}`;
-        const existing = latestReportBySoldierAndDate.get(uniqueKey);
-        const reportTime = new Date(
-          report.updatedAt || report.timestamp || 0
-        ).getTime();
+        const key = `${stablePersonalId}_${reportDate}`;
+        const existing = latestReportBySoldierAndDate.get(key);
+        const reportTime = new Date(report.updatedAt || report.timestamp || 0).getTime();
         const existingTime = existing
           ? new Date(existing.updatedAt || existing.timestamp || 0).getTime()
           : 0;
-
         if (!existing || reportTime >= existingTime) {
-          latestReportBySoldierAndDate.set(uniqueKey, report);
+          latestReportBySoldierAndDate.set(key, report);
         }
       });
 
-      const reportsToSync = Array.from(
-        latestReportBySoldierAndDate.values()
-      ).sort((a, b) => {
-        const aDate = (a as any).reportDate || a.timestamp || "";
-        const bDate = (b as any).reportDate || b.timestamp || "";
-        return aDate.localeCompare(bDate);
-      });
+      const reportsToSync = Array.from(latestReportBySoldierAndDate.values());
+      if (reportsToSync.length === 0) {
+        return persistResult(buildResult("success", 0, 0));
+      }
 
-      for (const report of reportsToSync) {
-        const soldier = users.find(
-          (user) =>
-            user.userId === report.userId ||
-            user.personalId === (report as any).personalId
-        );
+      const userById = new Map(users.map((user) => [user.userId, user]));
+      const userByPersonalId = new Map(
+        users.filter((user) => !!user.personalId).map((user) => [String(user.personalId), user])
+      );
 
+      const createPayload = (report: AttendanceReport) => {
+        const soldier = userById.get(report.userId) ||
+          userByPersonalId.get(String((report as any).personalId || ""));
         const stablePersonalId = getSheetsPersonalId(
           soldier?.personalId,
           (report as any).personalId
         );
+        const reportDate = (report as any).reportDate ||
+          (typeof report.timestamp === "string" ? report.timestamp.split("T")[0] : "");
+        if (!stablePersonalId || !reportDate) return null;
 
-        const reportDate =
-          (report as any).reportDate ||
-          (typeof report.timestamp === "string"
-            ? report.timestamp.split("T")[0]
-            : "");
-
-        if (!stablePersonalId || !reportDate) {
-          failedCount += 1;
-          continue;
-        }
-
-        const markerText =
-          report.dayMarker === "return_to_base"
-            ? "חזרה לבסיס"
-            : report.dayMarker === "exit_home"
-            ? "יציאה לבית"
-            : report.dayMarker === "after_hours"
-            ? `אפטר ${report.afterHours || ""} שעות`
-            : "";
-
-        const statusText =
-          attendanceStatusById.get(report.status)?.label ||
-          ATTENDANCE_STATUS_LABELS[report.status]?.label ||
-          report.status;
-
+        const markerText = report.dayMarker === "return_to_base"
+          ? "חזרה לבסיס"
+          : report.dayMarker === "exit_home"
+          ? "יציאה לבית"
+          : report.dayMarker === "after_hours"
+          ? `אפטר ${report.afterHours || ""} שעות`
+          : "";
+        const statusText = attendanceStatusById.get(report.status)?.label ||
+          ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status;
         const [year, month, day] = reportDate.split("-");
-        const formattedDate =
-          year && month && day
-            ? `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`
-            : reportDate;
+        const formattedDate = year && month && day
+          ? `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`
+          : reportDate;
 
+        return {
+          personalId: stablePersonalId,
+          fullName: soldier?.fullName || report.userName || "",
+          medicalRole: soldier?.medicalRole || "",
+          role: soldier?.medicalRole || "",
+          phone: soldier?.phoneNumber || "",
+          date: formattedDate,
+          cellValue: markerText ? `${statusText}/${markerText}` : statusText,
+          reportId: report.reportId,
+        };
+      };
+
+      const fetchWithTimeout = async (payload: Record<string, unknown>) => {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 12000);
         try {
           await fetch(googleSheetsConfig.webAppUrl, {
             method: "POST",
             mode: "no-cors",
-            headers: {
-              "Content-Type": "text/plain;charset=utf-8",
-            },
-            body: JSON.stringify({
-              personalId: stablePersonalId,
-              fullName: soldier?.fullName || report.userName || "",
-              medicalRole: soldier?.medicalRole || "",
-              role: soldier?.medicalRole || "",
-              phone: soldier?.phoneNumber || "",
-              date: formattedDate,
-              cellValue: markerText
-                ? `${statusText}/${markerText}`
-                : statusText,
-              reportId: report.reportId,
-            }),
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
           });
-          sentCount += 1;
+          return true;
         } catch (error) {
-          failedCount += 1;
-          errorMessage =
-            error instanceof Error ? error.message : "שגיאה בשליחת דיווח";
-          console.warn(
-            "Google Sheets historical sync failed:",
-            report.reportId,
-            error
-          );
+          console.warn("Google Sheets historical sync failed:", error);
+          return false;
+        } finally {
+          window.clearTimeout(timeoutId);
         }
+      };
 
-        await new Promise((resolve) => setTimeout(resolve, 250));
+      let sentCount = 0;
+      let failedCount = 0;
+      const batchSize = 5;
+      for (let index = 0; index < reportsToSync.length; index += batchSize) {
+        const batch = reportsToSync.slice(index, index + batchSize);
+        const results = await Promise.all(
+          batch.map(async (report) => {
+            const payload = createPayload(report);
+            return payload ? fetchWithTimeout(payload) : false;
+          })
+        );
+        sentCount += results.filter(Boolean).length;
+        failedCount += results.filter((success) => !success).length;
       }
+
+      const status = failedCount === 0 ? "success" : sentCount > 0 ? "partial" : "error";
+      return persistResult(buildResult(
+        status,
+        sentCount,
+        failedCount,
+        status === "error" ? "כל הדיווחים נכשלו בשליחה." : undefined
+      ));
     } catch (error) {
-      errorMessage =
-        error instanceof Error ? error.message : "סנכרון Google Sheets נכשל.";
-      failedCount = Math.max(failedCount, 1);
+      const message = error instanceof Error ? error.message : "הסנכרון נכשל.";
+      return persistResult(buildResult("error", 0, 0, message));
     }
-
-    const completedAt = new Date().toISOString();
-    const status: GoogleSheetsSyncResult["status"] =
-      failedCount === 0
-        ? "success"
-        : sentCount > 0
-        ? "partial"
-        : "error";
-
-    const result: GoogleSheetsSyncResult = {
-      startedAt,
-      completedAt,
-      startDate,
-      endDate,
-      sentCount,
-      failedCount,
-      durationMs: Date.now() - startedMs,
-      status,
-      errorMessage: errorMessage || undefined,
-    };
-
-    const syncLog: GoogleSheetsSyncLog = {
-      id: `sync_${Date.now()}`,
-      ...result,
-    };
-
-    try {
-      const latestConfig = await this.getGoogleSheetsConfig(true);
-      await this.saveGoogleSheetsConfig(
-        {
-          ...latestConfig,
-          lastSyncAt: completedAt,
-          lastSyncStatus: status,
-          lastSyncSentCount: sentCount,
-          lastSyncFailedCount: failedCount,
-          lastSyncDurationMs: result.durationMs,
-          lastSyncError: errorMessage,
-          lastSyncStartDate: startDate || "",
-          lastSyncEndDate: endDate || "",
-          syncHistory: [
-            syncLog,
-            ...(latestConfig.syncHistory || []),
-          ].slice(0, 20),
-        },
-        auth?.currentUser?.uid || "SYSTEM_SYNC"
-      );
-    } catch (saveError) {
-      console.warn("Failed saving Google Sheets sync summary:", saveError);
-    }
-
-    return result;
   },
 
   async fetchReportsByUser(userId: string): Promise<AttendanceReport[]> {
