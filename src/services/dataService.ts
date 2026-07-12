@@ -162,6 +162,24 @@ const normalizeGoogleSheetsConfig = (
   };
 };
 
+const removeUndefinedValues = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item) => item !== undefined)
+      .map((item) => removeUndefinedValues(item)) as T;
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, item]) => item !== undefined)
+        .map(([key, item]) => [key, removeUndefinedValues(item)])
+    ) as T;
+  }
+
+  return value;
+};
+
 const saveGoogleSheetsConfigToCache = (config: GoogleSheetsConfig) => {
   localStorage.setItem(GOOGLE_SHEETS_CONFIG_CACHE_KEY, JSON.stringify(config));
   localStorage.setItem(GOOGLE_SHEETS_CONFIG_CACHE_TIME_KEY, String(Date.now()));
@@ -718,9 +736,11 @@ export const dataService = {
     const path = "settings/google_sheets";
 
     try {
+      const firestoreSafeConfig = removeUndefinedValues(normalized);
+
       await setDoc(
         doc(db, "settings", "google_sheets"),
-        normalized,
+        firestoreSafeConfig,
         { merge: true }
       );
       saveGoogleSheetsConfigToCache(normalized);
