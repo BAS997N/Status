@@ -71,6 +71,8 @@ export interface SystemSettingsConfig {
   reportingEnabled: boolean;
   reportingClosedMessage: string;
   reportingClosedAllowedRoles: SystemRole[];
+  shiftsEnabled: boolean;
+  shiftsClosedMessage: string;
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -198,8 +200,6 @@ export type ShiftStatus = "scheduled" | "cancelled";
 export type ShiftReadStatus = "unread" | "read";
 
 export interface ShiftAssignment {
-  slotId?: string;
-  slotLabel?: string;
   userId: string;
   userName: string;
   personalId?: string;

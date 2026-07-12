@@ -55,7 +55,7 @@ const isDoctorOrParamedic = (user: UserProfile) =>
   includesAny(user.medicalRole, ["רופא", "פרמדיק", "פארמדיק"]);
 
 const isEventManager = (user: UserProfile) =>
-  includesAny(user.medicalRole, ["מנהל אירוע"]);
+  includesAny(user.medicalRole, ["מנהל/ת אירוע"]);
 
 const isCommander = (user: UserProfile) =>
   user.role === "commander" ||
@@ -566,7 +566,13 @@ export default function ShiftsView({
                             <span className="font-bold text-slate-600">
                               {slot.label}:
                             </span>
-                            <span className="text-left font-black text-slate-900">
+                            <span
+                              className={`text-left text-slate-900 ${
+                                assignment?.userId === currentUser.userId
+                                  ? "font-black text-base underline decoration-indigo-300 decoration-2 underline-offset-4"
+                                  : "font-bold"
+                              }`}
+                            >
                               {assignment?.userName || "לא שובץ"}
                             </span>
                           </div>

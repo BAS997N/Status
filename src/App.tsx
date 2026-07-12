@@ -1932,11 +1932,29 @@ const handleAdminSaveReport = async (reportData: {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.15 }}
             >
-              <ShiftsView
-                currentUser={userProfile}
-                allUsers={allUsers}
-                canManage={canManageShifts}
-              />
+              {systemSettings?.shiftsEnabled === false ? (
+                <section
+                  dir="rtl"
+                  className="rounded-3xl border border-indigo-200 bg-gradient-to-l from-indigo-50 to-white p-8 text-center shadow-sm"
+                >
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
+                    <CalendarDays className="h-7 w-7" />
+                  </div>
+                  <h2 className="mt-4 text-xl font-black text-slate-900">
+                    מסך המשמרות סגור כעת
+                  </h2>
+                  <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+                    {systemSettings?.shiftsClosedMessage ||
+                      "מסך המשמרות אינו זמין כעת. יש להתעדכן מול המפקד."}
+                  </p>
+                </section>
+              ) : (
+                <ShiftsView
+                  currentUser={userProfile}
+                  allUsers={allUsers}
+                  canManage={canManageShifts}
+                />
+              )}
             </motion.div>
           ) : activeTab === "reporter" && canViewReporter ? (
             <motion.div

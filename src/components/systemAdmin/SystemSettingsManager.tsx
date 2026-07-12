@@ -35,6 +35,8 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   reportingEnabled: true,
   reportingClosedMessage: "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
   reportingClosedAllowedRoles: ["super_admin", "admin"],
+  shiftsEnabled: true,
+  shiftsClosedMessage: "מסך המשמרות אינו זמין כעת. יש להתעדכן מול המפקד.",
 };
 
 const SYSTEM_ROLE_OPTIONS: Array<{
@@ -277,6 +279,25 @@ export default function SystemSettingsManager({
                 )
               }
             />
+          </div>
+
+          <div className="rounded-xl border border-indigo-200 bg-white p-4">
+            <Toggle
+              label="מסך משמרות פעיל"
+              description="כאשר האפשרות כבויה, לשונית המשמרות נשארת מוצגת אך תוכן המסך מוחלף בהודעה שהוגדרה."
+              checked={draft.shiftsEnabled}
+              onChange={(value) => update("shiftsEnabled", value)}
+            />
+            <div className="mt-4">
+              <Field label="הודעה כאשר מסך המשמרות סגור">
+                <textarea
+                  rows={3}
+                  value={draft.shiftsClosedMessage}
+                  onChange={(e) => update("shiftsClosedMessage", e.target.value)}
+                  className="input resize-y"
+                />
+              </Field>
+            </div>
           </div>
         </div>
       </section>

@@ -138,6 +138,8 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   reportingEnabled: true,
   reportingClosedMessage: "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
   reportingClosedAllowedRoles: ["super_admin", "admin"],
+  shiftsEnabled: true,
+  shiftsClosedMessage: "מסך המשמרות אינו זמין כעת. יש להתעדכן מול המפקד.",
 };
 
 const SYSTEM_SETTINGS_CACHE_KEY = "idf_system_settings";
@@ -200,6 +202,12 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
       raw.reportingClosedAllowedRoles,
       DEFAULT_SYSTEM_SETTINGS.reportingClosedAllowedRoles
     ),
+    shiftsEnabled: raw.shiftsEnabled !== false,
+    shiftsClosedMessage:
+      typeof raw.shiftsClosedMessage === "string" &&
+      raw.shiftsClosedMessage.trim()
+        ? raw.shiftsClosedMessage.trim()
+        : DEFAULT_SYSTEM_SETTINGS.shiftsClosedMessage,
   };
 };
 
