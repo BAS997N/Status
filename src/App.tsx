@@ -994,10 +994,10 @@ setUserProfile(newProfile);
 ) => {
   if (!userProfile) return;
 
-  if (systemSettings?.attendanceReportingEnabled === false) {
+  if (systemSettings?.reportingEnabled === false) {
     showAppMessage(
       "הדיווחים סגורים כעת",
-      systemSettings.attendanceReportingDisabledMessage ||
+      systemSettings.reportingClosedMessage ||
         "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
       "info"
     );
@@ -1669,6 +1669,17 @@ const handleAdminSaveReport = async (reportData: {
     );
   }
 
+  const isMaintenanceBlocked =
+    systemSettings?.maintenanceMode === true && !isSuperAdmin;
+
+  const maintenanceDisplayMessage =
+    systemSettings?.maintenanceMessage ||
+    "המערכת נמצאת כרגע בתחזוקה. נסו שוב מאוחר יותר.";
+
+  const reportingDisplayMessage =
+    systemSettings?.reportingClosedMessage ||
+    "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.";
+
   return (
     <div id="full-idf-app-interface" className="min-h-screen bg-military-50 flex flex-col pb-12">
       {/* Floating Toast Notification Popups */}
@@ -1723,12 +1734,27 @@ const handleAdminSaveReport = async (reportData: {
         systemSettings={systemSettings}
       />
 
-      {systemSettings?.maintenanceMode && (
-        <div dir="rtl" className="border-b border-amber-300 bg-amber-100 px-4 py-3 text-center text-sm font-bold text-amber-900">
-          {systemSettings.maintenanceMessage}
-        </div>
-      )}
-
+      {isMaintenanceBlocked ? (
+        <main
+          dir="rtl"
+          className="mx-auto flex w-full max-w-4xl flex-grow items-center justify-center px-4 py-10 sm:px-6"
+        >
+          <section className="w-full rounded-3xl border border-amber-200 bg-white p-8 text-center shadow-xl">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+              <AlertTriangle className="h-8 w-8" />
+            </div>
+            <h1 className="mt-5 text-2xl font-black text-slate-900">
+              המערכת נמצאת במצב תחזוקה
+            </h1>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+              {maintenanceDisplayMessage}
+            </p>
+            <p className="mt-5 text-xs font-bold text-slate-400">
+              נסו להיכנס שוב מאוחר יותר.
+            </p>
+          </section>
+        </main>
+      ) : (
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 w-full flex-grow">
         
         {/* Firebase Account Logging Ribbon */}
@@ -1796,36 +1822,7 @@ const handleAdminSaveReport = async (reportData: {
         )}
 
         <AnimatePresence mode="wait">
-          {systemSettings?.maintenanceMode && !isSuperAdmin ? (
-            <motion.div
-              key="maintenance-mode"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.15 }}
-              dir="rtl"
-              className="mx-auto max-w-2xl rounded-3xl border border-amber-200 bg-gradient-to-b from-amber-50 to-white p-8 text-center shadow-lg"
-            >
-              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-                <AlertTriangle className="h-9 w-9" />
-              </div>
-              <h2 className="text-2xl font-black text-slate-900">
-                המערכת נמצאת בתחזוקה
-              </h2>
-              <p className="mx-auto mt-3 max-w-xl text-sm font-medium leading-7 text-slate-600">
-                {systemSettings.maintenanceMessage ||
-                  "המערכת נמצאת כרגע בתחזוקה. נסו שוב מאוחר יותר."}
-              </p>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="mt-6 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-              >
-                <LogOut className="h-4 w-4" />
-                יציאה מהמערכת
-              </button>
-            </motion.div>
-          ) : activeTab === "system_admin" && isSuperAdmin ? (
+          {activeTab === "system_admin" && isSuperAdmin ? (
             <motion.div
               key="system-admin-tab"
               initial={{ opacity: 0, y: 15 }}
@@ -1856,25 +1853,21 @@ const handleAdminSaveReport = async (reportData: {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.15 }}
             >
-              {systemSettings?.attendanceReportingEnabled === false ? (
-                <div
+              {systemSettings?.reportingEnabled === false ? (
+                <section
                   dir="rtl"
-                  className="mx-auto max-w-2xl rounded-3xl border border-sky-200 bg-gradient-to-b from-sky-50 to-white p-8 text-center shadow-sm"
+                  className="rounded-3xl border border-sky-200 bg-gradient-to-l from-sky-50 to-white p-8 text-center shadow-sm"
                 >
-                  <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
-                    <Info className="h-9 w-9" />
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                    <Info className="h-7 w-7" />
                   </div>
-                  <h2 className="text-2xl font-black text-slate-900">
+                  <h2 className="mt-4 text-xl font-black text-slate-900">
                     דיווחי הנוכחות סגורים כעת
                   </h2>
-                  <p className="mx-auto mt-3 max-w-xl text-sm font-medium leading-7 text-slate-600">
-                    {systemSettings.attendanceReportingDisabledMessage ||
-                      "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס."}
+                  <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+                    {reportingDisplayMessage}
                   </p>
-                  <div className="mt-5 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-bold text-sky-800">
-                    אין צורך לבצע דיווח עד להפעלה מחדש על ידי מנהל המערכת.
-                  </div>
-                </div>
+                </section>
               ) : (
                 <SoldierReporter
                   currentUser={userProfile}
@@ -1918,6 +1911,7 @@ const handleAdminSaveReport = async (reportData: {
         </AnimatePresence>
 
       </main>
+      )}
       <AppMessageModal
         isOpen={Boolean(appMessage)}
         title={appMessage?.title || ""}

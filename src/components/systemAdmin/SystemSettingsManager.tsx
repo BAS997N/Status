@@ -31,9 +31,8 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   autoRefreshSeconds: 60,
   maintenanceMode: false,
   maintenanceMessage: "המערכת נמצאת כרגע בתחזוקה. נסו שוב מאוחר יותר.",
-  attendanceReportingEnabled: true,
-  attendanceReportingDisabledMessage:
-    "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
+  reportingEnabled: true,
+  reportingClosedMessage: "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
 };
 
 export default function SystemSettingsManager({
@@ -177,7 +176,7 @@ export default function SystemSettingsManager({
           <div className="rounded-xl border border-amber-200 bg-white p-4">
             <Toggle
               label="מצב תחזוקה מלא"
-              description="חוסם את המערכת לכל המשתמשים, למעט מנהל האתר, ומציג את הודעת התחזוקה."
+              description="חוסם את כל חלקי המערכת למשתמשים רגילים. מנהל האתר עדיין יכול להיכנס לניהול ולבטל את המצב."
               checked={draft.maintenanceMode}
               onChange={(value) => update("maintenanceMode", value)}
             />
@@ -196,18 +195,16 @@ export default function SystemSettingsManager({
           <div className="rounded-xl border border-sky-200 bg-white p-4">
             <Toggle
               label="קבלת דיווחי נוכחות"
-              description="כאשר האפשרות כבויה, רק עמוד הדיווח האישי מוחלף בהודעה. לוח הבקרה ושאר המערכת ממשיכים לפעול."
-              checked={draft.attendanceReportingEnabled}
-              onChange={(value) => update("attendanceReportingEnabled", value)}
+              description="כאשר האפשרות כבויה, רק עמוד הדיווח האישי מוחלף בהודעה. לוח הבקרה ושאר המערכת נשארים זמינים."
+              checked={draft.reportingEnabled}
+              onChange={(value) => update("reportingEnabled", value)}
             />
             <div className="mt-4">
               <Field label="הודעה כאשר הדיווחים סגורים">
                 <textarea
                   rows={3}
-                  value={draft.attendanceReportingDisabledMessage}
-                  onChange={(e) =>
-                    update("attendanceReportingDisabledMessage", e.target.value)
-                  }
+                  value={draft.reportingClosedMessage}
+                  onChange={(e) => update("reportingClosedMessage", e.target.value)}
                   className="input resize-y"
                 />
               </Field>

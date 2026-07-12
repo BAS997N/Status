@@ -7,60 +7,74 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function hasUserDocument() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function myUser() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
     function myRole() {
-      return myUser().data.role;
+      return hasUserDocument() ? myUser().data.role : null;
     }
 
-    function isCommander() {
-      return signedIn() && myRole() == "commander";
+    function mySystemRole() {
+      return hasUserDocument() ? myUser().data.systemRole : null;
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        myRole() == "commander" ||
+        mySystemRole() == "admin" ||
+        mySystemRole() == "super_admin"
+      );
     }
 
     match /users/{userId} {
-  allow read: if true;
+      allow read: if signedIn();
+      allow create: if signedIn() && (
+        request.auth.uid == userId || isAdmin()
+      );
+      allow update, delete: if isAdmin();
+    }
 
-  allow create: if signedIn() && (
-    request.auth.uid == userId || isCommander()
-  );
-
-  allow update, delete: if isCommander();
-}
     match /settings/{docId} {
-  allow read: if true;
-  allow write: if isCommander();
-}
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
 
     match /attendance/{reportId} {
-      allow read, create: if signedIn();
-      allow update, delete: if isCommander();
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin();
     }
 
     match /attendance_logs/{logId} {
       allow read, create: if signedIn();
-      allow update, delete: if isCommander();
+      allow update, delete: if isAdmin();
     }
 
     match /reports/{reportId} {
       allow read, create: if signedIn();
-      allow update, delete: if isCommander();
+      allow update, delete: if isAdmin();
     }
 
     match /notifications/{notificationId} {
       allow read, create: if signedIn();
-      allow update, delete: if isCommander();
+      allow update, delete: if isAdmin();
     }
 
     match /system_logs/{logId} {
       allow read, create: if signedIn();
-      allow update, delete: if isCommander();
+      allow update, delete: if isAdmin();
     }
 
-match /server_clock/{userId} {
-  allow read, write: if request.auth != null && request.auth.uid == userId;
-}
+    match /server_clock/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
