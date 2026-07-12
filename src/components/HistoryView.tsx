@@ -207,9 +207,9 @@ const getActionTypeLabel = (rep: AttendanceReport, relatedLog?: any) => {
   return "דיווח ישן / לא ידוע";
 };
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="min-w-0 space-y-6" dir="rtl">
       <div className="bg-white p-6 rounded-xl border border-slate-200">
-        <div className="space-y-3 mb-4">
+        <div className="min-w-0 space-y-3 mb-4">
   <div className="flex items-center justify-between gap-3">
     <h2 className="text-lg font-black">היסטוריית דיווחים</h2>
 
@@ -322,7 +322,7 @@ const getActionTypeLabel = (rep: AttendanceReport, relatedLog?: any) => {
   </div>
 </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <section>
             <h3 className="text-md font-bold mb-3 flex items-center gap-2">
               <Clock className="w-4 h-4" />
@@ -332,7 +332,7 @@ const getActionTypeLabel = (rep: AttendanceReport, relatedLog?: any) => {
             {filteredReports.length === 0 ? (
               <p className="text-sm text-slate-500">אין דיווחים</p>
             ) : (
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+              <div className="custom-scrollbar max-w-full overflow-x-auto border border-slate-200 rounded-xl">
                 <table className="w-full text-xs text-right">
   <thead className="bg-slate-100 text-slate-600 font-black">
     <tr>
@@ -493,7 +493,7 @@ const reportDateText = reportDay
             {filteredLogs.length === 0 ? (
               <p className="text-sm text-slate-500">אין עריכות</p>
             ) : (
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 {filteredLogs.map((log, idx) => (
                   <div key={idx} className="p-3 border border-slate-200 rounded-lg text-sm bg-slate-50">
                     <div className="font-bold text-slate-700">

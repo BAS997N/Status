@@ -53,6 +53,39 @@ export interface MedicalRoleConfig {
 
 export type DefaultStartScreen = "reporter" | "dashboard";
 
+export type SystemMode = "routine" | "operational" | "emergency";
+
+export type EmergencyResponseStatus =
+  | "acknowledged"
+  | "on_the_way"
+  | "arrived"
+  | "unavailable"
+  | "needs_help";
+
+export interface EmergencyResponse {
+  responseId: string;
+  userId: string;
+  userName: string;
+  personalId?: string;
+  status: EmergencyResponseStatus;
+  note?: string;
+  updatedAt: string;
+}
+
+export interface EmergencyEventConfig {
+  active: boolean;
+  eventId: string;
+  title: string;
+  message: string;
+  assemblyLocation: string;
+  assemblyTime: string;
+  activatedAt?: string;
+  activatedBy?: string;
+  activatedByName?: string;
+  closedAt?: string;
+  closedBy?: string;
+}
+
 export interface SystemSettingsConfig {
   systemName: string;
   unitName: string;
@@ -73,6 +106,11 @@ export interface SystemSettingsConfig {
   reportingClosedAllowedRoles: SystemRole[];
   shiftsEnabled: boolean;
   shiftsClosedMessage: string;
+  systemMode: SystemMode;
+  operationalMessage: string;
+  emergencyEvent: EmergencyEventConfig;
+  adminTabOrder: string[];
+  mainTabOrder: string[];
   updatedAt?: string;
   updatedBy?: string;
 }

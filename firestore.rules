@@ -87,6 +87,13 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    match /emergency_responses/{responseId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
 
     match /shift_acknowledgements/{ackId} {
       allow read: if signedIn() && (

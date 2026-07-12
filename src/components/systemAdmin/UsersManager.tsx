@@ -131,7 +131,7 @@ export default function UsersManager({
   };
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="min-w-0 space-y-4" dir="rtl">
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -177,7 +177,7 @@ export default function UsersManager({
       )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+        <div className="custom-scrollbar max-w-full overflow-x-auto">
           <table className="min-w-full text-right text-xs">
             <thead className="bg-slate-50 text-slate-600">
               <tr>

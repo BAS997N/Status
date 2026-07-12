@@ -24,6 +24,8 @@ export const PERMISSION_DEFINITIONS = [
   { id: "soldiers.delete", label: "מחיקת חיילים", category: "חיילים" },
   { id: "shifts.view", label: "צפייה במשמרות", category: "משמרות" },
   { id: "shifts.manage", label: "יצירה, עריכה ומחיקת משמרות", category: "משמרות" },
+  { id: "emergency.view", label: "צפייה במרכז חירום", category: "חירום" },
+  { id: "emergency.manage", label: "הפעלה וניהול של מצב חירום", category: "חירום" },
   { id: "sheets.export", label: "ייצוא ל־Google Sheets", category: "ייצוא" },
   { id: "system_admin.view", label: "כניסה לניהול מערכת", category: "ניהול מערכת" },
   { id: "system_admin.statuses.manage", label: "ניהול סטטוסים", category: "ניהול מערכת" },

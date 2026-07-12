@@ -8,7 +8,7 @@ import {
   Settings,
   ShieldAlert,
 } from "lucide-react";
-import { SystemRole, SystemSettingsConfig, UserProfile } from "../../types";
+import { SystemMode, SystemRole, SystemSettingsConfig, UserProfile } from "../../types";
 import { dataService } from "../../services/dataService";
 
 interface SystemSettingsManagerProps {
@@ -37,6 +37,18 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   reportingClosedAllowedRoles: ["super_admin", "admin"],
   shiftsEnabled: true,
   shiftsClosedMessage: "מסך המשמרות אינו זמין כעת. יש להתעדכן מול המפקד.",
+  systemMode: "routine",
+  operationalMessage: "המערכת פועלת במצב מבצעי.",
+  emergencyEvent: {
+    active: false,
+    eventId: "",
+    title: "מצב חירום",
+    message: "",
+    assemblyLocation: "",
+    assemblyTime: "",
+  },
+  adminTabOrder: [],
+  mainTabOrder: [],
 };
 
 const SYSTEM_ROLE_OPTIONS: Array<{
@@ -108,6 +120,44 @@ export default function SystemSettingsManager({
         [key]: nextRoles,
       };
     });
+    setMessage(null);
+  };
+
+  const updateEmergency = (
+    key: keyof SystemSettingsConfig["emergencyEvent"],
+    value: string | boolean
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      emergencyEvent: {
+        ...current.emergencyEvent,
+        [key]: value,
+      },
+    }));
+    setMessage(null);
+  };
+
+  const setSystemMode = (mode: SystemMode) => {
+    setDraft((current) => ({
+      ...current,
+      systemMode: mode,
+      emergencyEvent:
+        mode === "emergency"
+          ? {
+              ...current.emergencyEvent,
+              active: true,
+              eventId:
+                current.emergencyEvent.eventId ||
+                `emergency_${Date.now()}`,
+              activatedAt: new Date().toISOString(),
+              activatedBy: currentUser.userId,
+              activatedByName: currentUser.fullName,
+            }
+          : {
+              ...current.emergencyEvent,
+              active: false,
+            },
+    }));
     setMessage(null);
   };
 
@@ -223,6 +273,85 @@ export default function SystemSettingsManager({
         </div>
 
         <div className="space-y-4">
+          <div className="rounded-xl border border-red-200 bg-white p-4">
+            <div className="text-xs font-black text-slate-900">מצב עבודה של המערכת</div>
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {[
+                { value: "routine", label: "שגרה", description: "עבודה רגילה" },
+                { value: "operational", label: "מבצעי", description: "הדגשת נוכחות ומשמרות" },
+                { value: "emergency", label: "חירום", description: "הפעלת מרכז חירום והקפצה" },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setSystemMode(option.value as SystemMode)}
+                  className={`rounded-xl border p-3 text-right transition ${
+                    draft.systemMode === option.value
+                      ? option.value === "emergency"
+                        ? "border-red-400 bg-red-50"
+                        : option.value === "operational"
+                        ? "border-orange-400 bg-orange-50"
+                        : "border-emerald-400 bg-emerald-50"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="text-xs font-black text-slate-900">{option.label}</div>
+                  <div className="mt-1 text-[10px] text-slate-500">{option.description}</div>
+                </button>
+              ))}
+            </div>
+
+            {draft.systemMode === "operational" && (
+              <div className="mt-4">
+                <Field label="הודעת מצב מבצעי">
+                  <textarea
+                    rows={2}
+                    value={draft.operationalMessage}
+                    onChange={(e) => update("operationalMessage", e.target.value)}
+                    className="input resize-y"
+                  />
+                </Field>
+              </div>
+            )}
+
+            {draft.systemMode === "emergency" && (
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field label="כותרת אירוע">
+                  <input
+                    value={draft.emergencyEvent.title}
+                    onChange={(e) => updateEmergency("title", e.target.value)}
+                    className="input"
+                  />
+                </Field>
+                <Field label="מיקום התייצבות">
+                  <input
+                    value={draft.emergencyEvent.assemblyLocation}
+                    onChange={(e) => updateEmergency("assemblyLocation", e.target.value)}
+                    className="input"
+                  />
+                </Field>
+                <Field label="שעת התייצבות">
+                  <input
+                    type="datetime-local"
+                    value={draft.emergencyEvent.assemblyTime}
+                    onChange={(e) => updateEmergency("assemblyTime", e.target.value)}
+                    className="input"
+                  />
+                </Field>
+                <div className="md:col-span-2">
+                  <Field label="הודעת הקפצה">
+                    <textarea
+                      rows={4}
+                      value={draft.emergencyEvent.message}
+                      onChange={(e) => updateEmergency("message", e.target.value)}
+                      className="input resize-y"
+                    />
+                  </Field>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="rounded-xl border border-amber-200 bg-white p-4">
             <Toggle
               label="מצב תחזוקה מלא"

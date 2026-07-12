@@ -100,17 +100,17 @@ export default function Header({
   });
 
   return (
-    <header id="app-header" className="bg-military-800 text-white shadow-md border-b-4 border-military-600 relative">
-      <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+    <header id="app-header" className="relative max-w-full overflow-x-hidden border-b-4 border-military-600 bg-military-800 text-white shadow-md">
+      <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           
           {/* Main Title & Clock */}
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="p-2.5 bg-military-600 rounded-lg flex items-center justify-center border border-military-500 shadow-inner">
               <Shield className="w-8 h-8 text-military-100 animate-pulse" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-military-100 flex items-center gap-2">
+              <h1 className="flex flex-wrap items-center gap-2 text-xl font-bold tracking-tight text-military-100 sm:text-2xl">
                 {systemSettings?.systemName || "מערכת נוכחות חיילים"}
                 <span className="text-xs bg-military-600 font-normal px-2.5 py-0.5 rounded-full border border-military-400">
                   {systemSettings?.unitName || "תאג״ד 997"}
@@ -123,7 +123,7 @@ export default function Header({
           </div>
 
           {/* Quick Stats & Config Badges */}
-          <div className="flex flex-wrap items-center gap-2 md:self-center">
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center md:self-center">
             
             {/* Database Engine Status */}
             <div className={`text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-colors duration-300 ${

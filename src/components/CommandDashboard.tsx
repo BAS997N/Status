@@ -1354,7 +1354,7 @@ const dates = getDateRange(startDate, endDate);
 });
   
   return (
-    <div id="commander-dashboard" className="space-y-6">
+    <div id="commander-dashboard" className="min-w-0 space-y-6">
       
       {/* Sub-Dashboard Tab Selection */}
       <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-sm mr-auto gap-1 w-full" dir="rtl">
@@ -1482,7 +1482,7 @@ const dates = getDateRange(startDate, endDate);
           {/* Header Card */}
           <div className="md:col-span-2 bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-md relative overflow-hidden">
             <div className="absolute top-0 left-0 w-32 h-32 bg-amber-500/15 rounded-full blur-2xl pointer-events-none"></div>
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
               <h2 className="text-lg font-black text-slate-100 flex items-center gap-2">
                 <span>⚙️ ניהול הגדרות שיוך רפואי ותפקידים</span>
               </h2>
@@ -1504,7 +1504,7 @@ const dates = getDateRange(startDate, endDate);
               </span>
             </div>
 
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+            <div className="min-w-0 space-y-2 max-h-[300px] overflow-y-auto pr-1">
               {medicalUnits.map((unit, index) => (
                 <div key={index} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold transition">
                   <input
@@ -1576,7 +1576,7 @@ const dates = getDateRange(startDate, endDate);
               </span>
             </div>
 
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+            <div className="min-w-0 space-y-2 max-h-[300px] overflow-y-auto pr-1">
               {customRoles.map((role, index) => (
                 <div key={index} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold transition">
                   <input
@@ -1704,7 +1704,7 @@ const dates = getDateRange(startDate, endDate);
     </button>
   </div>
 </div>
-    <div className="overflow-x-auto">
+    <div className="custom-scrollbar max-w-full overflow-x-auto">
       <table className="min-w-[900px] w-full text-xs text-right">
         <thead className="bg-slate-50 text-slate-600 font-black">
           <tr>
@@ -1837,7 +1837,7 @@ const dates = getDateRange(startDate, endDate);
   </div>
 </div>
     
-    <div className="overflow-x-auto">
+    <div className="custom-scrollbar max-w-full overflow-x-auto">
       <table className="w-full text-xs text-right">
         <thead className="bg-slate-50 text-slate-600 font-black">
           <tr>
@@ -1886,7 +1886,7 @@ const dates = getDateRange(startDate, endDate);
     </div>
   </div>
 ) : dashboardTab === "summary" && canViewSummary ? (
-  <div className="space-y-4 text-right" dir="rtl">
+  <div className="min-w-0 space-y-4 text-right" dir="rtl">
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
       <h2 className="text-lg font-black text-slate-800 mb-2">
         סיכום נוכחות חיילים
@@ -2565,7 +2565,7 @@ const soldierReports = Array.from(latestReportByDate.values());
   </div>
 
   {!isBaseVsOutsideCardCollapsed && (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       {(() => {
         const inBaseCount = (statusStats.base || 0);
         const outsideBaseCount = totalSoldiersCount - inBaseCount;
@@ -2584,7 +2584,7 @@ const soldierReports = Array.from(latestReportByDate.values());
           circumference - (outsideBasePercentage / 100) * circumference;
 
         return (
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <div className="flex items-center justify-around py-2">
               <div className="flex flex-col items-center gap-1.5">
                 <div className="relative w-20 h-20 flex items-center justify-center">
@@ -2657,7 +2657,7 @@ const soldierReports = Array.from(latestReportByDate.values());
               </div>
             </div>
 
-            <div className="space-y-2 border-t border-slate-100 pt-3 text-[11px] font-medium leading-relaxed text-slate-500 text-right">
+            <div className="min-w-0 space-y-2 border-t border-slate-100 pt-3 text-[11px] font-medium leading-relaxed text-slate-500 text-right">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
@@ -2691,7 +2691,7 @@ const soldierReports = Array.from(latestReportByDate.values());
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-1"></span>
-                  <div className="space-y-0.5">
+                  <div className="min-w-0 space-y-0.5">
                     <span>מחוץ לבסיס / לא זמינים:</span>
                     <span className="block text-[9px] text-slate-400 leading-tight">
                       כולל {(statusStats.field || 0)} בשטח, {(statusStats.home || 0)} בבית,
@@ -2721,7 +2721,7 @@ const soldierReports = Array.from(latestReportByDate.values());
     dir="rtl"
   >
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-4">
-      <div className="space-y-1">
+      <div className="min-w-0 space-y-1">
         <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
           <span>📈 מגמת נוכחות גדודית שבועית (שינויים לאורך 7 הימים האחרונים)</span>
@@ -2855,7 +2855,7 @@ const soldierReports = Array.from(latestReportByDate.values());
       </div>
 
       <div className="h-64 overflow-y-scroll overscroll-contain p-2 [scrollbar-gutter:stable]">
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           {customRoles.map((role) => (
             <label
               key={role}
@@ -2936,7 +2936,7 @@ const soldierReports = Array.from(latestReportByDate.values());
     </div>
 
     <div className="h-64 overflow-y-scroll overscroll-contain p-2 [scrollbar-gutter:stable]">
-      <div className="space-y-1">
+      <div className="min-w-0 space-y-1">
         {commanderStatusOptions.map((status) => (
           <label
             key={status.id}
@@ -3029,7 +3029,7 @@ const soldierReports = Array.from(latestReportByDate.values());
 
         {!isAttendanceGridCollapsed && (
           <>
-            <div className="overflow-x-auto">
+            <div className="custom-scrollbar max-w-full overflow-x-auto">
   <table className="min-w-[1200px] text-right border-collapse" dir="rtl">
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 font-bold bg-slate-50/40">
@@ -3163,7 +3163,7 @@ return (
                       {/* Location & Stamp */}
                       <td className="px-5 py-4">
                         {hasReportedToday && displayedTodayReport ? (
-                          <div className="space-y-1">
+                          <div className="min-w-0 space-y-1">
                             <span className="text-slate-700 font-semibold flex items-center gap-1">
                               <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                               <div className="flex flex-col">
@@ -3448,13 +3448,13 @@ const matchesStatus =
   </div>
 </>
 ) : dashboardTab === "directory" ? (
-    <div id="commander-directory-panel" className="space-y-6 text-right animate-fade-in animate-duration-200" dir="rtl">
+    <div id="commander-directory-panel" className="min-w-0 space-y-6 text-right animate-fade-in animate-duration-200" dir="rtl">
       
       {/* Directory Title Banner */}
       <div className="bg-slate-900 text-white p-6 rounded-2xl border border-slate-850 shadow-md relative overflow-hidden">
         <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-600/10 rounded-full blur-2xl pointer-events-none"></div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <h2 className="text-xl font-black text-slate-100 flex items-center gap-2">
               <Users className="w-5.5 h-5.5 text-emerald-400" />
               <span>ספר טלפונים וסגל גדודי</span>
@@ -3656,7 +3656,7 @@ onChange={(e) =>
       
       {/* Directory Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="custom-scrollbar max-w-full overflow-x-auto">
           <table className="w-full text-right border-collapse" dir="rtl">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 text-xs font-black">
@@ -3963,7 +3963,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                   </div>
                 )}
 
-                <div className="space-y-1">
+                <div className="min-w-0 space-y-1">
                   <label className="block text-xs font-bold text-slate-500">שם מלא</label>
                   <input
                     type="text"
@@ -3975,7 +3975,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
+                  <div className="min-w-0 space-y-1">
                     <label className="block text-xs font-bold text-slate-500">מספר אישי / ת.ז</label>
                     <input
                       type="text"
@@ -4000,7 +4000,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
   />
 </div>
 
-                  <div className="space-y-1">
+                  <div className="min-w-0 space-y-1">
                     <label className="block text-xs font-bold text-slate-500">מספר טלפון</label>
                     <input
                       type="text"
@@ -4013,7 +4013,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
+                  <div className="min-w-0 space-y-1">
                     <label className="block text-xs font-bold text-slate-500">שיוך רפואי</label>
                     <select
                       value={formUnit}
@@ -4026,7 +4026,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                     </select>
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="min-w-0 space-y-1">
                     <label className="block text-xs font-bold text-slate-500">הרשאת מערכת ותפקיד</label>
                     <select
                       value={formRole}
@@ -4040,7 +4040,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                   </div>
                 </div>
 
-                <div className="space-y-1">
+                <div className="min-w-0 space-y-1">
                   <label className="block text-xs font-bold text-slate-500">תפקיד סגל ורפואה גדודי</label>
                   <select
                     value={formMedicalRole}
@@ -4179,7 +4179,7 @@ await onAdminSaveReport(dataToSave);
   className="p-5 space-y-4 font-sans"
 >
                 {/* Status selector */}
-                <div className="space-y-1">
+                <div className="min-w-0 space-y-1">
                   <label className="block text-xs font-bold text-slate-500">סטטוס נוכחות מדווח</label>
                   <select
                     value={editingReportData.status}
@@ -4212,7 +4212,7 @@ await onAdminSaveReport(dataToSave);
                 </div>
 
                 {/* Day Marker selector */}
-<div className="space-y-1">
+<div className="min-w-0 space-y-1">
   <label className="block text-xs font-bold text-slate-500">סימון יום</label>
 
   <select
@@ -4236,7 +4236,7 @@ await onAdminSaveReport(dataToSave);
 </div>
 
 {editingReportData.dayMarker === "after_hours" && (
-  <div className="space-y-1">
+  <div className="min-w-0 space-y-1">
     <label className="block text-xs font-bold text-slate-500">משך אפטר בשעות</label>
 
     <input
@@ -4256,7 +4256,7 @@ await onAdminSaveReport(dataToSave);
 )}
                 {/* Date Range for Commander Report */}
 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-  <div className="space-y-1">
+  <div className="min-w-0 space-y-1">
     <label className="block text-xs font-bold text-slate-500">מתאריך</label>
     <input
       type="date"
@@ -4271,7 +4271,7 @@ await onAdminSaveReport(dataToSave);
     />
   </div>
 
-  <div className="space-y-1">
+  <div className="min-w-0 space-y-1">
     <label className="block text-xs font-bold text-slate-500">עד תאריך</label>
     <input
       type="date"
@@ -4288,7 +4288,7 @@ await onAdminSaveReport(dataToSave);
 </div>
                 
                 {/* Location text input */}
-                <div className="space-y-1">
+                <div className="min-w-0 space-y-1">
                   <label className="block text-xs font-bold text-slate-500">מיקום מדויק</label>
                   <input
                     type="text"
@@ -4301,7 +4301,7 @@ await onAdminSaveReport(dataToSave);
                 </div>
 
                 {/* Note explanation */}
-                <div className="space-y-1">
+                <div className="min-w-0 space-y-1">
                   <label className="block text-xs font-bold text-slate-500">הערות והסבר מיוחד (גימלים, הכשרות, הפניות)</label>
                   <textarea
                     value={editingReportData.note || ""}
@@ -4550,7 +4550,7 @@ await onAdminSaveReport(dataToSave);
 
               {/* Body */}
               <div className="p-6 space-y-4">
-                <div className="space-y-2 leading-relaxed">
+                <div className="min-w-0 space-y-2 leading-relaxed">
                   <p className="text-xs text-slate-700 font-bold">
                     האם אתה בטוח שברצונך להסיר לצמיתות את הרשומה של <span className="text-rose-600 font-extrabold">{soldierToDelete.fullName}</span> (מ.א. {soldierToDelete.personalId || "לא ידוע"}) ממאגר השלישות הגדודי?
                   </p>

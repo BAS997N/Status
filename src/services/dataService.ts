@@ -44,6 +44,7 @@ import {
   ShiftSlotConfig,
   ExternalStaffMember,
   ShiftTypeConfig,
+  EmergencyResponse,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -143,6 +144,31 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   reportingClosedAllowedRoles: ["super_admin", "admin"],
   shiftsEnabled: true,
   shiftsClosedMessage: "מסך המשמרות אינו זמין כעת. יש להתעדכן מול המפקד.",
+  systemMode: "routine",
+  operationalMessage: "המערכת פועלת במצב מבצעי.",
+  emergencyEvent: {
+    active: false,
+    eventId: "",
+    title: "מצב חירום",
+    message: "",
+    assemblyLocation: "",
+    assemblyTime: "",
+  },
+  adminTabOrder: [
+    "users",
+    "permissions",
+    "statuses",
+    "roles",
+    "units",
+    "shift_roles",
+    "shift_types",
+    "external_staff",
+    "sheets",
+    "audit",
+    "backups",
+    "settings",
+  ],
+  mainTabOrder: ["reporter", "dashboard", "shifts", "emergency", "system_admin"],
 };
 
 const SYSTEM_SETTINGS_CACHE_KEY = "idf_system_settings";
@@ -211,6 +237,29 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
       raw.shiftsClosedMessage.trim()
         ? raw.shiftsClosedMessage.trim()
         : DEFAULT_SYSTEM_SETTINGS.shiftsClosedMessage,
+    systemMode:
+      raw.systemMode === "operational" || raw.systemMode === "emergency"
+        ? raw.systemMode
+        : "routine",
+    operationalMessage:
+      typeof raw.operationalMessage === "string"
+        ? raw.operationalMessage
+        : DEFAULT_SYSTEM_SETTINGS.operationalMessage,
+    emergencyEvent:
+      raw.emergencyEvent && typeof raw.emergencyEvent === "object"
+        ? {
+            ...DEFAULT_SYSTEM_SETTINGS.emergencyEvent,
+            ...raw.emergencyEvent,
+          }
+        : { ...DEFAULT_SYSTEM_SETTINGS.emergencyEvent },
+    adminTabOrder:
+      Array.isArray(raw.adminTabOrder) && raw.adminTabOrder.length
+        ? raw.adminTabOrder.filter((item): item is string => typeof item === "string")
+        : [...DEFAULT_SYSTEM_SETTINGS.adminTabOrder],
+    mainTabOrder:
+      Array.isArray(raw.mainTabOrder) && raw.mainTabOrder.length
+        ? raw.mainTabOrder.filter((item): item is string => typeof item === "string")
+        : [...DEFAULT_SYSTEM_SETTINGS.mainTabOrder],
   };
 };
 
@@ -1272,6 +1321,58 @@ const normalizeBackupDocument = (value: unknown, index: number) => {
 };
 
 export const dataService = {
+
+  async getEmergencyResponses(eventId: string): Promise<EmergencyResponse[]> {
+    if (!eventId) return [];
+
+    if (!isFirebaseActive()) {
+      const all: EmergencyResponse[] = JSON.parse(
+        localStorage.getItem("idf_emergency_responses") || "[]"
+      );
+      return all.filter((item) => item.responseId.startsWith(`${eventId}_`));
+    }
+
+    const snapshot = await getDocs(collection(db, "emergency_responses"));
+    return snapshot.docs
+      .map((item) => ({
+        responseId: item.id,
+        ...item.data(),
+      } as EmergencyResponse))
+      .filter((item) => item.responseId.startsWith(`${eventId}_`))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  },
+
+  async saveEmergencyResponse(
+    eventId: string,
+    response: Omit<EmergencyResponse, "responseId" | "updatedAt">
+  ): Promise<EmergencyResponse> {
+    if (!eventId) throw new Error("אירוע החירום אינו פעיל");
+
+    const value: EmergencyResponse = {
+      ...response,
+      responseId: `${eventId}_${response.userId}`,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (!isFirebaseActive()) {
+      const all: EmergencyResponse[] = JSON.parse(
+        localStorage.getItem("idf_emergency_responses") || "[]"
+      );
+      const next = [
+        value,
+        ...all.filter((item) => item.responseId !== value.responseId),
+      ];
+      localStorage.setItem("idf_emergency_responses", JSON.stringify(next));
+      return value;
+    }
+
+    await setDoc(
+      doc(db, "emergency_responses", value.responseId),
+      removeUndefinedValues(value)
+    );
+    return value;
+  },
+
 
 
   async getShiftTypeConfigs(

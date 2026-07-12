@@ -1046,7 +1046,7 @@ export default function ShiftsView({
   };
 
   return (
-    <section dir="rtl" className="space-y-5">
+    <section dir="rtl" className="min-w-0 space-y-5">
       <div className="rounded-2xl border border-indigo-200 bg-gradient-to-l from-indigo-50 to-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">

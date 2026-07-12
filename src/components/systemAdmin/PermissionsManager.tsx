@@ -129,7 +129,7 @@ export default function PermissionsManager({
   }
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="min-w-0 space-y-4" dir="rtl">
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -166,7 +166,7 @@ export default function PermissionsManager({
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="custom-scrollbar max-w-full overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-[900px] w-full border-collapse text-right text-xs">
           <thead className="bg-slate-50">
             <tr>

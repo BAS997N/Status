@@ -51,6 +51,7 @@ import CommandDashboard from "./components/CommandDashboard";
 import SystemAdminPanel from "./components/SystemAdminPanel";
 import AppMessageModal from "./components/AppMessageModal";
 import ShiftsView from "./components/ShiftsView";
+import EmergencyCenter from "./components/EmergencyCenter";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   ShieldCheck, 
@@ -60,7 +61,8 @@ import {
   KeyRound, 
   Info,
   LogOut,
-  CalendarDays
+  CalendarDays,
+  Siren
 } from "lucide-react";
 
 //שעה לפי אזור זמן ולא לפי חייל
@@ -100,7 +102,7 @@ export default function App() {
   const [shiftSlotConfigs, setShiftSlotConfigs] = useState<ShiftSlotConfig[]>([]);
   const [externalStaff, setExternalStaff] = useState<ExternalStaffMember[]>([]);
   const [activeTab, setActiveTab] = useState<
-    "reporter" | "dashboard" | "system_admin" | "shifts"
+    "reporter" | "dashboard" | "system_admin" | "shifts" | "emergency"
   >("reporter");
 
   // ID-based login states
@@ -314,6 +316,13 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const canViewShifts = permissions["shifts.view"] !== false;
   const canManageShifts =
     permissions["shifts.manage"] === true ||
+    shiftsSystemRole === "admin" ||
+    shiftsSystemRole === "super_admin";
+  const canViewEmergency =
+    permissions["emergency.view"] !== false ||
+    systemSettings?.systemMode === "emergency";
+  const canManageEmergency =
+    permissions["emergency.manage"] === true ||
     shiftsSystemRole === "admin" ||
     shiftsSystemRole === "super_admin";
 
@@ -1844,8 +1853,31 @@ const handleAdminSaveReport = async (reportData: {
           </section>
         </main>
       ) : (
-      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 w-full flex-grow">
+      <main className="mx-auto w-full max-w-7xl min-w-0 flex-grow overflow-x-hidden px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
         
+        {systemSettings?.systemMode === "operational" && (
+          <div className="mb-4 rounded-2xl border border-orange-300 bg-orange-50 px-4 py-3 text-xs font-bold text-orange-900 shadow-sm">
+            מצב מבצעי פעיל — {systemSettings.operationalMessage}
+          </div>
+        )}
+
+        {systemSettings?.systemMode === "emergency" &&
+          systemSettings.emergencyEvent?.active && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("emergency")}
+              className="mb-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-red-400 bg-red-700 px-4 py-3 text-right text-white shadow-lg"
+            >
+              <span>
+                <span className="block text-sm font-black">מצב חירום פעיל</span>
+                <span className="mt-1 block text-xs text-red-100">
+                  {systemSettings.emergencyEvent.title}
+                </span>
+              </span>
+              <Siren className="h-6 w-6 shrink-0 animate-pulse" />
+            </button>
+          )}
+
         {/* Firebase Account Logging Ribbon */}
         {isFirebaseActive() && firebaseUser && (
           <div className="mb-4 bg-slate-100 border border-slate-200/80 p-2 px-3 rounded-lg flex items-center justify-between text-xs text-slate-500">
@@ -1865,11 +1897,11 @@ const handleAdminSaveReport = async (reportData: {
 
         {/* Navigation Tabs (Only if Commander) */}
         {(canViewReporter || canViewDashboard || canViewShifts || isSuperAdmin) && (
-          <div className="flex border-b border-slate-200/80 mb-6 gap-2">
+          <div className="custom-scrollbar mb-5 flex w-full max-w-full gap-2 overflow-x-auto border-b border-slate-200/80 pb-1">
             {canViewReporter && (
             <button
               onClick={() => setActiveTab("reporter")}
-              className={`pb-3.5 px-4 font-bold text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
+              className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "reporter"
                   ? "border-military-600 text-military-800"
                   : "border-transparent text-slate-400 hover:text-slate-500"
@@ -1883,7 +1915,7 @@ const handleAdminSaveReport = async (reportData: {
             {canViewDashboard && (
             <button
               onClick={() => setActiveTab("dashboard")}
-              className={`pb-3.5 px-4 font-bold text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
+              className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "dashboard"
                   ? "border-military-600 text-military-800"
                   : "border-transparent text-slate-400 hover:text-slate-500"
@@ -1897,7 +1929,7 @@ const handleAdminSaveReport = async (reportData: {
             {canViewShifts && (
               <button
                 onClick={() => setActiveTab("shifts")}
-                className={`pb-3.5 px-4 font-bold text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === "shifts"
                     ? "border-indigo-600 text-indigo-700"
                     : "border-transparent text-slate-400 hover:text-slate-500"
@@ -1908,10 +1940,24 @@ const handleAdminSaveReport = async (reportData: {
               </button>
             )}
 
+            {canViewEmergency && (
+              <button
+                onClick={() => setActiveTab("emergency")}
+                className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === "emergency"
+                    ? "border-red-600 text-red-700"
+                    : "border-transparent text-slate-400 hover:text-slate-500"
+                }`}
+              >
+                <Siren className="h-4 w-4" />
+                <span>מרכז חירום</span>
+              </button>
+            )}
+
             {isSuperAdmin && (
               <button
                 onClick={() => setActiveTab("system_admin")}
-                className={`pb-3.5 px-4 font-bold text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === "system_admin"
                     ? "border-rose-600 text-rose-700"
                     : "border-transparent text-slate-400 hover:text-slate-500"
@@ -1950,6 +1996,22 @@ const handleAdminSaveReport = async (reportData: {
                 onShiftSlotConfigsChanged={handleShiftSlotConfigsChanged}
                 externalStaff={externalStaff}
                 onExternalStaffChanged={handleExternalStaffChanged}
+              />
+            </motion.div>
+          ) : activeTab === "emergency" && canViewEmergency ? (
+            <motion.div
+              key="emergency-tab"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.15 }}
+            >
+              <EmergencyCenter
+                currentUser={userProfile}
+                allUsers={allUsers}
+                canManage={canManageEmergency}
+                settings={systemSettings!}
+                onSettingsChanged={handleSystemSettingsChanged}
               />
             </motion.div>
           ) : activeTab === "shifts" && canViewShifts ? (

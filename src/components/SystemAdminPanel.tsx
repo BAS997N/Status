@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   BadgeCheck,
   Building2,
@@ -14,6 +14,9 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Users,
+  ArrowUp,
+  ArrowDown,
+  Save,
 } from "lucide-react";
 import { AttendanceStatusConfig, ExternalStaffMember, GoogleSheetsConfig, MedicalRoleConfig, ShiftSlotConfig, SystemRole, SystemSettingsConfig, UnitConfig, UserProfile } from "../types";
 import UsersManager from "./systemAdmin/UsersManager";
@@ -28,6 +31,7 @@ import BackupsManager from "./systemAdmin/BackupsManager";
 import ShiftRolesManager from "./systemAdmin/ShiftRolesManager";
 import ExternalStaffManager from "./systemAdmin/ExternalStaffManager";
 import ShiftTypesManager from "./systemAdmin/ShiftTypesManager";
+import { dataService } from "../services/dataService";
 
 type AdminSection =
   | "overview"
@@ -168,6 +172,50 @@ export default function SystemAdminPanel({
 }: SystemAdminPanelProps) {
   const [activeSection, setActiveSection] =
     useState<AdminSection>("overview");
+  const [tabOrder, setTabOrder] = useState<string[]>(
+    systemSettings?.adminTabOrder?.length
+      ? systemSettings.adminTabOrder
+      : sections.map((section) => section.id)
+  );
+  const [savingOrder, setSavingOrder] = useState(false);
+
+  const orderedSections = useMemo(() => {
+    const orderMap = new Map(tabOrder.map((id, index) => [id, index]));
+    return [...sections].sort(
+      (a, b) =>
+        (orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+    );
+  }, [tabOrder]);
+
+  const moveSection = (id: string, direction: -1 | 1) => {
+    setTabOrder((current) => {
+      const normalized = [
+        ...current.filter((item) => sections.some((section) => section.id === item)),
+        ...sections.map((section) => section.id).filter((item) => !current.includes(item)),
+      ];
+      const index = normalized.indexOf(id);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= normalized.length) return normalized;
+      const next = [...normalized];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const saveTabOrder = async () => {
+    if (!systemSettings) return;
+    setSavingOrder(true);
+    try {
+      const saved = await dataService.saveSystemSettings(
+        { ...systemSettings, adminTabOrder: tabOrder },
+        currentUser.userId
+      );
+      onSystemSettingsChanged(saved);
+    } finally {
+      setSavingOrder(false);
+    }
+  };
 
   return (
     <section dir="rtl" className="space-y-5">
@@ -200,8 +248,23 @@ export default function SystemAdminPanel({
       </div>
 
       {activeSection === "overview" ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {sections.map((section) => {
+        <div className="space-y-3">
+          <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs font-bold text-slate-500">
+              השתמש בחצים בכל כרטיס כדי לקבוע את סדר הטאבים לפי אופן העבודה.
+            </div>
+            <button
+              type="button"
+              onClick={saveTabOrder}
+              disabled={savingOrder || !systemSettings}
+              className="flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {savingOrder ? "שומר..." : "שמור סדר"}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {orderedSections.map((section, index) => {
             const Icon = section.icon;
 
             return (
@@ -215,7 +278,26 @@ export default function SystemAdminPanel({
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition group-hover:bg-rose-50 group-hover:text-rose-700">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <SlidersHorizontal className="h-4 w-4 text-slate-300" />
+                  <div className="flex gap-1" onClick={(event) => event.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => moveSection(section.id, -1)}
+                      disabled={index === 0}
+                      className="rounded-lg border border-slate-200 p-1.5 text-slate-500 disabled:opacity-30"
+                      title="הזז למעלה"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveSection(section.id, 1)}
+                      disabled={index === orderedSections.length - 1}
+                      className="rounded-lg border border-slate-200 p-1.5 text-slate-500 disabled:opacity-30"
+                      title="הזז למטה"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <h2 className="text-sm font-black text-slate-800">
                   {section.title}
@@ -226,6 +308,7 @@ export default function SystemAdminPanel({
               </button>
             );
           })}
+          </div>
         </div>
       ) : activeSection === "users" ? (
         <UsersManager

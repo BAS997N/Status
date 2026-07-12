@@ -284,7 +284,7 @@ dayMarker || undefined
   };
 
   return (
-    <div id="soldier-reporter-section" className="space-y-6">
+    <div id="soldier-reporter-section" className="min-w-0 space-y-6">
       
       {/* Hello Card */}
       <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -373,7 +373,7 @@ dayMarker || undefined
 </button>
 </div>
 
-          <form onSubmit={handleFormSubmit} className="space-y-5">
+          <form onSubmit={handleFormSubmit} className="min-w-0 space-y-5">
             <div>
   <label className="block text-sm font-bold text-slate-700 mb-2">
     תאריך דיווח
@@ -421,7 +421,7 @@ dayMarker || undefined
               </div>
             </div>
             {!isDateRangeReport && ["base", "home"].includes(status) && (
-  <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+  <div className="min-w-0 space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
     <label className="block text-sm font-bold text-slate-700">
       סימון יום
     </label>
@@ -638,7 +638,7 @@ dayMarker || undefined
               <h3 className="text-base font-bold text-slate-800">היסטוריית הדיווחים שלך</h3>
             </div>
 
-            <div className="space-y-3.5 max-h-[340px] overflow-y-auto custom-scrollbar pr-1">
+            <div className="min-w-0 space-y-3.5 max-h-[340px] overflow-y-auto custom-scrollbar pr-1">
   {userReports.length === 0 ? (
     <div className="text-center py-10 text-slate-400 text-xs">
       אין דיווחים קודמים רשומים במערכת
@@ -790,7 +790,7 @@ const formattedDateTime = `${reportDateText} ${reportTimeText}`;
       לא קיימות עריכות מפקד לדיווחים שלך
     </p>
   ) : (
-    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+    <div className="min-w-0 space-y-2 max-h-[220px] overflow-y-auto pr-1">
       {commanderEditedReports.map((r) => {
         const statusInfo = statusLabels[r.status];
 const updatedAt = (r as any).updatedAt;
@@ -886,7 +886,7 @@ const reportTimeText = new Date(r.timestamp).toLocaleTimeString("he-IL", {
 
           <section>
             <h4 className="font-black text-slate-800 mb-2">הסבר סטטוסים</h4>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <p><b>בבסיס</b> — כאשר אתה נמצא ביחידה או בבסיס.</p>
               <p><b>בית / אפטר</b> — יום בית מלא בלבד: קמת בבית והלכת לישון בבית. יציאה חלקית או חזרה באותו יום יש לסמן באמצעות סימון יום.</p>
               <p className="mt-2 text-amber-700 font-black"> ⚠️ אפטר — רק בעדכון של אבי. כל יציאה לאפטר חייבת להיות מדווחת לאבי על מנת שיעדכן אותה במערכת.</p>
