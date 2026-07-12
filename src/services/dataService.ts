@@ -41,6 +41,7 @@ import {
   SystemBackupFile,
   BackupRestoreResult,
   ShiftRecord,
+  ShiftSlotConfig,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -669,6 +670,159 @@ const getMedicalRoleConfigsFromCache = (allowExpired = false): MedicalRoleConfig
   }
 };
 
+
+const DEFAULT_SHIFT_SLOT_CONFIGS: ShiftSlotConfig[] = [
+  {
+    id: "duty_commander",
+    name: "מפקד תורן",
+    quantity: 1,
+    required: true,
+    enabled: true,
+    sortOrder: 1,
+    allowedMedicalRoleIds: [],
+    allowedSystemRoles: ["admin", "super_admin"],
+  },
+  {
+    id: "event_manager",
+    name: "מנהל/ת אירוע",
+    quantity: 1,
+    required: true,
+    enabled: true,
+    sortOrder: 2,
+    allowedMedicalRoleIds: [],
+    allowedSystemRoles: [],
+  },
+  {
+    id: "matab",
+    name: 'מט"ב',
+    quantity: 1,
+    required: true,
+    enabled: true,
+    sortOrder: 3,
+    allowedMedicalRoleIds: [],
+    allowedSystemRoles: [],
+  },
+  {
+    id: "medic",
+    name: "חובש",
+    quantity: 2,
+    required: true,
+    enabled: true,
+    sortOrder: 4,
+    allowedMedicalRoleIds: [],
+    allowedSystemRoles: [],
+  },
+  {
+    id: "outpost_medic",
+    name: "חובש מוצב",
+    quantity: 1,
+    required: true,
+    enabled: true,
+    sortOrder: 5,
+    allowedMedicalRoleIds: [],
+    allowedSystemRoles: [],
+  },
+];
+
+const SHIFT_SLOT_CONFIGS_CACHE_KEY = "idf_shift_slot_configs";
+const SHIFT_SLOT_CONFIGS_CACHE_TIME_KEY = "idf_shift_slot_configs_cached_at";
+const SHIFT_SLOT_CONFIGS_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const cloneDefaultShiftSlotConfigs = (): ShiftSlotConfig[] =>
+  DEFAULT_SHIFT_SLOT_CONFIGS.map((item) => ({
+    ...item,
+    allowedMedicalRoleIds: [...item.allowedMedicalRoleIds],
+    allowedSystemRoles: [...item.allowedSystemRoles],
+  }));
+
+const normalizeShiftSlotConfigs = (value: unknown): ShiftSlotConfig[] => {
+  if (!Array.isArray(value)) return cloneDefaultShiftSlotConfigs();
+
+  const validSystemRoles: SystemRole[] = [
+    "super_admin",
+    "admin",
+    "viewer",
+    "reporter",
+  ];
+
+  const seen = new Set<string>();
+  const normalized = value
+    .filter(
+      (item): item is ShiftSlotConfig =>
+        !!item &&
+        typeof item === "object" &&
+        typeof (item as ShiftSlotConfig).id === "string" &&
+        typeof (item as ShiftSlotConfig).name === "string"
+    )
+    .map((item, index) => {
+      const id = item.id.trim();
+      const name = item.name.trim();
+      return {
+        ...item,
+        id,
+        name,
+        quantity: Math.min(20, Math.max(1, Number(item.quantity) || 1)),
+        required: item.required !== false,
+        enabled: item.enabled !== false,
+        sortOrder:
+          typeof item.sortOrder === "number" ? item.sortOrder : index + 1,
+        allowedMedicalRoleIds: Array.isArray(item.allowedMedicalRoleIds)
+          ? Array.from(
+              new Set(
+                item.allowedMedicalRoleIds.filter(
+                  (roleId): roleId is string =>
+                    typeof roleId === "string" && roleId.trim().length > 0
+                )
+              )
+            )
+          : [],
+        allowedSystemRoles: Array.isArray(item.allowedSystemRoles)
+          ? Array.from(
+              new Set(
+                item.allowedSystemRoles.filter(
+                  (role): role is SystemRole =>
+                    typeof role === "string" &&
+                    validSystemRoles.includes(role as SystemRole)
+                )
+              )
+            )
+          : [],
+      };
+    })
+    .filter((item) => {
+      if (!item.id || !item.name || seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    })
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((item, index) => ({ ...item, sortOrder: index + 1 }));
+
+  return normalized.length ? normalized : cloneDefaultShiftSlotConfigs();
+};
+
+const saveShiftSlotConfigsToCache = (configs: ShiftSlotConfig[]) => {
+  localStorage.setItem(SHIFT_SLOT_CONFIGS_CACHE_KEY, JSON.stringify(configs));
+  localStorage.setItem(SHIFT_SLOT_CONFIGS_CACHE_TIME_KEY, String(Date.now()));
+};
+
+const getShiftSlotConfigsFromCache = (
+  allowExpired = false
+): ShiftSlotConfig[] | null => {
+  try {
+    const raw = localStorage.getItem(SHIFT_SLOT_CONFIGS_CACHE_KEY);
+    const cachedAt = Number(
+      localStorage.getItem(SHIFT_SLOT_CONFIGS_CACHE_TIME_KEY) || 0
+    );
+    if (!raw) return null;
+    const expired =
+      !cachedAt || Date.now() - cachedAt > SHIFT_SLOT_CONFIGS_CACHE_TTL_MS;
+    if (expired && !allowExpired) return null;
+    return normalizeShiftSlotConfigs(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+};
+
 const ROLE_PERMISSIONS_CACHE_KEY = "idf_role_permission_configs";
 const ROLE_PERMISSIONS_CACHE_TIME_KEY =
   "idf_role_permission_configs_cached_at";
@@ -898,6 +1052,98 @@ const normalizeBackupDocument = (value: unknown, index: number) => {
 };
 
 export const dataService = {
+
+
+  async getShiftSlotConfigs(forceRefresh = false): Promise<ShiftSlotConfig[]> {
+    if (!forceRefresh) {
+      const cached = getShiftSlotConfigsFromCache();
+      if (cached) return cached;
+    }
+
+    if (!isFirebaseActive()) {
+      const local =
+        getShiftSlotConfigsFromCache(true) || cloneDefaultShiftSlotConfigs();
+      saveShiftSlotConfigsToCache(local);
+      return local;
+    }
+
+    try {
+      const ref = doc(db, "settings", "shift_slot_configs");
+      const snapshot = await getDoc(ref);
+      if (snapshot.exists()) {
+        const configs = normalizeShiftSlotConfigs(snapshot.data().items);
+        saveShiftSlotConfigsToCache(configs);
+        return configs;
+      }
+
+      const defaults = cloneDefaultShiftSlotConfigs();
+      await setDoc(ref, {
+        items: defaults,
+        updatedAt: new Date().toISOString(),
+      });
+      saveShiftSlotConfigsToCache(defaults);
+      return defaults;
+    } catch (error) {
+      const fallback =
+        getShiftSlotConfigsFromCache(true) || cloneDefaultShiftSlotConfigs();
+      saveShiftSlotConfigsToCache(fallback);
+      console.warn("Failed loading shift slot configs:", error);
+      return fallback;
+    }
+  },
+
+  async saveShiftSlotConfigs(
+    configs: ShiftSlotConfig[],
+    updatedBy?: string
+  ): Promise<ShiftSlotConfig[]> {
+    const before = await this.getShiftSlotConfigs(true).catch(() => []);
+    const normalized = normalizeShiftSlotConfigs(configs);
+    const now = new Date().toISOString();
+    const saved = normalized.map((item) => ({
+      ...item,
+      updatedAt: now,
+      updatedBy,
+    }));
+
+    if (!isFirebaseActive()) {
+      saveShiftSlotConfigsToCache(saved);
+    } else {
+      try {
+        await setDoc(
+          doc(db, "settings", "shift_slot_configs"),
+          removeUndefinedValues({
+            items: saved,
+            updatedAt: now,
+            updatedBy,
+          })
+        );
+        saveShiftSlotConfigsToCache(saved);
+      } catch (error) {
+        handleFirestoreError(
+          error,
+          OperationType.WRITE,
+          "settings/shift_slot_configs"
+        );
+        throw error;
+      }
+    }
+
+    await writeAuditLog({
+      action: "update",
+      module: "shifts",
+      targetId: "shift_slot_configs",
+      targetLabel: "הגדרות תפקידי משמרת",
+      before,
+      after: saved,
+      metadata: buildCollectionAuditMetadata(
+        before as Array<Record<string, any>>,
+        saved as Array<Record<string, any>>
+      ),
+    });
+
+    return saved;
+  },
+
 
 
   async getShifts(): Promise<ShiftRecord[]> {

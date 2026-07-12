@@ -39,6 +39,7 @@ import {
   GoogleSheetsConfig,
   SystemSettingsConfig,
   ShiftRecord,
+  ShiftSlotConfig,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "./types";
 import { dataService } from "./services/dataService";
@@ -95,6 +96,7 @@ export default function App() {
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
   const [systemLogs, setSystemLogs] = useState<any[]>([]);
   const [shifts, setShifts] = useState<ShiftRecord[]>([]);
+  const [shiftSlotConfigs, setShiftSlotConfigs] = useState<ShiftSlotConfig[]>([]);
   const [activeTab, setActiveTab] = useState<
     "reporter" | "dashboard" | "system_admin" | "shifts"
   >("reporter");
@@ -208,6 +210,10 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
   const handleSystemSettingsChanged = (settings: SystemSettingsConfig) => {
     setSystemSettings(settings);
+  };
+
+  const handleShiftSlotConfigsChanged = (configs: ShiftSlotConfig[]) => {
+    setShiftSlotConfigs([...configs].sort((a, b) => a.sortOrder - b.sortOrder));
   };
 
 
@@ -592,6 +598,12 @@ setSystemLogs(updatedSystemLogs);
     .getShifts()
     .then(setShifts)
     .catch((error) => console.error("Failed loading shifts:", error));
+  dataService
+    .getShiftSlotConfigs()
+    .then(setShiftSlotConfigs)
+    .catch((error) =>
+      console.error("Failed loading shift slot configs:", error)
+    );
 }, [userProfile]);
 
   // Notification actions
@@ -1922,6 +1934,8 @@ const handleAdminSaveReport = async (reportData: {
                 onGoogleSheetsConfigChanged={handleGoogleSheetsConfigChanged}
                 systemSettings={systemSettings}
                 onSystemSettingsChanged={handleSystemSettingsChanged}
+                shiftSlotConfigs={shiftSlotConfigs}
+                onShiftSlotConfigsChanged={handleShiftSlotConfigsChanged}
               />
             </motion.div>
           ) : activeTab === "shifts" && canViewShifts ? (
@@ -1953,6 +1967,8 @@ const handleAdminSaveReport = async (reportData: {
                   currentUser={userProfile}
                   allUsers={allUsers}
                   canManage={canManageShifts}
+                  shiftSlotConfigs={shiftSlotConfigs}
+                  medicalRoleConfigs={medicalRoleConfigs}
                 />
               )}
             </motion.div>

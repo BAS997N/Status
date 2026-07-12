@@ -12,109 +12,33 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { ShiftAssignment, ShiftRecord, UserProfile } from "../types";
+import {
+  MedicalRoleConfig,
+  ShiftAssignment,
+  ShiftRecord,
+  ShiftSlotConfig,
+  SystemRole,
+  UserProfile,
+} from "../types";
 import { dataService } from "../services/dataService";
 
 interface ShiftsViewProps {
   currentUser: UserProfile;
   allUsers: UserProfile[];
   canManage: boolean;
+  shiftSlotConfigs: ShiftSlotConfig[];
+  medicalRoleConfigs: MedicalRoleConfig[];
 }
 
-type ShiftSlotId =
-  | "duty_commander"
-  | "event_manager"
-  | "matab"
-  | "medic_1"
-  | "medic_2"
-  | "outpost_medic";
-
-interface ShiftSlotDefinition {
-  id: ShiftSlotId;
+interface ExpandedSlot {
+  key: string;
+  configId: string;
   label: string;
-  description: string;
-  isUserAllowed: (user: UserProfile) => boolean;
+  required: boolean;
+  allowedMedicalRoleIds: string[];
+  allowedSystemRoles: SystemRole[];
+  index: number;
 }
-
-const normalize = (value = "") =>
-  value
-    .replace(/[״"׳']/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLocaleLowerCase("he");
-
-const includesAny = (value: string | undefined, options: string[]) => {
-  const normalized = normalize(value);
-  return options.some((option) => normalized.includes(normalize(option)));
-};
-
-const isMedic = (user: UserProfile) =>
-  includesAny(user.medicalRole, ["חובש"]);
-
-const isDoctorOrParamedic = (user: UserProfile) =>
-  includesAny(user.medicalRole, ["רופא", "פרמדיק", "פארמדיק"]);
-
-const isEventManager = (user: UserProfile) =>
-  includesAny(user.medicalRole, ["מנהל אירוע", "מנהלת אירוע"]);
-
-const isCommander = (user: UserProfile) =>
-  user.role === "commander" ||
-  user.systemRole === "admin" ||
-  user.systemRole === "super_admin" ||
-  includesAny(user.medicalRole, [
-    'מ"פ רפואה',
-    "מפ רפואה",
-    "מפקד רפואה",
-    "מפקד",
-  ]);
-
-const SHIFT_SLOTS: ShiftSlotDefinition[] = [
-  {
-    id: "duty_commander",
-    label: "מפקד תורן",
-    description: 'מוצגים מפקדים ומ"פ רפואה בלבד.',
-    isUserAllowed: isCommander,
-  },
-  {
-    id: "event_manager",
-    label: "מנהל/ת אירוע",
-    description: "מוצגים רק בעלי תפקיד מנהל אירוע.",
-    isUserAllowed: isEventManager,
-  },
-  {
-    id: "matab",
-    label: 'מט"ב',
-    description: "מוצגים רופאים ופרמדיקים בלבד.",
-    isUserAllowed: isDoctorOrParamedic,
-  },
-  {
-    id: "medic_1",
-    label: "חובש",
-    description: "מוצגים חובשים בלבד.",
-    isUserAllowed: isMedic,
-  },
-  {
-    id: "medic_2",
-    label: "חובש",
-    description: "מוצגים חובשים בלבד.",
-    isUserAllowed: isMedic,
-  },
-  {
-    id: "outpost_medic",
-    label: "חובש מוצב",
-    description: "מוצגים חובשים בלבד.",
-    isUserAllowed: isMedic,
-  },
-];
-
-const EMPTY_SLOT_ASSIGNMENTS: Record<ShiftSlotId, string> = {
-  duty_commander: "",
-  event_manager: "",
-  matab: "",
-  medic_1: "",
-  medic_2: "",
-  outpost_medic: "",
-};
 
 const toInputDateTime = (value?: string) => {
   if (!value) return "";
@@ -129,18 +53,19 @@ const formatDateTime = (value: string) =>
     timeStyle: "short",
   });
 
-const getAssignmentForSlot = (
-  shift: ShiftRecord,
-  slot: ShiftSlotDefinition,
-  slotIndex: number
-) =>
-  shift.assignments.find((assignment) => assignment.slotId === slot.id) ||
-  shift.assignments[slotIndex];
+const getSystemRole = (user: UserProfile): SystemRole => {
+  if (user.systemRole) return user.systemRole;
+  if (user.role === "commander") return "admin";
+  if (user.role === "adjutant_officer") return "viewer";
+  return "reporter";
+};
 
 export default function ShiftsView({
   currentUser,
   allUsers,
   canManage,
+  shiftSlotConfigs,
+  medicalRoleConfigs,
 }: ShiftsViewProps) {
   const [shifts, setShifts] = useState<ShiftRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,8 +85,57 @@ export default function ShiftsView({
   const [endAt, setEndAt] = useState("");
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
-  const [slotAssignments, setSlotAssignments] =
-    useState<Record<ShiftSlotId, string>>(EMPTY_SLOT_ASSIGNMENTS);
+  const [slotAssignments, setSlotAssignments] = useState<Record<string, string>>({});
+
+  const expandedSlots = useMemo<ExpandedSlot[]>(
+    () =>
+      shiftSlotConfigs
+        .filter((config) => config.enabled)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .flatMap((config) =>
+          Array.from({ length: Math.max(1, config.quantity) }, (_, index) => ({
+            key: `${config.id}_${index + 1}`,
+            configId: config.id,
+            label:
+              config.quantity > 1 ? `${config.name} ${index + 1}` : config.name,
+            required: config.required,
+            allowedMedicalRoleIds: config.allowedMedicalRoleIds || [],
+            allowedSystemRoles: config.allowedSystemRoles || [],
+            index,
+          }))
+        ),
+    [shiftSlotConfigs]
+  );
+
+  const medicalRoleNameById = useMemo(
+    () =>
+      new Map(
+        medicalRoleConfigs.map((role) => [
+          role.id,
+          role.name.trim().toLocaleLowerCase("he"),
+        ])
+      ),
+    [medicalRoleConfigs]
+  );
+
+  const activeUsers = useMemo(
+    () =>
+      allUsers
+        .filter((user) => !user.isDischarged)
+        .sort((a, b) => a.fullName.localeCompare(b.fullName, "he")),
+    [allUsers]
+  );
+
+  const isAllowedForSlot = (user: UserProfile, slot: ExpandedSlot) => {
+    const medicalRoleName = (user.medicalRole || "")
+      .trim()
+      .toLocaleLowerCase("he");
+    const medicalAllowed = slot.allowedMedicalRoleIds.some(
+      (roleId) => medicalRoleNameById.get(roleId) === medicalRoleName
+    );
+    const systemAllowed = slot.allowedSystemRoles.includes(getSystemRole(user));
+    return medicalAllowed || systemAllowed;
+  };
 
   const loadShifts = async () => {
     setLoading(true);
@@ -179,18 +153,9 @@ export default function ShiftsView({
     loadShifts();
   }, []);
 
-  const activeUsers = useMemo(
-    () =>
-      allUsers
-        .filter((user) => !user.isDischarged)
-        .sort((a, b) => a.fullName.localeCompare(b.fullName, "he")),
-    [allUsers]
-  );
-
   const visibleShifts = useMemo(() => {
     const now = Date.now();
     const normalizedSearch = search.trim().toLocaleLowerCase("he");
-
     return shifts
       .filter((shift) =>
         canManage
@@ -225,7 +190,7 @@ export default function ShiftsView({
     setEndAt("");
     setLocation("");
     setNote("");
-    setSlotAssignments({ ...EMPTY_SLOT_ASSIGNMENTS });
+    setSlotAssignments({});
     setMessage(null);
   };
 
@@ -235,13 +200,13 @@ export default function ShiftsView({
   };
 
   const openEdit = (shift: ShiftRecord) => {
-    const nextAssignments = { ...EMPTY_SLOT_ASSIGNMENTS };
-
-    SHIFT_SLOTS.forEach((slot, index) => {
-      const assignment = getAssignmentForSlot(shift, slot, index);
-      nextAssignments[slot.id] = assignment?.userId || "";
+    const next: Record<string, string> = {};
+    expandedSlots.forEach((slot, index) => {
+      const assignment =
+        shift.assignments.find((item) => item.slotId === slot.key) ||
+        shift.assignments[index];
+      next[slot.key] = assignment?.userId || "";
     });
-
     setEditingShift(shift);
     setTitle(shift.title);
     setShiftType(shift.shiftType);
@@ -249,19 +214,13 @@ export default function ShiftsView({
     setEndAt(toInputDateTime(shift.endAt));
     setLocation(shift.location || "");
     setNote(shift.note || "");
-    setSlotAssignments(nextAssignments);
+    setSlotAssignments(next);
     setIsFormOpen(true);
-    setMessage(null);
-  };
-
-  const updateSlotAssignment = (slotId: ShiftSlotId, userId: string) => {
-    setSlotAssignments((current) => ({ ...current, [slotId]: userId }));
     setMessage(null);
   };
 
   const saveShift = async () => {
     setMessage(null);
-
     if (!title.trim() || !startAt || !endAt) {
       setMessage({
         type: "error",
@@ -269,7 +228,6 @@ export default function ShiftsView({
       });
       return;
     }
-
     if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
       setMessage({
         type: "error",
@@ -278,94 +236,79 @@ export default function ShiftsView({
       return;
     }
 
-    const missingSlots = SHIFT_SLOTS.filter(
-      (slot) => !slotAssignments[slot.id]
+    const missing = expandedSlots.filter(
+      (slot) => slot.required && !slotAssignments[slot.key]
     );
-    if (missingSlots.length > 0) {
+    if (missing.length) {
       setMessage({
         type: "error",
-        text: `יש לבחור חייל עבור: ${missingSlots
+        text: `יש לבחור חייל עבור: ${missing
           .map((slot) => slot.label)
           .join(", ")}.`,
       });
       return;
     }
 
-    const selectedIds = Object.values(slotAssignments).filter(Boolean);
-    const duplicateUserId = selectedIds.find(
-      (userId, index) => selectedIds.indexOf(userId) !== index
+    const selected = Object.values(slotAssignments).filter(Boolean);
+    const duplicate = selected.find(
+      (userId, index) => selected.indexOf(userId) !== index
     );
-    if (duplicateUserId) {
-      const duplicateUser = activeUsers.find(
-        (user) => user.userId === duplicateUserId
-      );
+    if (duplicate) {
+      const user = activeUsers.find((item) => item.userId === duplicate);
       setMessage({
         type: "error",
-        text: `${duplicateUser?.fullName || "אותו חייל"} נבחר ליותר מתפקיד אחד.`,
+        text: `${user?.fullName || "אותו חייל"} נבחר ליותר מתפקיד אחד.`,
       });
       return;
     }
 
-    const assignments: ShiftAssignment[] = SHIFT_SLOTS.map((slot) => {
-      const user = activeUsers.find(
-        (candidate) => candidate.userId === slotAssignments[slot.id]
-      );
-      if (!user) {
-        throw new Error(`לא נמצא משתמש עבור ${slot.label}`);
-      }
-
-      const previous = editingShift?.assignments.find(
-        (assignment) =>
-          assignment.slotId === slot.id || assignment.userId === user.userId
-      );
-
-      return {
-        slotId: slot.id,
-        slotLabel: slot.label,
-        userId: user.userId,
-        userName: user.fullName,
-        personalId: user.personalId,
-        unit: user.unit,
-        medicalRole: user.medicalRole,
-        readStatus: previous?.readStatus || "unread",
-        readAt: previous?.readAt,
-      };
-    });
+    const assignments: ShiftAssignment[] = expandedSlots
+      .filter((slot) => slotAssignments[slot.key])
+      .map((slot) => {
+        const user = activeUsers.find(
+          (item) => item.userId === slotAssignments[slot.key]
+        );
+        if (!user) throw new Error("משתמש לא נמצא");
+        const previous = editingShift?.assignments.find(
+          (item) => item.slotId === slot.key && item.userId === user.userId
+        );
+        return {
+          slotId: slot.key,
+          slotLabel: slot.label,
+          userId: user.userId,
+          userName: user.fullName,
+          personalId: user.personalId,
+          unit: user.unit,
+          medicalRole: user.medicalRole,
+          readStatus: previous?.readStatus || "unread",
+          readAt: previous?.readAt,
+        };
+      });
 
     setSaving(true);
     try {
+      const values = {
+        title: title.trim(),
+        shiftType: shiftType.trim() || "משמרת",
+        startAt: new Date(startAt).toISOString(),
+        endAt: new Date(endAt).toISOString(),
+        location: location.trim(),
+        note: note.trim(),
+        assignments,
+      };
       if (editingShift) {
-        await dataService.updateShift(
-          editingShift.shiftId,
-          {
-            title: title.trim(),
-            shiftType: shiftType.trim() || "משמרת",
-            startAt: new Date(startAt).toISOString(),
-            endAt: new Date(endAt).toISOString(),
-            location: location.trim(),
-            note: note.trim(),
-            assignments,
-          },
-          currentUser
-        );
+        await dataService.updateShift(editingShift.shiftId, values, currentUser);
       } else {
         await dataService.createShift(
           {
-            title: title.trim(),
-            shiftType: shiftType.trim() || "משמרת",
-            startAt: new Date(startAt).toISOString(),
-            endAt: new Date(endAt).toISOString(),
-            location: location.trim(),
-            note: note.trim(),
+            ...values,
             status: "scheduled",
-            assignments,
             createdBy: currentUser.userId,
             createdByName: currentUser.fullName,
           },
           currentUser
         );
       }
-
       await loadShifts();
       setIsFormOpen(false);
       resetForm();
@@ -384,8 +327,7 @@ export default function ShiftsView({
       await dataService.deleteShift(shift.shiftId);
       await loadShifts();
       setMessage({ type: "success", text: "המשמרת נמחקה." });
-    } catch (error) {
-      console.error("Failed deleting shift:", error);
+    } catch {
       setMessage({ type: "error", text: "מחיקת המשמרת נכשלה." });
     }
   };
@@ -399,8 +341,7 @@ export default function ShiftsView({
       );
       await loadShifts();
       setMessage({ type: "success", text: "המשמרת סומנה כנקראה." });
-    } catch (error) {
-      console.error("Failed marking shift as read:", error);
+    } catch {
       setMessage({ type: "error", text: "עדכון סטטוס הקריאה נכשל." });
     }
   };
@@ -419,12 +360,11 @@ export default function ShiftsView({
               </h2>
               <p className="mt-1 text-xs leading-5 text-slate-500">
                 {canManage
-                  ? "שיבוץ תפקידים קבועים לפי הכשרת החייל ותפקידו במערכת."
+                  ? "השיבוצים מסוננים לפי ההגדרות שנקבעו בניהול תפקידי משמרת."
                   : "צפייה בתפקיד שנקבע עבורך ואישור שקראת את המשמרת."}
               </p>
             </div>
           </div>
-
           {canManage && (
             <button
               type="button"
@@ -448,7 +388,6 @@ export default function ShiftsView({
             className="w-full rounded-xl border border-slate-200 py-2.5 pl-3 pr-10 text-xs outline-none focus:border-indigo-400"
           />
         </div>
-
         <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
           <input
             type="checkbox"
@@ -486,9 +425,8 @@ export default function ShiftsView({
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {visibleShifts.map((shift) => {
             const myAssignment = shift.assignments.find(
-              (assignment) => assignment.userId === currentUser.userId
+              (item) => item.userId === currentUser.userId
             );
-
             return (
               <article
                 key={shift.shiftId}
@@ -503,14 +441,12 @@ export default function ShiftsView({
                       {shift.shiftType}
                     </div>
                   </div>
-
                   {canManage && (
                     <div className="flex gap-1">
                       <button
                         type="button"
                         onClick={() => openEdit(shift)}
                         className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-indigo-700"
-                        title="עריכה"
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
@@ -518,7 +454,6 @@ export default function ShiftsView({
                         type="button"
                         onClick={() => deleteShift(shift)}
                         className="rounded-lg p-2 text-slate-500 hover:bg-rose-50 hover:text-rose-700"
-                        title="מחיקה"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -534,11 +469,10 @@ export default function ShiftsView({
                       {formatDateTime(shift.endAt)}
                     </span>
                   </div>
-
                   {shift.location && (
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-rose-500" />
-                      <span>{shift.location}</span>
+                      {shift.location}
                     </div>
                   )}
 
@@ -548,41 +482,34 @@ export default function ShiftsView({
                       שיבוץ המשמרת
                     </div>
                     <div className="space-y-2">
-                      {SHIFT_SLOTS.map((slot, index) => {
-                        const assignment = getAssignmentForSlot(
-                          shift,
-                          slot,
-                          index
-                        );
-                        return (
-                          <div
-                            key={slot.id}
-                            className={`flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 ${
-                              assignment?.userId === currentUser.userId
-                                ? "ring-1 ring-indigo-300"
-                                : ""
-                            }`}
+                      {shift.assignments.map((assignment) => (
+                        <div
+                          key={`${assignment.slotId}_${assignment.userId}`}
+                          className={`flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 ${
+                            assignment.userId === currentUser.userId
+                              ? "border border-indigo-300 bg-indigo-50"
+                              : ""
+                          }`}
+                        >
+                          <span className="font-bold text-slate-600">
+                            {assignment.slotLabel || "תפקיד"}:
+                          </span>
+                          <span
+                            className={
+                              assignment.userId === currentUser.userId
+                                ? "text-base font-black text-indigo-800 underline decoration-indigo-300 decoration-2 underline-offset-4"
+                                : "font-bold text-slate-900"
+                            }
                           >
-                            <span className="font-bold text-slate-600">
-                              {slot.label}:
-                            </span>
-                            <span
-                              className={`text-left text-slate-900 ${
-                                assignment?.userId === currentUser.userId
-                                  ? "font-black text-base underline decoration-indigo-300 decoration-2 underline-offset-4"
-                                  : "font-bold"
-                              }`}
-                            >
-                              {assignment?.userName || "לא שובץ"}
-                            </span>
-                          </div>
-                        );
-                      })}
+                            {assignment.userName}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
                   {shift.note && (
-                    <div className="rounded-lg bg-slate-50 p-3 leading-5 text-slate-600">
+                    <div className="rounded-lg bg-slate-50 p-3 leading-5">
                       {shift.note}
                     </div>
                   )}
@@ -591,8 +518,7 @@ export default function ShiftsView({
                 {!canManage && myAssignment && (
                   <div className="mt-4 border-t border-slate-100 pt-4">
                     <div className="mb-3 text-xs font-black text-indigo-700">
-                      התפקיד שלך:{" "}
-                      {myAssignment.slotLabel || "משובץ למשמרת"}
+                      התפקיד שלך: {myAssignment.slotLabel || "משובץ למשמרת"}
                     </div>
                     {myAssignment.readStatus === "read" ? (
                       <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
@@ -641,7 +567,6 @@ export default function ShiftsView({
                   className="input"
                 />
               </Field>
-
               <Field label="סוג משמרת">
                 <input
                   value={shiftType}
@@ -649,7 +574,6 @@ export default function ShiftsView({
                   className="input"
                 />
               </Field>
-
               <Field label="התחלה">
                 <input
                   type="datetime-local"
@@ -658,7 +582,6 @@ export default function ShiftsView({
                   className="input"
                 />
               </Field>
-
               <Field label="סיום">
                 <input
                   type="datetime-local"
@@ -667,7 +590,6 @@ export default function ShiftsView({
                   className="input"
                 />
               </Field>
-
               <Field label="מיקום">
                 <input
                   value={location}
@@ -675,7 +597,6 @@ export default function ShiftsView({
                   className="input"
                 />
               </Field>
-
               <Field label="הערה">
                 <textarea
                   rows={3}
@@ -686,59 +607,60 @@ export default function ShiftsView({
               </Field>
             </div>
 
-            <div className="mt-6">
-              <div className="mb-3 text-sm font-black text-slate-900">
+            <div className="mt-6 space-y-3">
+              <div className="text-sm font-black text-slate-900">
                 שיבוץ בעלי תפקידים
               </div>
-
-              <div className="space-y-3">
-                {SHIFT_SLOTS.map((slot) => {
-                  const availableUsers = activeUsers.filter(slot.isUserAllowed);
-
-                  return (
-                    <div
-                      key={slot.id}
-                      className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                    >
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-[180px_1fr] md:items-center">
-                        <div>
-                          <div className="text-xs font-black text-slate-800">
-                            {slot.label}
-                          </div>
-                          <div className="mt-1 text-[10px] leading-4 text-slate-500">
-                            {slot.description}
-                          </div>
+              {expandedSlots.map((slot) => {
+                const available = activeUsers.filter((user) =>
+                  isAllowedForSlot(user, slot)
+                );
+                return (
+                  <div
+                    key={slot.key}
+                    className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                  >
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[190px_1fr] md:items-center">
+                      <div>
+                        <div className="text-xs font-black text-slate-800">
+                          {slot.label}
+                          {!slot.required && (
+                            <span className="mr-2 font-medium text-slate-400">
+                              (רשות)
+                            </span>
+                          )}
                         </div>
-
-                        <select
-                          value={slotAssignments[slot.id]}
-                          onChange={(event) =>
-                            updateSlotAssignment(slot.id, event.target.value)
-                          }
-                          className="input"
-                        >
-                          <option value="">בחר חייל...</option>
-                          {availableUsers.map((user) => (
-                            <option key={user.userId} value={user.userId}>
-                              {user.fullName}
-                              {user.medicalRole
-                                ? ` — ${user.medicalRole}`
-                                : ""}
-                            </option>
-                          ))}
-                        </select>
                       </div>
-
-                      {availableUsers.length === 0 && (
-                        <div className="mt-2 text-[10px] font-bold text-rose-600">
-                          לא נמצאו משתמשים מתאימים. בדוק שתפקיד הרפואה שלהם
-                          מוגדר נכון בספר הטלפונים.
-                        </div>
-                      )}
+                      <select
+                        value={slotAssignments[slot.key] || ""}
+                        onChange={(event) =>
+                          setSlotAssignments((current) => ({
+                            ...current,
+                            [slot.key]: event.target.value,
+                          }))
+                        }
+                        className="input"
+                      >
+                        <option value="">
+                          {slot.required ? "בחר חייל..." : "ללא שיבוץ"}
+                        </option>
+                        {available.map((user) => (
+                          <option key={user.userId} value={user.userId}>
+                            {user.fullName}
+                            {user.medicalRole ? ` — ${user.medicalRole}` : ""}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  );
-                })}
-              </div>
+                    {available.length === 0 && (
+                      <div className="mt-2 text-[10px] font-bold text-rose-600">
+                        אין מועמדים מתאימים. ניתן להרחיב את התפקידים המותרים
+                        דרך ניהול מערכת → ניהול תפקידי משמרת.
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {message?.type === "error" && (
@@ -751,7 +673,7 @@ export default function ShiftsView({
               <button
                 type="button"
                 onClick={() => setIsFormOpen(false)}
-                className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-xs font-black text-slate-600 hover:bg-slate-50"
+                className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-xs font-black text-slate-600"
               >
                 ביטול
               </button>
@@ -759,7 +681,7 @@ export default function ShiftsView({
                 type="button"
                 onClick={saveShift}
                 disabled={saving}
-                className="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50"
+                className="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-xs font-black text-white disabled:opacity-50"
               >
                 {saving ? "שומר..." : "שמור משמרת"}
               </button>

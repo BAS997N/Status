@@ -196,6 +196,22 @@ export interface BackupRestoreResult {
 
 
 
+
+
+export interface ShiftSlotConfig {
+  id: string;
+  name: string;
+  quantity: number;
+  required: boolean;
+  enabled: boolean;
+  sortOrder: number;
+  allowedMedicalRoleIds: string[];
+  allowedSystemRoles: SystemRole[];
+  createdAt?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export type ShiftStatus = "scheduled" | "cancelled";
 export type ShiftReadStatus = "unread" | "read";
 

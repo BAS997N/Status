@@ -8,11 +8,12 @@ import {
   FileSpreadsheet,
   ListChecks,
   Settings,
+  CalendarCog,
   ShieldCheck,
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { AttendanceStatusConfig, GoogleSheetsConfig, MedicalRoleConfig, SystemRole, SystemSettingsConfig, UnitConfig, UserProfile } from "../types";
+import { AttendanceStatusConfig, GoogleSheetsConfig, MedicalRoleConfig, ShiftSlotConfig, SystemRole, SystemSettingsConfig, UnitConfig, UserProfile } from "../types";
 import UsersManager from "./systemAdmin/UsersManager";
 import PermissionsManager from "./systemAdmin/PermissionsManager";
 import AttendanceStatusManager from "./systemAdmin/AttendanceStatusManager";
@@ -22,6 +23,7 @@ import GoogleSheetsManager from "./systemAdmin/GoogleSheetsManager";
 import AuditManager from "./systemAdmin/AuditManager";
 import SystemSettingsManager from "./systemAdmin/SystemSettingsManager";
 import BackupsManager from "./systemAdmin/BackupsManager";
+import ShiftRolesManager from "./systemAdmin/ShiftRolesManager";
 
 type AdminSection =
   | "overview"
@@ -33,7 +35,8 @@ type AdminSection =
   | "sheets"
   | "audit"
   | "settings"
-  | "backups";
+  | "backups"
+  | "shift_roles";
 
 interface SystemAdminPanelProps {
   currentUser: UserProfile;
@@ -53,6 +56,8 @@ interface SystemAdminPanelProps {
   onGoogleSheetsConfigChanged: (config: GoogleSheetsConfig) => void;
   systemSettings: SystemSettingsConfig | null;
   onSystemSettingsChanged: (settings: SystemSettingsConfig) => void;
+  shiftSlotConfigs: ShiftSlotConfig[];
+  onShiftSlotConfigsChanged: (configs: ShiftSlotConfig[]) => void;
 }
 
 const sections: Array<{
@@ -110,6 +115,12 @@ const sections: Array<{
     icon: DatabaseBackup,
   },
   {
+    id: "shift_roles",
+    title: "ניהול תפקידי משמרת",
+    description: "הגדרת תקנים, חובה/רשות ותפקידים מותרים לכל שיבוץ.",
+    icon: CalendarCog,
+  },
+  {
     id: "settings",
     title: "הגדרות מערכת",
     description: "הגדרות כלליות, התראות, תצוגה ותחזוקה.",
@@ -130,6 +141,8 @@ export default function SystemAdminPanel({
   onGoogleSheetsConfigChanged,
   systemSettings,
   onSystemSettingsChanged,
+  shiftSlotConfigs,
+  onShiftSlotConfigsChanged,
 }: SystemAdminPanelProps) {
   const [activeSection, setActiveSection] =
     useState<AdminSection>("overview");
@@ -230,6 +243,13 @@ export default function SystemAdminPanel({
           currentUser={currentUser}
           systemVersion={systemSettings?.systemVersion}
           onRestoreCompleted={() => window.location.reload()}
+        />
+      ) : activeSection === "shift_roles" ? (
+        <ShiftRolesManager
+          currentUser={currentUser}
+          medicalRoles={medicalRoleConfigs}
+          configs={shiftSlotConfigs}
+          onConfigsChanged={onShiftSlotConfigsChanged}
         />
       ) : activeSection === "settings" ? (
         <SystemSettingsManager

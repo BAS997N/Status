@@ -28,6 +28,7 @@ export const PERMISSION_DEFINITIONS = [
   { id: "system_admin.view", label: "כניסה לניהול מערכת", category: "ניהול מערכת" },
   { id: "system_admin.statuses.manage", label: "ניהול סטטוסים", category: "ניהול מערכת" },
   { id: "system_admin.permissions.manage", label: "ניהול הרשאות", category: "ניהול מערכת" },
+  { id: "system_admin.shift_roles.manage", label: "ניהול תפקידי משמרת", category: "ניהול מערכת" },
 ] as const;
 
 export type PermissionId =
