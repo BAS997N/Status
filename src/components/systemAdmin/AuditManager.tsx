@@ -170,7 +170,9 @@ const GoogleSheetsAuditDetails = ({ log }: { log: AuditLogEntry }) => {
 
       {visibleReasons.length > 0 && (
         <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-3">
-          <div className="mb-2 text-[11px] font-black text-amber-800">סיבות לדילוג</div>
+          <div className="mb-2 text-[11px] font-black text-amber-800">
+            {Number(result.skippedCount || 0)} דיווחים לא נשלחו בגלל:
+          </div>
           <div className="space-y-1.5">
             {visibleReasons.map(([reason, count]) => (
               <div key={reason} className="flex items-center justify-between gap-3 text-[11px]">
@@ -185,9 +187,120 @@ const GoogleSheetsAuditDetails = ({ log }: { log: AuditLogEntry }) => {
   );
 };
 
+
+
+type ConfigItem = Record<string, unknown> & { id?: string; name?: string; label?: string };
+
+const CONFIG_IGNORED_FIELDS = new Set(["createdAt", "updatedAt", "updatedBy"]);
+
+const getItemDisplayName = (item?: ConfigItem) =>
+  String(item?.name || item?.label || item?.id || "פריט ללא שם");
+
+const getCollectionAuditChanges = (before: unknown, after: unknown) => {
+  if (!Array.isArray(before) || !Array.isArray(after)) return null;
+
+  const beforeItems = before as ConfigItem[];
+  const afterItems = after as ConfigItem[];
+  const beforeById = new Map(beforeItems.map((item, index) => [String(item.id || `index_${index}`), item]));
+  const afterById = new Map(afterItems.map((item, index) => [String(item.id || `index_${index}`), item]));
+
+  const added = Array.from(afterById.entries())
+    .filter(([id]) => !beforeById.has(id))
+    .map(([, item]) => item);
+
+  const removed = Array.from(beforeById.entries())
+    .filter(([id]) => !afterById.has(id))
+    .map(([, item]) => item);
+
+  const updated = Array.from(afterById.entries()).flatMap(([id, afterItem]) => {
+    const beforeItem = beforeById.get(id);
+    if (!beforeItem) return [];
+
+    const keys = Array.from(
+      new Set([...Object.keys(beforeItem), ...Object.keys(afterItem)])
+    ).filter((key) => !CONFIG_IGNORED_FIELDS.has(key) && key !== "id");
+
+    const fieldChanges = keys
+      .filter((key) => JSON.stringify(beforeItem[key]) !== JSON.stringify(afterItem[key]))
+      .map((key) => ({
+        key,
+        label: getFriendlyFieldLabel(key),
+        before: beforeItem[key],
+        after: afterItem[key],
+      }));
+
+    return fieldChanges.length > 0
+      ? [{ id, name: getItemDisplayName(afterItem), changes: fieldChanges }]
+      : [];
+  });
+
+  return { added, removed, updated };
+};
+
+const ConfigCollectionAuditDetails = ({ log }: { log: AuditLogEntry }) => {
+  const summary = getCollectionAuditChanges(log.before, log.after);
+  if (!summary) return null;
+
+  const hasChanges =
+    summary.added.length > 0 ||
+    summary.removed.length > 0 ||
+    summary.updated.length > 0;
+
+  if (!hasChanges) {
+    return <div className="text-[11px] text-slate-500">לא נמצאו שינויים בתוכן הרשימה.</div>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {summary.added.map((item, index) => (
+        <div key={`added-${item.id || index}`} className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+          <div className="text-[11px] font-black text-emerald-800">נוסף פריט</div>
+          <div className="mt-1 text-xs font-bold text-slate-800">{getItemDisplayName(item)}</div>
+        </div>
+      ))}
+
+      {summary.removed.map((item, index) => (
+        <div key={`removed-${item.id || index}`} className="rounded-lg border border-rose-200 bg-rose-50 p-3">
+          <div className="text-[11px] font-black text-rose-800">נמחק פריט</div>
+          <div className="mt-1 text-xs font-bold text-slate-800">{getItemDisplayName(item)}</div>
+        </div>
+      ))}
+
+      {summary.updated.map((item) => (
+        <div key={`updated-${item.id}`} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="mb-2 text-xs font-black text-slate-800">{item.name}</div>
+          <div className="space-y-2">
+            {item.changes.map((change) => (
+              <div key={`${item.id}-${change.key}`} className="rounded-md border border-slate-200 bg-white p-2.5">
+                <div className="mb-2 text-[11px] font-black text-slate-700">{change.label}</div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                  <div className="rounded-md bg-rose-50 px-2.5 py-2 text-[11px] text-rose-800">
+                    <span className="mb-1 block text-[9px] font-black text-rose-500">לפני</span>
+                    <span className="break-words">{formatValue(change.before)}</span>
+                  </div>
+                  <span className="hidden text-slate-400 sm:block">←</span>
+                  <div className="rounded-md bg-emerald-50 px-2.5 py-2 text-[11px] text-emerald-800">
+                    <span className="mb-1 block text-[9px] font-black text-emerald-500">אחרי</span>
+                    <span className="break-words">{formatValue(change.after)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const ChangeDetails = ({ log }: { log: AuditLogEntry }) => {
   if (log.module === "google_sheets" && log.action === "sync") {
     return <GoogleSheetsAuditDetails log={log} />;
+  }
+
+  if (["medical_roles", "units", "attendance_statuses"].includes(log.module)) {
+    const collectionDetails = <ConfigCollectionAuditDetails log={log} />;
+    if (collectionDetails) return collectionDetails;
   }
 
   const changes = getChanges(log.before, log.after || log.metadata);

@@ -226,6 +226,49 @@ const writeAuditLog = async (entry: {
   }
 };
 
+const buildCollectionAuditMetadata = (
+  before: Array<Record<string, any>>,
+  after: Array<Record<string, any>>
+) => {
+  const beforeById = new Map(
+    before.map((item, index) => [String(item.id || `index_${index}`), item])
+  );
+  const afterById = new Map(
+    after.map((item, index) => [String(item.id || `index_${index}`), item])
+  );
+
+  const added = Array.from(afterById.entries())
+    .filter(([id]) => !beforeById.has(id))
+    .map(([, item]) => ({ id: item.id, name: item.name || item.label || item.id }));
+
+  const removed = Array.from(beforeById.entries())
+    .filter(([id]) => !afterById.has(id))
+    .map(([, item]) => ({ id: item.id, name: item.name || item.label || item.id }));
+
+  const updated = Array.from(afterById.entries())
+    .filter(([id, item]) => {
+      const previous = beforeById.get(id);
+      if (!previous) return false;
+      const clean = (value: Record<string, any>) =>
+        Object.fromEntries(
+          Object.entries(value).filter(
+            ([key]) => !["createdAt", "updatedAt", "updatedBy"].includes(key)
+          )
+        );
+      return JSON.stringify(clean(previous)) !== JSON.stringify(clean(item));
+    })
+    .map(([, item]) => ({ id: item.id, name: item.name || item.label || item.id }));
+
+  return {
+    addedCount: added.length,
+    removedCount: removed.length,
+    updatedCount: updated.length,
+    added,
+    removed,
+    updated,
+  };
+};
+
 const saveGoogleSheetsConfigToCache = (config: GoogleSheetsConfig) => {
   localStorage.setItem(GOOGLE_SHEETS_CONFIG_CACHE_KEY, JSON.stringify(config));
   localStorage.setItem(GOOGLE_SHEETS_CONFIG_CACHE_TIME_KEY, String(Date.now()));
@@ -1015,6 +1058,15 @@ export const dataService = {
 
     if (!isFirebaseActive()) {
       saveUnitConfigsToCache(normalized);
+      await writeAuditLog({
+        action: "update",
+        module: "units",
+        targetId: "settings",
+        targetLabel: "יחידות",
+        before: beforeValue,
+        after: normalized,
+        metadata: buildCollectionAuditMetadata(beforeValue, normalized),
+      });
       return normalized;
     }
 
@@ -1032,7 +1084,15 @@ export const dataService = {
       );
 
       saveUnitConfigsToCache(normalized);
-      await writeAuditLog({ action: "update", module: "units", targetId: "settings", targetLabel: "יחידות", before: beforeValue, after: normalized });
+      await writeAuditLog({
+        action: "update",
+        module: "units",
+        targetId: "settings",
+        targetLabel: "יחידות",
+        before: beforeValue,
+        after: normalized,
+        metadata: buildCollectionAuditMetadata(beforeValue, normalized),
+      });
       return normalized;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
@@ -1106,6 +1166,15 @@ export const dataService = {
 
     if (!isFirebaseActive()) {
       saveMedicalRoleConfigsToCache(normalized);
+      await writeAuditLog({
+        action: "update",
+        module: "medical_roles",
+        targetId: "settings",
+        targetLabel: "תפקידי רפואה",
+        before: beforeValue,
+        after: normalized,
+        metadata: buildCollectionAuditMetadata(beforeValue, normalized),
+      });
       return normalized;
     }
 
@@ -1123,7 +1192,15 @@ export const dataService = {
       );
 
       saveMedicalRoleConfigsToCache(normalized);
-      await writeAuditLog({ action: "update", module: "medical_roles", targetId: "settings", targetLabel: "תפקידי רפואה", before: beforeValue, after: normalized });
+      await writeAuditLog({
+        action: "update",
+        module: "medical_roles",
+        targetId: "settings",
+        targetLabel: "תפקידי רפואה",
+        before: beforeValue,
+        after: normalized,
+        metadata: buildCollectionAuditMetadata(beforeValue, normalized),
+      });
       return normalized;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
@@ -1197,6 +1274,15 @@ export const dataService = {
 
     if (!isFirebaseActive()) {
       saveAttendanceStatusesToCache(normalizedStatuses);
+      await writeAuditLog({
+        action: "update",
+        module: "attendance_statuses",
+        targetId: "settings",
+        targetLabel: "סטטוסי נוכחות",
+        before: beforeValue,
+        after: normalizedStatuses,
+        metadata: buildCollectionAuditMetadata(beforeValue, normalizedStatuses),
+      });
       return normalizedStatuses;
     }
 
@@ -1215,7 +1301,15 @@ export const dataService = {
       );
 
       saveAttendanceStatusesToCache(normalizedStatuses);
-      await writeAuditLog({ action: "update", module: "attendance_statuses", targetId: "settings", targetLabel: "סטטוסי נוכחות", before: beforeValue, after: normalizedStatuses });
+      await writeAuditLog({
+        action: "update",
+        module: "attendance_statuses",
+        targetId: "settings",
+        targetLabel: "סטטוסי נוכחות",
+        before: beforeValue,
+        after: normalizedStatuses,
+        metadata: buildCollectionAuditMetadata(beforeValue, normalizedStatuses),
+      });
       return normalizedStatuses;
     } catch (error) {
       handleFirestoreError(
