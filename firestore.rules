@@ -24,11 +24,19 @@ service cloud.firestore {
       return hasUserDocument() ? myUser().data.systemRole : null;
     }
 
+    function mySystemRoleAccessLevel() {
+      return hasUserDocument() &&
+        myUser().data.systemRoleAccessLevel is string
+          ? myUser().data.systemRoleAccessLevel
+          : null;
+    }
+
     function isAdmin() {
       return signedIn() && (
         myRole() == "commander" ||
         mySystemRole() == "admin" ||
-        mySystemRole() == "super_admin"
+        mySystemRole() == "super_admin" ||
+        mySystemRoleAccessLevel() == "admin"
       );
     }
 

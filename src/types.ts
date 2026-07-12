@@ -3,11 +3,33 @@ export type UserRole =
   | "commander"
   | "adjutant_officer";
 
-export type SystemRole =
+export type BuiltInSystemRole =
   | "super_admin"
   | "admin"
   | "viewer"
   | "reporter";
+
+/**
+ * Built-in roles keep their existing IDs, while custom roles may use any
+ * stable string ID created from the system administration screen.
+ */
+export type SystemRole = BuiltInSystemRole | (string & {});
+
+export type SystemRoleAccessLevel = "admin" | "viewer" | "reporter";
+
+export interface SystemRoleConfig {
+  id: SystemRole;
+  name: string;
+  description: string;
+  accessLevel: SystemRoleAccessLevel;
+  enabled: boolean;
+  protected: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
 
 export interface PermissionDefinition {
   id: string;
@@ -342,6 +364,7 @@ export interface UserProfile {
   className?: string;
   medicalRole?: string;
   systemRole?: SystemRole;
+  systemRoleAccessLevel?: SystemRoleAccessLevel;
 }
 
 /*

@@ -3,6 +3,7 @@ import { Save, ShieldCheck } from "lucide-react";
 import {
   RolePermissionConfig,
   SystemRole,
+  SystemRoleConfig,
   UserProfile,
 } from "../../types";
 import { dataService } from "../../services/dataService";
@@ -12,24 +13,11 @@ interface PermissionsManagerProps {
   currentUser: UserProfile;
 }
 
-const ROLE_LABELS: Record<SystemRole, string> = {
-  super_admin: "מנהל אתר",
-  admin: "מפקד פעיל",
-  viewer: "שליש",
-  reporter: "חייל מדווח",
-};
-
-const ROLE_ORDER: SystemRole[] = [
-  "super_admin",
-  "admin",
-  "viewer",
-  "reporter",
-];
-
 export default function PermissionsManager({
   currentUser,
 }: PermissionsManagerProps) {
   const [configs, setConfigs] = useState<RolePermissionConfig[]>([]);
+  const [roles, setRoles] = useState<SystemRoleConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -41,8 +29,32 @@ export default function PermissionsManager({
     const load = async () => {
       try {
         setLoading(true);
-        const loaded = await dataService.getRolePermissionConfigs();
-        if (active) setConfigs(loaded);
+        const [loaded, loadedRoles] = await Promise.all([
+          dataService.getRolePermissionConfigs(true),
+          dataService.getSystemRoleConfigs(true),
+        ]);
+
+        if (active) {
+          const activeRoles = loadedRoles
+            .filter((role) => role.enabled)
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+
+          const configByRole = new Map(
+            loaded.map((config) => [String(config.systemRole), config])
+          );
+
+          setRoles(activeRoles);
+          setConfigs(
+            activeRoles.map((role) => ({
+              systemRole: role.id,
+              permissions: {
+                ...(configByRole.get(role.id)?.permissions || {}),
+              },
+              updatedAt: configByRole.get(role.id)?.updatedAt,
+              updatedBy: configByRole.get(role.id)?.updatedBy,
+            }))
+          );
+        }
       } catch (err) {
         console.error(err);
         if (active) setError("טעינת ההרשאות נכשלה");
@@ -138,7 +150,7 @@ export default function PermissionsManager({
               הרשאות לפי תפקיד
             </h2>
             <p className="mt-1 text-xs text-slate-500">
-              השינויים נשמרים ב־Firestore וישמשו את כל המערכת לאחר חיבור מנגנון ההרשאות למסכים.
+              כל תפקיד קיים או חדש מקבל עמודת הרשאות משלו. תפקיד מנהל האתר נשאר מוגן.
             </p>
           </div>
 
@@ -173,14 +185,17 @@ export default function PermissionsManager({
               <th className="sticky right-0 z-10 border-b border-l border-slate-200 bg-slate-50 px-4 py-3 font-black text-slate-700">
                 הרשאה
               </th>
-              {ROLE_ORDER.map((role) => (
+              {roles.map((roleConfig) => {
+                const role = roleConfig.id;
+                return (
                 <th
                   key={role}
                   className="border-b border-l border-slate-200 px-4 py-3 text-center font-black text-slate-700"
                 >
-                  {ROLE_LABELS[role]}
+                  {roleConfig.name}
                 </th>
-              ))}
+                );
+              })}
             </tr>
           </thead>
 
@@ -189,7 +204,7 @@ export default function PermissionsManager({
               <Fragment key={category}>
                 <tr key={`${category}-title`}>
                   <td
-                    colSpan={ROLE_ORDER.length + 1}
+                    colSpan={roles.length + 1}
                     className="border-b border-slate-200 bg-slate-100 px-4 py-2 font-black text-slate-700"
                   >
                     {category}
@@ -202,7 +217,9 @@ export default function PermissionsManager({
                       {permission.label}
                     </td>
 
-                    {ROLE_ORDER.map((role) => (
+                    {roles.map((roleConfig) => {
+                      const role = roleConfig.id;
+                      return (
                       <td
                         key={`${permission.id}-${role}`}
                         className="border-b border-l border-slate-100 px-4 py-3 text-center"
@@ -221,7 +238,8 @@ export default function PermissionsManager({
                           className="h-4 w-4 cursor-pointer accent-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
                         />
                       </td>
-                    ))}
+                      );
+                    })}
                   </tr>
                 ))}
               </Fragment>

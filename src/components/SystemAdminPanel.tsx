@@ -17,6 +17,7 @@ import {
   ArrowUp,
   ArrowDown,
   Save,
+  ShieldPlus,
 } from "lucide-react";
 import { AttendanceStatusConfig, ExternalStaffMember, GoogleSheetsConfig, MedicalRoleConfig, ShiftSlotConfig, SystemRole, SystemSettingsConfig, UnitConfig, UserProfile } from "../types";
 import UsersManager from "./systemAdmin/UsersManager";
@@ -31,6 +32,7 @@ import BackupsManager from "./systemAdmin/BackupsManager";
 import ShiftRolesManager from "./systemAdmin/ShiftRolesManager";
 import ExternalStaffManager from "./systemAdmin/ExternalStaffManager";
 import ShiftTypesManager from "./systemAdmin/ShiftTypesManager";
+import SystemRolesManager from "./systemAdmin/SystemRolesManager";
 import { dataService } from "../services/dataService";
 
 type AdminSection =
@@ -46,14 +48,16 @@ type AdminSection =
   | "backups"
   | "shift_roles"
   | "external_staff"
-  | "shift_types";
+  | "shift_types"
+  | "system_roles";
 
 interface SystemAdminPanelProps {
   currentUser: UserProfile;
   users: UserProfile[];
   onUpdateSystemRole: (
     userId: string,
-    systemRole: SystemRole
+    systemRole: SystemRole,
+    accessLevel?: import("../types").SystemRoleAccessLevel
   ) => Promise<void>;
   onAttendanceStatusesChanged?: (
     statuses: AttendanceStatusConfig[]
@@ -83,6 +87,12 @@ const sections: Array<{
     title: "משתמשים ותפקידי מערכת",
     description: "שיוך משתמש לסופר־אדמין, אדמין, צפייה בלבד או דיווח בלבד.",
     icon: Users,
+  },
+  {
+    id: "system_roles",
+    title: "תפקידי ניהול",
+    description: "יצירה ועריכה של תפקידי מערכת חדשים בלי לפגוע בתפקידים הקיימים.",
+    icon: ShieldPlus,
   },
   {
     id: "permissions",
@@ -316,6 +326,8 @@ export default function SystemAdminPanel({
           users={users}
           onUpdateSystemRole={onUpdateSystemRole}
         />
+      ) : activeSection === "system_roles" ? (
+        <SystemRolesManager currentUser={currentUser} />
       ) : activeSection === "permissions" ? (
         <PermissionsManager currentUser={currentUser} />
       ) : activeSection === "statuses" ? (

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   Search,
@@ -6,43 +6,23 @@ import {
   ShieldCheck,
   UserCog,
 } from "lucide-react";
-import { SystemRole, UserProfile } from "../../types";
+import {
+  SystemRole,
+  SystemRoleConfig,
+  SystemRoleAccessLevel,
+  UserProfile,
+} from "../../types";
+import { dataService } from "../../services/dataService";
 
 interface UsersManagerProps {
   currentUser: UserProfile;
   users: UserProfile[];
   onUpdateSystemRole: (
     userId: string,
-    systemRole: SystemRole
+    systemRole: SystemRole,
+    accessLevel?: SystemRoleAccessLevel
   ) => Promise<void>;
 }
-
-const SYSTEM_ROLE_OPTIONS: Array<{
-  value: SystemRole;
-  label: string;
-  description: string;
-}> = [
-  {
-    value: "super_admin",
-    label: "מנהל אתר — סופר אדמין",
-    description: "גישה מלאה לניהול המערכת, ההרשאות וההגדרות.",
-  },
-  {
-    value: "admin",
-    label: "מפקד פעיל — אדמין",
-    description: "ניהול שוטף של חיילים, דיווחים ולוח הבקרה.",
-  },
-  {
-    value: "viewer",
-    label: "שליש — צפייה בנתונים",
-    description: "צפייה בלבד ללא עריכה, מחיקה או איפוס.",
-  },
-  {
-    value: "reporter",
-    label: "חייל — דיווח בלבד",
-    description: "גישה למסך הדיווח האישי בלבד.",
-  },
-];
 
 const getDefaultSystemRole = (user: UserProfile): SystemRole => {
   if (user.systemRole) return user.systemRole;
@@ -57,12 +37,28 @@ export default function UsersManager({
   onUpdateSystemRole,
 }: UsersManagerProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [roleOptions, setRoleOptions] = useState<SystemRoleConfig[]>([]);
   const [draftRoles, setDraftRoles] = useState<Record<string, SystemRole>>({});
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  useEffect(() => {
+    dataService
+      .getSystemRoleConfigs(true)
+      .then((roles) =>
+        setRoleOptions(
+          roles
+            .filter((role) => role.enabled)
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+        )
+      )
+      .catch((error) =>
+        console.error("Failed loading system role options:", error)
+      );
+  }, []);
 
   const filteredUsers = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -109,7 +105,14 @@ export default function UsersManager({
     setMessage(null);
 
     try {
-      await onUpdateSystemRole(user.userId, nextRole);
+      const selectedConfig = roleOptions.find(
+        (role) => role.id === nextRole
+      );
+      await onUpdateSystemRole(
+        user.userId,
+        nextRole,
+        selectedConfig?.accessLevel
+      );
       setDraftRoles((current) => {
         const next = { ...current };
         delete next[user.userId];
@@ -230,16 +233,16 @@ export default function UsersManager({
                         }
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
                       >
-                        {SYSTEM_ROLE_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
+                        {roleOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.name}
                           </option>
                         ))}
                       </select>
                       <p className="mt-1.5 text-[10px] leading-4 text-slate-400">
                         {
-                          SYSTEM_ROLE_OPTIONS.find(
-                            (option) => option.value === selectedRole
+                          roleOptions.find(
+                            (option) => option.id === selectedRole
                           )?.description
                         }
                       </p>

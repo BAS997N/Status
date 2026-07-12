@@ -313,7 +313,14 @@ export default function Header({
                     </div>
 
                     <div>
-                      <label className="block text-xs text-military-300 mb-1">תפקיד / הרשאה</label>
+                      <label className="block text-xs text-military-300 mb-1">
+                        תפקיד צבאי
+                        {currentUser.systemRole && (
+                          <span className="mr-2 text-[10px] text-military-400">
+                            הרשאת מערכת: {currentUser.systemRole}
+                          </span>
+                        )}
+                      </label>
                       <select
                         value={editRole}
                         onChange={(e) => setEditRole(e.target.value as any)}

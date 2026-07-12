@@ -32,6 +32,7 @@ import {
   IDF_UNITS,
   UserRole,
   SystemRole,
+  SystemRoleAccessLevel,
   RolePermissionConfig,
   AttendanceStatusConfig,
   UnitConfig,
@@ -332,7 +333,9 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   // Managers keep access so they can prepare or operate the emergency center.
   // Regular soldiers only see the tab while an emergency event is active.
   const isEmergencyManagerRole =
-    shiftsSystemRole === "admin" || shiftsSystemRole === "super_admin";
+    canManageEmergency ||
+    shiftsSystemRole === "admin" ||
+    shiftsSystemRole === "super_admin";
 
   const shouldShowEmergencyTab =
     isEmergencyManagerRole || (canViewEmergency && isEmergencyActive);
@@ -693,7 +696,8 @@ setSystemLogs(updatedSystemLogs);
 };
  const handleUpdateUserSystemRole = async (
   userId: string,
-  systemRole: SystemRole
+  systemRole: SystemRole,
+  accessLevel?: SystemRoleAccessLevel
 ) => {
   if (!userProfile || !isSuperAdmin) {
     throw new Error("אין הרשאה לעדכן הרשאות מערכת");
@@ -703,17 +707,33 @@ setSystemLogs(updatedSystemLogs);
     throw new Error("לא ניתן להסיר מעצמך הרשאת סופר־אדמין");
   }
 
-  await dataService.updateUserSystemRole(userId, systemRole);
+  await dataService.updateUserSystemRole(
+    userId,
+    systemRole,
+    accessLevel
+  );
 
   setAllUsers((currentUsers) =>
     currentUsers.map((user) =>
-      user.userId === userId ? { ...user, systemRole } : user
+      user.userId === userId
+        ? {
+            ...user,
+            systemRole,
+            systemRoleAccessLevel: accessLevel,
+          }
+        : user
     )
   );
 
   if (userProfile.userId === userId) {
     setUserProfile((currentProfile) =>
-      currentProfile ? { ...currentProfile, systemRole } : currentProfile
+      currentProfile
+        ? {
+            ...currentProfile,
+            systemRole,
+            systemRoleAccessLevel: accessLevel,
+          }
+        : currentProfile
     );
   }
 };

@@ -29,6 +29,8 @@ import {
   AttendanceStatusConfig,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   SystemRole,
+  SystemRoleConfig,
+  SystemRoleAccessLevel,
   RolePermissionConfig,
   GoogleSheetsConfig,
   GoogleSheetsSyncResult,
@@ -1131,6 +1133,143 @@ const getExternalStaffFromCache = (
   }
 };
 
+
+const SYSTEM_ROLES_CACHE_KEY = "idf_system_role_configs";
+const SYSTEM_ROLES_CACHE_TIME_KEY = "idf_system_role_configs_cached_at";
+const SYSTEM_ROLES_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const DEFAULT_SYSTEM_ROLE_CONFIGS: SystemRoleConfig[] = [
+  {
+    id: "super_admin",
+    name: "מנהל אתר",
+    description: "גישה מלאה לכל מסכי המערכת וההגדרות.",
+    accessLevel: "admin",
+    enabled: true,
+    protected: true,
+    sortOrder: 1,
+  },
+  {
+    id: "admin",
+    name: "מפקד פעיל",
+    description: "ניהול שוטף של חיילים, דיווחים ומשמרות.",
+    accessLevel: "admin",
+    enabled: true,
+    protected: true,
+    sortOrder: 2,
+  },
+  {
+    id: "viewer",
+    name: "שליש",
+    description: "צפייה בנתונים בהתאם להרשאות שהוגדרו.",
+    accessLevel: "viewer",
+    enabled: true,
+    protected: true,
+    sortOrder: 3,
+  },
+  {
+    id: "reporter",
+    name: "חייל מדווח",
+    description: "דיווח נוכחות וצפייה במידע אישי.",
+    accessLevel: "reporter",
+    enabled: true,
+    protected: true,
+    sortOrder: 4,
+  },
+];
+
+const cloneDefaultSystemRoles = (): SystemRoleConfig[] =>
+  DEFAULT_SYSTEM_ROLE_CONFIGS.map((role) => ({ ...role }));
+
+const normalizeSystemRoleConfigs = (value: unknown): SystemRoleConfig[] => {
+  const stored = Array.isArray(value) ? value : [];
+
+  const normalizedStored = stored
+    .filter(
+      (item): item is Partial<SystemRoleConfig> =>
+        !!item && typeof item === "object"
+    )
+    .map((item, index) => {
+      const rawId = typeof item.id === "string" ? item.id.trim() : "";
+      const id = rawId || `custom_role_${index + 1}`;
+      const accessLevel: SystemRoleAccessLevel =
+        item.accessLevel === "admin" ||
+        item.accessLevel === "viewer" ||
+        item.accessLevel === "reporter"
+          ? item.accessLevel
+          : "reporter";
+
+      return {
+        id,
+        name:
+          typeof item.name === "string" && item.name.trim()
+            ? item.name.trim()
+            : id,
+        description:
+          typeof item.description === "string"
+            ? item.description.trim()
+            : "",
+        accessLevel,
+        enabled: item.enabled !== false,
+        protected:
+          item.protected === true ||
+          ["super_admin", "admin", "viewer", "reporter"].includes(id),
+        sortOrder:
+          typeof item.sortOrder === "number" ? item.sortOrder : index + 10,
+        createdAt: item.createdAt,
+        createdBy: item.createdBy,
+        updatedAt: item.updatedAt,
+        updatedBy: item.updatedBy,
+      } as SystemRoleConfig;
+    });
+
+  const byId = new Map(
+    normalizedStored.map((role) => [String(role.id), role])
+  );
+
+  const builtIns = cloneDefaultSystemRoles().map((defaultRole) => ({
+    ...defaultRole,
+    ...(byId.get(defaultRole.id) || {}),
+    id: defaultRole.id,
+    protected: true,
+  }));
+
+  const customRoles = normalizedStored.filter(
+    (role) =>
+      !["super_admin", "admin", "viewer", "reporter"].includes(role.id)
+  );
+
+  return [...builtIns, ...customRoles]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((role, index) => ({ ...role, sortOrder: index + 1 }));
+};
+
+const saveSystemRolesToCache = (roles: SystemRoleConfig[]) => {
+  localStorage.setItem(SYSTEM_ROLES_CACHE_KEY, JSON.stringify(roles));
+  localStorage.setItem(SYSTEM_ROLES_CACHE_TIME_KEY, String(Date.now()));
+};
+
+const getSystemRolesFromCache = (
+  allowExpired = false
+): SystemRoleConfig[] | null => {
+  try {
+    const raw = localStorage.getItem(SYSTEM_ROLES_CACHE_KEY);
+    const cachedAt = Number(
+      localStorage.getItem(SYSTEM_ROLES_CACHE_TIME_KEY) || 0
+    );
+
+    if (!raw) return null;
+
+    const expired =
+      !cachedAt || Date.now() - cachedAt > SYSTEM_ROLES_CACHE_TTL_MS;
+
+    if (expired && !allowExpired) return null;
+
+    return normalizeSystemRoleConfigs(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+};
+
 const ROLE_PERMISSIONS_CACHE_KEY = "idf_role_permission_configs";
 const ROLE_PERMISSIONS_CACHE_TIME_KEY =
   "idf_role_permission_configs_cached_at";
@@ -1252,28 +1391,25 @@ const cloneDefaultRolePermissions = (): RolePermissionConfig[] =>
 const normalizeRolePermissionConfigs = (
   value: unknown
 ): RolePermissionConfig[] => {
-  if (!Array.isArray(value)) return cloneDefaultRolePermissions();
-
-  const allowedRoles: SystemRole[] = [
-    "super_admin",
-    "admin",
-    "viewer",
-    "reporter",
-  ];
-
   const defaults = cloneDefaultRolePermissions();
+  const stored = Array.isArray(value)
+    ? value.filter(
+        (item): item is RolePermissionConfig =>
+          !!item &&
+          typeof item === "object" &&
+          typeof (item as RolePermissionConfig).systemRole === "string"
+      )
+    : [];
 
-  return allowedRoles.map((systemRole) => {
-    const defaultConfig = defaults.find(
-      (config) => config.systemRole === systemRole
-    )!;
+  const storedByRole = new Map(
+    stored.map((config) => [String(config.systemRole), config])
+  );
 
-    const storedConfig = value.find(
-      (config: any) => config?.systemRole === systemRole
-    ) as RolePermissionConfig | undefined;
+  const builtIns = defaults.map((defaultConfig) => {
+    const storedConfig = storedByRole.get(defaultConfig.systemRole);
 
     return {
-      systemRole,
+      systemRole: defaultConfig.systemRole,
       permissions: {
         ...defaultConfig.permissions,
         ...(storedConfig?.permissions || {}),
@@ -1282,6 +1418,20 @@ const normalizeRolePermissionConfigs = (
       updatedBy: storedConfig?.updatedBy,
     };
   });
+
+  const custom = stored
+    .filter(
+      (config) =>
+        !["super_admin", "admin", "viewer", "reporter"].includes(
+          String(config.systemRole)
+        )
+    )
+    .map((config) => ({
+      ...config,
+      permissions: { ...(config.permissions || {}) },
+    }));
+
+  return [...builtIns, ...custom];
 };
 
 const saveRolePermissionsToCache = (
@@ -2339,6 +2489,95 @@ export const dataService = {
       };
     }
   },
+  async getSystemRoleConfigs(
+    forceRefresh = false
+  ): Promise<SystemRoleConfig[]> {
+    if (!forceRefresh) {
+      const cached = getSystemRolesFromCache();
+      if (cached) return cached;
+    }
+
+    if (!isFirebaseActive()) {
+      const roles =
+        getSystemRolesFromCache(true) || cloneDefaultSystemRoles();
+      saveSystemRolesToCache(roles);
+      return roles;
+    }
+
+    const path = "settings/system_roles";
+
+    try {
+      const ref = doc(db, "settings", "system_roles");
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        const roles = normalizeSystemRoleConfigs(snap.data()?.roles);
+        saveSystemRolesToCache(roles);
+        return roles;
+      }
+
+      const defaults = cloneDefaultSystemRoles();
+      await setDoc(ref, {
+        roles: defaults,
+        updatedAt: new Date().toISOString(),
+        updatedBy: auth?.currentUser?.uid || "SYSTEM_INIT",
+      });
+      saveSystemRolesToCache(defaults);
+      return defaults;
+    } catch (error) {
+      console.error("Failed loading system roles:", error);
+      const fallback =
+        getSystemRolesFromCache(true) || cloneDefaultSystemRoles();
+      saveSystemRolesToCache(fallback);
+      return fallback;
+    }
+  },
+
+  async saveSystemRoleConfigs(
+    roles: SystemRoleConfig[],
+    updatedBy?: string
+  ): Promise<SystemRoleConfig[]> {
+    const beforeValue = await this.getSystemRoleConfigs(true).catch(() => []);
+    const normalized = normalizeSystemRoleConfigs(roles).map((role) => ({
+      ...role,
+      updatedAt: new Date().toISOString(),
+      updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
+    }));
+
+    if (!isFirebaseActive()) {
+      saveSystemRolesToCache(normalized);
+      return normalized;
+    }
+
+    const path = "settings/system_roles";
+
+    try {
+      await setDoc(
+        doc(db, "settings", "system_roles"),
+        {
+          roles: normalized,
+          updatedAt: new Date().toISOString(),
+          updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
+        },
+        { merge: true }
+      );
+
+      saveSystemRolesToCache(normalized);
+      await writeAuditLog({
+        action: "update",
+        module: "permissions",
+        targetId: "system_roles",
+        targetLabel: "תפקידי מערכת",
+        before: beforeValue,
+        after: normalized,
+      });
+      return normalized;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+      return normalized;
+    }
+  },
+
   async getRolePermissionConfigs(
     forceRefresh = false
   ): Promise<RolePermissionConfig[]> {
@@ -2875,7 +3114,8 @@ export const dataService = {
   },
   async updateUserSystemRole(
     userId: string,
-    systemRole: SystemRole
+    systemRole: SystemRole,
+    systemRoleAccessLevel?: SystemRoleAccessLevel
   ): Promise<void> {
     if (!userId) {
       throw new Error("Missing userId for system role update");
@@ -2894,6 +3134,13 @@ export const dataService = {
       profiles[index] = {
         ...profiles[index],
         systemRole,
+        systemRoleAccessLevel:
+          systemRoleAccessLevel ||
+          (systemRole === "super_admin" || systemRole === "admin"
+            ? "admin"
+            : systemRole === "viewer"
+            ? "viewer"
+            : "reporter"),
       };
 
       localStorage.setItem("idf_profiles", JSON.stringify(profiles));
@@ -2906,12 +3153,21 @@ export const dataService = {
     try {
       const beforeSnap = await getDoc(doc(db, "users", userId));
       beforeUser = beforeSnap.exists() ? beforeSnap.data() : null;
+      const resolvedAccessLevel: SystemRoleAccessLevel =
+        systemRoleAccessLevel ||
+        (systemRole === "super_admin" || systemRole === "admin"
+          ? "admin"
+          : systemRole === "viewer"
+          ? "viewer"
+          : "reporter");
+
       await updateDoc(doc(db, "users", userId), {
         systemRole,
+        systemRoleAccessLevel: resolvedAccessLevel,
         systemRoleUpdatedAt: new Date().toISOString(),
         systemRoleUpdatedBy: auth?.currentUser?.uid || "unknown",
       });
-      await writeAuditLog({ action: "update", module: "users", targetId: userId, targetLabel: beforeUser?.fullName || userId, before: beforeUser, after: { ...beforeUser, systemRole } });
+      await writeAuditLog({ action: "update", module: "users", targetId: userId, targetLabel: beforeUser?.fullName || userId, before: beforeUser, after: { ...beforeUser, systemRole, systemRoleAccessLevel: resolvedAccessLevel } });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }
