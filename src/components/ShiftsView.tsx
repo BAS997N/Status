@@ -55,7 +55,7 @@ const isDoctorOrParamedic = (user: UserProfile) =>
   includesAny(user.medicalRole, ["רופא", "פרמדיק", "פארמדיק"]);
 
 const isEventManager = (user: UserProfile) =>
-  includesAny(user.medicalRole, ["מנהל/ת אירוע"]);
+  includesAny(user.medicalRole, ["מנהל אירוע", "מנהלת אירוע"]);
 
 const isCommander = (user: UserProfile) =>
   user.role === "commander" ||
@@ -77,7 +77,7 @@ const SHIFT_SLOTS: ShiftSlotDefinition[] = [
   },
   {
     id: "event_manager",
-    label: "מנהל אירוע",
+    label: "מנהל/ת אירוע",
     description: "מוצגים רק בעלי תפקיד מנהל אירוע.",
     isUserAllowed: isEventManager,
   },
