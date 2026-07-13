@@ -208,7 +208,7 @@ export default function ShiftsView({
   const [startDate, setStartDate] = useState(getTodayInputDate());
   const [startTime, setStartTime] = useState("05:30");
   const [endDate, setEndDate] = useState(getTodayInputDate());
-  const [endTime, setEndTime] = useState("18:30");
+  const [endTime, setEndTime] = useState("17:30");
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [slotAssignments, setSlotAssignments] = useState<Record<string, string>>({});
@@ -538,7 +538,7 @@ export default function ShiftsView({
     setStartDate(getTodayInputDate());
     setStartTime("05:30");
     setEndDate(getTodayInputDate());
-    setEndTime("18:30");
+    setEndTime("17:30");
     setLocation("");
     setNote("");
     setSlotAssignments({});
@@ -2752,8 +2752,7 @@ export default function ShiftsView({
                   <option value="custom">אחר — הזנה ידנית</option>
                 </select>
               </Field>
-
-              {selectedShiftTypeId === "custom" ? (
+              {selectedShiftTypeId === "custom" && (
                 <Field label="שם משמרת ידני">
                   <input
                     value={customTitle}
@@ -2765,30 +2764,16 @@ export default function ShiftsView({
                     className="input"
                   />
                 </Field>
-              ) : (
-                <Field label="שעות בחירה מהירה">
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        applyTimeRange("05:30", "18:30", false)
-                      }
-                      className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-black text-amber-800 hover:bg-amber-100"
-                    >
-                      05:30–18:30
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        applyTimeRange("18:30", "05:30", true)
-                      }
-                      className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs font-black text-indigo-800 hover:bg-indigo-100"
-                    >
-                      18:30–05:30
-                    </button>
-                  </div>
-                </Field>
               )}
+
+              {selectedShiftTypeId &&
+                selectedShiftTypeId !== "custom" && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold leading-5 text-emerald-800">
+                    בחירת סוג המשמרת ממלאת אוטומטית את שעות ברירת
+                    המחדל שהוגדרו בניהול סוגי משמרות. ניתן לשנות אותן
+                    ידנית בשדות השעה.
+                  </div>
+                )}
 
               <Field label="תאריך התחלה">
                 <input
@@ -2827,32 +2812,6 @@ export default function ShiftsView({
                   className="input"
                 />
               </Field>
-
-              <div className="md:col-span-2">
-                <div className="mb-2 text-xs font-bold text-slate-700">
-                  טווחי שעות קבועים
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      applyTimeRange("05:30", "18:30", false)
-                    }
-                    className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-black text-amber-800 hover:bg-amber-100"
-                  >
-                    משמרת יום · 05:30–18:30
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      applyTimeRange("18:30", "05:30", true)
-                    }
-                    className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs font-black text-indigo-800 hover:bg-indigo-100"
-                  >
-                    משמרת לילה · 18:30–05:30 למחרת
-                  </button>
-                </div>
-              </div>
 
               <Field label="מצב פרסום">
                 <select

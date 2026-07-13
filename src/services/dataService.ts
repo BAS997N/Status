@@ -771,7 +771,7 @@ const DEFAULT_SHIFT_TYPE_CONFIGS: ShiftTypeConfig[] = [
     enabled: true,
     sortOrder: 1,
     defaultStartTime: "05:30",
-    defaultEndTime: "18:30",
+    defaultEndTime: "17:30",
     crossesMidnight: false,
   },
   {
@@ -779,7 +779,7 @@ const DEFAULT_SHIFT_TYPE_CONFIGS: ShiftTypeConfig[] = [
     name: 'תגב"ץ ערב',
     enabled: true,
     sortOrder: 2,
-    defaultStartTime: "18:30",
+    defaultStartTime: "17:30",
     defaultEndTime: "05:30",
     crossesMidnight: true,
   },
@@ -819,21 +819,47 @@ const normalizeShiftTypeConfigs = (value: unknown): ShiftTypeConfig[] => {
         typeof (item as ShiftTypeConfig).id === "string" &&
         typeof (item as ShiftTypeConfig).name === "string"
     )
-    .map((item, index) => ({
-      ...item,
-      id: item.id.trim(),
-      name: item.name.trim() == 'חיפ"ק' ? "חיפוק" : item.name.trim(),
-      enabled: item.enabled !== false,
-      sortOrder:
-        typeof item.sortOrder === "number" ? item.sortOrder : index + 1,
-      defaultStartTime: isValidTimeText(item.defaultStartTime)
+    .map((item, index) => {
+      const id = item.id.trim();
+      const normalizedName =
+        item.name.trim() == 'חיפ"ק' ? "חיפוק" : item.name.trim();
+
+      let defaultStartTime = isValidTimeText(item.defaultStartTime)
         ? item.defaultStartTime
-        : "",
-      defaultEndTime: isValidTimeText(item.defaultEndTime)
+        : "";
+      let defaultEndTime = isValidTimeText(item.defaultEndTime)
         ? item.defaultEndTime
-        : "",
-      crossesMidnight: item.crossesMidnight === true,
-    }))
+        : "";
+
+      // Migrate only the previous built-in hours. Custom hours stay unchanged.
+      if (
+        id === "tagbatz_morning" &&
+        defaultStartTime === "05:30" &&
+        defaultEndTime === "18:30"
+      ) {
+        defaultEndTime = "17:30";
+      }
+
+      if (
+        id === "tagbatz_evening" &&
+        defaultStartTime === "18:30" &&
+        defaultEndTime === "05:30"
+      ) {
+        defaultStartTime = "17:30";
+      }
+
+      return {
+        ...item,
+        id,
+        name: normalizedName,
+        enabled: item.enabled !== false,
+        sortOrder:
+          typeof item.sortOrder === "number" ? item.sortOrder : index + 1,
+        defaultStartTime,
+        defaultEndTime,
+        crossesMidnight: item.crossesMidnight === true,
+      };
+    })
     .filter((item) => {
       const normalizedName = item.name.toLocaleLowerCase("he");
       if (

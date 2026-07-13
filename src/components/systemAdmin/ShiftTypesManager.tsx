@@ -28,8 +28,8 @@ export default function ShiftTypesManager({
   const [items, setItems] = useState<ShiftTypeConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
-  const [newStartTime, setNewStartTime] = useState("");
-  const [newEndTime, setNewEndTime] = useState("");
+  const [newStartTime, setNewStartTime] = useState("05:30");
+  const [newEndTime, setNewEndTime] = useState("17:30");
   const [newCrossesMidnight, setNewCrossesMidnight] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -115,8 +115,8 @@ export default function ShiftTypesManager({
     ]);
 
     setNewName("");
-    setNewStartTime("");
-    setNewEndTime("");
+    setNewStartTime("05:30");
+    setNewEndTime("17:30");
     setNewCrossesMidnight(false);
   };
 
@@ -201,6 +201,7 @@ export default function ShiftTypesManager({
             </h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
               הוספה, עריכה וסידור של שמות המשמרות וזמני ברירת המחדל שלהן.
+              כל שינוי כאן יופיע אוטומטית ברשימת יצירת המשמרת.
             </p>
           </div>
         </div>
