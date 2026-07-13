@@ -320,22 +320,27 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const canViewDashboard = hasPermission(permissions, "dashboard.view");
   const shiftsSystemRole = getEffectiveSystemRole(permissionUser);
   const canViewShifts = hasPermission(permissions, "shifts.view");
-  const canManageShifts = hasPermission(permissions, "shifts.manage");
+  const canManageShifts =
+    permissions["shifts.manage"] === true ||
+    shiftsSystemRole === "admin" ||
+    shiftsSystemRole === "super_admin";
   const canViewEmergency =
     hasPermission(permissions, "emergency.view") ||
-    (hasPermission(permissions, "reporter.view") &&
-      systemSettings?.systemMode === "emergency");
-  const canManageEmergency = hasPermission(
-    permissions,
-    "emergency.manage"
-  );
+    systemSettings?.systemMode === "emergency";
+  const canManageEmergency =
+    permissions["emergency.manage"] === true ||
+    shiftsSystemRole === "admin" ||
+    shiftsSystemRole === "super_admin";
   const isEmergencyActive =
     systemSettings?.systemMode === "emergency" &&
     systemSettings?.emergencyEvent?.active === true;
 
   // Managers keep access so they can prepare or operate the emergency center.
   // Regular soldiers only see the tab while an emergency event is active.
-  const isEmergencyManagerRole = canManageEmergency;
+  const isEmergencyManagerRole =
+    canManageEmergency ||
+    shiftsSystemRole === "admin" ||
+    shiftsSystemRole === "super_admin";
 
   const shouldShowEmergencyTab =
     isEmergencyManagerRole || (canViewEmergency && isEmergencyActive);
@@ -364,10 +369,46 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
         ? { ...profile, systemRole: "super_admin" as SystemRole }
         : profile;
 
-    const effectiveRole = getEffectiveSystemRole(effectiveProfile);
-    if (effectiveRole === "reporter") return "reporter";
-    if (systemSettings?.defaultStartScreen === "reporter" && hasPermission(getPermissionsForUser(effectiveProfile, permissionConfigs), "reporter.view")) return "reporter";
-    return "dashboard";
+    const profilePermissions = getPermissionsForUser(
+      effectiveProfile,
+      permissionConfigs
+    );
+
+    const profileCanViewReporter = hasPermission(
+      profilePermissions,
+      "reporter.view"
+    );
+    const profileCanViewDashboard = hasPermission(
+      profilePermissions,
+      "dashboard.view"
+    );
+    const profileCanViewShifts = hasPermission(
+      profilePermissions,
+      "shifts.view"
+    );
+    const profileCanViewEmergency = hasPermission(
+      profilePermissions,
+      "emergency.view"
+    );
+    const profileCanViewSystemAdmin = hasPermission(
+      profilePermissions,
+      "system_admin.view"
+    );
+
+    if (
+      systemSettings?.defaultStartScreen === "reporter" &&
+      profileCanViewReporter
+    ) {
+      return "reporter";
+    }
+
+    if (profileCanViewDashboard) return "dashboard";
+    if (profileCanViewShifts) return "shifts";
+    if (profileCanViewReporter) return "reporter";
+    if (profileCanViewEmergency) return "emergency";
+    if (profileCanViewSystemAdmin) return "system_admin";
+
+    return "reporter";
   };
 
   useEffect(() => {
@@ -449,14 +490,36 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   useEffect(() => {
     if (!userProfile || !permissionsLoaded) return;
 
-    if (activeTab === "system_admin" && !isSuperAdmin) {
-      setActiveTab(canViewDashboard ? "dashboard" : "reporter");
-    } else if (activeTab === "dashboard" && !canViewDashboard) {
-      setActiveTab("reporter");
-    } else if (activeTab === "reporter" && !canViewReporter && canViewDashboard) {
+    const activeTabIsAllowed =
+      (activeTab === "system_admin" && isSuperAdmin) ||
+      (activeTab === "dashboard" && canViewDashboard) ||
+      (activeTab === "reporter" && canViewReporter) ||
+      (activeTab === "shifts" && canViewShifts) ||
+      (activeTab === "emergency" && shouldShowEmergencyTab);
+
+    if (activeTabIsAllowed) return;
+
+    if (canViewDashboard) {
       setActiveTab("dashboard");
+    } else if (canViewShifts) {
+      setActiveTab("shifts");
+    } else if (canViewReporter) {
+      setActiveTab("reporter");
+    } else if (shouldShowEmergencyTab) {
+      setActiveTab("emergency");
+    } else if (isSuperAdmin) {
+      setActiveTab("system_admin");
     }
-  }, [userProfile, permissionsLoaded, activeTab, isSuperAdmin, canViewDashboard, canViewReporter]);
+  }, [
+    userProfile,
+    permissionsLoaded,
+    activeTab,
+    isSuperAdmin,
+    canViewDashboard,
+    canViewReporter,
+    canViewShifts,
+    shouldShowEmergencyTab,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2092,7 +2155,6 @@ const handleAdminSaveReport = async (reportData: {
             >
               <SystemAdminPanel
                 currentUser={userProfile}
-                permissions={permissions}
                 users={allUsers}
                 onUpdateSystemRole={handleUpdateUserSystemRole}
                 onAttendanceStatusesChanged={handleAttendanceStatusesChanged}
@@ -2196,7 +2258,7 @@ const handleAdminSaveReport = async (reportData: {
                 />
               )}
             </motion.div>
-          ) : (
+          ) : activeTab === "dashboard" && canViewDashboard ? (
             <motion.div
               key="dashboard-tab"
               initial={{ opacity: 0, y: 15 }}
@@ -2226,6 +2288,24 @@ const handleAdminSaveReport = async (reportData: {
                 onSyncOldReportsToSheets={handleSyncOldReportsToSheets}
               />
             </motion.div>
+          ) : (
+            <motion.section
+              key="no-access-tab"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.15 }}
+              dir="rtl"
+              className="rounded-3xl border border-amber-200 bg-amber-50 p-8 text-center shadow-sm"
+            >
+              <AlertTriangle className="mx-auto h-10 w-10 text-amber-600" />
+              <h2 className="mt-4 text-xl font-black text-slate-900">
+                אין הרשאה למסך זה
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                פנה למנהל האתר כדי לעדכן את הרשאות התפקיד שלך.
+              </p>
+            </motion.section>
           )}
         </AnimatePresence>
 
