@@ -54,7 +54,7 @@ type AdminSection =
 
 interface SystemAdminPanelProps {
   currentUser: UserProfile;
-  permissions: PermissionMap;
+  permissions?: PermissionMap;
   users: UserProfile[];
   onUpdateSystemRole: (
     userId: string,
@@ -166,7 +166,7 @@ const sections: Array<{
 
 export default function SystemAdminPanel({
   currentUser,
-  permissions,
+  permissions = {},
   users,
   onUpdateSystemRole,
   onAttendanceStatusesChanged,

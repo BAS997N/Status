@@ -2155,6 +2155,7 @@ const handleAdminSaveReport = async (reportData: {
             >
               <SystemAdminPanel
                 currentUser={userProfile}
+                permissions={permissions}
                 users={allUsers}
                 onUpdateSystemRole={handleUpdateUserSystemRole}
                 onAttendanceStatusesChanged={handleAttendanceStatusesChanged}
