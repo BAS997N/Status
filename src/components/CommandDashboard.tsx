@@ -28,7 +28,9 @@ import {
   Scissors,
   House,
   ArrowLeftCircle,
-  FileX
+  FileX,
+  Pin,
+  PinOff
 } from "lucide-react";
 import { 
   UserProfile,
@@ -302,6 +304,11 @@ export default function CommandDashboard({
   const [directorySelectedUnit, setDirectorySelectedUnit] = useState<string>("all");
   const [directorySoldierStatusFilter, setDirectorySoldierStatusFilter] =
   useState<"active" | "all" | "discharged">("active");
+  const [isDirectoryFreezeEnabled, setIsDirectoryFreezeEnabled] =
+    useState<boolean>(() => {
+      const saved = localStorage.getItem("idf_directory_table_freeze");
+      return saved === null ? true : saved === "true";
+    });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -407,6 +414,13 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   const timer = setTimeout(() => setChartsReady(true), 100);
   return () => clearTimeout(timer);
 }, []);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "idf_directory_table_freeze",
+      String(isDirectoryFreezeEnabled)
+    );
+  }, [isDirectoryFreezeEnabled]);
 
   useEffect(() => {
   const handleClickOutside = (event: MouseEvent) => {
@@ -3656,16 +3670,50 @@ onChange={(e) =>
       
       {/* Directory Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex justify-end border-b border-slate-100 bg-slate-50/70 px-3 py-2">
+          <button
+            type="button"
+            onClick={() =>
+              setIsDirectoryFreezeEnabled((current) => !current)
+            }
+            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition ${
+              isDirectoryFreezeEnabled
+                ? "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+            title={
+              isDirectoryFreezeEnabled
+                ? "בטל הקפאת הכותרת ועמודת השם"
+                : "הפעל הקפאת הכותרת ועמודת השם"
+            }
+          >
+            {isDirectoryFreezeEnabled ? (
+              <PinOff className="h-4 w-4" />
+            ) : (
+              <Pin className="h-4 w-4" />
+            )}
+            {isDirectoryFreezeEnabled ? "בטל הקפאה" : "הפעל הקפאה"}
+          </button>
+        </div>
+
         <div className="custom-scrollbar max-w-full overflow-x-auto overscroll-x-contain">
           <table
             className="w-full min-w-[1080px] table-fixed text-right border-collapse"
             dir="rtl"
           >
-            <thead className="sticky top-0 z-30">
+            <thead
+              className={
+                isDirectoryFreezeEnabled ? "sticky top-0 z-30" : ""
+              }
+            >
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 text-xs font-black">
                 <th
   onClick={() => handleDirectorySort("fullName")}
-  className="sticky right-0 z-40 w-[245px] min-w-[245px] bg-slate-50 px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800 shadow-[-1px_0_0_0_#e2e8f0]"
+  className={`w-[245px] min-w-[245px] bg-slate-50 px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800 ${
+    isDirectoryFreezeEnabled
+      ? "sticky right-0 z-40 shadow-[-1px_0_0_0_#e2e8f0]"
+      : ""
+  }`}
 >
   שם החייל / פירוט סגל{" "}
   <span className="text-slate-400">
@@ -3772,7 +3820,13 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                     <tr key={soldier.userId} className="group hover:bg-slate-50/75 transition-colors text-xs font-bold text-slate-700">
                       
                       {/* Name with initials bubble avatar */}
-                      <td className="sticky right-0 z-20 w-[245px] min-w-[245px] bg-white px-5 py-4 shadow-[-1px_0_0_0_#e2e8f0] group-hover:bg-slate-50">
+                      <td
+                        className={`w-[245px] min-w-[245px] bg-white px-5 py-4 group-hover:bg-slate-50 ${
+                          isDirectoryFreezeEnabled
+                            ? "sticky right-0 z-20 shadow-[-1px_0_0_0_#e2e8f0]"
+                            : ""
+                        }`}
+                      >
                         <div className="flex min-w-0 items-center gap-3">
                           <div className={`w-8 h-8 rounded-full font-black flex items-center justify-center text-[10px] shadow-xs shrink-0 ${
                             soldier.role === "commander" 
