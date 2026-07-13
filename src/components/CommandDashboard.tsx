@@ -3656,49 +3656,57 @@ onChange={(e) =>
       
       {/* Directory Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="custom-scrollbar max-w-full overflow-x-auto">
-          <table className="w-full text-right border-collapse" dir="rtl">
-            <thead>
+        <div className="custom-scrollbar max-w-full overflow-x-auto overscroll-x-contain">
+          <table
+            className="w-full min-w-[1080px] table-fixed text-right border-collapse"
+            dir="rtl"
+          >
+            <thead className="sticky top-0 z-30">
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 text-xs font-black">
-                <th onClick={() => handleDirectorySort("fullName")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
+                <th
+  onClick={() => handleDirectorySort("fullName")}
+  className="sticky right-0 z-40 w-[245px] min-w-[245px] bg-slate-50 px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800 shadow-[-1px_0_0_0_#e2e8f0]"
+>
   שם החייל / פירוט סגל{" "}
   <span className="text-slate-400">
     {directorySortField === "fullName" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
   </span>
 </th>
 
-<th onClick={() => handleDirectorySort("unit")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
+<th onClick={() => handleDirectorySort("unit")} className="w-[175px] min-w-[175px] px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
   פלוגה / מחלקה{" "}
   <span className="text-slate-400">
     {directorySortField === "unit" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
   </span>
 </th>
 
-<th onClick={() => handleDirectorySort("personalId")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
+<th onClick={() => handleDirectorySort("personalId")} className="w-[145px] min-w-[145px] px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
   מספר אישי / ת.ז{" "}
   <span className="text-slate-400">
     {directorySortField === "personalId" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
   </span>
 </th>
 
-<th className="px-5 py-3.5 whitespace-nowrap">
+<th className="w-[145px] min-w-[145px] px-5 py-3.5 whitespace-nowrap">
   מספר טלפון
 </th>
 
-<th onClick={() => handleDirectorySort("medicalRole")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
+<th onClick={() => handleDirectorySort("medicalRole")} className="w-[175px] min-w-[175px] px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
   תפקיד סגל ורפואה{" "}
   <span className="text-slate-400">
     {directorySortField === "medicalRole" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
   </span>
 </th>
 
-<th onClick={() => handleDirectorySort("role")} className="px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
+<th onClick={() => handleDirectorySort("role")} className="w-[130px] min-w-[130px] px-5 py-3.5 cursor-pointer whitespace-nowrap hover:text-slate-800">
   סוג תפקיד{" "}
   <span className="text-slate-400">
     {directorySortField === "role" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
   </span>
 </th>
-                <th className="px-5 py-3.5 text-left pl-10">פעולה / יצירת קשר מהירה</th>
+                <th className="w-[205px] min-w-[205px] px-5 py-3.5 text-left pl-6 whitespace-nowrap">
+                  פעולה / יצירת קשר מהירה
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -3761,11 +3769,11 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                   const hasPhone = !!cleanPhone;
 
                   return (
-                    <tr key={soldier.userId} className="hover:bg-slate-50/75 transition-colors text-xs font-bold text-slate-700">
+                    <tr key={soldier.userId} className="group hover:bg-slate-50/75 transition-colors text-xs font-bold text-slate-700">
                       
                       {/* Name with initials bubble avatar */}
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
+                      <td className="sticky right-0 z-20 w-[245px] min-w-[245px] bg-white px-5 py-4 shadow-[-1px_0_0_0_#e2e8f0] group-hover:bg-slate-50">
+                        <div className="flex min-w-0 items-center gap-3">
                           <div className={`w-8 h-8 rounded-full font-black flex items-center justify-center text-[10px] shadow-xs shrink-0 ${
                             soldier.role === "commander" 
                               ? "bg-indigo-100 text-indigo-700 border border-indigo-200" 
@@ -3773,9 +3781,9 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                           }`}>
                             {initials || "ח"}
                           </div>
-                          <div>
-                            <span className="block font-black text-slate-800 text-sm">{soldier.fullName}</span>
-                            <span className="block text-[10px] text-slate-400 font-mono font-medium mt-0.5">{soldier.email}</span>
+                          <div className="min-w-0">
+                            <span className="block truncate font-black text-slate-800 text-sm">{soldier.fullName}</span>
+                            <span className="block truncate text-[10px] text-slate-400 font-mono font-medium mt-0.5">{soldier.email}</span>
                           </div>
                         </div>
                       </td>
@@ -3829,15 +3837,15 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                       </td>
 
                       {/* Quick Communication Actions Column */}
-                      <td className="px-5 py-4 text-left pl-10">
-                        <div className="inline-flex items-center gap-2">
+                      <td className="w-[205px] min-w-[205px] px-5 py-4 text-left pl-6 whitespace-nowrap">
+                        <div className="inline-flex min-w-[164px] items-center justify-end gap-2">
                           {canEditSoldier && (
                             <button
                               onClick={() => handleOpenEdit(soldier)}
-                              className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg border border-indigo-200 hover:border-indigo-600 transition shadow-xs flex items-center justify-center cursor-pointer"
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-600 shadow-xs transition hover:border-indigo-600 hover:bg-indigo-600 hover:text-white cursor-pointer"
                               title={`ערוך פרטי חייל: ${soldier.fullName}`}
                             >
-                              <Edit2 className="w-3.5 h-3.5" />
+                              <Edit2 className="h-4 w-4" />
                             </button>
                           )}
 
@@ -3846,10 +3854,10 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                               onClick={() => {
                                 setSoldierToDelete(soldier);
                               }}
-                              className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg border border-rose-200 hover:border-rose-600 transition shadow-xs flex items-center justify-center cursor-pointer"
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 shadow-xs transition hover:border-rose-600 hover:bg-rose-600 hover:text-white cursor-pointer"
                               title="הסר רשומת חייל מהרשימה"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           )}
 
@@ -3860,19 +3868,19 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                                 href={`https://wa.me/972${cleanPhone?.replace(/^0/, "")}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg border border-emerald-200 hover:border-emerald-600 transition shadow-xs flex items-center justify-center cursor-pointer"
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-600 shadow-xs transition hover:border-emerald-600 hover:bg-emerald-600 hover:text-white cursor-pointer"
                                 title={`פתח שיחת וואטסאפ עם ${soldier.fullName}`}
                               >
-                                <MessageCircle className="w-3.5 h-3.5" />
+                                <MessageCircle className="h-4 w-4" />
                               </a>
                               
                               {/* Direct Dial Link */}
                               <a
                                 href={`tel:${cleanPhone}`}
-                                className="p-2 bg-slate-100 text-slate-700 hover:bg-slate-700 hover:text-white rounded-lg border border-slate-200 hover:border-slate-750 transition shadow-xs flex items-center justify-center cursor-pointer"
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 shadow-xs transition hover:border-slate-700 hover:bg-slate-700 hover:text-white cursor-pointer"
                                 title={`חייג אל ${soldier.fullName}`}
                               >
-                                <Phone className="w-3.5 h-3.5" />
+                                <Phone className="h-4 w-4" />
                               </a>
                             </>
                           ) : (
