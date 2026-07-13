@@ -5,8 +5,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   UserCog,
-  KeyRound,
-  X,
 } from "lucide-react";
 import {
   SystemRole,
@@ -15,8 +13,6 @@ import {
   UserProfile,
 } from "../../types";
 import { dataService } from "../../services/dataService";
-import { httpsCallable } from "firebase/functions";
-import { functionsClient } from "../../firebase";
 
 interface UsersManagerProps {
   currentUser: UserProfile;
@@ -48,10 +44,6 @@ export default function UsersManager({
     type: "success" | "error";
     text: string;
   } | null>(null);
-  const [resetUser, setResetUser] = useState<UserProfile | null>(null);
-  const [newPersonalCode, setNewPersonalCode] = useState("");
-  const [confirmPersonalCode, setConfirmPersonalCode] = useState("");
-  const [resettingCode, setResettingCode] = useState(false);
 
   useEffect(() => {
     dataService
@@ -90,82 +82,6 @@ export default function UsersManager({
   const handleRoleChange = (userId: string, role: SystemRole) => {
     setDraftRoles((current) => ({ ...current, [userId]: role }));
     setMessage(null);
-  };
-
-  const openResetCode = (user: UserProfile) => {
-    setResetUser(user);
-    setNewPersonalCode("");
-    setConfirmPersonalCode("");
-    setMessage(null);
-  };
-
-  const closeResetCode = () => {
-    if (resettingCode) return;
-    setResetUser(null);
-    setNewPersonalCode("");
-    setConfirmPersonalCode("");
-  };
-
-  const handleResetPersonalCode = async () => {
-    if (!resetUser) return;
-
-    if (!/^\d{6}$/.test(newPersonalCode)) {
-      setMessage({
-        type: "error",
-        text: "הקוד האישי החדש חייב להכיל בדיוק 6 ספרות.",
-      });
-      return;
-    }
-
-    if (newPersonalCode !== confirmPersonalCode) {
-      setMessage({
-        type: "error",
-        text: "אימות הקוד האישי אינו תואם לקוד החדש.",
-      });
-      return;
-    }
-
-    if (!functionsClient) {
-      setMessage({
-        type: "error",
-        text: "שירות איפוס הקוד אינו זמין כרגע.",
-      });
-      return;
-    }
-
-    setResettingCode(true);
-    setMessage(null);
-
-    try {
-      const resetPersonalCode = httpsCallable<
-        { targetUserId: string; newCode: string },
-        { success: boolean }
-      >(functionsClient, "resetPersonalCode");
-
-      await resetPersonalCode({
-        targetUserId: resetUser.userId,
-        newCode: newPersonalCode,
-      });
-
-      setMessage({
-        type: "success",
-        text: `הקוד האישי של ${resetUser.fullName} אופס בהצלחה.`,
-      });
-      closeResetCode();
-    } catch (error: any) {
-      console.error("Failed resetting personal code:", error);
-      const code = String(error?.code || "");
-      const text =
-        code.includes("permission-denied")
-          ? "אין לך הרשאה לאפס קוד אישי למשתמשים."
-          : code.includes("not-found")
-          ? "המשתמש לא נמצא ב־Firebase Authentication."
-          : "איפוס הקוד האישי נכשל. בדוק שה־Cloud Function פורסמה ונסה שוב.";
-
-      setMessage({ type: "error", text });
-    } finally {
-      setResettingCode(false);
-    }
   };
 
   const handleSave = async (user: UserProfile) => {
@@ -332,30 +248,19 @@ export default function UsersManager({
                       </p>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex min-w-[220px] flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleSave(user)}
-                          disabled={!hasChanges || savingUserId === user.userId}
-                          className={`inline-flex min-w-24 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition ${
-                            hasChanges
-                              ? "bg-rose-600 text-white hover:bg-rose-700"
-                              : "cursor-not-allowed bg-slate-100 text-slate-400"
-                          }`}
-                        >
-                          <ShieldCheck className="h-4 w-4" />
-                          {savingUserId === user.userId ? "שומר..." : "שמור"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => openResetCode(user)}
-                          className="inline-flex min-w-28 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 transition hover:bg-amber-100"
-                        >
-                          <KeyRound className="h-4 w-4" />
-                          איפוס קוד
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleSave(user)}
+                        disabled={!hasChanges || savingUserId === user.userId}
+                        className={`inline-flex min-w-24 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition ${
+                          hasChanges
+                            ? "bg-rose-600 text-white hover:bg-rose-700"
+                            : "cursor-not-allowed bg-slate-100 text-slate-400"
+                        }`}
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        {savingUserId === user.userId ? "שומר..." : "שמור"}
+                      </button>
                     </td>
                   </tr>
                 );
@@ -370,90 +275,7 @@ export default function UsersManager({
           </div>
         )}
       </div>
-      {resetUser && (
-        <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="flex items-center gap-2 text-base font-black text-slate-900">
-                  <KeyRound className="h-5 w-5 text-amber-600" />
-                  איפוס קוד אישי
-                </h3>
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  הזן קוד חדש בן 6 ספרות עבור {resetUser.fullName}.
-                </p>
-              </div>
 
-              <button
-                type="button"
-                onClick={closeResetCode}
-                disabled={resettingCode}
-                className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 disabled:opacity-50"
-                aria-label="סגירה"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-black text-slate-700">
-                  קוד אישי חדש
-                </span>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={6}
-                  autoComplete="new-password"
-                  value={newPersonalCode}
-                  onChange={(event) =>
-                    setNewPersonalCode(event.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-center text-lg font-black tracking-[0.35em] outline-none focus:border-amber-300 focus:ring-2 focus:ring-amber-100"
-                  placeholder="••••••"
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-black text-slate-700">
-                  אימות הקוד החדש
-                </span>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={6}
-                  autoComplete="new-password"
-                  value={confirmPersonalCode}
-                  onChange={(event) =>
-                    setConfirmPersonalCode(event.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-center text-lg font-black tracking-[0.35em] outline-none focus:border-amber-300 focus:ring-2 focus:ring-amber-100"
-                  placeholder="••••••"
-                />
-              </label>
-            </div>
-
-            <div className="mt-5 flex gap-2">
-              <button
-                type="button"
-                onClick={closeResetCode}
-                disabled={resettingCode}
-                className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-              >
-                ביטול
-              </button>
-              <button
-                type="button"
-                onClick={handleResetPersonalCode}
-                disabled={resettingCode}
-                className="flex-1 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white hover:bg-amber-700 disabled:opacity-50"
-              >
-                {resettingCode ? "מאפס..." : "אפס קוד אישי"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
