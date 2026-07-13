@@ -260,6 +260,8 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     let cancelled = false;
 
     const loadUnits = async () => {
+      if (isFirebaseActive() && !auth?.currentUser) return;
+
       try {
         const units = await dataService.getUnitConfigs();
         if (!cancelled) {
@@ -274,12 +276,14 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
     loadUnits();
     return () => { cancelled = true; };
-  }, []);
+  }, [firebaseUser]);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadAttendanceStatuses = async () => {
+      if (isFirebaseActive() && !auth?.currentUser) return;
+
       try {
         const statuses = await dataService.getAttendanceStatusConfigs();
         if (!cancelled) setAttendanceStatuses(statuses);
@@ -290,9 +294,10 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
     loadAttendanceStatuses();
     return () => { cancelled = true; };
-  }, []);
+  }, [firebaseUser]);
 
   useEffect(() => {
+    if (isFirebaseActive() && !auth?.currentUser) return;
     if (activeTab === "system_admin") return;
 
     // When leaving the admin screen, reload directly from Firestore.
@@ -308,7 +313,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       .catch((error) =>
         console.error("Failed refreshing attendance statuses:", error)
       );
-  }, [activeTab]);
+  }, [activeTab, firebaseUser]);
 
   const isSuperAdmin = hasPermission(permissions, "system_admin.view");
   const canViewReporter = hasPermission(permissions, "reporter.view");
@@ -374,6 +379,8 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     let cancelled = false;
 
     const loadGoogleSheetsConfig = async () => {
+      if (isFirebaseActive() && !auth?.currentUser) return;
+
       try {
         const config = await dataService.getGoogleSheetsConfig();
         if (!cancelled) setGoogleSheetsConfig(config);
@@ -384,12 +391,14 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
     loadGoogleSheetsConfig();
     return () => { cancelled = true; };
-  }, []);
+  }, [firebaseUser]);
 
   useEffect(() => {
     let cancelled = false;
 
     const refreshSystemSettings = async () => {
+      if (isFirebaseActive() && !auth?.currentUser) return;
+
       try {
         const settings = await dataService.getSystemSettings(true);
         if (!cancelled) setSystemSettings(settings);
@@ -417,12 +426,17 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [firebaseUser]);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadPermissions = async () => {
+      if (isFirebaseActive() && !auth?.currentUser) {
+        if (!cancelled) setPermissionsLoaded(false);
+        return;
+      }
+
       try {
         const configs = await dataService.getRolePermissionConfigs();
         if (!cancelled) setPermissionConfigs(configs);
@@ -435,7 +449,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
     loadPermissions();
     return () => { cancelled = true; };
-  }, []);
+  }, [firebaseUser]);
 
   useEffect(() => {
     if (!userProfile || !permissionsLoaded) return;
@@ -453,6 +467,8 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     let cancelled = false;
 
     const loadMedicalRoles = async () => {
+      if (isFirebaseActive() && !auth?.currentUser) return;
+
       try {
         const roles = await dataService.getMedicalRoleConfigs();
         if (!cancelled) setMedicalRoleConfigs(roles);
@@ -463,7 +479,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
     loadMedicalRoles();
     return () => { cancelled = true; };
-  }, []);
+  }, [firebaseUser]);
 
   const handleUpdateMedicalSettings = async (
     newUnits: string[],
@@ -978,46 +994,89 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
   setLoading(true);
 
   try {
-  const foundProfile = await dataService.findProfileByPersonalId(cleanId);
+    let foundProfile: UserProfile | null = null;
 
-  if (!foundProfile) {
-    setRegPersonalId(cleanId);
-    setPersonalIdInput(cleanId);
-    setLoginError("");
-    setIsRegisteringId(true);
-    setLoading(false);
-    return;
-  }
+    if (isFirebaseActive() && auth) {
+      // Firestore rules require authentication, so authenticate first.
+      const authEmail = buildAuthEmail(cleanId);
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        authEmail,
+        cleanCode
+      );
 
-  if (isFirebaseActive() && auth) {
-    const authEmail = buildAuthEmail(cleanId);
-    await signInWithEmailAndPassword(auth, authEmail, cleanCode);
-  }
+      foundProfile = await dataService.getCurrentUserProfile(
+        credential.user.uid
+      );
 
+      if (!foundProfile) {
+        await signOut(auth);
+        setFirebaseUser(null);
+        setLoginError(
+          "ההתחברות אומתה, אך לא נמצא פרופיל משתמש מתאים. יש לפנות למנהל המערכת."
+        );
+        return;
+      }
+
+      if (String(foundProfile.personalId || "").trim() !== cleanId) {
+        await signOut(auth);
+        setFirebaseUser(null);
+        setLoginError(
+          "המספר האישי אינו תואם לפרופיל המשתמש. יש לפנות למנהל המערכת."
+        );
+        return;
+      }
+    } else {
+      foundProfile = await dataService.findProfileByPersonalId(cleanId);
+
+      if (!foundProfile) {
+        setRegPersonalId(cleanId);
+        setPersonalIdInput(cleanId);
+        setLoginError("");
+        setIsRegisteringId(true);
+        return;
+      }
+    }
 
     localStorage.setItem("idf_active_user_id", foundProfile.userId);
-    localStorage.setItem("idf_active_personal_id", foundProfile.personalId || cleanId);
+    localStorage.setItem(
+      "idf_active_personal_id",
+      foundProfile.personalId || cleanId
+    );
 
     setUserProfile(foundProfile);
 
-    const reps = await dataService.fetchAllReports();
-    const nots = await dataService.fetchNotifications();
+    const [reps, nots] = await Promise.all([
+      dataService.fetchAllReports(),
+      dataService.fetchNotifications(),
+    ]);
 
     setReports(reps);
     setNotifications(nots);
-
     setActiveTab(getInitialTabForProfile(foundProfile));
   } catch (error: any) {
     console.error("Login verification error:", error);
 
-    if (error?.code === "auth/invalid-credential") {
+    if (
+      error?.code === "auth/invalid-credential" ||
+      error?.code === "auth/wrong-password" ||
+      error?.code === "auth/user-not-found"
+    ) {
       setLoginError("מספר אישי או קוד אישי שגויים.");
+    } else if (error?.code === "auth/user-disabled") {
+      setLoginError("החשבון הושבת. יש לפנות למנהל המערכת.");
+    } else if (error?.code === "auth/too-many-requests") {
+      setLoginError(
+        "בוצעו ניסיונות התחברות רבים מדי. יש להמתין מעט ולנסות שוב."
+      );
+    } else if (error?.code === "auth/network-request-failed") {
+      setLoginError("בעיית תקשורת. בדוק את החיבור לאינטרנט ונסה שוב.");
     } else {
       setLoginError("ההתחברות נכשלה. נא לנסות שוב.");
     }
   } finally {
     setLoading(false);
-setAuthChecked(true);
+    setAuthChecked(true);
   }
 };
 
