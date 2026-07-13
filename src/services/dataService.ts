@@ -785,7 +785,7 @@ const DEFAULT_SHIFT_TYPE_CONFIGS: ShiftTypeConfig[] = [
   },
   {
     id: "hipak",
-    name: 'חיפ"ק',
+    name: 'חיפוק',
     enabled: true,
     sortOrder: 3,
     defaultStartTime: "",
@@ -822,7 +822,7 @@ const normalizeShiftTypeConfigs = (value: unknown): ShiftTypeConfig[] => {
     .map((item, index) => ({
       ...item,
       id: item.id.trim(),
-      name: item.name.trim(),
+      name: item.name.trim() == 'חיפ"ק' ? "חיפוק" : item.name.trim(),
       enabled: item.enabled !== false,
       sortOrder:
         typeof item.sortOrder === "number" ? item.sortOrder : index + 1,
