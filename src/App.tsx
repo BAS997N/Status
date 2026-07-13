@@ -319,28 +319,23 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const canViewReporter = hasPermission(permissions, "reporter.view");
   const canViewDashboard = hasPermission(permissions, "dashboard.view");
   const shiftsSystemRole = getEffectiveSystemRole(permissionUser);
-  const canViewShifts = permissions["shifts.view"] !== false;
-  const canManageShifts =
-    permissions["shifts.manage"] === true ||
-    shiftsSystemRole === "admin" ||
-    shiftsSystemRole === "super_admin";
+  const canViewShifts = hasPermission(permissions, "shifts.view");
+  const canManageShifts = hasPermission(permissions, "shifts.manage");
   const canViewEmergency =
-    permissions["emergency.view"] !== false ||
-    systemSettings?.systemMode === "emergency";
-  const canManageEmergency =
-    permissions["emergency.manage"] === true ||
-    shiftsSystemRole === "admin" ||
-    shiftsSystemRole === "super_admin";
+    hasPermission(permissions, "emergency.view") ||
+    (hasPermission(permissions, "reporter.view") &&
+      systemSettings?.systemMode === "emergency");
+  const canManageEmergency = hasPermission(
+    permissions,
+    "emergency.manage"
+  );
   const isEmergencyActive =
     systemSettings?.systemMode === "emergency" &&
     systemSettings?.emergencyEvent?.active === true;
 
   // Managers keep access so they can prepare or operate the emergency center.
   // Regular soldiers only see the tab while an emergency event is active.
-  const isEmergencyManagerRole =
-    canManageEmergency ||
-    shiftsSystemRole === "admin" ||
-    shiftsSystemRole === "super_admin";
+  const isEmergencyManagerRole = canManageEmergency;
 
   const shouldShowEmergencyTab =
     isEmergencyManagerRole || (canViewEmergency && isEmergencyActive);
@@ -2097,6 +2092,7 @@ const handleAdminSaveReport = async (reportData: {
             >
               <SystemAdminPanel
                 currentUser={userProfile}
+                permissions={permissions}
                 users={allUsers}
                 onUpdateSystemRole={handleUpdateUserSystemRole}
                 onAttendanceStatusesChanged={handleAttendanceStatusesChanged}

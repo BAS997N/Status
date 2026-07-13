@@ -28,11 +28,18 @@ export const PERMISSION_DEFINITIONS = [
   { id: "emergency.manage", label: "הפעלה וניהול של מצב חירום", category: "חירום" },
   { id: "sheets.export", label: "ייצוא ל־Google Sheets", category: "ייצוא" },
   { id: "system_admin.view", label: "כניסה לניהול מערכת", category: "ניהול מערכת" },
+  { id: "system_admin.users.manage", label: "ניהול משתמשים ותפקידי מערכת", category: "ניהול מערכת" },
+  { id: "system_admin.roles.manage", label: "ניהול תפקידי ניהול", category: "ניהול מערכת" },
   { id: "system_admin.statuses.manage", label: "ניהול סטטוסים", category: "ניהול מערכת" },
   { id: "system_admin.permissions.manage", label: "ניהול הרשאות", category: "ניהול מערכת" },
   { id: "system_admin.shift_roles.manage", label: "ניהול תפקידי משמרת", category: "ניהול מערכת" },
   { id: "system_admin.external_staff.manage", label: "ניהול אנשי צוות חיצוניים", category: "ניהול מערכת" },
   { id: "system_admin.shift_types.manage", label: "ניהול שמות וסוגי משמרות", category: "ניהול מערכת" },
+  { id: "system_admin.units.manage", label: "ניהול יחידות ותפקידי רפואה", category: "ניהול מערכת" },
+  { id: "system_admin.sheets.manage", label: "ניהול Google Sheets", category: "ניהול מערכת" },
+  { id: "system_admin.audit.view", label: "צפייה ביומן ביקורת", category: "ניהול מערכת" },
+  { id: "system_admin.backups.manage", label: "ניהול גיבוי ושחזור", category: "ניהול מערכת" },
+  { id: "system_admin.settings.manage", label: "ניהול הגדרות מערכת", category: "ניהול מערכת" },
 ] as const;
 
 export type PermissionId =

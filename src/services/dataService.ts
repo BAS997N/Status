@@ -2628,6 +2628,9 @@ export const dataService = {
       const defaults = cloneDefaultRolePermissions();
       await setDoc(ref, {
         roles: defaults,
+        roleMap: Object.fromEntries(
+          defaults.map((config) => [config.systemRole, config.permissions])
+        ),
         updatedAt: new Date().toISOString(),
         updatedBy: auth?.currentUser?.uid || "SYSTEM_INIT",
       });
@@ -2663,10 +2666,15 @@ export const dataService = {
     const path = "settings/role_permissions";
 
     try {
+      const roleMap = Object.fromEntries(
+        normalized.map((config) => [config.systemRole, config.permissions])
+      );
+
       await setDoc(
         doc(db, "settings", "role_permissions"),
         {
           roles: normalized,
+          roleMap,
           updatedAt: new Date().toISOString(),
           updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
         },

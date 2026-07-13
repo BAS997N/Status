@@ -34,6 +34,7 @@ import ExternalStaffManager from "./systemAdmin/ExternalStaffManager";
 import ShiftTypesManager from "./systemAdmin/ShiftTypesManager";
 import SystemRolesManager from "./systemAdmin/SystemRolesManager";
 import { dataService } from "../services/dataService";
+import { hasPermission, PermissionMap } from "../security/permissions";
 
 type AdminSection =
   | "overview"
@@ -53,6 +54,7 @@ type AdminSection =
 
 interface SystemAdminPanelProps {
   currentUser: UserProfile;
+  permissions: PermissionMap;
   users: UserProfile[];
   onUpdateSystemRole: (
     userId: string,
@@ -164,6 +166,7 @@ const sections: Array<{
 
 export default function SystemAdminPanel({
   currentUser,
+  permissions,
   users,
   onUpdateSystemRole,
   onAttendanceStatusesChanged,
@@ -189,20 +192,45 @@ export default function SystemAdminPanel({
   );
   const [savingOrder, setSavingOrder] = useState(false);
 
+  const sectionPermission: Record<AdminSection, string> = {
+    overview: "system_admin.view",
+    users: "system_admin.users.manage",
+    system_roles: "system_admin.roles.manage",
+    permissions: "system_admin.permissions.manage",
+    statuses: "system_admin.statuses.manage",
+    roles: "system_admin.units.manage",
+    units: "system_admin.units.manage",
+    sheets: "system_admin.sheets.manage",
+    audit: "system_admin.audit.view",
+    settings: "system_admin.settings.manage",
+    backups: "system_admin.backups.manage",
+    shift_roles: "system_admin.shift_roles.manage",
+    external_staff: "system_admin.external_staff.manage",
+    shift_types: "system_admin.shift_types.manage",
+  };
+
+  const visibleSections = useMemo(
+    () =>
+      sections.filter((section) =>
+        hasPermission(permissions, sectionPermission[section.id])
+      ),
+    [permissions]
+  );
+
   const orderedSections = useMemo(() => {
     const orderMap = new Map(tabOrder.map((id, index) => [id, index]));
-    return [...sections].sort(
+    return [...visibleSections].sort(
       (a, b) =>
         (orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
         (orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER)
     );
-  }, [tabOrder]);
+  }, [tabOrder, visibleSections]);
 
   const moveSection = (id: string, direction: -1 | 1) => {
     setTabOrder((current) => {
       const normalized = [
-        ...current.filter((item) => sections.some((section) => section.id === item)),
-        ...sections.map((section) => section.id).filter((item) => !current.includes(item)),
+        ...current.filter((item) => visibleSections.some((section) => section.id === item)),
+        ...visibleSections.map((section) => section.id).filter((item) => !current.includes(item)),
       ];
       const index = normalized.indexOf(id);
       const target = index + direction;
@@ -240,7 +268,7 @@ export default function SystemAdminPanel({
                 ניהול מערכת
               </h1>
               <p className="mt-1 text-xs font-medium text-slate-500">
-                אזור זה זמין רק למנהל האתר. מחובר: {currentUser.fullName}
+                מוצגים רק אזורי הניהול שהוגדרו לתפקיד שלך. מחובר: {currentUser.fullName}
               </p>
             </div>
           </div>

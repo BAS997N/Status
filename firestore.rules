@@ -16,97 +16,122 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    function myRole() {
-      return hasUserDocument() ? myUser().data.role : null;
+    function effectiveSystemRole() {
+      return !hasUserDocument()
+        ? "reporter"
+        : myUser().data.systemRole is string
+          ? myUser().data.systemRole
+          : myUser().data.role == "commander"
+            ? "admin"
+            : myUser().data.role == "adjutant_officer"
+              ? "viewer"
+              : "reporter";
     }
 
-    function mySystemRole() {
-      return hasUserDocument() ? myUser().data.systemRole : null;
+    function isSuperAdmin() {
+      return hasUserDocument() && effectiveSystemRole() == "super_admin";
     }
 
-    function mySystemRoleAccessLevel() {
-      return hasUserDocument() &&
-        myUser().data.systemRoleAccessLevel is string
-          ? myUser().data.systemRoleAccessLevel
-          : null;
+    function permissionSettingsExist() {
+      return exists(/databases/$(database)/documents/settings/role_permissions);
     }
 
-    function isAdmin() {
-      return signedIn() && (
-        myRole() == "commander" ||
-        mySystemRole() == "admin" ||
-        mySystemRole() == "super_admin" ||
-        mySystemRoleAccessLevel() == "admin"
+    function hasPermission(permissionId) {
+      return isSuperAdmin() || (
+        hasUserDocument() &&
+        permissionSettingsExist() &&
+        get(/databases/$(database)/documents/settings/role_permissions)
+          .data.roleMap is map &&
+        get(/databases/$(database)/documents/settings/role_permissions)
+          .data.roleMap.get(effectiveSystemRole(), {}) is map &&
+        get(/databases/$(database)/documents/settings/role_permissions)
+          .data.roleMap.get(effectiveSystemRole(), {}).get(permissionId, false) == true
       );
     }
 
     match /users/{userId} {
       allow read: if signedIn();
       allow create: if signedIn() && (
-        request.auth.uid == userId || isAdmin()
+        request.auth.uid == userId ||
+        hasPermission("system_admin.users.manage")
       );
-      allow update, delete: if isAdmin();
+      allow update, delete: if hasPermission("system_admin.users.manage");
     }
 
     match /settings/{docId} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow write: if
+        (docId == "role_permissions" && isSuperAdmin()) ||
+        (docId == "system_roles" && isSuperAdmin()) ||
+        (docId == "attendance_statuses" && hasPermission("system_admin.statuses.manage")) ||
+        ((docId == "medical_config" || docId == "medical_role_configs" || docId == "unit_configs") && hasPermission("system_admin.units.manage")) ||
+        (docId == "shift_slot_configs" && hasPermission("system_admin.shift_roles.manage")) ||
+        (docId == "shift_types" && hasPermission("system_admin.shift_types.manage")) ||
+        (docId == "google_sheets" && hasPermission("system_admin.sheets.manage")) ||
+        (docId == "system_settings" && hasPermission("system_admin.settings.manage"));
     }
 
     match /attendance/{reportId} {
       allow read: if signedIn();
-      allow create: if signedIn();
-      allow update, delete: if isAdmin();
+      allow create: if signedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        hasPermission("reports.manage")
+      );
+      allow update: if hasPermission("reports.manage");
+      allow delete: if hasPermission("reports.delete");
     }
 
     match /attendance_logs/{logId} {
-      allow read, create: if signedIn();
-      allow update, delete: if isAdmin();
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if hasPermission("reports.manage");
     }
 
     match /reports/{reportId} {
-      allow read, create: if signedIn();
-      allow update, delete: if isAdmin();
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if hasPermission("reports.manage");
+      allow delete: if hasPermission("reports.delete");
     }
 
     match /notifications/{notificationId} {
-      allow read, create: if signedIn();
-      allow update, delete: if isAdmin();
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn();
+      allow delete: if hasPermission("dashboard.notifications.view");
     }
 
     match /system_logs/{logId} {
-      allow read, create: if signedIn();
-      allow update, delete: if isAdmin();
+      allow read: if hasPermission("dashboard.system_logs.view") || hasPermission("system_admin.audit.view");
+      allow create: if signedIn();
+      allow update, delete: if isSuperAdmin();
     }
 
     match /server_clock/{userId} {
       allow read, write: if signedIn() && request.auth.uid == userId;
     }
 
-
     match /shifts/{shiftId} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+      allow read: if hasPermission("shifts.view");
+      allow create, update, delete: if hasPermission("shifts.manage");
     }
 
-
     match /external_staff/{staffId} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+      allow read: if hasPermission("shifts.view") || hasPermission("system_admin.external_staff.manage");
+      allow create, update, delete: if hasPermission("system_admin.external_staff.manage");
     }
 
     match /emergency_responses/{responseId} {
-      allow read: if signedIn();
+      allow read: if hasPermission("emergency.view") || hasPermission("emergency.manage");
       allow create, update: if signedIn() &&
         request.resource.data.userId == request.auth.uid;
-      allow delete: if isAdmin();
+      allow delete: if hasPermission("emergency.manage");
     }
-
 
     match /shift_acknowledgements/{ackId} {
       allow read: if signedIn() && (
         resource.data.userId == request.auth.uid ||
-        isAdmin()
+        hasPermission("shifts.manage")
       );
 
       allow create: if signedIn() &&
@@ -123,7 +148,7 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(["readAt", "acknowledgedBy"]);
 
-      allow delete: if isAdmin();
+      allow delete: if hasPermission("shifts.manage");
     }
 
     match /{document=**} {
