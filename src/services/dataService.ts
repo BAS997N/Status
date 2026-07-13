@@ -2660,6 +2660,13 @@ export const dataService = {
 
     if (!isFirebaseActive()) {
       saveRolePermissionsToCache(normalized);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("idf-role-permissions-updated", {
+            detail: normalized,
+          })
+        );
+      }
       return normalized;
     }
 
@@ -2682,6 +2689,13 @@ export const dataService = {
       );
 
       saveRolePermissionsToCache(normalized);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("idf-role-permissions-updated", {
+            detail: normalized,
+          })
+        );
+      }
       await writeAuditLog({ action: "update", module: "permissions", targetId: "settings", targetLabel: "הרשאות", before: beforeValue, after: normalized });
       return normalized;
     } catch (error) {

@@ -474,7 +474,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       }
 
       try {
-        const configs = await dataService.getRolePermissionConfigs();
+        const configs = await dataService.getRolePermissionConfigs(true);
         if (!cancelled) setPermissionConfigs(configs);
       } catch (error) {
         console.error("Failed loading role permissions:", error);
@@ -483,8 +483,27 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       }
     };
 
+    const handlePermissionsUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<RolePermissionConfig[]>;
+      if (!cancelled && Array.isArray(customEvent.detail)) {
+        setPermissionConfigs(customEvent.detail);
+        setPermissionsLoaded(true);
+      }
+    };
+
+    window.addEventListener(
+      "idf-role-permissions-updated",
+      handlePermissionsUpdated
+    );
+
     loadPermissions();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      window.removeEventListener(
+        "idf-role-permissions-updated",
+        handlePermissionsUpdated
+      );
+    };
   }, [firebaseUser]);
 
   useEffect(() => {

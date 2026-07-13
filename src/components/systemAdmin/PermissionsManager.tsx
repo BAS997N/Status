@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Save, ShieldCheck } from "lucide-react";
+import { Eraser, Save, ShieldCheck } from "lucide-react";
 import {
   RolePermissionConfig,
   SystemRole,
@@ -112,6 +112,29 @@ export default function PermissionsManager({
     setError("");
   };
 
+  const clearRolePermissions = (role: SystemRole) => {
+    if (role === "super_admin") return;
+
+    setConfigs((current) =>
+      current.map((config) =>
+        config.systemRole === role
+          ? {
+              ...config,
+              permissions: Object.fromEntries(
+                PERMISSION_DEFINITIONS.map((permission) => [
+                  permission.id,
+                  false,
+                ])
+              ),
+            }
+          : config
+      )
+    );
+
+    setMessage("");
+    setError("");
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -205,9 +228,23 @@ export default function PermissionsManager({
                 return (
                 <th
                   key={role}
-                  className="border-b border-l border-slate-200 px-4 py-3 text-center font-black text-slate-700"
+                  className="border-b border-l border-slate-200 px-3 py-3 text-center font-black text-slate-700"
                 >
-                  {roleConfig.name}
+                  <div className="flex min-w-[120px] flex-col items-center gap-2">
+                    <span>{roleConfig.name}</span>
+                    {role !== "super_admin" && (
+                      <button
+                        type="button"
+                        onClick={() => clearRolePermissions(role)}
+                        disabled={saving}
+                        className="inline-flex items-center justify-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        title={`נקה את כל ההרשאות של ${roleConfig.name}`}
+                      >
+                        <Eraser className="h-3.5 w-3.5" />
+                        נקה הכול
+                      </button>
+                    )}
+                  </div>
                 </th>
                 );
               })}
