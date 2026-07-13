@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 import firebaseConfig from "./firebase-applet-config.json";
 
 export const firebaseState = {
@@ -18,6 +19,7 @@ let secondaryFirebaseApp: any = null;
 let firestoreDb: any = null;
 let firebaseAuth: any = null;
 let secondaryFirebaseAuth: any = null;
+let firebaseFunctions: any = null;
 
 if (firebaseState.isActive) {
   try {
@@ -34,6 +36,7 @@ if (firebaseState.isActive) {
     firestoreDb = getFirestore(firebaseApp);
     firebaseAuth = getAuth(firebaseApp);
     secondaryFirebaseAuth = getAuth(secondaryFirebaseApp);
+    firebaseFunctions = getFunctions(firebaseApp);
 
    
   } catch (error) {
@@ -50,4 +53,5 @@ if (firebaseState.isActive) {
 export const db = firestoreDb;
 export const auth = firebaseAuth;
 export const secondaryAuth = secondaryFirebaseAuth;
+export const functionsClient = firebaseFunctions;
 export const isFirebaseActive = () => firebaseState.isActive;
