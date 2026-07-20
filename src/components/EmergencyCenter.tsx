@@ -146,29 +146,20 @@ export default function EmergencyCenter({
     () => allUsers.filter((user) => !user.isDischarged && !isAttachedToTagad(user)),
     [allUsers]
   );
-  const eligibleUserIds = useMemo(
-    () => new Set(eligibleUsers.map((user) => user.userId)),
-    [eligibleUsers]
-  );
-  const visibleResponses = useMemo(
-    () => responses.filter((response) => eligibleUserIds.has(response.userId)),
-    [responses, eligibleUserIds]
-  );
-
   const counts = useMemo(() => {
     const result: Record<string, number> = {};
     STATUS_OPTIONS.forEach((item) => {
-      result[item.value] = visibleResponses.filter((response) => response.status === item.value).length;
+      result[item.value] = responses.filter((response) => response.status === item.value).length;
     });
     return result;
-  }, [visibleResponses]);
+  }, [responses]);
 
   const noResponseUsers = useMemo(() => {
-    const responseIds = new Set(visibleResponses.map((item) => item.userId));
+    const responseIds = new Set(responses.map((item) => item.userId));
     return eligibleUsers
       .filter((user) => !responseIds.has(user.userId))
       .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"));
-  }, [eligibleUsers, visibleResponses]);
+  }, [eligibleUsers, responses]);
 
   const formatMarkedAt = (value?: string) => {
     if (!value) return "שעה לא זמינה";
@@ -585,7 +576,7 @@ export default function EmergencyCenter({
                 תגובות שהתקבלו
               </h3>
               <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto">
-                {visibleResponses.map((response) => {
+                {responses.map((response) => {
                   const option = STATUS_OPTIONS.find((item) => item.value === response.status);
                   return (
                     <div key={response.responseId} className="rounded-xl border border-slate-200 p-3">
