@@ -271,6 +271,25 @@ const latestReport = userReports
       ["not_on_order", "cut_order"].includes(latestTodayReport.status)
   );
 
+  const latestOrderReportByDate = new Map<string, AttendanceReport>();
+  userReports.forEach((report) => {
+    if (report.isReset) return;
+    const reportDay = report.reportDate || report.timestamp?.split("T")[0];
+    if (!reportDay || latestOrderReportByDate.has(reportDay)) return;
+    latestOrderReportByDate.set(reportDay, report);
+  });
+
+  const excludedOrderDates = hasOrderPeriod
+    ? Array.from(latestOrderReportByDate.entries())
+        .filter(
+          ([reportDay, report]) =>
+            reportDay >= orderStartDate &&
+            reportDay <= orderEndDate &&
+            ["not_on_order", "cut_order"].includes(report.status)
+        )
+        .map(([reportDay]) => reportDay)
+    : [];
+
   const getInclusiveDayCount = (start: string, end: string) =>
     Math.max(
       1,
@@ -291,8 +310,21 @@ const latestReport = userReports
     ? "ended"
     : "active";
 
-  const remainingOrderDays = orderState === "active"
-    ? getInclusiveDayCount(todayDate, orderEndDate)
+  const remainingOrderDays =
+    orderState === "active" || orderState === "excluded"
+    ? Math.max(
+        0,
+        getInclusiveDayCount(todayDate, orderEndDate) -
+          excludedOrderDates.filter((date) => date >= todayDate).length
+      )
+    : 0;
+
+  const totalEffectiveOrderDays = hasOrderPeriod
+    ? Math.max(
+        0,
+        getInclusiveDayCount(orderStartDate, orderEndDate) -
+          excludedOrderDates.length
+      )
     : 0;
 
   // Auto set default locations based on status selection
@@ -533,9 +565,14 @@ dayMarker || undefined
                     {new Date(`${orderStartDate}T12:00:00`).toLocaleDateString("he-IL")} –{" "}
                     {new Date(`${orderEndDate}T12:00:00`).toLocaleDateString("he-IL")}
                     <span className="mr-2 text-slate-400">
-                      ({getInclusiveDayCount(orderStartDate, orderEndDate)} ימים)
+                      ({totalEffectiveOrderDays} ימי צו)
                     </span>
                   </p>
+                  {excludedOrderDates.length > 0 && (
+                    <p className="text-[11px] font-bold text-amber-700">
+                      הופחתו {excludedOrderDates.length} ימים שסומנו „לא בצו” או „חיתוך צו”
+                    </p>
+                  )}
                   {displayedOrderEvent?.location && (
                     <p className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
                       <MapPin className="h-3.5 w-3.5" />
@@ -551,7 +588,7 @@ dayMarker || undefined
             </div>
           </div>
 
-          {orderState === "active" && (
+          {(orderState === "active" || orderState === "excluded") && (
             <div className="rounded-lg bg-white/80 px-3 py-2 text-center shadow-sm">
               <span className="block text-lg font-black text-emerald-700">
                 {remainingOrderDays}
