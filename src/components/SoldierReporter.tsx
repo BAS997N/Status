@@ -569,9 +569,15 @@ dayMarker || undefined
                     </span>
                   </p>
                   {excludedOrderDates.length > 0 && (
-                    <p className="text-[11px] font-bold text-amber-700">
-                      הופחתו {excludedOrderDates.length} ימים שסומנו „לא בצו” או „חיתוך צו”
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                      <span className="rounded-md bg-emerald-100 px-2 py-1 text-emerald-800">
+                        ימי צו בפועל: {totalEffectiveOrderDays} מתוך{" "}
+                        {getInclusiveDayCount(orderStartDate, orderEndDate)}
+                      </span>
+                      <span className="rounded-md bg-amber-100 px-2 py-1 text-amber-800">
+                        ימים מחוץ לצו: {excludedOrderDates.length}
+                      </span>
+                    </div>
                   )}
                   {displayedOrderEvent?.location && (
                     <p className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
