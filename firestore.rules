@@ -49,6 +49,15 @@ service cloud.firestore {
       );
     }
 
+    function emergencyIsActive() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/settings/system_settings) &&
+        get(/databases/$(database)/documents/settings/system_settings)
+          .data.systemMode == "emergency" &&
+        get(/databases/$(database)/documents/settings/system_settings)
+          .data.emergencyEvent.active == true;
+    }
+
     match /users/{userId} {
       allow read: if signedIn();
       allow create: if signedIn() && (
@@ -129,9 +138,12 @@ service cloud.firestore {
     }
 
     match /emergency_responses/{responseId} {
+      allow get: if signedIn() &&
+        responseId.matches(".*_" + request.auth.uid) &&
+        emergencyIsActive();
       allow read: if hasPermission("emergency.view") ||
         hasPermission("emergency.manage") ||
-        (signedIn() && (
+        (emergencyIsActive() && (
           resource.data.authUid == request.auth.uid ||
           resource.data.userId == request.auth.uid ||
           (
@@ -139,7 +151,7 @@ service cloud.firestore {
             myUser().data.personalId == resource.data.personalId
           )
         ));
-      allow create: if signedIn() && (
+      allow create: if emergencyIsActive() && (
         request.resource.data.authUid == request.auth.uid ||
         request.resource.data.userId == request.auth.uid ||
         (
@@ -147,7 +159,7 @@ service cloud.firestore {
           myUser().data.personalId == request.resource.data.personalId
         )
       );
-      allow update: if signedIn() &&
+      allow update: if emergencyIsActive() &&
         request.resource.data.authUid == resource.data.authUid &&
         request.resource.data.userId == resource.data.userId &&
         request.resource.data.personalId == resource.data.personalId &&
