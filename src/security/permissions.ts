@@ -69,9 +69,40 @@ export const getPermissionsForRole = (
     );
   }
 
-  return (
-    configs.find((config) => config.systemRole === role)?.permissions || {}
-  );
+  const configuredPermissions = {
+    ...(configs.find((config) => config.systemRole === role)?.permissions || {}),
+  };
+
+  // Action and section permissions must also open their parent screen.
+  // Without this normalization a role could be allowed to use a feature but
+  // still be stopped by the top-level route guard.
+  if (
+    Object.entries(configuredPermissions).some(
+      ([permissionId, enabled]) =>
+        enabled === true && permissionId.startsWith("dashboard.")
+    )
+  ) {
+    configuredPermissions["dashboard.view"] = true;
+  }
+
+  if (configuredPermissions["shifts.manage"] === true) {
+    configuredPermissions["shifts.view"] = true;
+  }
+
+  if (configuredPermissions["emergency.manage"] === true) {
+    configuredPermissions["emergency.view"] = true;
+  }
+
+  if (
+    Object.entries(configuredPermissions).some(
+      ([permissionId, enabled]) =>
+        enabled === true && permissionId.startsWith("system_admin.")
+    )
+  ) {
+    configuredPermissions["system_admin.view"] = true;
+  }
+
+  return configuredPermissions;
 };
 
 export const getPermissionsForUser = (

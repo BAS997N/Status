@@ -49,6 +49,12 @@ export default function EmergencyCenter({
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState("");
   const [message, setMessage] = useState("");
+  const [eventDraft, setEventDraft] = useState({
+    title: event.title || "מצב חירום",
+    message: event.message || "",
+    assemblyLocation: event.assemblyLocation || "",
+    assemblyTime: event.assemblyTime || "",
+  });
 
   const refresh = async () => {
     if (!event.eventId) {
@@ -121,7 +127,126 @@ export default function EmergencyCenter({
     );
   };
 
+  const activateEmergency = async () => {
+    if (!canManage || !eventDraft.title.trim()) return;
+
+    setSaving(true);
+    setMessage("");
+    try {
+      const updatedSettings: SystemSettingsConfig = {
+        ...settings,
+        systemMode: "emergency",
+        emergencyEvent: {
+          ...event,
+          active: true,
+          eventId: `emergency_${Date.now()}`,
+          title: eventDraft.title.trim(),
+          message: eventDraft.message.trim(),
+          assemblyLocation: eventDraft.assemblyLocation.trim(),
+          assemblyTime: eventDraft.assemblyTime,
+          activatedAt: new Date().toISOString(),
+          activatedBy: currentUser.userId,
+        },
+      };
+      const savedSettings = await dataService.saveSystemSettings(
+        updatedSettings,
+        currentUser.userId
+      );
+      onSettingsChanged(savedSettings);
+    } catch (error) {
+      console.error(error);
+      setMessage("הפעלת מצב החירום נכשלה.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const closeEmergency = async () => {
+    if (!canManage || !window.confirm("לסגור את אירוע החירום הפעיל?")) return;
+
+    setSaving(true);
+    setMessage("");
+    try {
+      const updatedSettings: SystemSettingsConfig = {
+        ...settings,
+        systemMode: "normal",
+        emergencyEvent: {
+          ...event,
+          active: false,
+        },
+      };
+      const savedSettings = await dataService.saveSystemSettings(
+        updatedSettings,
+        currentUser.userId
+      );
+      onSettingsChanged(savedSettings);
+    } catch (error) {
+      console.error(error);
+      setMessage("סגירת מצב החירום נכשלה.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!event.active) {
+    if (canManage) {
+      return (
+        <section dir="rtl" className="rounded-3xl border border-red-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-lg font-black text-slate-900">
+            <ShieldAlert className="h-6 w-6 text-red-600" />
+            הפעלה וניהול של מצב חירום
+          </div>
+          <p className="mt-2 text-sm text-slate-500">
+            מלא את פרטי האירוע והפעל את מרכז החירום.
+          </p>
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input
+              value={eventDraft.title}
+              onChange={(changeEvent) =>
+                setEventDraft((current) => ({ ...current, title: changeEvent.target.value }))
+              }
+              placeholder="כותרת האירוע"
+              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400"
+            />
+            <input
+              value={eventDraft.assemblyLocation}
+              onChange={(changeEvent) =>
+                setEventDraft((current) => ({ ...current, assemblyLocation: changeEvent.target.value }))
+              }
+              placeholder="מקום התייצבות"
+              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400"
+            />
+            <input
+              type="time"
+              value={eventDraft.assemblyTime}
+              onChange={(changeEvent) =>
+                setEventDraft((current) => ({ ...current, assemblyTime: changeEvent.target.value }))
+              }
+              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400"
+            />
+            <textarea
+              rows={3}
+              value={eventDraft.message}
+              onChange={(changeEvent) =>
+                setEventDraft((current) => ({ ...current, message: changeEvent.target.value }))
+              }
+              placeholder="הודעה והנחיות"
+              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400 sm:col-span-2"
+            />
+          </div>
+          <button
+            type="button"
+            disabled={saving || !eventDraft.title.trim()}
+            onClick={activateEmergency}
+            className="mt-4 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-black text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? "מפעיל..." : "הפעל מצב חירום"}
+          </button>
+          {message && <div className="mt-3 text-xs font-bold text-red-600">{message}</div>}
+        </section>
+      );
+    }
+
     return (
       <section dir="rtl" className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
         <ShieldAlert className="mx-auto h-12 w-12 text-slate-300" />
@@ -148,14 +273,24 @@ export default function EmergencyCenter({
             </p>
           </div>
           {canManage && (
-            <button
-              type="button"
-              onClick={shareStatus}
-              className="flex items-center justify-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 text-xs font-black hover:bg-white/25"
-            >
-              <MessageCircle className="h-4 w-4" />
-              שתף מצב ב־WhatsApp
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={shareStatus}
+                className="flex items-center justify-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 text-xs font-black hover:bg-white/25"
+              >
+                <MessageCircle className="h-4 w-4" />
+                שתף מצב ב־WhatsApp
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={closeEmergency}
+                className="rounded-xl bg-white px-4 py-2.5 text-xs font-black text-red-700 hover:bg-red-50 disabled:opacity-50"
+              >
+                סגור אירוע
+              </button>
+            </div>
           )}
         </div>
 
