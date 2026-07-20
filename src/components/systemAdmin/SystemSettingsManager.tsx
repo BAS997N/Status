@@ -18,6 +18,7 @@ import {
   SystemSettingsConfig,
   UserProfile,
   WhatsAppGroupConfig,
+  OrderEventConfig,
 } from "../../types";
 import { dataService } from "../../services/dataService";
 
@@ -45,6 +46,7 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   reportingEnabled: true,
   reportingClosedMessage: "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
   reportingClosedAllowedRoles: ["super_admin", "admin"],
+  orderEvents: [],
   shiftsEnabled: true,
   shiftsClosedMessage: "מסך המשמרות אינו זמין כעת. יש להתעדכן מול המפקד.",
   systemMode: "routine",
@@ -99,6 +101,10 @@ export default function SystemSettingsManager({
   );
   const [saving, setSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [newOrderTitle, setNewOrderTitle] = useState("");
+  const [newOrderStartDate, setNewOrderStartDate] = useState("");
+  const [newOrderEndDate, setNewOrderEndDate] = useState("");
+  const [newOrderLocation, setNewOrderLocation] = useState("");
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -244,6 +250,49 @@ export default function SystemSettingsManager({
     }
 
     updateWhatsAppGroups(remaining);
+  };
+
+  const addOrderEvent = () => {
+    setMessage(null);
+
+    if (!newOrderTitle.trim() || !newOrderStartDate || !newOrderEndDate) {
+      setMessage({
+        type: "error",
+        text: "יש להזין שם צו, תאריך התחלה ותאריך סיום.",
+      });
+      return;
+    }
+
+    if (newOrderEndDate < newOrderStartDate) {
+      setMessage({
+        type: "error",
+        text: "תאריך סיום הצו לא יכול להיות מוקדם מתאריך ההתחלה.",
+      });
+      return;
+    }
+
+    const orderEvent: OrderEventConfig = {
+      id: `order_${Date.now()}`,
+      title: newOrderTitle.trim(),
+      startDate: newOrderStartDate,
+      endDate: newOrderEndDate,
+      location: newOrderLocation.trim(),
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser.userId,
+    };
+
+    update("orderEvents", [orderEvent, ...(draft.orderEvents || [])]);
+    setNewOrderTitle("");
+    setNewOrderStartDate("");
+    setNewOrderEndDate("");
+    setNewOrderLocation("");
+  };
+
+  const removeOrderEvent = (orderId: string) => {
+    update(
+      "orderEvents",
+      (draft.orderEvents || []).filter((order) => order.id !== orderId)
+    );
   };
 
   const handleSave = async () => {
@@ -494,6 +543,94 @@ export default function SystemSettingsManager({
                 )
               }
             />
+          </div>
+
+          <div className="rounded-xl border border-blue-200 bg-white p-4 lg:col-span-2">
+            <div className="text-sm font-black text-slate-900">ניהול צווים גדודיים</div>
+            <p className="mt-1 text-[11px] leading-5 text-slate-500">
+              כל צו נשמר כאירוע נפרד. חייל שדיווח באותו יום „לא בצו” או
+              „חיתוך צו” יוצג כמי שאינו בצו באותו יום.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Field label="שם הצו">
+                <input
+                  value={newOrderTitle}
+                  onChange={(e) => setNewOrderTitle(e.target.value)}
+                  placeholder="לדוגמה: צו יולי 2026"
+                  className="input"
+                />
+              </Field>
+              <Field label="מיקום">
+                <input
+                  value={newOrderLocation}
+                  onChange={(e) => setNewOrderLocation(e.target.value)}
+                  placeholder="בסיס / אזור התייצבות"
+                  className="input"
+                />
+              </Field>
+              <Field label="תאריך התחלה">
+                <input
+                  type="date"
+                  value={newOrderStartDate}
+                  onChange={(e) => setNewOrderStartDate(e.target.value)}
+                  className="input"
+                />
+              </Field>
+              <Field label="תאריך סיום">
+                <input
+                  type="date"
+                  min={newOrderStartDate || undefined}
+                  value={newOrderEndDate}
+                  onChange={(e) => setNewOrderEndDate(e.target.value)}
+                  className="input"
+                />
+              </Field>
+            </div>
+            <button
+              type="button"
+              onClick={addOrderEvent}
+              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              פתח צו חדש
+            </button>
+
+            <div className="mt-5 border-t border-blue-100 pt-4">
+              <div className="mb-2 text-xs font-black text-slate-700">היסטוריית צווים</div>
+              {(draft.orderEvents || []).length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs font-bold text-slate-400">
+                  טרם נפתחו צווים במערכת
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {[...(draft.orderEvents || [])]
+                    .sort((a, b) => b.startDate.localeCompare(a.startDate))
+                    .map((order) => (
+                      <div
+                        key={order.id}
+                        className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div>
+                          <div className="text-xs font-black text-slate-800">{order.title}</div>
+                          <div className="mt-1 text-[11px] font-bold text-slate-500">
+                            {new Date(`${order.startDate}T12:00:00`).toLocaleDateString("he-IL")} –{" "}
+                            {new Date(`${order.endDate}T12:00:00`).toLocaleDateString("he-IL")}
+                            {order.location ? ` · ${order.location}` : ""}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeOrderEvent(order.id)}
+                          className="inline-flex items-center justify-center gap-1 rounded-lg border border-rose-200 bg-white px-3 py-2 text-[11px] font-black text-rose-700 hover:bg-rose-50"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          מחק
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="rounded-xl border border-indigo-200 bg-white p-4">

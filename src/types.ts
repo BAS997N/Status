@@ -130,6 +130,16 @@ export interface WhatsAppGroupConfig {
   sortOrder: number;
 }
 
+export interface OrderEventConfig {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  createdAt: string;
+  createdBy?: string;
+}
+
 export interface SystemSettingsConfig {
   systemName: string;
   unitName: string;
@@ -148,6 +158,7 @@ export interface SystemSettingsConfig {
   reportingEnabled: boolean;
   reportingClosedMessage: string;
   reportingClosedAllowedRoles: SystemRole[];
+  orderEvents: OrderEventConfig[];
   shiftsEnabled: boolean;
   shiftsClosedMessage: string;
   systemMode: SystemMode;

@@ -19,6 +19,7 @@ import {
   AttendanceStatus,
   AttendanceStatusConfig,
   ShiftRecord,
+  SystemSettingsConfig,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "../types";
 import { motion, AnimatePresence } from "motion/react";
@@ -27,6 +28,7 @@ interface SoldierReporterProps {
   currentUser: UserProfile;
   reports: AttendanceReport[];
   shifts?: ShiftRecord[];
+  systemSettings: SystemSettingsConfig;
   attendanceStatuses?: AttendanceStatusConfig[];
  onSubmitReport: (
   status: AttendanceStatus,
@@ -44,6 +46,7 @@ export default function SoldierReporter({
   currentUser, 
   reports,
   shifts = [],
+  systemSettings,
   attendanceStatuses = DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   onSubmitReport
 }: SoldierReporterProps) {
@@ -240,55 +243,33 @@ const latestReport = userReports
       minute: "2-digit",
     });
 
-  const latestReportByDay = new Map<string, AttendanceReport>();
-  userReports.forEach((report) => {
-    if (report.isReset) return;
-    const reportDay =
-      report.reportDate || report.timestamp?.split("T")[0] || "";
-    if (!reportDay || latestReportByDay.has(reportDay)) return;
-    latestReportByDay.set(reportDay, report);
-  });
-
-  const orderDates = Array.from(latestReportByDay.entries())
-    .filter(([, report]) => report.status === "cut_order")
-    .map(([date]) => date)
-    .sort();
-
-  const orderPeriods = orderDates.reduce<Array<{ start: string; end: string }>>(
-    (periods, date) => {
-      const previous = periods[periods.length - 1];
-      if (!previous) {
-        periods.push({ start: date, end: date });
-        return periods;
-      }
-
-      const dayAfterPrevious = new Date(`${previous.end}T12:00:00`);
-      dayAfterPrevious.setDate(dayAfterPrevious.getDate() + 1);
-      const expectedDate = dayAfterPrevious.toISOString().split("T")[0];
-
-      if (date === expectedDate) {
-        previous.end = date;
-      } else {
-        periods.push({ start: date, end: date });
-      }
-
-      return periods;
-    },
-    []
-  );
-
   const todayDate = getTodayLocalDate();
-  const activeOrderPeriod = orderPeriods.find(
-    (period) => period.start <= todayDate && period.end >= todayDate
+  const orderEvents = [...(systemSettings.orderEvents || [])].sort((a, b) =>
+    a.startDate.localeCompare(b.startDate)
   );
-  const futureOrderPeriod = orderPeriods.find(
-    (period) => period.start > todayDate
+  const activeOrderEvent = orderEvents.find(
+    (order) => order.startDate <= todayDate && order.endDate >= todayDate
   );
-  const latestPastOrderPeriod = [...orderPeriods]
+  const futureOrderEvent = orderEvents.find(
+    (order) => order.startDate > todayDate
+  );
+  const latestPastOrderEvent = [...orderEvents]
     .reverse()
-    .find((period) => period.end < todayDate);
-  const displayedOrderPeriod =
-    activeOrderPeriod || futureOrderPeriod || latestPastOrderPeriod;
+    .find((order) => order.endDate < todayDate);
+  const displayedOrderEvent =
+    activeOrderEvent || futureOrderEvent || latestPastOrderEvent;
+  const hasOrderPeriod = Boolean(displayedOrderEvent);
+  const orderStartDate = displayedOrderEvent?.startDate || "";
+  const orderEndDate = displayedOrderEvent?.endDate || "";
+  const latestTodayReport = userReports.find((report) => {
+    if (report.isReset) return false;
+    const reportDay = report.reportDate || report.timestamp?.split("T")[0];
+    return reportDay === todayDate;
+  });
+  const isOutsideOrderToday = Boolean(
+    latestTodayReport &&
+      ["not_on_order", "cut_order"].includes(latestTodayReport.status)
+  );
 
   const getInclusiveDayCount = (start: string, end: string) =>
     Math.max(
@@ -300,16 +281,18 @@ const latestReport = userReports
       ) + 1
     );
 
-  const orderState = activeOrderPeriod
-    ? "active"
-    : futureOrderPeriod
+  const orderState = !hasOrderPeriod
+    ? "none"
+    : activeOrderEvent && isOutsideOrderToday
+    ? "excluded"
+    : futureOrderEvent && displayedOrderEvent?.id === futureOrderEvent.id
     ? "future"
-    : latestPastOrderPeriod
+    : latestPastOrderEvent && displayedOrderEvent?.id === latestPastOrderEvent.id
     ? "ended"
-    : "none";
+    : "active";
 
-  const remainingOrderDays = activeOrderPeriod
-    ? getInclusiveDayCount(todayDate, activeOrderPeriod.end)
+  const remainingOrderDays = orderState === "active"
+    ? getInclusiveDayCount(todayDate, orderEndDate)
     : 0;
 
   // Auto set default locations based on status selection
@@ -494,6 +477,8 @@ dayMarker || undefined
         className={`rounded-xl border px-4 py-3 shadow-sm sm:px-5 ${
           orderState === "active"
             ? "border-emerald-200 bg-emerald-50"
+            : orderState === "excluded"
+            ? "border-amber-200 bg-amber-50"
             : orderState === "future"
             ? "border-blue-200 bg-blue-50"
             : "border-slate-200 bg-white"
@@ -505,6 +490,8 @@ dayMarker || undefined
               className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                 orderState === "active"
                   ? "bg-emerald-100 text-emerald-700"
+                  : orderState === "excluded"
+                  ? "bg-amber-100 text-amber-700"
                   : orderState === "future"
                   ? "bg-blue-100 text-blue-700"
                   : "bg-slate-100 text-slate-500"
@@ -519,6 +506,8 @@ dayMarker || undefined
                   className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
                     orderState === "active"
                       ? "bg-emerald-600 text-white"
+                      : orderState === "excluded"
+                      ? "bg-amber-500 text-white"
                       : orderState === "future"
                       ? "bg-blue-600 text-white"
                       : "bg-slate-200 text-slate-600"
@@ -526,6 +515,8 @@ dayMarker || undefined
                 >
                   {orderState === "active"
                     ? "צו פעיל"
+                    : orderState === "excluded"
+                    ? "מחוץ לצו היום"
                     : orderState === "future"
                     ? "צו עתידי"
                     : orderState === "ended"
@@ -533,23 +524,34 @@ dayMarker || undefined
                     : "אין צו פעיל"}
                 </span>
               </div>
-              {displayedOrderPeriod ? (
-                <p className="mt-1 text-xs font-bold text-slate-600">
-                  {new Date(`${displayedOrderPeriod.start}T12:00:00`).toLocaleDateString("he-IL")} –{" "}
-                  {new Date(`${displayedOrderPeriod.end}T12:00:00`).toLocaleDateString("he-IL")}
-                  <span className="mr-2 text-slate-400">
-                    ({getInclusiveDayCount(displayedOrderPeriod.start, displayedOrderPeriod.end)} ימים)
-                  </span>
-                </p>
+              {hasOrderPeriod ? (
+                <div className="mt-1 space-y-1">
+                  <p className="text-xs font-black text-slate-700">
+                    {displayedOrderEvent?.title}
+                  </p>
+                  <p className="text-xs font-bold text-slate-600">
+                    {new Date(`${orderStartDate}T12:00:00`).toLocaleDateString("he-IL")} –{" "}
+                    {new Date(`${orderEndDate}T12:00:00`).toLocaleDateString("he-IL")}
+                    <span className="mr-2 text-slate-400">
+                      ({getInclusiveDayCount(orderStartDate, orderEndDate)} ימים)
+                    </span>
+                  </p>
+                  {displayedOrderEvent?.location && (
+                    <p className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {displayedOrderEvent.location}
+                    </p>
+                  )}
+                </div>
               ) : (
                 <p className="mt-1 text-xs font-medium text-slate-500">
-                  לא נמצאה תקופת צו בדיווחים שלך
+                  לא נפתח צו גדודי במערכת
                 </p>
               )}
             </div>
           </div>
 
-          {activeOrderPeriod && (
+          {orderState === "active" && (
             <div className="rounded-lg bg-white/80 px-3 py-2 text-center shadow-sm">
               <span className="block text-lg font-black text-emerald-700">
                 {remainingOrderDays}

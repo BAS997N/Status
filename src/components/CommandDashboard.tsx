@@ -567,6 +567,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
   const baseEmail = `${formPersonalId.trim()}@idf.il`;
 
   const profileToSave = {
+    ...(editingSoldier || {}),
     userId: editingSoldier ? editingSoldier.userId : `user_${Date.now()}`,
     fullName: formFullName.trim(),
     personalId: formPersonalId.trim(),

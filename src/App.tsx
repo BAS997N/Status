@@ -2364,6 +2364,7 @@ const handleAdminSaveReport = async (reportData: {
                   currentUser={userProfile}
                   reports={reports}
                   shifts={shifts}
+                  systemSettings={systemSettings!}
                   attendanceStatuses={attendanceStatuses}
                   onSubmitReport={handleSubmitReport}
                 />

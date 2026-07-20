@@ -48,6 +48,7 @@ import {
   ShiftTypeConfig,
   EmergencyResponse,
   WhatsAppGroupConfig,
+  OrderEventConfig,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -145,6 +146,7 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   reportingEnabled: true,
   reportingClosedMessage: "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
   reportingClosedAllowedRoles: ["super_admin", "admin"],
+  orderEvents: [],
   shiftsEnabled: true,
   shiftsClosedMessage: "מסך המשמרות אינו זמין כעת. יש להתעדכן מול המפקד.",
   systemMode: "routine",
@@ -242,6 +244,55 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
 
     return Array.from(new Set(normalized));
   };
+  const normalizeOrderEvents = (candidate: unknown): OrderEventConfig[] => {
+    const legacyStart = (raw as any).orderStartDate;
+    const legacyEnd = (raw as any).orderEndDate;
+    const source = Array.isArray(candidate)
+      ? candidate
+      : typeof legacyStart === "string" &&
+        legacyStart &&
+        typeof legacyEnd === "string" &&
+        legacyEnd
+      ? [
+          {
+            id: "legacy_order",
+            title: "צו גדודי",
+            startDate: legacyStart,
+            endDate: legacyEnd,
+            location: "",
+            createdAt: new Date().toISOString(),
+          },
+        ]
+      : [];
+
+    return source
+      .filter((item): item is Partial<OrderEventConfig> =>
+        Boolean(item && typeof item === "object")
+      )
+      .map((item, index) => ({
+        id:
+          typeof item.id === "string" && item.id
+            ? item.id
+            : `order_${index + 1}`,
+        title:
+          typeof item.title === "string" && item.title.trim()
+            ? item.title.trim()
+            : "צו גדודי",
+        startDate:
+          typeof item.startDate === "string" ? item.startDate : "",
+        endDate: typeof item.endDate === "string" ? item.endDate : "",
+        location:
+          typeof item.location === "string" ? item.location.trim() : "",
+        createdAt:
+          typeof item.createdAt === "string"
+            ? item.createdAt
+            : new Date().toISOString(),
+        createdBy:
+          typeof item.createdBy === "string" ? item.createdBy : undefined,
+      }))
+      .filter((item) => item.startDate && item.endDate)
+      .sort((a, b) => b.startDate.localeCompare(a.startDate));
+  };
   return {
     ...DEFAULT_SYSTEM_SETTINGS,
     ...raw,
@@ -271,6 +322,7 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
       raw.reportingClosedAllowedRoles,
       DEFAULT_SYSTEM_SETTINGS.reportingClosedAllowedRoles
     ),
+    orderEvents: normalizeOrderEvents(raw.orderEvents),
     shiftsEnabled: raw.shiftsEnabled !== false,
     shiftsClosedMessage:
       typeof raw.shiftsClosedMessage === "string" &&
