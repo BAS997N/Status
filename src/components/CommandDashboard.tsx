@@ -2140,8 +2140,8 @@ const dates = getDateRange(startDate, endDate);
             <th className="px-4 py-3">חיתוך צו</th>
             <th className="px-4 py-3">לא בצו</th>
             <th className="px-4 py-3">אחר</th>
-            <th className="px-4 py-3 whitespace-nowrap">חזרה לבסיס</th>
             <th className="px-4 py-3 whitespace-nowrap">יציאה לבית</th>
+            <th className="px-4 py-3 whitespace-nowrap">חזרה לבסיס</th>
             <th className="px-4 py-3 whitespace-nowrap">אפטר</th>
           </tr>
         </thead>
@@ -2182,8 +2182,8 @@ const dates = getDateRange(startDate, endDate);
                   <td className="px-4 py-3 text-red-700 font-bold">{counts.cut_order}</td>
                   <td className="px-4 py-3 text-orange-700 font-bold">{counts.not_on_order}</td>
                   <td className="px-4 py-3 text-slate-600 font-bold">{counts.other}</td>
-                  <td className="px-4 py-3 text-blue-700 font-bold">{counts.return_to_base}</td>
                   <td className="px-4 py-3 text-purple-700 font-bold">{counts.exit_home}</td>
+                  <td className="px-4 py-3 text-blue-700 font-bold">{counts.return_to_base}</td>
                   <td className="px-4 py-3 text-fuchsia-700 font-bold">{counts.after_hours}</td>
                 </tr>
               );
@@ -2203,8 +2203,8 @@ const dates = getDateRange(startDate, endDate);
             <td className="px-4 py-3 text-red-700">{summaryTotals.cut_order}</td>
             <td className="px-4 py-3 text-orange-700">{summaryTotals.not_on_order}</td>
             <td className="px-4 py-3 text-slate-600">{summaryTotals.other}</td>
-            <td className="px-4 py-3 text-blue-700">{summaryTotals.return_to_base}</td>
             <td className="px-4 py-3 text-purple-700">{summaryTotals.exit_home}</td>
+            <td className="px-4 py-3 text-blue-700">{summaryTotals.return_to_base}</td>
             <td className="px-4 py-3 text-fuchsia-700">{summaryTotals.after_hours}</td>
           </tr>
         </tfoot>
