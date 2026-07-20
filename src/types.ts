@@ -561,6 +561,28 @@ export interface AppNotification {
   message: string;
 }
 
+export type CommanderMessageTarget = "all" | "unit" | "user";
+
+export interface CommanderMessageAcknowledgement {
+  userId: string;
+  userName: string;
+  readAt: string;
+}
+
+export interface CommanderMessage {
+  messageId: string;
+  title: string;
+  content: string;
+  important: boolean;
+  targetType: CommanderMessageTarget;
+  targetUnit?: string;
+  targetUserId?: string;
+  createdAt: string;
+  createdBy: string;
+  createdByName: string;
+  acknowledgements: Record<string, CommanderMessageAcknowledgement>;
+}
+
 /*
  * ברירת המחדל של כל הסטטוסים.
  *

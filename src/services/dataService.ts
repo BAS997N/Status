@@ -49,6 +49,7 @@ import {
   EmergencyResponse,
   WhatsAppGroupConfig,
   OrderEventConfig,
+  CommanderMessage,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -4456,6 +4457,114 @@ const formattedDate =
       await Promise.all(promises);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  },
+
+  async getCommanderMessages(): Promise<CommanderMessage[]> {
+    if (!isFirebaseActive()) {
+      const messages: CommanderMessage[] = JSON.parse(
+        localStorage.getItem("idf_commander_messages") || "[]"
+      );
+      return messages.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }
+
+    const path = "commander_messages";
+    try {
+      const snapshot = await getDocs(collection(db, "commander_messages"));
+      return snapshot.docs
+        .map(
+          (item) =>
+            ({
+              messageId: item.id,
+              ...item.data(),
+              acknowledgements: item.data().acknowledgements || {},
+            } as CommanderMessage)
+        )
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
+  async createCommanderMessage(
+    message: Omit<CommanderMessage, "messageId">
+  ): Promise<string> {
+    if (!isFirebaseActive()) {
+      const messages: CommanderMessage[] = JSON.parse(
+        localStorage.getItem("idf_commander_messages") || "[]"
+      );
+      const messageId = `message_${Date.now()}`;
+      messages.unshift({ ...message, messageId });
+      localStorage.setItem("idf_commander_messages", JSON.stringify(messages));
+      return messageId;
+    }
+
+    const path = "commander_messages";
+    try {
+      const created = await addDoc(collection(db, "commander_messages"), message);
+      return created.id;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, path);
+      throw error;
+    }
+  },
+
+  async acknowledgeCommanderMessage(
+    messageId: string,
+    user: UserProfile
+  ): Promise<void> {
+    const readAt = new Date().toISOString();
+    if (!isFirebaseActive()) {
+      const messages: CommanderMessage[] = JSON.parse(
+        localStorage.getItem("idf_commander_messages") || "[]"
+      );
+      const message = messages.find((item) => item.messageId === messageId);
+      if (message) {
+        message.acknowledgements = {
+          ...(message.acknowledgements || {}),
+          [user.userId]: {
+            userId: user.userId,
+            userName: user.fullName,
+            readAt,
+          },
+        };
+        localStorage.setItem("idf_commander_messages", JSON.stringify(messages));
+      }
+      return;
+    }
+
+    const path = `commander_messages/${messageId}`;
+    try {
+      await updateDoc(doc(db, "commander_messages", messageId), {
+        [`acknowledgements.${user.userId}`]: {
+          userId: user.userId,
+          userName: user.fullName,
+          readAt,
+        },
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  },
+
+  async deleteCommanderMessage(messageId: string): Promise<void> {
+    if (!isFirebaseActive()) {
+      const messages: CommanderMessage[] = JSON.parse(
+        localStorage.getItem("idf_commander_messages") || "[]"
+      );
+      localStorage.setItem(
+        "idf_commander_messages",
+        JSON.stringify(messages.filter((item) => item.messageId !== messageId))
+      );
+      return;
+    }
+
+    const path = `commander_messages/${messageId}`;
+    try {
+      await deleteDoc(doc(db, "commander_messages", messageId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
     }
   },
 

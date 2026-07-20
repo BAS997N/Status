@@ -45,6 +45,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { hasPermission, PermissionMap } from "../security/permissions";
 import HistoryView from "./HistoryView";
+import CommanderMessages from "./CommanderMessages";
 import { 
   BarChart, 
   Bar, 
@@ -1798,6 +1799,7 @@ const dates = getDateRange(startDate, endDate);
         כל ההתראות שנוצרו בעקבות דיווחי נוכחות חריגים
       </p>
     </div>
+    <CommanderMessages currentUser={currentUser} allUsers={allSoldiers} />
     {/* סינון התראות */}
 <div className="p-4 border-b border-slate-100 bg-slate-50">
   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">

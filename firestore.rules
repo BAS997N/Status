@@ -117,6 +117,14 @@ service cloud.firestore {
       allow delete: if hasPermission("dashboard.notifications.view");
     }
 
+    match /commander_messages/{messageId} {
+      allow read: if signedIn();
+      allow create, delete: if hasPermission("dashboard.notifications.view");
+      allow update: if signedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["acknowledgements"]);
+    }
+
     match /system_logs/{logId} {
       allow read: if hasPermission("dashboard.system_logs.view") || hasPermission("system_admin.audit.view");
       allow create: if signedIn();
