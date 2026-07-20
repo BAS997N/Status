@@ -1587,6 +1587,11 @@ const BACKUP_SECTIONS: BackupSection[] = [
   "notifications",
   "settings",
   "system_logs",
+  "shifts",
+  "shift_acknowledgements",
+  "external_staff",
+  "emergency_responses",
+  "commander_messages",
 ];
 
 const LOCAL_BACKUP_KEYS: Record<BackupSection, string> = {
@@ -1596,11 +1601,26 @@ const LOCAL_BACKUP_KEYS: Record<BackupSection, string> = {
   notifications: "idf_notifications",
   settings: "idf_system_settings",
   system_logs: "idf_system_logs",
+  shifts: "idf_shifts",
+  shift_acknowledgements: "idf_shift_acknowledgements",
+  external_staff: "idf_external_staff",
+  emergency_responses: "idf_emergency_responses",
+  commander_messages: "idf_commander_messages",
 };
 
 const normalizeBackupDocument = (value: unknown, index: number) => {
   const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  const id = String(raw.id || raw.userId || raw.reportId || raw.notificationId || `item_${index + 1}`);
+  const id = String(
+    raw.id ||
+      raw.userId ||
+      raw.reportId ||
+      raw.notificationId ||
+      raw.shiftId ||
+      raw.responseId ||
+      raw.messageId ||
+      raw.logId ||
+      `item_${index + 1}`
+  );
   return { id, data: removeUndefinedValues({ ...raw }) };
 };
 

@@ -120,9 +120,11 @@ service cloud.firestore {
     match /commander_messages/{messageId} {
       allow read: if signedIn();
       allow create, delete: if hasPermission("dashboard.notifications.view");
-      allow update: if signedIn() &&
+      allow update: if isSuperAdmin() || (
+        signedIn() &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(["acknowledgements"]);
+          .hasOnly(["acknowledgements"])
+      );
     }
 
     match /system_logs/{logId} {
@@ -165,7 +167,7 @@ service cloud.firestore {
             myUser().data.personalId == resource.data.personalId
           )
         ));
-      allow create: if emergencyIsActive() && (
+      allow create: if isSuperAdmin() || (emergencyIsActive() && (
         hasPermission("emergency.manage") ||
         request.resource.data.authUid == request.auth.uid ||
         request.resource.data.userId == request.auth.uid ||
@@ -173,8 +175,8 @@ service cloud.firestore {
           request.resource.data.personalId is string &&
           myUser().data.personalId == request.resource.data.personalId
         )
-      );
-      allow update: if emergencyIsActive() && (
+      ));
+      allow update: if isSuperAdmin() || (emergencyIsActive() && (
         hasPermission("emergency.manage") ||
         (
           request.resource.data.authUid == resource.data.authUid &&
@@ -189,7 +191,7 @@ service cloud.firestore {
             )
           )
         )
-      );
+      ));
       allow delete: if hasPermission("emergency.manage");
     }
 
@@ -199,19 +201,19 @@ service cloud.firestore {
         hasPermission("shifts.manage")
       );
 
-      allow create: if signedIn() &&
+      allow create: if isSuperAdmin() || (signedIn() &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.shiftId is string &&
         request.resource.data.readAt is string &&
-        request.resource.data.acknowledgedBy == request.auth.uid;
+        request.resource.data.acknowledgedBy == request.auth.uid);
 
-      allow update: if signedIn() &&
+      allow update: if isSuperAdmin() || (signedIn() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == resource.data.userId &&
         request.resource.data.shiftId == resource.data.shiftId &&
         request.resource.data.acknowledgedBy == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(["readAt", "acknowledgedBy"]);
+          .hasOnly(["readAt", "acknowledgedBy"]));
 
       allow delete: if hasPermission("shifts.manage");
     }

@@ -30,6 +30,11 @@ const SECTION_LABELS: Record<BackupSection, string> = {
   notifications: "התראות",
   settings: "כל הגדרות המערכת",
   system_logs: "Audit ויומן מערכת",
+  shifts: "משמרות ושיבוצים",
+  shift_acknowledgements: "אישורי קריאת משמרות",
+  external_staff: "אנשי צוות חיצוניים",
+  emergency_responses: "תגובות והיסטוריית מרכז חירום",
+  commander_messages: "הודעות מפקד ואישורי קריאה",
 };
 
 const DEFAULT_SECTIONS: BackupSection[] = [
@@ -39,6 +44,11 @@ const DEFAULT_SECTIONS: BackupSection[] = [
   "notifications",
   "settings",
   "system_logs",
+  "shifts",
+  "shift_acknowledgements",
+  "external_staff",
+  "emergency_responses",
+  "commander_messages",
 ];
 
 const formatDate = (value?: string) =>

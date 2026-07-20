@@ -263,7 +263,12 @@ export type BackupSection =
   | "attendance_logs"
   | "notifications"
   | "settings"
-  | "system_logs";
+  | "system_logs"
+  | "shifts"
+  | "shift_acknowledgements"
+  | "external_staff"
+  | "emergency_responses"
+  | "commander_messages";
 
 export interface BackupDocument {
   id: string;
