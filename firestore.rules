@@ -128,7 +128,13 @@ service cloud.firestore {
     }
 
     match /shifts/{shiftId} {
-      allow read: if hasPermission("shifts.view");
+      // Reporting soldiers need the published assignments for their personal
+      // page even when they do not have access to the full shifts screen.
+      allow read: if hasPermission("shifts.view") || (
+        signedIn() &&
+        hasUserDocument() &&
+        myUser().data.role == "soldier"
+      );
       allow create, update, delete: if hasPermission("shifts.manage");
     }
 

@@ -800,7 +800,10 @@ setSystemLogs(updatedSystemLogs);
   if (!userProfile || !permissionsLoaded) return;
   refreshReports();
 
-  if (!canViewShifts) {
+  const canLoadPersonalShifts =
+    userProfile.role === "soldier" && canViewReporter;
+
+  if (!canViewShifts && !canLoadPersonalShifts) {
     setShifts([]);
     return;
   }
@@ -809,19 +812,33 @@ setSystemLogs(updatedSystemLogs);
     .getShifts()
     .then(setShifts)
     .catch((error) => console.error("Failed loading shifts:", error));
-  dataService
-    .getShiftSlotConfigs()
-    .then(setShiftSlotConfigs)
-    .catch((error) =>
-      console.error("Failed loading shift slot configs:", error)
-    );
-  dataService
-    .getExternalStaff()
-    .then(setExternalStaff)
-    .catch((error) =>
-      console.error("Failed loading external staff:", error)
-    );
-}, [userProfile, permissionsLoaded, canViewShifts]);
+  if (canViewShifts) {
+    dataService
+      .getShiftSlotConfigs()
+      .then(setShiftSlotConfigs)
+      .catch((error) =>
+        console.error("Failed loading shift slot configs:", error)
+      );
+  } else {
+    setShiftSlotConfigs([]);
+  }
+  if (canManageShifts) {
+    dataService
+      .getExternalStaff()
+      .then(setExternalStaff)
+      .catch((error) =>
+        console.error("Failed loading external staff:", error)
+      );
+  } else {
+    setExternalStaff([]);
+  }
+}, [
+  userProfile,
+  permissionsLoaded,
+  canViewReporter,
+  canViewShifts,
+  canManageShifts,
+]);
 
   // Notification actions
   const handleMarkNotificationRead = async (id: string) => {
