@@ -9,7 +9,9 @@ import {
   Compass, 
   CalendarDays, 
   FileText,
-  CircleHelp
+  CircleHelp,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { 
   UserProfile, 
@@ -68,6 +70,10 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isWeeklyShiftsCollapsed, setIsWeeklyShiftsCollapsed] =
+    useState<boolean>(() =>
+      typeof window !== "undefined" && window.innerWidth < 640
+    );
 
   const soldierStatusOptions = attendanceStatuses
     .filter((item) => item.enabled && item.visibleToSoldiers)
@@ -454,12 +460,29 @@ dayMarker || undefined
               <CalendarDays className="h-5 w-5 text-military-600" />
               <h3 className="text-base font-black text-slate-800">המשמרות שלי השבוע</h3>
             </div>
-            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
-              {weeklyShifts.length}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
+                {weeklyShifts.length}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setIsWeeklyShiftsCollapsed((current) => !current)
+                }
+                className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-black text-slate-600 transition hover:bg-slate-100"
+                aria-expanded={!isWeeklyShiftsCollapsed}
+              >
+                {isWeeklyShiftsCollapsed ? (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronUp className="h-3.5 w-3.5" />
+                )}
+                {isWeeklyShiftsCollapsed ? "הצג" : "מזער"}
+              </button>
+            </div>
           </div>
 
-          {weeklyShifts.length > 0 ? (
+          {!isWeeklyShiftsCollapsed && (weeklyShifts.length > 0 ? (
             <div className="max-h-64 space-y-2 overflow-y-auto pl-1 custom-scrollbar">
               {weeklyShifts.map((shift) => (
                 <div
@@ -485,7 +508,7 @@ dayMarker || undefined
             <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center text-xs font-bold text-slate-400">
               לא נמצאו משמרות שפורסמו בשבוע הנוכחי
             </div>
-          )}
+          ))}
         </div>
       </section>
 
