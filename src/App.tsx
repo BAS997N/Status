@@ -183,6 +183,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   const [permissionConfigs, setPermissionConfigs] = useState<RolePermissionConfig[]>([]);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const [emergencyArrivalConfirmed, setEmergencyArrivalConfirmed] = useState(false);
   const [attendanceStatuses, setAttendanceStatuses] = useState<AttendanceStatusConfig[]>(
     DEFAULT_ATTENDANCE_STATUS_CONFIGS
   );
@@ -336,6 +337,55 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const shouldShowEmergencyTab =
     canManageEmergency ||
     (emergencyIsActive && (canViewEmergency || canViewReporter));
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!emergencyIsActive || !userProfile?.userId || !systemSettings?.emergencyEvent.eventId) {
+      setEmergencyArrivalConfirmed(false);
+      return;
+    }
+
+    dataService
+      .getEmergencyResponse(systemSettings.emergencyEvent.eventId, userProfile.userId)
+      .then((response) => {
+        if (cancelled) return;
+        const hasArrived =
+          response?.status === "arrived" ||
+          response?.history?.some((item) => item.status === "arrived") === true;
+        setEmergencyArrivalConfirmed(hasArrived);
+      })
+      .catch(() => {
+        if (!cancelled) setEmergencyArrivalConfirmed(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    emergencyIsActive,
+    systemSettings?.emergencyEvent.eventId,
+    userProfile?.userId,
+  ]);
+
+  useEffect(() => {
+    if (
+      emergencyIsActive &&
+      canViewReporter &&
+      !canManageEmergency &&
+      !emergencyArrivalConfirmed &&
+      shouldShowEmergencyTab &&
+      activeTab !== "emergency"
+    ) {
+      setActiveTab("emergency");
+    }
+  }, [
+    emergencyIsActive,
+    emergencyArrivalConfirmed,
+    canViewReporter,
+    canManageEmergency,
+    shouldShowEmergencyTab,
+    activeTab,
+  ]);
 
   useEffect(() => {
     if (activeTab === "emergency" && !shouldShowEmergencyTab) {
@@ -2209,6 +2259,7 @@ const handleAdminSaveReport = async (reportData: {
                 canManage={canManageEmergency}
                 settings={systemSettings!}
                 onSettingsChanged={handleSystemSettingsChanged}
+                onArrivalConfirmed={() => setEmergencyArrivalConfirmed(true)}
               />
             </motion.div>
           ) : activeTab === "shifts" && canViewShifts ? (

@@ -23,6 +23,7 @@ interface EmergencyCenterProps {
   canManage: boolean;
   settings: SystemSettingsConfig;
   onSettingsChanged: (settings: SystemSettingsConfig) => void;
+  onArrivalConfirmed?: () => void;
 }
 
 const STATUS_OPTIONS: Array<{
@@ -43,6 +44,7 @@ export default function EmergencyCenter({
   canManage,
   settings,
   onSettingsChanged,
+  onArrivalConfirmed,
 }: EmergencyCenterProps) {
   const event = settings.emergencyEvent;
   const [responses, setResponses] = useState<EmergencyResponse[]>([]);
@@ -61,7 +63,12 @@ export default function EmergencyCenter({
       setResponses([]);
       return;
     }
-    setResponses(await dataService.getEmergencyResponses(event.eventId));
+    const loadedResponses = canManage
+      ? await dataService.getEmergencyResponses(event.eventId)
+      : [await dataService.getEmergencyResponse(event.eventId, currentUser.userId)].filter(
+          (item): item is EmergencyResponse => item !== null
+        );
+    setResponses(loadedResponses);
   };
 
   useEffect(() => {
@@ -100,6 +107,7 @@ export default function EmergencyCenter({
         note: note.trim(),
       });
       await refresh();
+      if (status === "arrived") onArrivalConfirmed?.();
       setMessage("התגובה נשמרה.");
     } catch (error) {
       console.error(error);
@@ -149,7 +157,7 @@ export default function EmergencyCenter({
           activatedByName: currentUser.fullName,
         },
       };
-      const savedSettings = await dataService.saveSystemSettings(
+      const savedSettings = await dataService.saveEmergencySettings(
         updatedSettings,
         currentUser.userId
       );
@@ -178,7 +186,7 @@ export default function EmergencyCenter({
           closedBy: currentUser.userId,
         },
       };
-      const savedSettings = await dataService.saveSystemSettings(
+      const savedSettings = await dataService.saveEmergencySettings(
         updatedSettings,
         currentUser.userId
       );
@@ -351,6 +359,30 @@ export default function EmergencyCenter({
               {message}
             </div>
           )}
+          {myResponse && (
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="text-xs font-black text-slate-700">
+                היסטוריית הסימונים שלי
+              </div>
+              <div className="mt-2 space-y-1">
+                {(myResponse.history || [{
+                  status: myResponse.status,
+                  note: myResponse.note,
+                  markedAt: myResponse.updatedAt,
+                }]).map((historyItem, index) => {
+                  const historyStatus = STATUS_OPTIONS.find(
+                    (item) => item.value === historyItem.status
+                  );
+                  return (
+                    <div key={`${historyItem.markedAt}-${index}`} className="text-[10px] text-slate-500">
+                      {new Date(historyItem.markedAt).toLocaleString("he-IL")} — {historyStatus?.label || historyItem.status}
+                      {historyItem.note ? ` — ${historyItem.note}` : ""}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -387,6 +419,24 @@ export default function EmergencyCenter({
                         </div>
                       </div>
                       {response.note && <div className="mt-2 text-[10px] text-slate-500">{response.note}</div>}
+                      <div className="mt-2 text-[10px] font-bold text-slate-400">
+                        סימון אחרון: {new Date(response.updatedAt).toLocaleString("he-IL")}
+                      </div>
+                      {response.history && response.history.length > 0 && (
+                        <div className="mt-2 space-y-1 border-t border-slate-100 pt-2">
+                          {response.history.map((historyItem, index) => {
+                            const historyStatus = STATUS_OPTIONS.find(
+                              (item) => item.value === historyItem.status
+                            );
+                            return (
+                              <div key={`${historyItem.markedAt}-${index}`} className="text-[10px] text-slate-500">
+                                {new Date(historyItem.markedAt).toLocaleString("he-IL")} — {historyStatus?.label || historyItem.status}
+                                {historyItem.note ? ` — ${historyItem.note}` : ""}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

@@ -92,6 +92,11 @@ export interface EmergencyResponse {
   status: EmergencyResponseStatus;
   note?: string;
   updatedAt: string;
+  history?: Array<{
+    status: EmergencyResponseStatus;
+    note?: string;
+    markedAt: string;
+  }>;
 }
 
 export interface EmergencyEventConfig {

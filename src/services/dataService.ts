@@ -1573,16 +1573,45 @@ export const dataService = {
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   },
 
+  async getEmergencyResponse(
+    eventId: string,
+    userId: string
+  ): Promise<EmergencyResponse | null> {
+    if (!eventId || !userId) return null;
+    const responseId = `${eventId}_${userId}`;
+
+    if (!isFirebaseActive()) {
+      const all: EmergencyResponse[] = JSON.parse(
+        localStorage.getItem("idf_emergency_responses") || "[]"
+      );
+      return all.find((item) => item.responseId === responseId) || null;
+    }
+
+    const snapshot = await getDoc(doc(db, "emergency_responses", responseId));
+    return snapshot.exists()
+      ? ({ responseId: snapshot.id, ...snapshot.data() } as EmergencyResponse)
+      : null;
+  },
+
   async saveEmergencyResponse(
     eventId: string,
     response: Omit<EmergencyResponse, "responseId" | "updatedAt">
   ): Promise<EmergencyResponse> {
     if (!eventId) throw new Error("אירוע החירום אינו פעיל");
 
+    const markedAt = new Date().toISOString();
+    const responseId = `${eventId}_${response.userId}`;
+    const previous = await this.getEmergencyResponse(eventId, response.userId);
     const value: EmergencyResponse = {
       ...response,
-      responseId: `${eventId}_${response.userId}`,
-      updatedAt: new Date().toISOString(),
+      responseId,
+      updatedAt: markedAt,
+      history: [
+        ...(previous?.history || (previous
+          ? [{ status: previous.status, note: previous.note, markedAt: previous.updatedAt }]
+          : [])),
+        { status: response.status, note: response.note, markedAt },
+      ],
     };
 
     if (!isFirebaseActive()) {
@@ -1602,6 +1631,34 @@ export const dataService = {
       removeUndefinedValues(value)
     );
     return value;
+  },
+
+  async saveEmergencySettings(
+    settings: SystemSettingsConfig,
+    updatedBy?: string
+  ): Promise<SystemSettingsConfig> {
+    const normalized = normalizeSystemSettings(settings);
+    const saved: SystemSettingsConfig = {
+      ...normalized,
+      updatedAt: new Date().toISOString(),
+      updatedBy: updatedBy || auth?.currentUser?.uid || "unknown",
+    };
+
+    if (!isFirebaseActive()) {
+      saveSystemSettingsToCache(saved);
+      return saved;
+    }
+
+    await updateDoc(doc(db, "settings", "system_settings"),
+      removeUndefinedValues({
+        systemMode: saved.systemMode,
+        emergencyEvent: saved.emergencyEvent,
+        updatedAt: saved.updatedAt,
+        updatedBy: saved.updatedBy,
+      })
+    );
+    saveSystemSettingsToCache(saved);
+    return saved;
   },
 
 

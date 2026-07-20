@@ -129,7 +129,9 @@ service cloud.firestore {
     }
 
     match /emergency_responses/{responseId} {
-      allow read: if hasPermission("emergency.view") || hasPermission("emergency.manage");
+      allow read: if hasPermission("emergency.view") ||
+        hasPermission("emergency.manage") ||
+        (signedIn() && resource.data.userId == request.auth.uid);
       allow create, update: if signedIn() &&
         request.resource.data.userId == request.auth.uid;
       allow delete: if hasPermission("emergency.manage");
