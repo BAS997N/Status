@@ -320,30 +320,14 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const canViewDashboard = hasPermission(permissions, "dashboard.view");
   const shiftsSystemRole = getEffectiveSystemRole(permissionUser);
   const canViewShifts = hasPermission(permissions, "shifts.view");
-  const canManageShifts =
-    permissions["shifts.manage"] === true ||
-    shiftsSystemRole === "admin" ||
-    shiftsSystemRole === "super_admin";
-  const canViewEmergency =
-    hasPermission(permissions, "emergency.view") ||
-    systemSettings?.systemMode === "emergency";
-  const canManageEmergency =
-    permissions["emergency.manage"] === true ||
-    shiftsSystemRole === "admin" ||
-    shiftsSystemRole === "super_admin";
-  const isEmergencyActive =
-    systemSettings?.systemMode === "emergency" &&
-    systemSettings?.emergencyEvent?.active === true;
+  const canManageShifts = hasPermission(permissions, "shifts.manage");
+  const canViewEmergency = hasPermission(permissions, "emergency.view");
+  const canManageEmergency = hasPermission(permissions, "emergency.manage");
 
-  // Managers keep access so they can prepare or operate the emergency center.
-  // Regular soldiers only see the tab while an emergency event is active.
-  const isEmergencyManagerRole =
-    canManageEmergency ||
-    shiftsSystemRole === "admin" ||
-    shiftsSystemRole === "super_admin";
-
-  const shouldShowEmergencyTab =
-    isEmergencyManagerRole || (canViewEmergency && isEmergencyActive);
+  // Access to the emergency center is controlled only by the dynamic
+  // permission system. Activating emergency mode must not grant access to
+  // roles whose "emergency.view" permission is disabled.
+  const shouldShowEmergencyTab = canViewEmergency;
 
   useEffect(() => {
     if (activeTab === "emergency" && !shouldShowEmergencyTab) {
