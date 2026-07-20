@@ -95,6 +95,19 @@ export default function EmergencyCenter({
       .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"));
   }, [allUsers, responses]);
 
+  const formatMarkedAt = (value?: string) => {
+    if (!value) return "שעה לא זמינה";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "שעה לא זמינה";
+    return date.toLocaleString("he-IL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const saveResponse = async (status: EmergencyResponseStatus) => {
     setSaving(true);
     setMessage("");
@@ -414,23 +427,44 @@ export default function EmergencyCenter({
                     <div key={response.responseId} className="rounded-xl border border-slate-200 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="text-xs font-black text-slate-900">{response.userName}</div>
-                        <div className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-700">
-                          {option?.label || response.status}
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-700">
+                            {option?.label || response.status}
+                          </div>
+                          <div className="text-[10px] font-bold text-slate-500">
+                            {formatMarkedAt(response.updatedAt)}
+                          </div>
                         </div>
                       </div>
                       {response.note && <div className="mt-2 text-[10px] text-slate-500">{response.note}</div>}
                       <div className="mt-2 text-[10px] font-bold text-slate-400">
-                        סימון אחרון: {new Date(response.updatedAt).toLocaleString("he-IL")}
+                        סימון אחרון: {formatMarkedAt(response.updatedAt)}
                       </div>
-                      {response.history && response.history.length > 0 && (
+                      {(
+                        response.history && response.history.length > 0
+                          ? response.history
+                          : [{
+                              status: response.status,
+                              note: response.note,
+                              markedAt: response.updatedAt,
+                            }]
+                      ).length > 0 && (
                         <div className="mt-2 space-y-1 border-t border-slate-100 pt-2">
-                          {response.history.map((historyItem, index) => {
+                          {(
+                            response.history && response.history.length > 0
+                              ? response.history
+                              : [{
+                                  status: response.status,
+                                  note: response.note,
+                                  markedAt: response.updatedAt,
+                                }]
+                          ).map((historyItem, index) => {
                             const historyStatus = STATUS_OPTIONS.find(
                               (item) => item.value === historyItem.status
                             );
                             return (
                               <div key={`${historyItem.markedAt}-${index}`} className="text-[10px] text-slate-500">
-                                {new Date(historyItem.markedAt).toLocaleString("he-IL")} — {historyStatus?.label || historyItem.status}
+                                {formatMarkedAt(historyItem.markedAt)} — {historyStatus?.label || historyItem.status}
                                 {historyItem.note ? ` — ${historyItem.note}` : ""}
                               </div>
                             );
