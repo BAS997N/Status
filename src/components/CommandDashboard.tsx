@@ -233,6 +233,35 @@ export default function CommandDashboard({
   const [dashboardTab, setDashboardTab] = useState<
   "attendance" | "directory" | "summary" | "settings" | "history" | "systemlogs" | "notifications"
 >("attendance");
+
+  useEffect(() => {
+    const allowedTabs = [
+      { id: "attendance" as const, allowed: canViewAttendance },
+      { id: "directory" as const, allowed: canViewDirectory },
+      { id: "summary" as const, allowed: canViewSummary },
+      { id: "history" as const, allowed: canViewHistory },
+      { id: "systemlogs" as const, allowed: canViewSystemLogs },
+      { id: "notifications" as const, allowed: canViewNotifications },
+      { id: "settings" as const, allowed: canViewSettings },
+    ];
+
+    const currentTabAllowed = allowedTabs.some(
+      (tab) => tab.id === dashboardTab && tab.allowed
+    );
+    if (!currentTabAllowed) {
+      const firstAllowedTab = allowedTabs.find((tab) => tab.allowed);
+      if (firstAllowedTab) setDashboardTab(firstAllowedTab.id);
+    }
+  }, [
+    dashboardTab,
+    canViewAttendance,
+    canViewDirectory,
+    canViewSummary,
+    canViewHistory,
+    canViewSystemLogs,
+    canViewNotifications,
+    canViewSettings,
+  ]);
   const getDefaultSheetsRange = () => {
     const end = new Date();
     const start = new Date();

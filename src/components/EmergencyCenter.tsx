@@ -146,6 +146,7 @@ export default function EmergencyCenter({
           assemblyTime: eventDraft.assemblyTime,
           activatedAt: new Date().toISOString(),
           activatedBy: currentUser.userId,
+          activatedByName: currentUser.fullName,
         },
       };
       const savedSettings = await dataService.saveSystemSettings(
@@ -169,10 +170,12 @@ export default function EmergencyCenter({
     try {
       const updatedSettings: SystemSettingsConfig = {
         ...settings,
-        systemMode: "normal",
+        systemMode: "routine",
         emergencyEvent: {
           ...event,
           active: false,
+          closedAt: new Date().toISOString(),
+          closedBy: currentUser.userId,
         },
       };
       const savedSettings = await dataService.saveSystemSettings(

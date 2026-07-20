@@ -327,7 +327,15 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   // Access to the emergency center is controlled only by the dynamic
   // permission system. Activating emergency mode must not grant access to
   // roles whose "emergency.view" permission is disabled.
-  const shouldShowEmergencyTab = canViewEmergency;
+  const emergencyIsActive =
+    systemSettings?.systemMode === "emergency" &&
+    systemSettings.emergencyEvent?.active === true;
+
+  // Managers can always open the center in order to activate an event.
+  // Reporters only see it while an emergency event is actually active.
+  const shouldShowEmergencyTab =
+    canManageEmergency ||
+    (emergencyIsActive && (canViewEmergency || canViewReporter));
 
   useEffect(() => {
     if (activeTab === "emergency" && !shouldShowEmergencyTab) {
@@ -378,6 +386,17 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       profilePermissions,
       "system_admin.view"
     );
+    const profileCanManageEmergency = hasPermission(
+      profilePermissions,
+      "emergency.manage"
+    );
+
+    if (
+      emergencyIsActive &&
+      (profileCanViewEmergency || profileCanViewReporter || profileCanManageEmergency)
+    ) {
+      return "emergency";
+    }
 
     if (
       systemSettings?.defaultStartScreen === "reporter" &&
@@ -389,7 +408,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     if (profileCanViewDashboard) return "dashboard";
     if (profileCanViewShifts) return "shifts";
     if (profileCanViewReporter) return "reporter";
-    if (profileCanViewEmergency) return "emergency";
+    if (profileCanManageEmergency) return "emergency";
     if (profileCanViewSystemAdmin) return "system_admin";
 
     return "reporter";

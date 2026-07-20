@@ -68,7 +68,14 @@ service cloud.firestore {
         (docId == "shift_slot_configs" && hasPermission("system_admin.shift_roles.manage")) ||
         (docId == "shift_types" && hasPermission("system_admin.shift_types.manage")) ||
         (docId == "google_sheets" && hasPermission("system_admin.sheets.manage")) ||
-        (docId == "system_settings" && hasPermission("system_admin.settings.manage"));
+        (docId == "system_settings" && (
+          hasPermission("system_admin.settings.manage") ||
+          (
+            hasPermission("emergency.manage") &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(["systemMode", "emergencyEvent", "updatedAt", "updatedBy"])
+          )
+        ));
     }
 
     match /attendance/{reportId} {
