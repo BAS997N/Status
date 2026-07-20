@@ -552,10 +552,11 @@ export default function ShiftsView({
 
   const openEdit = (shift: ShiftRecord) => {
     const next: Record<string, string> = {};
+    const hasSlotIds = shift.assignments.some((item) => Boolean(item.slotId));
     expandedSlots.forEach((slot, index) => {
       const assignment =
         shift.assignments.find((item) => item.slotId === slot.key) ||
-        shift.assignments[index];
+        (!hasSlotIds ? shift.assignments[index] : undefined);
       next[slot.key] = assignment
         ? assignment.assigneeType === "external"
           ? `external:${
