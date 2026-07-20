@@ -1578,7 +1578,11 @@ export const dataService = {
     userId: string
   ): Promise<EmergencyResponse | null> {
     if (!eventId || !userId) return null;
-    const responseId = `${eventId}_${userId}`;
+    const responseOwnerId =
+      isFirebaseActive() && auth?.currentUser?.uid
+        ? auth.currentUser.uid
+        : userId;
+    const responseId = `${eventId}_${responseOwnerId}`;
 
     if (!isFirebaseActive()) {
       const all: EmergencyResponse[] = JSON.parse(
@@ -1600,10 +1604,15 @@ export const dataService = {
     if (!eventId) throw new Error("אירוע החירום אינו פעיל");
 
     const markedAt = new Date().toISOString();
-    const responseId = `${eventId}_${response.userId}`;
+    const authUid = auth?.currentUser?.uid;
+    const responseOwnerId = isFirebaseActive() && authUid
+      ? authUid
+      : response.userId;
+    const responseId = `${eventId}_${responseOwnerId}`;
     const previous = await this.getEmergencyResponse(eventId, response.userId);
     const value: EmergencyResponse = {
       ...response,
+      ...(authUid ? { authUid } : {}),
       responseId,
       updatedAt: markedAt,
       history: [
@@ -3316,11 +3325,10 @@ export const dataService = {
       logId: doc.id,
     }));
   } catch (error) {
-    handleFirestoreError(
-      error,
-      OperationType.LIST,
-      "system_logs"
-    );
+    // Users without the system-log permission may still trigger a general
+    // data refresh. Keep that optional data source from breaking the rest of
+    // the screen.
+    console.warn("System logs are not available for the current user.", error);
     return [];
   }
 },

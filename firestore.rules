@@ -132,6 +132,7 @@ service cloud.firestore {
       allow read: if hasPermission("emergency.view") ||
         hasPermission("emergency.manage") ||
         (signedIn() && (
+          resource.data.authUid == request.auth.uid ||
           resource.data.userId == request.auth.uid ||
           (
             resource.data.personalId is string &&
@@ -139,6 +140,7 @@ service cloud.firestore {
           )
         ));
       allow create: if signedIn() && (
+        request.resource.data.authUid == request.auth.uid ||
         request.resource.data.userId == request.auth.uid ||
         (
           request.resource.data.personalId is string &&
@@ -146,9 +148,11 @@ service cloud.firestore {
         )
       );
       allow update: if signedIn() &&
+        request.resource.data.authUid == resource.data.authUid &&
         request.resource.data.userId == resource.data.userId &&
         request.resource.data.personalId == resource.data.personalId &&
         (
+          resource.data.authUid == request.auth.uid ||
           resource.data.userId == request.auth.uid ||
           (
             resource.data.personalId is string &&

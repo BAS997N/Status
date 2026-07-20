@@ -86,6 +86,7 @@ export type EmergencyResponseStatus =
 
 export interface EmergencyResponse {
   responseId: string;
+  authUid?: string;
   userId: string;
   userName: string;
   personalId?: string;
