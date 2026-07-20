@@ -1343,6 +1343,100 @@ const dates = getDateRange(startDate, endDate);
   document.body.removeChild(link);
 };
 
+  const getSummaryReportsForSoldier = (soldier: UserProfile) => {
+    const latestReportByDate = new Map<string, AttendanceReport>();
+
+    activeReports.forEach((report) => {
+      const sameSoldier =
+        report.userId === soldier.userId ||
+        (report as any).personalId === soldier.personalId;
+
+      if (!sameSoldier) return;
+
+      const reportDay =
+        (report as any).reportDate ||
+        getDateOnlyFromTimestamp(report.timestamp);
+
+      if (!reportDay) return;
+      if (summaryStartDate && reportDay < summaryStartDate) return;
+      if (summaryEndDate && reportDay > summaryEndDate) return;
+
+      const existing = latestReportByDate.get(reportDay);
+      const reportTime = getTimeMsFromTimestamp(
+        report.updatedAt || report.timestamp
+      );
+      const existingTime = existing
+        ? getTimeMsFromTimestamp(existing.updatedAt || existing.timestamp)
+        : 0;
+
+      if (!existing || reportTime > existingTime) {
+        latestReportByDate.set(reportDay, report);
+      }
+    });
+
+    return Array.from(latestReportByDate.values());
+  };
+
+  const summaryRows = allSoldiers.map((soldier) => {
+    const soldierReports = getSummaryReportsForSoldier(soldier);
+    const counts = {
+      base: soldierReports.filter((report) => report.status === "base").length,
+      home: soldierReports.filter((report) => report.status === "home").length,
+      field: soldierReports.filter((report) => report.status === "field").length,
+      sick: soldierReports.filter((report) => report.status === "sick").length,
+      course: soldierReports.filter((report) => report.status === "course").length,
+      cut_order: soldierReports.filter((report) => report.status === "cut_order").length,
+      not_on_order: soldierReports.filter((report) => report.status === "not_on_order").length,
+      other: soldierReports.filter((report) => report.status === "other").length,
+      return_to_base: soldierReports.filter(
+        (report) => report.dayMarker === "return_to_base"
+      ).length,
+      exit_home: soldierReports.filter(
+        (report) => report.dayMarker === "exit_home"
+      ).length,
+      after_hours: soldierReports.filter(
+        (report) => report.dayMarker === "after_hours"
+      ).length,
+    };
+
+    return {
+      soldier,
+      total: soldierReports.length,
+      counts,
+    };
+  });
+
+  const summaryTotals = summaryRows.reduce(
+    (totals, row) => ({
+      total: totals.total + row.total,
+      base: totals.base + row.counts.base,
+      home: totals.home + row.counts.home,
+      field: totals.field + row.counts.field,
+      sick: totals.sick + row.counts.sick,
+      course: totals.course + row.counts.course,
+      cut_order: totals.cut_order + row.counts.cut_order,
+      not_on_order: totals.not_on_order + row.counts.not_on_order,
+      other: totals.other + row.counts.other,
+      return_to_base: totals.return_to_base + row.counts.return_to_base,
+      exit_home: totals.exit_home + row.counts.exit_home,
+      after_hours: totals.after_hours + row.counts.after_hours,
+    }),
+    {
+      total: 0,
+      base: 0,
+      home: 0,
+      field: 0,
+      sick: 0,
+      course: 0,
+      cut_order: 0,
+      not_on_order: 0,
+      other: 0,
+      return_to_base: 0,
+      exit_home: 0,
+      after_hours: 0,
+    }
+  );
+
   const getSystemLogTimestamp = (timestamp: any) => {
   if (!timestamp) return "";
   if (typeof timestamp === "string") return timestamp;
@@ -2046,89 +2140,34 @@ const dates = getDateRange(startDate, endDate);
             <th className="px-4 py-3">חיתוך צו</th>
             <th className="px-4 py-3">לא בצו</th>
             <th className="px-4 py-3">אחר</th>
+            <th className="px-4 py-3 whitespace-nowrap">חזרה לבסיס</th>
+            <th className="px-4 py-3 whitespace-nowrap">יציאה לבית</th>
+            <th className="px-4 py-3 whitespace-nowrap">אפטר</th>
           </tr>
         </thead>
 
         <tbody className="divide-y divide-slate-100">
-          {allSoldiers
+          {[...summaryRows]
   .sort((a, b) => {
   if (summarySortField === "medicalRole") {
     const byRole = compareMedicalRoles(
-      a.medicalRole,
-      b.medicalRole,
+      a.soldier.medicalRole,
+      b.soldier.medicalRole,
       summarySortDirection
     );
 
     if (byRole !== 0) return byRole;
 
     return summarySortDirection === "asc"
-      ? (a.fullName || "").localeCompare(b.fullName || "", "he")
-      : (b.fullName || "").localeCompare(a.fullName || "", "he");
+      ? (a.soldier.fullName || "").localeCompare(b.soldier.fullName || "", "he")
+      : (b.soldier.fullName || "").localeCompare(a.soldier.fullName || "", "he");
   }
 
   return summarySortDirection === "asc"
-    ? (a.fullName || "").localeCompare(b.fullName || "", "he")
-    : (b.fullName || "").localeCompare(a.fullName || "", "he");
+    ? (a.soldier.fullName || "").localeCompare(b.soldier.fullName || "", "he")
+    : (b.soldier.fullName || "").localeCompare(a.soldier.fullName || "", "he");
 })
-  .map((soldier) => {
-    const filteredReports = activeReports.filter((report) => {
-  const sameSoldier =
-    report.userId === soldier.userId ||
-    (report as any).personalId === soldier.personalId;
-
-  if (!sameSoldier) return false;
-
-  const reportDay =
-    (report as any).reportDate ||
-    getDateOnlyFromTimestamp(report.timestamp)
-
-  if (!reportDay) return false;
-
-  if (summaryStartDate && reportDay < summaryStartDate) return false;
-  if (summaryEndDate && reportDay > summaryEndDate) return false;
-
-  return true;
-});
-
-const latestReportByDate = new Map<string, AttendanceReport>();
-
-filteredReports.forEach((report) => {
-  const reportDay =
-    (report as any).reportDate ||
-    getDateOnlyFromTimestamp(report.timestamp)
-
-  if (!reportDay) return;
-
-  const existing = latestReportByDate.get(reportDay);
-
-  const reportTime = new Date(
-    report.updatedAt || report.timestamp
-  ).getTime();
-
-  const existingTime = existing
-    ? new Date(existing.updatedAt || existing.timestamp).getTime()
-    : 0;
-
-  if (!existing || reportTime > existingTime) {
-    latestReportByDate.set(reportDay, report);
-  }
-});
-
-const soldierReports = Array.from(latestReportByDate.values());
-
-              const counts = {
-                base: soldierReports.filter((r) => r.status === "base").length,
-                home: soldierReports.filter((r) => r.status === "home").length,
-                field: soldierReports.filter((r) => r.status === "field").length,
-                sick: soldierReports.filter((r) => r.status === "sick").length,
-                course: soldierReports.filter((r) => r.status === "course").length,
-                cut_order: soldierReports.filter((r) => r.status === "cut_order").length,
-                not_on_order: soldierReports.filter((r) => r.status === "not_on_order").length,
-                other: soldierReports.filter((r) => r.status === "other").length,
-              };
-
-              const total = soldierReports.length;
-
+  .map(({ soldier, counts, total }) => {
               return (
                 <tr key={soldier.userId} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-bold text-slate-800">{soldier.fullName}</td>
@@ -2143,10 +2182,32 @@ const soldierReports = Array.from(latestReportByDate.values());
                   <td className="px-4 py-3 text-red-700 font-bold">{counts.cut_order}</td>
                   <td className="px-4 py-3 text-orange-700 font-bold">{counts.not_on_order}</td>
                   <td className="px-4 py-3 text-slate-600 font-bold">{counts.other}</td>
+                  <td className="px-4 py-3 text-blue-700 font-bold">{counts.return_to_base}</td>
+                  <td className="px-4 py-3 text-purple-700 font-bold">{counts.exit_home}</td>
+                  <td className="px-4 py-3 text-fuchsia-700 font-bold">{counts.after_hours}</td>
                 </tr>
               );
             })}
         </tbody>
+        <tfoot className="border-t-2 border-slate-300 bg-slate-100 font-black text-slate-800">
+          <tr>
+            <td className="px-4 py-3 whitespace-nowrap">סה״כ לכל החיילים</td>
+            <td className="px-4 py-3">—</td>
+            <td className="px-4 py-3">—</td>
+            <td className="px-4 py-3">{summaryTotals.total}</td>
+            <td className="px-4 py-3 text-emerald-700">{summaryTotals.base}</td>
+            <td className="px-4 py-3 text-indigo-700">{summaryTotals.home}</td>
+            <td className="px-4 py-3 text-amber-700">{summaryTotals.field}</td>
+            <td className="px-4 py-3 text-rose-700">{summaryTotals.sick}</td>
+            <td className="px-4 py-3 text-cyan-700">{summaryTotals.course}</td>
+            <td className="px-4 py-3 text-red-700">{summaryTotals.cut_order}</td>
+            <td className="px-4 py-3 text-orange-700">{summaryTotals.not_on_order}</td>
+            <td className="px-4 py-3 text-slate-600">{summaryTotals.other}</td>
+            <td className="px-4 py-3 text-blue-700">{summaryTotals.return_to_base}</td>
+            <td className="px-4 py-3 text-purple-700">{summaryTotals.exit_home}</td>
+            <td className="px-4 py-3 text-fuchsia-700">{summaryTotals.after_hours}</td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   </div>
@@ -3705,7 +3766,7 @@ onChange={(e) =>
             onClick={() =>
               setIsDirectoryFreezeEnabled((current) => !current)
             }
-            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition ${
+            className={`flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition sm:w-auto ${
               isDirectoryFreezeEnabled
                 ? "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
                 : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
