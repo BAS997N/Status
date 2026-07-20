@@ -51,6 +51,14 @@ export default function EmergencyCenter({
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState("");
   const [message, setMessage] = useState("");
+  const [eventHistory, setEventHistory] = useState<Array<{
+    eventId: string;
+    title: string;
+    responseCount: number;
+    lastActivity: string;
+  }>>([]);
+  const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [eventDraft, setEventDraft] = useState({
     title: event.title || "מצב חירום",
     message: event.message || "",
@@ -77,6 +85,49 @@ export default function EmergencyCenter({
     const id = window.setInterval(() => refresh().catch(console.error), 5000);
     return () => window.clearInterval(id);
   }, [event.eventId, event.active]);
+
+  const refreshEventHistory = async () => {
+    if (!canManage) return;
+    setHistoryLoading(true);
+    try {
+      const allResponses = await dataService.getAllEmergencyResponses();
+      const grouped = new Map<string, {
+        eventId: string;
+        title: string;
+        responseCount: number;
+        lastActivity: string;
+      }>();
+
+      allResponses.forEach((response) => {
+        const responseEventId =
+          response.eventId ||
+          response.responseId.slice(0, response.responseId.lastIndexOf("_"));
+        if (!responseEventId) return;
+        const current = grouped.get(responseEventId);
+        grouped.set(responseEventId, {
+          eventId: responseEventId,
+          title: response.eventTitle || current?.title || responseEventId,
+          responseCount: (current?.responseCount || 0) + 1,
+          lastActivity:
+            !current || response.updatedAt > current.lastActivity
+              ? response.updatedAt
+              : current.lastActivity,
+        });
+      });
+
+      setEventHistory(
+        [...grouped.values()].sort((a, b) =>
+          b.lastActivity.localeCompare(a.lastActivity)
+        )
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshEventHistory().catch(console.error);
+  }, [canManage, event.eventId, event.active]);
 
   const myResponse = responses.find((item) => item.userId === currentUser.userId);
 
@@ -137,6 +188,7 @@ export default function EmergencyCenter({
     setMessage("");
     try {
       await dataService.saveEmergencyResponse(event.eventId, {
+        eventTitle: event.title,
         userId: currentUser.userId,
         userName: currentUser.fullName,
         personalId: currentUser.personalId,
@@ -236,6 +288,93 @@ export default function EmergencyCenter({
     }
   };
 
+  const deleteSelectedEvents = async () => {
+    const deletableIds = selectedEventIds.filter(
+      (eventId) => !(event.active && eventId === event.eventId)
+    );
+    if (
+      deletableIds.length === 0 ||
+      !window.confirm(`למחוק ${deletableIds.length} אירועים ואת כל התגובות שלהם?`)
+    ) {
+      return;
+    }
+
+    setHistoryLoading(true);
+    try {
+      await dataService.deleteEmergencyEvents(deletableIds);
+      setSelectedEventIds([]);
+      await refreshEventHistory();
+    } catch (error) {
+      console.error(error);
+      setMessage("מחיקת האירועים נכשלה.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const renderEventHistory = () => (
+    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-sm font-black text-slate-900">היסטוריית אירועי חירום</h3>
+          <p className="mt-1 text-[11px] text-slate-500">
+            מחיקת אירוע מוחקת גם את כל התגובות והיסטוריית הסימונים שלו.
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={historyLoading || selectedEventIds.length === 0}
+          onClick={deleteSelectedEvents}
+          className="rounded-xl bg-red-600 px-4 py-2 text-xs font-black text-white disabled:opacity-50"
+        >
+          מחק אירועים נבחרים ({selectedEventIds.length})
+        </button>
+      </div>
+      <div className="mt-3 max-h-72 space-y-2 overflow-y-auto">
+        {historyLoading && eventHistory.length === 0 ? (
+          <div className="py-4 text-center text-xs text-slate-500">טוען אירועים...</div>
+        ) : eventHistory.length === 0 ? (
+          <div className="py-4 text-center text-xs text-slate-500">אין אירועים שמורים.</div>
+        ) : (
+          eventHistory.map((historyEvent) => {
+            const isActiveEvent = event.active && historyEvent.eventId === event.eventId;
+            return (
+              <label
+                key={historyEvent.eventId}
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <input
+                    type="checkbox"
+                    disabled={isActiveEvent || historyLoading}
+                    checked={selectedEventIds.includes(historyEvent.eventId)}
+                    onChange={(changeEvent) =>
+                      setSelectedEventIds((current) =>
+                        changeEvent.target.checked
+                          ? [...current, historyEvent.eventId]
+                          : current.filter((id) => id !== historyEvent.eventId)
+                      )
+                    }
+                    className="h-4 w-4 accent-red-600"
+                  />
+                  <div className="min-w-0">
+                    <div className="truncate text-xs font-black text-slate-900">
+                      {historyEvent.title}
+                      {isActiveEvent ? " — פעיל" : ""}
+                    </div>
+                    <div className="mt-1 text-[10px] text-slate-500">
+                      {formatMarkedAt(historyEvent.lastActivity)} · {historyEvent.responseCount} תגובות
+                    </div>
+                  </div>
+                </div>
+              </label>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+
   if (!event.active) {
     if (canManage) {
       return (
@@ -291,6 +430,7 @@ export default function EmergencyCenter({
             {saving ? "מפעיל..." : "הפעל מצב חירום"}
           </button>
           {message && <div className="mt-3 text-xs font-bold text-red-600">{message}</div>}
+          {renderEventHistory()}
         </section>
       );
     }
@@ -523,6 +663,7 @@ export default function EmergencyCenter({
               </div>
             </div>
           </div>
+          {renderEventHistory()}
         </>
       )}
     </section>

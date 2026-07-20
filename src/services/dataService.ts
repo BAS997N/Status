@@ -1573,6 +1573,60 @@ export const dataService = {
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   },
 
+  async getAllEmergencyResponses(): Promise<EmergencyResponse[]> {
+    if (!isFirebaseActive()) {
+      return JSON.parse(localStorage.getItem("idf_emergency_responses") || "[]");
+    }
+
+    const snapshot = await getDocs(collection(db, "emergency_responses"));
+    return snapshot.docs
+      .map((item) => ({
+        responseId: item.id,
+        ...item.data(),
+      } as EmergencyResponse))
+      .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  },
+
+  async deleteEmergencyEvents(eventIds: string[]): Promise<void> {
+    const uniqueEventIds = [...new Set(eventIds.filter(Boolean))];
+    if (uniqueEventIds.length === 0) return;
+
+    if (!isFirebaseActive()) {
+      const all: EmergencyResponse[] = JSON.parse(
+        localStorage.getItem("idf_emergency_responses") || "[]"
+      );
+      const selected = new Set(uniqueEventIds);
+      localStorage.setItem(
+        "idf_emergency_responses",
+        JSON.stringify(
+          all.filter((response) => {
+            const responseEventId =
+              response.eventId || response.responseId.slice(0, response.responseId.lastIndexOf("_"));
+            return !selected.has(responseEventId);
+          })
+        )
+      );
+      return;
+    }
+
+    const snapshot = await getDocs(collection(db, "emergency_responses"));
+    const selected = new Set(uniqueEventIds);
+    const documentsToDelete = snapshot.docs.filter((item) => {
+      const data = item.data() as Partial<EmergencyResponse>;
+      const responseEventId =
+        data.eventId || item.id.slice(0, item.id.lastIndexOf("_"));
+      return selected.has(responseEventId);
+    });
+
+    for (let offset = 0; offset < documentsToDelete.length; offset += 450) {
+      const batch = writeBatch(db);
+      documentsToDelete.slice(offset, offset + 450).forEach((item) => {
+        batch.delete(item.ref);
+      });
+      await batch.commit();
+    }
+  },
+
   async getEmergencyResponse(
     eventId: string,
     userId: string
@@ -1591,10 +1645,20 @@ export const dataService = {
       return all.find((item) => item.responseId === responseId) || null;
     }
 
-    const snapshot = await getDoc(doc(db, "emergency_responses", responseId));
-    return snapshot.exists()
-      ? ({ responseId: snapshot.id, ...snapshot.data() } as EmergencyResponse)
-      : null;
+    try {
+      const snapshot = await getDoc(doc(db, "emergency_responses", responseId));
+      return snapshot.exists()
+        ? ({ responseId: snapshot.id, ...snapshot.data() } as EmergencyResponse)
+        : null;
+    } catch (error) {
+      // Before the first response the document does not exist yet. Some
+      // Firestore rule sets report that lookup as permission-denied rather
+      // than returning an empty snapshot; it must not prevent creation.
+      if ((error as { code?: string })?.code === "permission-denied") {
+        return null;
+      }
+      throw error;
+    }
   },
 
   async saveEmergencyResponse(
@@ -1612,6 +1676,7 @@ export const dataService = {
     const previous = await this.getEmergencyResponse(eventId, response.userId);
     const value: EmergencyResponse = {
       ...response,
+      eventId,
       ...(authUid ? { authUid } : {}),
       responseId,
       updatedAt: markedAt,
@@ -3328,7 +3393,6 @@ export const dataService = {
     // Users without the system-log permission may still trigger a general
     // data refresh. Keep that optional data source from breaking the rest of
     // the screen.
-    console.warn("System logs are not available for the current user.", error);
     return [];
   }
 },
