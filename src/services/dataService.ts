@@ -1707,6 +1707,81 @@ export const dataService = {
     return value;
   },
 
+  async saveEmergencyResponseForUser(
+    eventId: string,
+    eventTitle: string,
+    targetUser: UserProfile,
+    markedBy: UserProfile
+  ): Promise<EmergencyResponse> {
+    if (!eventId) throw new Error("אירוע החירום אינו פעיל");
+
+    const responseId = `${eventId}_${targetUser.userId}`;
+    const markedAt = new Date().toISOString();
+    let previous: EmergencyResponse | null = null;
+
+    if (!isFirebaseActive()) {
+      const all: EmergencyResponse[] = JSON.parse(
+        localStorage.getItem("idf_emergency_responses") || "[]"
+      );
+      previous = all.find((item) => item.responseId === responseId) || null;
+    } else {
+      const snapshot = await getDoc(doc(db, "emergency_responses", responseId));
+      previous = snapshot.exists()
+        ? ({ responseId: snapshot.id, ...snapshot.data() } as EmergencyResponse)
+        : null;
+    }
+
+    const value: EmergencyResponse = {
+      responseId,
+      eventId,
+      eventTitle,
+      authUid: targetUser.userId,
+      userId: targetUser.userId,
+      userName: targetUser.fullName,
+      personalId: targetUser.personalId,
+      status: "arrived",
+      note: "סומן כהגיע על ידי מפקד",
+      updatedAt: markedAt,
+      markedByUserId: markedBy.userId,
+      markedByName: markedBy.fullName,
+      history: [
+        ...(previous?.history || (previous
+          ? [{
+              status: previous.status,
+              note: previous.note,
+              markedAt: previous.updatedAt,
+              markedByUserId: previous.markedByUserId,
+              markedByName: previous.markedByName,
+            }]
+          : [])),
+        {
+          status: "arrived",
+          note: "סומן כהגיע על ידי מפקד",
+          markedAt,
+          markedByUserId: markedBy.userId,
+          markedByName: markedBy.fullName,
+        },
+      ],
+    };
+
+    if (!isFirebaseActive()) {
+      const all: EmergencyResponse[] = JSON.parse(
+        localStorage.getItem("idf_emergency_responses") || "[]"
+      );
+      localStorage.setItem(
+        "idf_emergency_responses",
+        JSON.stringify([value, ...all.filter((item) => item.responseId !== responseId)])
+      );
+      return value;
+    }
+
+    await setDoc(
+      doc(db, "emergency_responses", responseId),
+      removeUndefinedValues(value)
+    );
+    return value;
+  },
+
   async saveEmergencySettings(
     settings: SystemSettingsConfig,
     updatedBy?: string

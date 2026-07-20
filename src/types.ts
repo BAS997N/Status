@@ -95,10 +95,14 @@ export interface EmergencyResponse {
   status: EmergencyResponseStatus;
   note?: string;
   updatedAt: string;
+  markedByUserId?: string;
+  markedByName?: string;
   history?: Array<{
     status: EmergencyResponseStatus;
     note?: string;
     markedAt: string;
+    markedByUserId?: string;
+    markedByName?: string;
   }>;
 }
 

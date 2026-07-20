@@ -59,6 +59,7 @@ export default function EmergencyCenter({
   }>>([]);
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [markingUserId, setMarkingUserId] = useState<string | null>(null);
   const [eventDraft, setEventDraft] = useState({
     title: event.title || "מצב חירום",
     message: event.message || "",
@@ -300,6 +301,26 @@ export default function EmergencyCenter({
       setMessage("מחיקת האירועים נכשלה.");
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  const markUserAsArrived = async (user: UserProfile) => {
+    if (!canManage || markingUserId) return;
+    setMarkingUserId(user.userId);
+    setMessage("");
+    try {
+      await dataService.saveEmergencyResponseForUser(
+        event.eventId,
+        event.title,
+        user,
+        currentUser
+      );
+      await refresh();
+    } catch (error) {
+      console.error(error);
+      setMessage(`סימון ההגעה של ${user.fullName} נכשל.`);
+    } finally {
+      setMarkingUserId(null);
     }
   };
 
@@ -644,11 +665,23 @@ export default function EmergencyCenter({
               </h3>
               <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto">
                 {noResponseUsers.map((user) => (
-                  <div key={user.userId} className="rounded-xl border border-amber-200 bg-white px-3 py-2">
+                  <div key={user.userId} className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white px-3 py-2">
+                    <div className="min-w-0">
                     <div className="text-xs font-black text-slate-900">{user.fullName}</div>
                     <div className="mt-1 text-[10px] text-slate-500">
                       {user.medicalRole || "ללא תפקיד"} · {user.unit || "ללא שיוך"}
                     </div>
+                    </div>
+                    <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[10px] font-black text-emerald-700">
+                      <input
+                        type="checkbox"
+                        disabled={markingUserId !== null}
+                        checked={false}
+                        onChange={() => markUserAsArrived(user)}
+                        className="h-4 w-4 accent-emerald-600"
+                      />
+                      {markingUserId === user.userId ? "שומר..." : "סמן הגיע"}
+                    </label>
                   </div>
                 ))}
               </div>

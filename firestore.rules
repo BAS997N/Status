@@ -152,6 +152,7 @@ service cloud.firestore {
           )
         ));
       allow create: if emergencyIsActive() && (
+        hasPermission("emergency.manage") ||
         request.resource.data.authUid == request.auth.uid ||
         request.resource.data.userId == request.auth.uid ||
         (
@@ -159,18 +160,22 @@ service cloud.firestore {
           myUser().data.personalId == request.resource.data.personalId
         )
       );
-      allow update: if emergencyIsActive() &&
-        request.resource.data.authUid == resource.data.authUid &&
-        request.resource.data.userId == resource.data.userId &&
-        request.resource.data.personalId == resource.data.personalId &&
+      allow update: if emergencyIsActive() && (
+        hasPermission("emergency.manage") ||
         (
-          resource.data.authUid == request.auth.uid ||
-          resource.data.userId == request.auth.uid ||
+          request.resource.data.authUid == resource.data.authUid &&
+          request.resource.data.userId == resource.data.userId &&
+          request.resource.data.personalId == resource.data.personalId &&
           (
-            resource.data.personalId is string &&
-            myUser().data.personalId == resource.data.personalId
+            resource.data.authUid == request.auth.uid ||
+            resource.data.userId == request.auth.uid ||
+            (
+              resource.data.personalId is string &&
+              myUser().data.personalId == resource.data.personalId
+            )
           )
-        );
+        )
+      );
       allow delete: if hasPermission("emergency.manage");
     }
 
