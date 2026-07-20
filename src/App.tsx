@@ -2346,6 +2346,7 @@ const handleAdminSaveReport = async (reportData: {
                 <SoldierReporter
                   currentUser={userProfile}
                   reports={reports}
+                  shifts={shifts}
                   attendanceStatuses={attendanceStatuses}
                   onSubmitReport={handleSubmitReport}
                 />
