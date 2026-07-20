@@ -240,6 +240,78 @@ const latestReport = userReports
       minute: "2-digit",
     });
 
+  const latestReportByDay = new Map<string, AttendanceReport>();
+  userReports.forEach((report) => {
+    if (report.isReset) return;
+    const reportDay =
+      report.reportDate || report.timestamp?.split("T")[0] || "";
+    if (!reportDay || latestReportByDay.has(reportDay)) return;
+    latestReportByDay.set(reportDay, report);
+  });
+
+  const orderDates = Array.from(latestReportByDay.entries())
+    .filter(([, report]) => report.status === "cut_order")
+    .map(([date]) => date)
+    .sort();
+
+  const orderPeriods = orderDates.reduce<Array<{ start: string; end: string }>>(
+    (periods, date) => {
+      const previous = periods[periods.length - 1];
+      if (!previous) {
+        periods.push({ start: date, end: date });
+        return periods;
+      }
+
+      const dayAfterPrevious = new Date(`${previous.end}T12:00:00`);
+      dayAfterPrevious.setDate(dayAfterPrevious.getDate() + 1);
+      const expectedDate = dayAfterPrevious.toISOString().split("T")[0];
+
+      if (date === expectedDate) {
+        previous.end = date;
+      } else {
+        periods.push({ start: date, end: date });
+      }
+
+      return periods;
+    },
+    []
+  );
+
+  const todayDate = getTodayLocalDate();
+  const activeOrderPeriod = orderPeriods.find(
+    (period) => period.start <= todayDate && period.end >= todayDate
+  );
+  const futureOrderPeriod = orderPeriods.find(
+    (period) => period.start > todayDate
+  );
+  const latestPastOrderPeriod = [...orderPeriods]
+    .reverse()
+    .find((period) => period.end < todayDate);
+  const displayedOrderPeriod =
+    activeOrderPeriod || futureOrderPeriod || latestPastOrderPeriod;
+
+  const getInclusiveDayCount = (start: string, end: string) =>
+    Math.max(
+      1,
+      Math.round(
+        (new Date(`${end}T12:00:00`).getTime() -
+          new Date(`${start}T12:00:00`).getTime()) /
+          86400000
+      ) + 1
+    );
+
+  const orderState = activeOrderPeriod
+    ? "active"
+    : futureOrderPeriod
+    ? "future"
+    : latestPastOrderPeriod
+    ? "ended"
+    : "none";
+
+  const remainingOrderDays = activeOrderPeriod
+    ? getInclusiveDayCount(todayDate, activeOrderPeriod.end)
+    : 0;
+
   // Auto set default locations based on status selection
 useEffect(() => {
   switch (status) {
@@ -416,6 +488,79 @@ dayMarker || undefined
           })()}
         </div>
       </div>
+
+      <section
+        dir="rtl"
+        className={`rounded-xl border px-4 py-3 shadow-sm sm:px-5 ${
+          orderState === "active"
+            ? "border-emerald-200 bg-emerald-50"
+            : orderState === "future"
+            ? "border-blue-200 bg-blue-50"
+            : "border-slate-200 bg-white"
+        }`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                orderState === "active"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : orderState === "future"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-slate-100 text-slate-500"
+              }`}
+            >
+              <FileText className="h-4.5 w-4.5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm font-black text-slate-800">הצו שלי</h3>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                    orderState === "active"
+                      ? "bg-emerald-600 text-white"
+                      : orderState === "future"
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-200 text-slate-600"
+                  }`}
+                >
+                  {orderState === "active"
+                    ? "צו פעיל"
+                    : orderState === "future"
+                    ? "צו עתידי"
+                    : orderState === "ended"
+                    ? "הצו הסתיים"
+                    : "אין צו פעיל"}
+                </span>
+              </div>
+              {displayedOrderPeriod ? (
+                <p className="mt-1 text-xs font-bold text-slate-600">
+                  {new Date(`${displayedOrderPeriod.start}T12:00:00`).toLocaleDateString("he-IL")} –{" "}
+                  {new Date(`${displayedOrderPeriod.end}T12:00:00`).toLocaleDateString("he-IL")}
+                  <span className="mr-2 text-slate-400">
+                    ({getInclusiveDayCount(displayedOrderPeriod.start, displayedOrderPeriod.end)} ימים)
+                  </span>
+                </p>
+              ) : (
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  לא נמצאה תקופת צו בדיווחים שלך
+                </p>
+              )}
+            </div>
+          </div>
+
+          {activeOrderPeriod && (
+            <div className="rounded-lg bg-white/80 px-3 py-2 text-center shadow-sm">
+              <span className="block text-lg font-black text-emerald-700">
+                {remainingOrderDays}
+              </span>
+              <span className="block text-[10px] font-bold text-slate-500">
+                ימים כולל היום
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
 
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2" dir="rtl">
         <div className="rounded-xl border border-indigo-200 bg-gradient-to-l from-indigo-50 to-white p-5 shadow-sm">
