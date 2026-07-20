@@ -596,6 +596,9 @@ dayMarker || undefined
 
           {(orderState === "active" || orderState === "excluded") && (
             <div className="rounded-lg bg-white/80 px-3 py-2 text-center shadow-sm">
+              <span className="block text-[10px] font-black text-slate-500">
+                נותרו
+              </span>
               <span className="block text-lg font-black text-emerald-700">
                 {remainingOrderDays}
               </span>
