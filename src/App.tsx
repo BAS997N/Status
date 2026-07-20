@@ -793,8 +793,14 @@ setSystemLogs(updatedSystemLogs);
   });
 };
   useEffect(() => {
-  if (!userProfile) return;
+  if (!userProfile || !permissionsLoaded) return;
   refreshReports();
+
+  if (!canViewShifts) {
+    setShifts([]);
+    return;
+  }
+
   dataService
     .getShifts()
     .then(setShifts)
@@ -811,7 +817,7 @@ setSystemLogs(updatedSystemLogs);
     .catch((error) =>
       console.error("Failed loading external staff:", error)
     );
-}, [userProfile]);
+}, [userProfile, permissionsLoaded, canViewShifts]);
 
   // Notification actions
   const handleMarkNotificationRead = async (id: string) => {
