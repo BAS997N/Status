@@ -100,7 +100,7 @@ export default function Header({
   });
 
   return (
-    <header id="app-header" className="relative max-w-full overflow-x-hidden border-b-4 border-military-600 bg-military-800 text-white shadow-md">
+    <header id="app-header" className="relative max-w-full border-b-4 border-military-600 bg-military-800 text-white shadow-md">
       <div className="mx-auto max-w-7xl px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           
@@ -186,7 +186,7 @@ export default function Header({
 
                 <AnimatePresence>
                   {isNotificationsOpen && (
-                    <div className="absolute left-1/2 -translate-x-[45%] sm:translate-x-0 sm:left-0 mt-2 w-76 xs:w-80 sm:w-96 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden text-right text-slate-800 font-sans">
+                    <div className="fixed inset-x-3 top-20 z-[100] mx-auto flex max-h-[calc(100vh-6rem)] w-auto max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-right font-sans text-slate-800 shadow-2xl sm:inset-x-auto sm:left-6 sm:right-auto sm:mx-0 sm:w-96">
                       <div className="bg-slate-50 p-3 px-4 border-b border-slate-100 flex items-center justify-between">
                         <span className="font-bold text-xs text-slate-700 flex items-center gap-1.5">
                           <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -206,7 +206,7 @@ export default function Header({
                         )}
                       </div>
 
-                      <div className="max-h-[320px] overflow-y-auto divide-y divide-slate-100">
+                      <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-slate-100">
                         {notifications.length === 0 ? (
                           <div className="p-8 text-center text-slate-400 text-xs">
                             <Shield className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50" />
