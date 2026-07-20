@@ -192,6 +192,7 @@ export default function Header({
                           <AlertTriangle className="w-4 h-4 text-amber-500" />
                           התראות חריגים ודיווחים מחוץ לבסיס
                         </span>
+                        <div className="flex shrink-0 items-center gap-2">
                         {unreadCount > 0 && (
                           <button 
                             onClick={() => {
@@ -204,6 +205,16 @@ export default function Header({
                             אשר קריאת הכל
                           </button>
                         )}
+                          <button
+                            type="button"
+                            onClick={() => setIsNotificationsOpen(false)}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-200 text-lg font-black leading-none text-slate-700 transition hover:bg-slate-300"
+                            title="סגור התראות"
+                            aria-label="סגור התראות"
+                          >
+                            ×
+                          </button>
+                        </div>
                       </div>
 
                       <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-slate-100">
