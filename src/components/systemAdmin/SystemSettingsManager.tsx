@@ -171,6 +171,12 @@ export default function SystemSettingsManager({
               activatedAt: new Date().toISOString(),
               activatedBy: currentUser.userId,
               activatedByName: currentUser.fullName,
+              previousSystemMode:
+                current.systemMode === "operational"
+                  ? "operational"
+                  : current.systemMode === "emergency"
+                  ? current.emergencyEvent.previousSystemMode || "routine"
+                  : "routine",
             }
           : {
               ...current.emergencyEvent,

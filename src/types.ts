@@ -116,6 +116,7 @@ export interface EmergencyEventConfig {
   activatedAt?: string;
   activatedBy?: string;
   activatedByName?: string;
+  previousSystemMode?: Exclude<SystemMode, "emergency">;
   closedAt?: string;
   closedBy?: string;
 }

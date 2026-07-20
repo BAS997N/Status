@@ -236,6 +236,8 @@ export default function EmergencyCenter({
           activatedAt: new Date().toISOString(),
           activatedBy: currentUser.userId,
           activatedByName: currentUser.fullName,
+          previousSystemMode:
+            settings.systemMode === "operational" ? "operational" : "routine",
         },
       };
       const savedSettings = await dataService.saveEmergencySettings(
@@ -259,7 +261,10 @@ export default function EmergencyCenter({
     try {
       const updatedSettings: SystemSettingsConfig = {
         ...settings,
-        systemMode: "routine",
+        systemMode:
+          event.previousSystemMode === "operational"
+            ? "operational"
+            : "routine",
         emergencyEvent: {
           ...event,
           active: false,

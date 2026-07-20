@@ -338,6 +338,10 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const currentUserIsAttachedToTagad =
     normalizedCurrentUnit.includes("מסופח") &&
     normalizedCurrentUnit.includes("תאגד");
+  const effectiveSystemMode =
+    currentUserIsAttachedToTagad && emergencyIsActive
+      ? systemSettings?.emergencyEvent.previousSystemMode || "routine"
+      : systemSettings?.systemMode || "routine";
 
   // Managers can always open the center in order to activate an event.
   // Reporters only see it while an emergency event is actually active.
@@ -2107,7 +2111,7 @@ const handleAdminSaveReport = async (reportData: {
       ) : (
       <main className="mx-auto w-full max-w-7xl min-w-0 flex-grow overflow-x-hidden px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
         
-        {systemSettings?.systemMode === "operational" && (
+        {effectiveSystemMode === "operational" && (
           <div className="mb-4 rounded-2xl border border-orange-300 bg-orange-50 px-4 py-3 text-xs font-bold text-orange-900 shadow-sm">
             מצב מבצעי פעיל — {systemSettings.operationalMessage}
           </div>
@@ -2156,10 +2160,10 @@ const handleAdminSaveReport = async (reportData: {
               onClick={() => setActiveTab("reporter")}
               className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "reporter"
-                  ? systemSettings?.systemMode === "operational"
+                  ? effectiveSystemMode === "operational"
                     ? "border-orange-600 bg-orange-50 px-3 text-orange-800"
                     : "border-military-600 text-military-800"
-                  : systemSettings?.systemMode === "operational"
+                  : effectiveSystemMode === "operational"
                   ? "border-orange-300 bg-orange-50 px-3 text-orange-700 hover:text-orange-800"
                   : "border-transparent text-slate-400 hover:text-slate-500"
               }`}
@@ -2188,10 +2192,10 @@ const handleAdminSaveReport = async (reportData: {
                 onClick={() => setActiveTab("shifts")}
                 className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === "shifts"
-                    ? systemSettings?.systemMode === "operational"
+                    ? effectiveSystemMode === "operational"
                       ? "border-orange-600 bg-orange-50 px-3 text-orange-800"
                       : "border-indigo-600 text-indigo-700"
-                    : systemSettings?.systemMode === "operational"
+                    : effectiveSystemMode === "operational"
                     ? "border-orange-300 bg-orange-50 px-3 text-orange-700 hover:text-orange-800"
                     : "border-transparent text-slate-400 hover:text-slate-500"
                 }`}
