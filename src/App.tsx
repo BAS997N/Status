@@ -331,12 +331,20 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const emergencyIsActive =
     systemSettings?.systemMode === "emergency" &&
     systemSettings.emergencyEvent?.active === true;
+  const normalizedCurrentUnit = (userProfile?.unit || "")
+    .replace(/[״׳'\"`]/g, "")
+    .replace(/\s+/g, "")
+    .toLowerCase();
+  const currentUserIsAttachedToTagad =
+    normalizedCurrentUnit.includes("מסופח") &&
+    normalizedCurrentUnit.includes("תאגד");
 
   // Managers can always open the center in order to activate an event.
   // Reporters only see it while an emergency event is actually active.
   const shouldShowEmergencyTab =
-    canManageEmergency ||
-    (emergencyIsActive && (canViewEmergency || canViewReporter));
+    !currentUserIsAttachedToTagad &&
+    (canManageEmergency ||
+      (emergencyIsActive && (canViewEmergency || canViewReporter)));
 
   useEffect(() => {
     let cancelled = false;
@@ -2099,7 +2107,8 @@ const handleAdminSaveReport = async (reportData: {
           </div>
         )}
 
-        {systemSettings?.systemMode === "emergency" &&
+        {shouldShowEmergencyTab &&
+          systemSettings?.systemMode === "emergency" &&
           systemSettings.emergencyEvent?.active && (
             <button
               type="button"

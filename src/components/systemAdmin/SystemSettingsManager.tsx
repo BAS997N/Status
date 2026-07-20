@@ -164,8 +164,10 @@ export default function SystemSettingsManager({
               ...current.emergencyEvent,
               active: true,
               eventId:
-                current.emergencyEvent.eventId ||
-                `emergency_${Date.now()}`,
+                current.systemMode === "emergency" &&
+                current.emergencyEvent.active
+                  ? current.emergencyEvent.eventId
+                  : `emergency_${Date.now()}`,
               activatedAt: new Date().toISOString(),
               activatedBy: currentUser.userId,
               activatedByName: currentUser.fullName,

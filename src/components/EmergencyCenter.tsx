@@ -80,20 +80,44 @@ export default function EmergencyCenter({
 
   const myResponse = responses.find((item) => item.userId === currentUser.userId);
 
+  const normalizeUnitName = (value = "") =>
+    value
+      .replace(/[״׳'\"`]/g, "")
+      .replace(/\s+/g, "")
+      .toLowerCase();
+
+  const isAttachedToTagad = (user: UserProfile) => {
+    const normalizedUnit = normalizeUnitName(user.unit || "");
+    return normalizedUnit.includes("מסופח") && normalizedUnit.includes("תאגד");
+  };
+
+  const eligibleUsers = useMemo(
+    () => allUsers.filter((user) => !user.isDischarged && !isAttachedToTagad(user)),
+    [allUsers]
+  );
+  const eligibleUserIds = useMemo(
+    () => new Set(eligibleUsers.map((user) => user.userId)),
+    [eligibleUsers]
+  );
+  const visibleResponses = useMemo(
+    () => responses.filter((response) => eligibleUserIds.has(response.userId)),
+    [responses, eligibleUserIds]
+  );
+
   const counts = useMemo(() => {
     const result: Record<string, number> = {};
     STATUS_OPTIONS.forEach((item) => {
-      result[item.value] = responses.filter((response) => response.status === item.value).length;
+      result[item.value] = visibleResponses.filter((response) => response.status === item.value).length;
     });
     return result;
-  }, [responses]);
+  }, [visibleResponses]);
 
   const noResponseUsers = useMemo(() => {
-    const responseIds = new Set(responses.map((item) => item.userId));
-    return allUsers
-      .filter((user) => !user.isDischarged && !responseIds.has(user.userId))
+    const responseIds = new Set(visibleResponses.map((item) => item.userId));
+    return eligibleUsers
+      .filter((user) => !responseIds.has(user.userId))
       .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"));
-  }, [allUsers, responses]);
+  }, [eligibleUsers, visibleResponses]);
 
   const formatMarkedAt = (value?: string) => {
     if (!value) return "שעה לא זמינה";
@@ -421,7 +445,7 @@ export default function EmergencyCenter({
                 תגובות שהתקבלו
               </h3>
               <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto">
-                {responses.map((response) => {
+                {visibleResponses.map((response) => {
                   const option = STATUS_OPTIONS.find((item) => item.value === response.status);
                   return (
                     <div key={response.responseId} className="rounded-xl border border-slate-200 p-3">
@@ -440,6 +464,10 @@ export default function EmergencyCenter({
                       <div className="mt-2 text-[10px] font-bold text-slate-400">
                         סימון אחרון: {formatMarkedAt(response.updatedAt)}
                       </div>
+                      <details className="mt-2 border-t border-slate-100 pt-2">
+                        <summary className="cursor-pointer text-[10px] font-black text-slate-500">
+                          הצג היסטוריית סימונים
+                        </summary>
                       {(
                         response.history && response.history.length > 0
                           ? response.history
@@ -449,7 +477,7 @@ export default function EmergencyCenter({
                               markedAt: response.updatedAt,
                             }]
                       ).length > 0 && (
-                        <div className="mt-2 space-y-1 border-t border-slate-100 pt-2">
+                        <div className="mt-2 space-y-1">
                           {(
                             response.history && response.history.length > 0
                               ? response.history
@@ -471,6 +499,7 @@ export default function EmergencyCenter({
                           })}
                         </div>
                       )}
+                      </details>
                     </div>
                   );
                 })}
