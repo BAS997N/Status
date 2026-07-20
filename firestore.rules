@@ -131,9 +131,30 @@ service cloud.firestore {
     match /emergency_responses/{responseId} {
       allow read: if hasPermission("emergency.view") ||
         hasPermission("emergency.manage") ||
-        (signedIn() && resource.data.userId == request.auth.uid);
-      allow create, update: if signedIn() &&
-        request.resource.data.userId == request.auth.uid;
+        (signedIn() && (
+          resource.data.userId == request.auth.uid ||
+          (
+            resource.data.personalId is string &&
+            myUser().data.personalId == resource.data.personalId
+          )
+        ));
+      allow create: if signedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        (
+          request.resource.data.personalId is string &&
+          myUser().data.personalId == request.resource.data.personalId
+        )
+      );
+      allow update: if signedIn() &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.personalId == resource.data.personalId &&
+        (
+          resource.data.userId == request.auth.uid ||
+          (
+            resource.data.personalId is string &&
+            myUser().data.personalId == resource.data.personalId
+          )
+        );
       allow delete: if hasPermission("emergency.manage");
     }
 
