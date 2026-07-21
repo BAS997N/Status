@@ -450,6 +450,7 @@ useEffect(() => {
   const processingDays = displayedOrderEvent?.processingDays ?? 3;
   const totalActualServiceDays = totalEffectiveOrderDays + processingDays;
   const refreshmentDays = getRefreshmentDays(totalActualServiceDays);
+  const totalEntitlementDays = totalActualServiceDays + refreshmentDays;
   const personalLastServiceDate = getLastPersonalServiceDate();
   const processingStartDate = personalLastServiceDate
     ? addCalendarDays(personalLastServiceDate, 1)
@@ -787,7 +788,7 @@ dayMarker || undefined
                     </div>
                   )}
                   {personalLastServiceDate && (
-                    <div className="mt-2 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-3">
+                    <div className="mt-2 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-2 lg:grid-cols-4">
                       <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5">
                         <span className="block font-bold text-slate-500">שירות בפועל</span>
                         <strong className="text-slate-800">
@@ -800,6 +801,13 @@ dayMarker || undefined
                       <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5">
                         <span className="block font-bold text-slate-500">ימי התרעננות</span>
                         <strong className="text-slate-800">{refreshmentDays} ימים</strong>
+                      </div>
+                      <div className="rounded-lg border border-blue-200 bg-blue-50/80 px-2 py-1.5">
+                        <span className="block font-bold text-blue-700">סה״כ ימים</span>
+                        <strong className="text-blue-900">{totalEntitlementDays} ימים</strong>
+                        <span className="mt-0.5 block text-[10px] font-bold text-blue-600">
+                          בפועל + עיבוד + התרעננות
+                        </span>
                       </div>
                       <div className="rounded-lg border border-emerald-200 bg-emerald-100/80 px-2 py-1.5">
                         <span className="block font-bold text-emerald-700">סיום אישי כולל</span>
