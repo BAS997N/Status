@@ -127,9 +127,9 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.subscriptionId == subscriptionId;
       allow update: if signedIn() &&
-        resource.data.userId == request.auth.uid &&
-        request.resource.data.userId == resource.data.userId &&
-        request.resource.data.subscriptionId == resource.data.subscriptionId;
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.subscriptionId == resource.data.subscriptionId &&
+        request.resource.data.token == resource.data.token;
       allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
     }
 

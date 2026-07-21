@@ -134,6 +134,9 @@ export default function PushNotificationButton({ currentUser }: { currentUser: U
         saveCurrentDevice(true).catch((error) => {
           console.error("Push registration failed:", error);
           setState("error");
+          window.alert(
+            "הפעלת ההתראות נכשלה. יש לרענן את הדף ולנסות שוב. אם התקלה נמשכת, יש לוודא שחוקי Firebase המעודכנים פורסמו."
+          );
         })
       }
       title={denied ? "יש לאפשר התראות בהגדרות הדפדפן" : undefined}
