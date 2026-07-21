@@ -11,7 +11,9 @@ import {
   FileText,
   CircleHelp,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Bell,
+  CheckCheck
 } from "lucide-react";
 import { 
   UserProfile, 
@@ -20,9 +22,11 @@ import {
   AttendanceStatusConfig,
   ShiftRecord,
   SystemSettingsConfig,
+  CommanderMessage,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "../types";
 import { motion, AnimatePresence } from "motion/react";
+import { dataService } from "../services/dataService";
 
 interface SoldierReporterProps {
   currentUser: UserProfile;
@@ -73,6 +77,8 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [commanderMessages, setCommanderMessages] = useState<CommanderMessage[]>([]);
+  const [acknowledgingMessageId, setAcknowledgingMessageId] = useState<string | null>(null);
   const [isWeeklyShiftsCollapsed, setIsWeeklyShiftsCollapsed] =
     useState<boolean>(() =>
       typeof window !== "undefined" && window.innerWidth < 640
@@ -81,6 +87,45 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
   const soldierStatusOptions = attendanceStatuses
     .filter((item) => item.enabled && item.visibleToSoldiers)
     .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const refreshCommanderMessages = async () => {
+    const messages = await dataService.getCommanderMessages();
+    setCommanderMessages(
+      messages
+        .filter((message) => {
+          if (message.acknowledgements?.[currentUser.userId]) {
+            return false;
+          }
+          if (message.targetType === "unit") {
+            return message.targetUnit === currentUser.unit;
+          }
+          if (message.targetType === "user") {
+            return message.targetUserId === currentUser.userId;
+          }
+          return true;
+        })
+        .sort((a, b) => {
+          if (a.important !== b.important) return a.important ? -1 : 1;
+          return b.createdAt.localeCompare(a.createdAt);
+        })
+    );
+  };
+
+  useEffect(() => {
+    refreshCommanderMessages().catch((error) =>
+      console.error("Failed loading messages for soldier:", error)
+    );
+  }, [currentUser.userId, currentUser.unit]);
+
+  const handleAcknowledgeMessage = async (messageId: string) => {
+    setAcknowledgingMessageId(messageId);
+    try {
+      await dataService.acknowledgeCommanderMessage(messageId, currentUser);
+      await refreshCommanderMessages();
+    } finally {
+      setAcknowledgingMessageId(null);
+    }
+  };
 
   const statusLabels = React.useMemo(
     () =>
@@ -504,6 +549,76 @@ dayMarker || undefined
         </div>
       </div>
 
+      {commanderMessages.length > 0 && (
+        <section className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm" dir="rtl">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-blue-600" />
+              <h3 className="text-sm font-black text-slate-900">הודעות מהמפקד</h3>
+            </div>
+            <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-black text-blue-700">
+              {commanderMessages.filter(
+                (message) => !message.acknowledgements?.[currentUser.userId]
+              ).length} חדשות
+            </span>
+          </div>
+          <div className="max-h-80 space-y-3 overflow-y-auto custom-scrollbar">
+            {commanderMessages.map((message) => {
+              const acknowledgement =
+                message.acknowledgements?.[currentUser.userId];
+              return (
+                <article
+                  key={message.messageId}
+                  className={`rounded-xl border p-4 ${
+                    message.important
+                      ? "border-amber-300 bg-amber-50"
+                      : "border-blue-100 bg-white"
+                  } ${acknowledgement ? "opacity-75" : "shadow-sm"}`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-slate-900">
+                          {message.title}
+                        </h4>
+                        {message.important && (
+                          <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[9px] font-black text-white">
+                            חשוב
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-700">
+                        {message.content}
+                      </p>
+                      <p className="mt-2 text-[10px] font-bold text-slate-400">
+                        {message.createdByName} · {new Date(message.createdAt).toLocaleString("he-IL")}
+                      </p>
+                    </div>
+                    {acknowledgement ? (
+                      <div className="rounded-lg bg-emerald-100 px-3 py-2 text-[10px] font-black text-emerald-700">
+                        <CheckCheck className="mx-auto mb-1 h-4 w-4" />
+                        אושר {new Date(acknowledgement.readAt).toLocaleString("he-IL")}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={acknowledgingMessageId === message.messageId}
+                        onClick={() => handleAcknowledgeMessage(message.messageId)}
+                        className="rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white hover:bg-blue-700 disabled:opacity-60"
+                      >
+                        {acknowledgingMessageId === message.messageId
+                          ? "שומר..."
+                          : "קראתי ואישרתי"}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <section
         dir="rtl"
         className={`rounded-xl border px-4 py-3 shadow-sm sm:px-5 ${
@@ -596,6 +711,9 @@ dayMarker || undefined
 
           {(orderState === "active" || orderState === "excluded") && (
             <div className="rounded-lg bg-white/80 px-3 py-2 text-center shadow-sm">
+              <div className="mb-0.5 block text-xs font-black leading-none text-slate-600">
+                נותרו
+              </div>
               <span className="block text-lg font-black text-emerald-700">
                 {remainingOrderDays}
               </span>
