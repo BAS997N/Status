@@ -566,7 +566,7 @@ export interface AppNotification {
   message: string;
 }
 
-export type CommanderMessageTarget = "all" | "unit" | "user";
+export type CommanderMessageTarget = "all" | "unit" | "user" | "role";
 
 export interface CommanderMessageAcknowledgement {
   userId: string;
@@ -582,6 +582,7 @@ export interface CommanderMessage {
   targetType: CommanderMessageTarget;
   targetUnit?: string;
   targetUserId?: string;
+  targetRole?: UserRole;
   createdAt: string;
   createdBy: string;
   createdByName: string;

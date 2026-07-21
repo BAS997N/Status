@@ -23,18 +23,19 @@ export default function CommanderMessages({
   const [error, setError] = useState("");
 
   const activeUsers = useMemo(
-    () =>
-      allUsers.filter(
-        (user) => !user.isDischarged && user.role === "soldier"
-      ),
+    () => allUsers.filter((user) => !user.isDischarged),
     [allUsers]
+  );
+  const activeSoldiers = useMemo(
+    () => activeUsers.filter((user) => user.role === "soldier"),
+    [activeUsers]
   );
   const units = useMemo(
     () =>
-      Array.from(new Set(activeUsers.map((user) => user.unit).filter(Boolean))).sort(
+      Array.from(new Set(activeSoldiers.map((user) => user.unit).filter(Boolean))).sort(
         (a, b) => a.localeCompare(b, "he")
       ),
-    [activeUsers]
+    [activeSoldiers]
   );
 
   const refresh = async () => setMessages(await dataService.getCommanderMessages());
@@ -47,12 +48,15 @@ export default function CommanderMessages({
 
   const getRecipients = (message: CommanderMessage) => {
     if (message.targetType === "unit") {
-      return activeUsers.filter((user) => user.unit === message.targetUnit);
+      return activeSoldiers.filter((user) => user.unit === message.targetUnit);
     }
     if (message.targetType === "user") {
       return activeUsers.filter((user) => user.userId === message.targetUserId);
     }
-    return activeUsers;
+    if (message.targetType === "role") {
+      return activeUsers.filter((user) => user.role === message.targetRole);
+    }
+    return activeSoldiers;
   };
 
   const handleCreate = async (event: FormEvent) => {
@@ -68,7 +72,7 @@ export default function CommanderMessages({
       return;
     }
     if (targetType === "user" && !targetUserId) {
-      setError("יש לבחור חייל.");
+      setError("יש לבחור משתמש.");
       return;
     }
 
@@ -81,6 +85,7 @@ export default function CommanderMessages({
         targetType,
         ...(targetType === "unit" ? { targetUnit } : {}),
         ...(targetType === "user" ? { targetUserId } : {}),
+        ...(targetType === "role" ? { targetRole: "commander" as const } : {}),
         createdAt: new Date().toISOString(),
         createdBy: currentUser.userId,
         createdByName: currentUser.fullName,
@@ -113,7 +118,7 @@ export default function CommanderMessages({
         <form onSubmit={handleCreate} className="rounded-xl border border-blue-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <MessageSquarePlus className="h-5 w-5 text-blue-600" />
-            <h3 className="text-sm font-black text-slate-900">פרסום הודעה לחיילים</h3>
+            <h3 className="text-sm font-black text-slate-900">פרסום הודעה למשתמשים</h3>
           </div>
           {error && <div className="mb-3 rounded-lg bg-rose-50 p-2 text-xs font-bold text-rose-700">{error}</div>}
           <div className="space-y-3">
@@ -122,8 +127,9 @@ export default function CommanderMessages({
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <select value={targetType} onChange={(e) => setTargetType(e.target.value as CommanderMessageTarget)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">
                 <option value="all">כלל החיילים</option>
+                <option value="role">כלל המפקדים</option>
                 <option value="unit">יחידה מסוימת</option>
-                <option value="user">חייל מסוים</option>
+                <option value="user">משתמש מסוים</option>
               </select>
               {targetType === "unit" && (
                 <select value={targetUnit} onChange={(e) => setTargetUnit(e.target.value)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">
@@ -133,9 +139,11 @@ export default function CommanderMessages({
               )}
               {targetType === "user" && (
                 <select value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">
-                  <option value="">בחר חייל</option>
+                  <option value="">בחר משתמש</option>
                   {[...activeUsers].sort((a, b) => a.fullName.localeCompare(b.fullName, "he")).map((user) => (
-                    <option key={user.userId} value={user.userId}>{user.fullName} · {user.unit}</option>
+                    <option key={user.userId} value={user.userId}>
+                      {user.fullName} · {user.role === "commander" ? "מפקד" : user.role === "adjutant_officer" ? "שליש" : "חייל"} · {user.unit}
+                    </option>
                   ))}
                 </select>
               )}

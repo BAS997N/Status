@@ -53,6 +53,7 @@ import SystemAdminPanel from "./components/SystemAdminPanel";
 import AppMessageModal from "./components/AppMessageModal";
 import ShiftsView from "./components/ShiftsView";
 import EmergencyCenter from "./components/EmergencyCenter";
+import CommanderMessageInbox from "./components/CommanderMessageInbox";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   ShieldCheck, 
@@ -2177,6 +2178,10 @@ const handleAdminSaveReport = async (reportData: {
         canEdit={hasPermission(permissions, "soldiers.edit")}
         systemSettings={systemSettings}
       />
+
+      {userProfile.role !== "soldier" && (
+        <CommanderMessageInbox currentUser={userProfile} />
+      )}
 
       {isMaintenanceBlocked ? (
         <main
