@@ -3698,6 +3698,37 @@ async createSystemLog(logData: {
       return [];
     }
   },
+  async fetchReportsUpdatedSince(updatedAfter: string): Promise<AttendanceReport[]> {
+    if (!isFirebaseActive()) {
+      const reports: AttendanceReport[] = JSON.parse(
+        localStorage.getItem("idf_reports") || "[]"
+      );
+      return reports.filter(
+        (report) => String(report.updatedAt || report.timestamp || "") > updatedAfter
+      );
+    }
+
+    const path = "attendance";
+    try {
+      const snapshot = await getDocs(
+        query(
+          collection(db, "attendance"),
+          where("updatedAt", ">", updatedAfter),
+          orderBy("updatedAt", "asc")
+        )
+      );
+      return snapshot.docs.map(
+        (item) =>
+          ({
+            reportId: item.id,
+            ...normalizeReportDates(item.data()),
+          } as AttendanceReport)
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
   async syncAllReportsToGoogleSheets(
     startDate?: string,
     endDate?: string
@@ -4468,6 +4499,34 @@ const formattedDate =
         list.push({ notificationId: docSnap.id, ...docSnap.data() } as AppNotification);
       });
       return list;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+  async fetchNotificationsSince(timestampAfter: string): Promise<AppNotification[]> {
+    if (!isFirebaseActive()) {
+      const notifications: AppNotification[] = JSON.parse(
+        localStorage.getItem("idf_notifications") || "[]"
+      );
+      return notifications.filter(
+        (notification) => String(notification.timestamp || "") > timestampAfter
+      );
+    }
+
+    const path = "notifications";
+    try {
+      const snapshot = await getDocs(
+        query(
+          collection(db, "notifications"),
+          where("timestamp", ">", timestampAfter),
+          orderBy("timestamp", "asc")
+        )
+      );
+      return snapshot.docs.map(
+        (item) =>
+          ({ notificationId: item.id, ...item.data() } as AppNotification)
+      );
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, path);
       return [];

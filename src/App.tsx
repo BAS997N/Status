@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   isFirebaseActive, 
   auth, 
@@ -101,6 +101,7 @@ export default function App() {
   
   // App reports state
   const [reports, setReports] = useState<AttendanceReport[]>([]);
+  const dashboardPollCursorRef = useRef(new Date().toISOString());
   const [attendanceLogs, setAttendanceLogs] = useState<any[]>([]);
   const [systemLogs, setSystemLogs] = useState<any[]>([]);
   const [shifts, setShifts] = useState<ShiftRecord[]>([]);
@@ -328,6 +329,10 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const canManageShifts = hasPermission(permissions, "shifts.manage");
   const canViewEmergency = hasPermission(permissions, "emergency.view");
   const canManageEmergency = hasPermission(permissions, "emergency.manage");
+  const canViewNotifications = hasPermission(
+    permissions,
+    "dashboard.notifications.view"
+  );
 
   // Access to the emergency center is controlled only by the dynamic
   // permission system. Activating emergency mode must not grant access to
@@ -687,19 +692,10 @@ useEffect(() => {
             localStorage.setItem("idf_active_personal_id", profile.personalId);
           }
 
-          const isBasicReporter =
-            profile.role === "soldier" &&
-            (!profile.systemRoleAccessLevel ||
-              profile.systemRoleAccessLevel === "reporter");
-          const reps = isBasicReporter
-            ? await dataService.fetchReportsByUser(profile.userId)
-            : await dataService.fetchAllReports();
-          const nots = isBasicReporter
-            ? []
-            : await dataService.fetchNotifications();
-
-          setReports(reps);
-          setNotifications(nots);
+          // Data is loaded once permissions are known. Loading it here as well
+          // caused every sign-in to read the large collections twice.
+          setReports([]);
+          setNotifications([]);
 
           setActiveTab(getInitialTabForProfile(profile));
         } else {
@@ -801,6 +797,15 @@ useEffect(() => {
   if (!userProfile || !permissionsLoaded) return;
   refreshReports();
 
+  if (canViewNotifications) {
+    dataService
+      .fetchNotifications()
+      .then(setNotifications)
+      .catch((error) => console.error("Failed loading notifications:", error));
+  } else {
+    setNotifications([]);
+  }
+
   if (canViewDashboard || canManageShifts || canManageEmergency || isSuperAdmin) {
     dataService
       .getAllUsers()
@@ -850,6 +855,7 @@ useEffect(() => {
   canViewShifts,
   canManageShifts,
   canManageEmergency,
+  canViewNotifications,
   isSuperAdmin,
 ]);
 
@@ -1048,15 +1054,32 @@ const handleResetReport = async (reportId: string) => {
     const poll = async () => {
       if (document.visibilityState === "visible") {
         try {
-          const updatedReports = await dataService.fetchAllReports();
-          const canLoadNotifications = hasPermission(
-            permissions,
-            "dashboard.notifications.view"
+          const pollStartedAt = new Date().toISOString();
+          const updatedReports = await dataService.fetchReportsUpdatedSince(
+            dashboardPollCursorRef.current
           );
-          const updatedNots = canLoadNotifications
-            ? await dataService.fetchNotifications()
+          const updatedNots = canViewNotifications
+            ? await dataService.fetchNotificationsSince(
+                dashboardPollCursorRef.current
+              )
             : [];
-          setReports(updatedReports);
+          dashboardPollCursorRef.current = pollStartedAt;
+
+          if (updatedReports.length > 0) {
+            setReports((currentReports) => {
+              const merged = new Map<string, AttendanceReport>(
+                currentReports.map((report) => [report.reportId, report])
+              );
+              updatedReports.forEach((report) =>
+                merged.set(report.reportId, report)
+              );
+              return Array.from(merged.values()).sort(
+                (a, b) =>
+                  new Date(b.updatedAt || b.timestamp).getTime() -
+                  new Date(a.updatedAt || a.timestamp).getTime()
+              );
+            });
+          }
           
 
           setNotifications(prev => {
@@ -1077,7 +1100,21 @@ const handleResetReport = async (reportId: string) => {
                 }, 6000);
               }
             });
-            return updatedNots;
+            if (updatedNots.length === 0) return prev;
+            const merged = new Map<string, AppNotification>(
+              prev.map((notification) => [
+                notification.notificationId,
+                notification,
+              ])
+            );
+            updatedNots.forEach((notification) =>
+              merged.set(notification.notificationId, notification)
+            );
+            return Array.from(merged.values()).sort(
+              (a, b) =>
+                new Date(b.timestamp).getTime() -
+                new Date(a.timestamp).getTime()
+            );
           });
         } catch (e) {
           console.error("Polling error:", e);
@@ -1094,7 +1131,7 @@ const handleResetReport = async (reportId: string) => {
     userProfile,
     permissionsLoaded,
     canViewDashboard,
-    permissions,
+    canViewNotifications,
     systemSettings?.autoRefreshSeconds,
     systemSettings?.notificationsEnabled,
     systemSettings?.toastNotificationsEnabled,
@@ -1280,19 +1317,10 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
 
     setUserProfile(foundProfile);
 
-    const isBasicReporter =
-      foundProfile.role === "soldier" &&
-      (!foundProfile.systemRoleAccessLevel ||
-        foundProfile.systemRoleAccessLevel === "reporter");
-    const [reps, nots] = await Promise.all([
-      isBasicReporter
-        ? dataService.fetchReportsByUser(foundProfile.userId)
-        : dataService.fetchAllReports(),
-      isBasicReporter ? Promise.resolve([]) : dataService.fetchNotifications(),
-    ]);
-
-    setReports(reps);
-    setNotifications(nots);
+    // The permission-aware loading effect below performs the single required
+    // query after sign-in.
+    setReports([]);
+    setNotifications([]);
     setActiveTab(getInitialTabForProfile(foundProfile));
   } catch (error: any) {
     console.error("Login verification error:", error);
