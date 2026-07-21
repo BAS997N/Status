@@ -44,6 +44,7 @@ import {
 } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { hasPermission, PermissionMap } from "../security/permissions";
+import { buildCsv } from "../utils/csvSecurity";
 import HistoryView from "./HistoryView";
 import CommanderMessages from "./CommanderMessages";
 import { 
@@ -1183,10 +1184,7 @@ const latestTodayReport = [...todayReports].sort(
     });
 
     // Generate CSV content with Hebrew quotes support
-    const csvContent = [
-      headers.join(","),
-      ...rows.map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(","))
-    ].join("\n");
+    const csvContent = buildCsv([headers, ...rows]);
 
     // Add Byte Order Mark (\uFEFF) to make Excel parse Hebrew characters correctly
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
@@ -1317,15 +1315,7 @@ const dates = getDateRange(startDate, endDate);
       return [...baseData, ...dateCells];
     });
 
-  const csvContent = [
-    firstHeader,
-    secondHeader,
-    ...rows,
-  ]
-    .map((row) =>
-      row.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(",")
-    )
-    .join("\n");
+  const csvContent = buildCsv([firstHeader, secondHeader, ...rows]);
 
   const blob = new Blob(["\uFEFF" + csvContent], {
     type: "text/csv;charset=utf-8;",
@@ -3595,10 +3585,7 @@ const matchesStatus =
                   s.isDischarged ? "נגרע" : "פעיל"
                 ]);
 
-                const csvContent = [
-                  headers.join(","),
-                  ...rows.map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(","))
-                ].join("\n");
+                const csvContent = buildCsv([headers, ...rows]);
 
                 const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
                 const url = URL.createObjectURL(blob);

@@ -37,6 +37,7 @@ import DailyShiftView from "./shifts/DailyShiftView";
 import battalionLogo from "../assets/battalion-logo.png";
 import { isPublishedShift } from "./shifts/shiftViewUtils";
 import { sendAutomaticPush } from "../services/pushService";
+import { buildCsv } from "../utils/csvSecurity";
 
 interface ShiftsViewProps {
   currentUser: UserProfile;
@@ -1010,13 +1011,7 @@ export default function ShiftsView({
       ),
     ];
 
-    const csv = "\ufeff" + rows
-      .map((row) =>
-        row
-          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-          .join(",")
-      )
-      .join("\n");
+    const csv = "\ufeff" + buildCsv(rows);
 
     const blob = new Blob([csv], {
       type: "text/csv;charset=utf-8",

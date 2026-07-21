@@ -16,6 +16,7 @@ import {
   onSnapshot
 } from "firebase/firestore";
 import { db, auth, isFirebaseActive } from "../firebase";
+import { sanitizeSpreadsheetCell } from "../utils/csvSecurity";
 import {
   UserProfile,
   AttendanceReport,
@@ -3996,12 +3997,14 @@ async createSystemLog(logData: {
 
         return {
           personalId: stablePersonalId,
-          fullName: soldier?.fullName || report.userName || "",
-          medicalRole: soldier?.medicalRole || "",
-          role: soldier?.medicalRole || "",
-          phone: soldier?.phoneNumber || "",
+          fullName: sanitizeSpreadsheetCell(soldier?.fullName || report.userName || ""),
+          medicalRole: sanitizeSpreadsheetCell(soldier?.medicalRole || ""),
+          role: sanitizeSpreadsheetCell(soldier?.medicalRole || ""),
+          phone: sanitizeSpreadsheetCell(soldier?.phoneNumber || ""),
           date: formattedDate,
-          cellValue: markerText ? `${statusText}/${markerText}` : statusText,
+          cellValue: sanitizeSpreadsheetCell(
+            markerText ? `${statusText}/${markerText}` : statusText
+          ),
           reportId: report.reportId,
         };
       };
@@ -4270,11 +4273,13 @@ if (
       },
       body: JSON.stringify({
         personalId: personalIdForSheets,
-        fullName: soldier?.fullName || reportPayload.userName,
-        role: soldier?.medicalRole || "",
-        phone: soldier?.phoneNumber || "",
+        fullName: sanitizeSpreadsheetCell(soldier?.fullName || reportPayload.userName),
+        role: sanitizeSpreadsheetCell(soldier?.medicalRole || ""),
+        phone: sanitizeSpreadsheetCell(soldier?.phoneNumber || ""),
         date: formattedDate,
-        cellValue: markerText ? `${statusText}/${markerText}` : statusText,
+        cellValue: sanitizeSpreadsheetCell(
+          markerText ? `${statusText}/${markerText}` : statusText
+        ),
       }),
     });
   } catch (err) {
@@ -4460,11 +4465,13 @@ const formattedDate =
           },
           body: JSON.stringify({
             personalId: personalIdForSheets,
-            fullName: soldier?.fullName || updatedReport.userName,
-            role: soldier?.medicalRole || "",
-            phone: soldier?.phoneNumber || "",
+            fullName: sanitizeSpreadsheetCell(soldier?.fullName || updatedReport.userName),
+            role: sanitizeSpreadsheetCell(soldier?.medicalRole || ""),
+            phone: sanitizeSpreadsheetCell(soldier?.phoneNumber || ""),
             date: formattedDate,
-            cellValue: markerText ? `${statusText}/${markerText}` : statusText,
+            cellValue: sanitizeSpreadsheetCell(
+              markerText ? `${statusText}/${markerText}` : statusText
+            ),
           }),
         });
       } catch (err) {
