@@ -209,7 +209,7 @@ const adminGroups: Array<{
     title: "חיבורים והגדרות",
     description: "Google Sheets, WhatsApp, Push והגדרות המערכת.",
     icon: Settings,
-    sections: ["sheets", "settings"],
+    sections: ["settings", "sheets"],
   },
   {
     id: "maintenance",

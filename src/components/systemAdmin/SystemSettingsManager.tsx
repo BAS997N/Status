@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Bell,
   Clock3,
@@ -11,6 +11,7 @@ import {
   Plus,
   Trash2,
   Star,
+  Edit2,
 } from "lucide-react";
 import {
   SystemMode,
@@ -105,6 +106,7 @@ export default function SystemSettingsManager({
   const [newOrderStartDate, setNewOrderStartDate] = useState("");
   const [newOrderEndDate, setNewOrderEndDate] = useState("");
   const [newOrderLocation, setNewOrderLocation] = useState("");
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -252,8 +254,17 @@ export default function SystemSettingsManager({
     updateWhatsAppGroups(remaining);
   };
 
-  const addOrderEvent = () => {
+  const resetOrderForm = () => {
+    setEditingOrderId(null);
+    setNewOrderTitle("");
+    setNewOrderStartDate("");
+    setNewOrderEndDate("");
+    setNewOrderLocation("");
+  };
+
+  const saveOrderEvent = () => {
     setMessage(null);
+    const wasEditing = Boolean(editingOrderId);
 
     if (!newOrderTitle.trim() || !newOrderStartDate || !newOrderEndDate) {
       setMessage({
@@ -271,21 +282,50 @@ export default function SystemSettingsManager({
       return;
     }
 
-    const orderEvent: OrderEventConfig = {
-      id: `order_${Date.now()}`,
-      title: newOrderTitle.trim(),
-      startDate: newOrderStartDate,
-      endDate: newOrderEndDate,
-      location: newOrderLocation.trim(),
-      createdAt: new Date().toISOString(),
-      createdBy: currentUser.userId,
-    };
+    if (editingOrderId) {
+      update(
+        "orderEvents",
+        (draft.orderEvents || []).map((order) =>
+          order.id === editingOrderId
+            ? {
+                ...order,
+                title: newOrderTitle.trim(),
+                startDate: newOrderStartDate,
+                endDate: newOrderEndDate,
+                location: newOrderLocation.trim(),
+              }
+            : order
+        )
+      );
+    } else {
+      const orderEvent: OrderEventConfig = {
+        id: `order_${Date.now()}`,
+        title: newOrderTitle.trim(),
+        startDate: newOrderStartDate,
+        endDate: newOrderEndDate,
+        location: newOrderLocation.trim(),
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser.userId,
+      };
 
-    update("orderEvents", [orderEvent, ...(draft.orderEvents || [])]);
-    setNewOrderTitle("");
-    setNewOrderStartDate("");
-    setNewOrderEndDate("");
-    setNewOrderLocation("");
+      update("orderEvents", [orderEvent, ...(draft.orderEvents || [])]);
+    }
+    resetOrderForm();
+    setMessage({
+      type: "success",
+      text: wasEditing
+        ? "הצו עודכן. יש ללחוץ על „שמור הגדרות” כדי להחיל את השינוי."
+        : "הצו נוסף. יש ללחוץ על „שמור הגדרות” כדי להחיל את השינוי.",
+    });
+  };
+
+  const editOrderEvent = (order: OrderEventConfig) => {
+    setEditingOrderId(order.id);
+    setNewOrderTitle(order.title);
+    setNewOrderStartDate(order.startDate);
+    setNewOrderEndDate(order.endDate);
+    setNewOrderLocation(order.location || "");
+    setMessage(null);
   };
 
   const removeOrderEvent = (orderId: string) => {
@@ -293,6 +333,7 @@ export default function SystemSettingsManager({
       "orderEvents",
       (draft.orderEvents || []).filter((order) => order.id !== orderId)
     );
+    if (editingOrderId === orderId) resetOrderForm();
   };
 
   const handleSave = async () => {
@@ -586,14 +627,29 @@ export default function SystemSettingsManager({
                 />
               </Field>
             </div>
-            <button
-              type="button"
-              onClick={addOrderEvent}
-              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4" />
-              פתח צו חדש
-            </button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={saveOrderEvent}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white hover:bg-blue-700"
+              >
+                {editingOrderId ? (
+                  <Save className="h-4 w-4" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                {editingOrderId ? "עדכן צו קיים" : "פתח צו חדש"}
+              </button>
+              {editingOrderId && (
+                <button
+                  type="button"
+                  onClick={resetOrderForm}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-600 hover:bg-slate-50"
+                >
+                  ביטול עריכה
+                </button>
+              )}
+            </div>
 
             <div className="mt-5 border-t border-blue-100 pt-4">
               <div className="mb-2 text-xs font-black text-slate-700">היסטוריית צווים</div>
@@ -618,14 +674,24 @@ export default function SystemSettingsManager({
                             {order.location ? ` · ${order.location}` : ""}
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeOrderEvent(order.id)}
-                          className="inline-flex items-center justify-center gap-1 rounded-lg border border-rose-200 bg-white px-3 py-2 text-[11px] font-black text-rose-700 hover:bg-rose-50"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          מחק
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => editOrderEvent(order)}
+                            className="inline-flex items-center justify-center gap-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-[11px] font-black text-blue-700 hover:bg-blue-50"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                            ערוך
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeOrderEvent(order.id)}
+                            className="inline-flex items-center justify-center gap-1 rounded-lg border border-rose-200 bg-white px-3 py-2 text-[11px] font-black text-rose-700 hover:bg-rose-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            מחק
+                          </button>
+                        </div>
                       </div>
                     ))}
                 </div>
@@ -852,7 +918,7 @@ function RoleAccessGrid({
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return <label className="block"><span className="mb-2 block text-xs font-black text-slate-700">{label}</span>{children}{hint && <span className="mt-1 block text-[10px] text-slate-400">{hint}</span>}</label>;
 }
 
