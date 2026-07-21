@@ -267,14 +267,14 @@ export default function EmergencyCenter({
             type: "users",
             userIds: eligibleUsers.map((user) => user.userId),
           },
-          title: `מצב חירום: ${eventDraft.title.trim()}`,
+          title: `🚨 מצב חירום: ${eventDraft.title.trim()}`,
           body:
             details.join(" | ") ||
             "נפתח אירוע חירום חדש. יש להיכנס למערכת ולעדכן מצב.",
           url: "https://bas997n.github.io/Status/",
         });
         setMessage(
-          `מצב החירום הופעל. Push נשלח ל־${delivery.sent} מכשירים.`
+          `מצב החירום הופעל. Push נשלח ל־${delivery.sent} מתוך ${delivery.recipients} מכשירים.`
         );
       } catch (pushError) {
         console.error("Emergency push failed:", pushError);
@@ -455,14 +455,38 @@ export default function EmergencyCenter({
               placeholder="מקום התייצבות"
               className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400"
             />
-            <input
-              type="time"
-              value={eventDraft.assemblyTime}
-              onChange={(changeEvent) =>
-                setEventDraft((current) => ({ ...current, assemblyTime: changeEvent.target.value }))
-              }
-              className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={eventDraft.assemblyTime}
+                onChange={(changeEvent) =>
+                  setEventDraft((current) => ({
+                    ...current,
+                    assemblyTime: changeEvent.target.value,
+                  }))
+                }
+                placeholder="שעה, לדוגמה 18:30"
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setEventDraft((current) => ({
+                    ...current,
+                    assemblyTime:
+                      current.assemblyTime === "מיידי" ? "" : "מיידי",
+                  }))
+                }
+                className={`rounded-xl border px-4 py-2.5 text-xs font-black transition ${
+                  eventDraft.assemblyTime === "מיידי"
+                    ? "border-red-600 bg-red-600 text-white"
+                    : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                }`}
+              >
+                מיידי
+              </button>
+            </div>
             <textarea
               rows={3}
               value={eventDraft.message}
@@ -549,6 +573,12 @@ export default function EmergencyCenter({
           )}
         </div>
       </div>
+
+      {canManage && message && (
+        <div className="rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-black text-red-700 shadow-sm">
+          {message}
+        </div>
+      )}
 
       {!canManage && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
