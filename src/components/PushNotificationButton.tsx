@@ -18,6 +18,22 @@ async function tokenDocumentId(token: string) {
     .join("");
 }
 
+const isStandaloneApp = () =>
+  window.matchMedia("(display-mode: standalone)").matches ||
+  (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+const getPwaDeviceId = () => {
+  const storageKey = "idf_pwa_device_id";
+  const existing = localStorage.getItem(storageKey);
+  if (existing) return existing;
+  const created =
+    typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  localStorage.setItem(storageKey, created);
+  return created;
+};
+
 export default function PushNotificationButton({ currentUser }: { currentUser: UserProfile }) {
   const [state, setState] = useState<PushState>("checking");
 
@@ -71,6 +87,7 @@ export default function PushNotificationButton({ currentUser }: { currentUser: U
         medicalRole: currentUser.medicalRole || "",
         platform: navigator.platform || "web",
         userAgent: navigator.userAgent,
+        standalone: isStandaloneApp(),
         enabled: true,
         updatedAt: serverTimestamp(),
       },
@@ -105,6 +122,40 @@ export default function PushNotificationButton({ currentUser }: { currentUser: U
     return () => {
       cancelled = true;
     };
+  }, [currentUser.userId]);
+
+  useEffect(() => {
+    if (!isFirebaseActive() || !db) return;
+
+    const recordInstalledOpen = async (forceInstalled = false) => {
+      if (!forceInstalled && !isStandaloneApp()) return;
+      const deviceId = getPwaDeviceId();
+      const installationId = `${currentUser.userId}_${deviceId}`;
+      await setDoc(
+        doc(db, "pwa_installations", installationId),
+        {
+          installationId,
+          userId: currentUser.userId,
+          deviceId,
+          platform: navigator.platform || "web",
+          userAgent: navigator.userAgent,
+          installed: true,
+          lastOpenedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    };
+
+    recordInstalledOpen().catch((error) =>
+      console.warn("PWA installation tracking failed:", error)
+    );
+    const handleInstalled = () => {
+      recordInstalledOpen(true).catch((error) =>
+        console.warn("PWA installation tracking failed:", error)
+      );
+    };
+    window.addEventListener("appinstalled", handleInstalled);
+    return () => window.removeEventListener("appinstalled", handleInstalled);
   }, [currentUser.userId]);
 
   useEffect(() => {

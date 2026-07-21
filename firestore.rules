@@ -130,7 +130,26 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.subscriptionId == resource.data.subscriptionId &&
         request.resource.data.token == resource.data.token;
-      allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      allow read: if signedIn() && (
+        resource.data.userId == request.auth.uid ||
+        hasPermission("system_admin.users.manage")
+      );
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /pwa_installations/{installationId} {
+      allow create: if signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.installationId == installationId;
+      allow update: if signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.installationId == resource.data.installationId;
+      allow read: if signedIn() && (
+        resource.data.userId == request.auth.uid ||
+        hasPermission("system_admin.users.manage")
+      );
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
     }
 
     match /commander_messages/{messageId} {

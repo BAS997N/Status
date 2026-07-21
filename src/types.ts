@@ -381,6 +381,26 @@ export interface ShiftRecord {
   updatedByName?: string;
 }
 
+export interface PushDeviceStatus {
+  subscriptionId: string;
+  userId: string;
+  enabled: boolean;
+  platform?: string;
+  userAgent?: string;
+  standalone?: boolean;
+  updatedAt?: string;
+}
+
+export interface PwaInstallationStatus {
+  installationId: string;
+  userId: string;
+  deviceId: string;
+  platform?: string;
+  userAgent?: string;
+  installed: boolean;
+  lastOpenedAt?: string;
+}
+
 export interface UserProfile {
   userId: string;
   fullName: string;

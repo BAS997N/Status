@@ -18,6 +18,7 @@ import {
   ArrowDown,
   Save,
   ShieldPlus,
+  Smartphone,
 } from "lucide-react";
 import { AttendanceStatusConfig, ExternalStaffMember, GoogleSheetsConfig, MedicalRoleConfig, ShiftSlotConfig, SystemRole, SystemSettingsConfig, UnitConfig, UserProfile } from "../types";
 import UsersManager from "./systemAdmin/UsersManager";
@@ -33,12 +34,14 @@ import ShiftRolesManager from "./systemAdmin/ShiftRolesManager";
 import ExternalStaffManager from "./systemAdmin/ExternalStaffManager";
 import ShiftTypesManager from "./systemAdmin/ShiftTypesManager";
 import SystemRolesManager from "./systemAdmin/SystemRolesManager";
+import AppStatusManager from "./systemAdmin/AppStatusManager";
 import { dataService } from "../services/dataService";
 import { hasPermission, PermissionMap } from "../security/permissions";
 
 type AdminSection =
   | "overview"
   | "users"
+  | "app_status"
   | "permissions"
   | "statuses"
   | "roles"
@@ -89,6 +92,12 @@ const sections: Array<{
     title: "משתמשים ותפקידי מערכת",
     description: "שיוך משתמש לסופר־אדמין, אדמין, צפייה בלבד או דיווח בלבד.",
     icon: Users,
+  },
+  {
+    id: "app_status",
+    title: "התקנת אפליקציה והתראות",
+    description: "מעקב אחר פתיחה מהאפליקציה, התראות פעילות ומספר מכשירים.",
+    icon: Smartphone,
   },
   {
     id: "system_roles",
@@ -195,6 +204,7 @@ export default function SystemAdminPanel({
   const sectionPermission: Record<AdminSection, string> = {
     overview: "system_admin.view",
     users: "system_admin.users.manage",
+    app_status: "system_admin.users.manage",
     system_roles: "system_admin.roles.manage",
     permissions: "system_admin.permissions.manage",
     statuses: "system_admin.statuses.manage",
@@ -354,6 +364,8 @@ export default function SystemAdminPanel({
           users={users}
           onUpdateSystemRole={onUpdateSystemRole}
         />
+      ) : activeSection === "app_status" ? (
+        <AppStatusManager users={users} />
       ) : activeSection === "system_roles" ? (
         <SystemRolesManager currentUser={currentUser} />
       ) : activeSection === "permissions" ? (

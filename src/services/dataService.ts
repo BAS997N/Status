@@ -51,6 +51,8 @@ import {
   WhatsAppGroupConfig,
   OrderEventConfig,
   CommanderMessage,
+  PushDeviceStatus,
+  PwaInstallationStatus,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -3661,6 +3663,52 @@ async createSystemLog(logData: {
   });
 });
       return list;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
+  async getPushDeviceStatuses(): Promise<PushDeviceStatus[]> {
+    if (!isFirebaseActive()) return [];
+    const path = "push_subscriptions";
+    try {
+      const snapshot = await getDocs(collection(db, "push_subscriptions"));
+      return snapshot.docs.map((item) => {
+        const data = item.data();
+        return {
+          subscriptionId: item.id,
+          userId: String(data.userId || ""),
+          enabled: data.enabled !== false,
+          platform: data.platform,
+          userAgent: data.userAgent,
+          standalone: data.standalone === true,
+          updatedAt: normalizeFirestoreDate(data.updatedAt),
+        } as PushDeviceStatus;
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
+  async getPwaInstallationStatuses(): Promise<PwaInstallationStatus[]> {
+    if (!isFirebaseActive()) return [];
+    const path = "pwa_installations";
+    try {
+      const snapshot = await getDocs(collection(db, "pwa_installations"));
+      return snapshot.docs.map((item) => {
+        const data = item.data();
+        return {
+          installationId: item.id,
+          userId: String(data.userId || ""),
+          deviceId: String(data.deviceId || ""),
+          platform: data.platform,
+          userAgent: data.userAgent,
+          installed: data.installed === true,
+          lastOpenedAt: normalizeFirestoreDate(data.lastOpenedAt),
+        } as PwaInstallationStatus;
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, path);
       return [];
