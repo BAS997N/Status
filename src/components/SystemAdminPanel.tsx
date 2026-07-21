@@ -14,9 +14,6 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Users,
-  ArrowUp,
-  ArrowDown,
-  Save,
   ShieldPlus,
   Smartphone,
 } from "lucide-react";
@@ -35,7 +32,6 @@ import ExternalStaffManager from "./systemAdmin/ExternalStaffManager";
 import ShiftTypesManager from "./systemAdmin/ShiftTypesManager";
 import SystemRolesManager from "./systemAdmin/SystemRolesManager";
 import AppStatusManager from "./systemAdmin/AppStatusManager";
-import { dataService } from "../services/dataService";
 import { hasPermission, PermissionMap } from "../security/permissions";
 
 type AdminSection =
@@ -54,6 +50,13 @@ type AdminSection =
   | "external_staff"
   | "shift_types"
   | "system_roles";
+
+type AdminGroupId =
+  | "users_access"
+  | "attendance_people"
+  | "shifts"
+  | "connections"
+  | "maintenance";
 
 interface SystemAdminPanelProps {
   currentUser: UserProfile;
@@ -173,6 +176,50 @@ const sections: Array<{
   },
 ];
 
+const adminGroups: Array<{
+  id: AdminGroupId;
+  title: string;
+  description: string;
+  icon: typeof ShieldCheck;
+  sections: AdminSection[];
+}> = [
+  {
+    id: "users_access",
+    title: "משתמשים והרשאות",
+    description: "משתמשים, תפקידי ניהול, הרשאות והתקנת האפליקציה.",
+    icon: Users,
+    sections: ["users", "system_roles", "permissions", "app_status"],
+  },
+  {
+    id: "attendance_people",
+    title: "נוכחות וכוח אדם",
+    description: "סטטוסי נוכחות, יחידות, שיוכים ותפקידי רפואה.",
+    icon: BadgeCheck,
+    sections: ["statuses", "units", "roles"],
+  },
+  {
+    id: "shifts",
+    title: "ניהול משמרות",
+    description: "סוגי משמרות, תקנים ואנשי צוות חיצוניים.",
+    icon: CalendarCog,
+    sections: ["shift_types", "shift_roles", "external_staff"],
+  },
+  {
+    id: "connections",
+    title: "חיבורים והגדרות",
+    description: "Google Sheets, WhatsApp, Push והגדרות המערכת.",
+    icon: Settings,
+    sections: ["sheets", "settings"],
+  },
+  {
+    id: "maintenance",
+    title: "מערכת ותחזוקה",
+    description: "יומן ביקורת, גיבויים ושחזור המערכת.",
+    icon: DatabaseBackup,
+    sections: ["audit", "backups"],
+  },
+];
+
 export default function SystemAdminPanel({
   currentUser,
   permissions = {},
@@ -194,12 +241,7 @@ export default function SystemAdminPanel({
 }: SystemAdminPanelProps) {
   const [activeSection, setActiveSection] =
     useState<AdminSection>("overview");
-  const [tabOrder, setTabOrder] = useState<string[]>(
-    systemSettings?.adminTabOrder?.length
-      ? systemSettings.adminTabOrder
-      : sections.map((section) => section.id)
-  );
-  const [savingOrder, setSavingOrder] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<AdminGroupId | null>(null);
 
   const sectionPermission: Record<AdminSection, string> = {
     overview: "system_admin.view",
@@ -227,42 +269,38 @@ export default function SystemAdminPanel({
     [permissions]
   );
 
-  const orderedSections = useMemo(() => {
-    const orderMap = new Map(tabOrder.map((id, index) => [id, index]));
-    return [...visibleSections].sort(
-      (a, b) =>
-        (orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
-        (orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER)
-    );
-  }, [tabOrder, visibleSections]);
+  const visibleGroups = useMemo(
+    () =>
+      adminGroups
+        .map((group) => ({
+          ...group,
+          visibleSections: group.sections
+            .map((sectionId) =>
+              visibleSections.find((section) => section.id === sectionId)
+            )
+            .filter((section): section is (typeof sections)[number] => Boolean(section)),
+        }))
+        .filter((group) => group.visibleSections.length > 0),
+    [visibleSections]
+  );
 
-  const moveSection = (id: string, direction: -1 | 1) => {
-    setTabOrder((current) => {
-      const normalized = [
-        ...current.filter((item) => visibleSections.some((section) => section.id === item)),
-        ...visibleSections.map((section) => section.id).filter((item) => !current.includes(item)),
-      ];
-      const index = normalized.indexOf(id);
-      const target = index + direction;
-      if (index < 0 || target < 0 || target >= normalized.length) return normalized;
-      const next = [...normalized];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
+  const activeGroupSections = useMemo(
+    () =>
+      visibleGroups.find((group) => group.id === activeGroup)?.visibleSections ||
+      [],
+    [activeGroup, visibleGroups]
+  );
+
+  const openGroup = (groupId: AdminGroupId) => {
+    const group = visibleGroups.find((item) => item.id === groupId);
+    if (!group?.visibleSections.length) return;
+    setActiveGroup(groupId);
+    setActiveSection(group.visibleSections[0].id);
   };
 
-  const saveTabOrder = async () => {
-    if (!systemSettings) return;
-    setSavingOrder(true);
-    try {
-      const saved = await dataService.saveSystemSettings(
-        { ...systemSettings, adminTabOrder: tabOrder },
-        currentUser.userId
-      );
-      onSystemSettingsChanged(saved);
-    } finally {
-      setSavingOrder(false);
-    }
+  const returnToOverview = () => {
+    setActiveGroup(null);
+    setActiveSection("overview");
   };
 
   return (
@@ -286,7 +324,7 @@ export default function SystemAdminPanel({
           {activeSection !== "overview" && (
             <button
               type="button"
-              onClick={() => setActiveSection("overview")}
+              onClick={returnToOverview}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
             >
               חזרה למסך הראשי
@@ -296,69 +334,63 @@ export default function SystemAdminPanel({
       </div>
 
       {activeSection === "overview" ? (
-        <div className="space-y-3">
-          <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs font-bold text-slate-500">
-              השתמש בחצים בכל כרטיס כדי לקבוע את סדר הטאבים לפי אופן העבודה.
-            </div>
-            <button
-              type="button"
-              onClick={saveTabOrder}
-              disabled={savingOrder || !systemSettings}
-              className="flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50"
-            >
-              <Save className="h-4 w-4" />
-              {savingOrder ? "שומר..." : "שמור סדר"}
-            </button>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {orderedSections.map((section, index) => {
-            const Icon = section.icon;
-
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {visibleGroups.map((group) => {
+            const Icon = group.icon;
             return (
               <button
-                key={section.id}
+                key={group.id}
                 type="button"
-                onClick={() => setActiveSection(section.id)}
+                onClick={() => openGroup(group.id)}
                 className="group rounded-2xl border border-slate-200 bg-white p-5 text-right shadow-sm transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md"
               >
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition group-hover:bg-rose-50 group-hover:text-rose-700">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="flex gap-1" onClick={(event) => event.stopPropagation()}>
-                    <button
-                      type="button"
-                      onClick={() => moveSection(section.id, -1)}
-                      disabled={index === 0}
-                      className="rounded-lg border border-slate-200 p-1.5 text-slate-500 disabled:opacity-30"
-                      title="הזז למעלה"
-                    >
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveSection(section.id, 1)}
-                      disabled={index === orderedSections.length - 1}
-                      className="rounded-lg border border-slate-200 p-1.5 text-slate-500 disabled:opacity-30"
-                      title="הזז למטה"
-                    >
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition group-hover:bg-rose-50 group-hover:text-rose-700">
+                  <Icon className="h-5 w-5" />
                 </div>
-                <h2 className="text-sm font-black text-slate-800">
-                  {section.title}
+                <h2 className="text-base font-black text-slate-800">
+                  {group.title}
                 </h2>
                 <p className="mt-2 text-xs leading-5 text-slate-500">
-                  {section.description}
+                  {group.description}
                 </p>
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {group.visibleSections.map((section) => (
+                    <span
+                      key={section.id}
+                      className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600"
+                    >
+                      {section.title}
+                    </span>
+                  ))}
+                </div>
               </button>
             );
           })}
-          </div>
         </div>
-      ) : activeSection === "users" ? (
+      ) : (
+        <div className="space-y-4">
+          <nav className="flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+            {activeGroupSections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActiveSection(section.id)}
+                  className={`flex min-w-max items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition ${
+                    activeSection === section.id
+                      ? "bg-rose-600 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {section.title}
+                </button>
+              );
+            })}
+          </nav>
+
+          {activeSection === "users" ? (
         <UsersManager
           currentUser={currentUser}
           users={users}
@@ -437,6 +469,8 @@ export default function SystemAdminPanel({
               </p>
             </div>
           </div>
+        </div>
+      )}
         </div>
       )}
     </section>
