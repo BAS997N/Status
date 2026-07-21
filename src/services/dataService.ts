@@ -1097,6 +1097,7 @@ const cloneDefaultShiftSlotConfigs = (): ShiftSlotConfig[] =>
     ...item,
     allowedMedicalRoleIds: [...item.allowedMedicalRoleIds],
     allowedSystemRoles: [...item.allowedSystemRoles],
+    allowedUserIds: [...(item.allowedUserIds || [])],
     allowedExternalStaffTypes: [...(item.allowedExternalStaffTypes || [])],
   }));
 
@@ -1149,6 +1150,18 @@ const normalizeShiftSlotConfigs = (value: unknown): ShiftSlotConfig[] => {
                     typeof role === "string" &&
                     validSystemRoles.includes(role as SystemRole)
                 )
+              )
+            )
+          : [],
+        allowedUserIds: Array.isArray(item.allowedUserIds)
+          ? Array.from(
+              new Set(
+                item.allowedUserIds
+                  .filter(
+                    (userId): userId is string =>
+                      typeof userId === "string" && userId.trim().length > 0
+                  )
+                  .map((userId) => userId.trim())
               )
             )
           : [],

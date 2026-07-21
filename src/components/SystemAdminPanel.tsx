@@ -439,6 +439,7 @@ export default function SystemAdminPanel({
       ) : activeSection === "shift_roles" ? (
         <ShiftRolesManager
           currentUser={currentUser}
+          users={users}
           medicalRoles={medicalRoleConfigs}
           externalStaff={externalStaff}
           configs={shiftSlotConfigs}

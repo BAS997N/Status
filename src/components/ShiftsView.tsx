@@ -58,6 +58,7 @@ interface ExpandedSlot {
   required: boolean;
   allowedMedicalRoleIds: string[];
   allowedSystemRoles: SystemRole[];
+  allowedUserIds: string[];
   allowSystemUsers: boolean;
   allowDischargedUsers: boolean;
   allowExternalStaff: boolean;
@@ -232,6 +233,7 @@ export default function ShiftsView({
             required: config.required,
             allowedMedicalRoleIds: config.allowedMedicalRoleIds || [],
             allowedSystemRoles: config.allowedSystemRoles || [],
+            allowedUserIds: config.allowedUserIds || [],
             allowSystemUsers: config.allowSystemUsers !== false,
             allowDischargedUsers: config.allowDischargedUsers === true,
             allowExternalStaff: config.allowExternalStaff === true,
@@ -362,7 +364,8 @@ export default function ShiftsView({
       (roleId) => medicalRoleNameById.get(roleId) === medicalRoleName
     );
     const systemAllowed = slot.allowedSystemRoles.includes(getSystemRole(user));
-    return medicalAllowed || systemAllowed;
+    const individuallyAllowed = slot.allowedUserIds.includes(user.userId);
+    return medicalAllowed || systemAllowed || individuallyAllowed;
   };
 
   const loadShifts = async () => {

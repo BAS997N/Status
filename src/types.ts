@@ -337,6 +337,7 @@ export interface ShiftSlotConfig {
   sortOrder: number;
   allowedMedicalRoleIds: string[];
   allowedSystemRoles: SystemRole[];
+  allowedUserIds?: string[];
   allowSystemUsers?: boolean;
   allowDischargedUsers?: boolean;
   allowExternalStaff?: boolean;

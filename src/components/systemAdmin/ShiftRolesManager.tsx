@@ -23,6 +23,7 @@ import { dataService } from "../../services/dataService";
 
 interface ShiftRolesManagerProps {
   currentUser: UserProfile;
+  users: UserProfile[];
   medicalRoles: MedicalRoleConfig[];
   externalStaff: ExternalStaffMember[];
   configs: ShiftSlotConfig[];
@@ -41,6 +42,7 @@ const createId = () =>
 
 export default function ShiftRolesManager({
   currentUser,
+  users,
   medicalRoles,
   externalStaff,
   configs,
@@ -75,6 +77,7 @@ export default function ShiftRolesManager({
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [userSearchBySlot, setUserSearchBySlot] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -116,6 +119,7 @@ export default function ShiftRolesManager({
         sortOrder: draft.length + 1,
         allowedMedicalRoleIds: [],
         allowedSystemRoles: [],
+        allowedUserIds: [],
         allowSystemUsers: true,
         allowDischargedUsers: false,
         allowExternalStaff: false,
@@ -160,6 +164,22 @@ export default function ShiftRolesManager({
           allowedSystemRoles: selected
             ? slot.allowedSystemRoles.filter((item) => item !== role)
             : [...slot.allowedSystemRoles, role],
+        };
+      })
+    );
+  };
+
+  const toggleAllowedUser = (slotId: string, userId: string) => {
+    updateDraft(
+      draft.map((slot) => {
+        if (slot.id !== slotId) return slot;
+        const current = slot.allowedUserIds || [];
+        const selected = current.includes(userId);
+        return {
+          ...slot,
+          allowedUserIds: selected
+            ? current.filter((id) => id !== userId)
+            : [...current, userId],
         };
       })
     );
@@ -436,6 +456,80 @@ export default function ShiftRolesManager({
                         </label>
                       );
                     })}
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+                  <div className="text-xs font-black text-slate-700">
+                    משתמשים מורשים נוספים
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    בחירה אישית מאפשרת לשבץ משתמש בתפקיד זה גם אם תפקיד הרפואה שלו אינו מורשה.
+                  </p>
+                  <input
+                    type="search"
+                    value={userSearchBySlot[slot.id] || ""}
+                    onChange={(event) =>
+                      setUserSearchBySlot((current) => ({
+                        ...current,
+                        [slot.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="חיפוש לפי שם, תפקיד או יחידה"
+                    className="input mt-3"
+                  />
+                  <div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-lg bg-white p-2">
+                    {[...users]
+                      .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"))
+                      .filter((user) => {
+                        const search = (userSearchBySlot[slot.id] || "")
+                          .trim()
+                          .toLocaleLowerCase("he");
+                        if (!search) {
+                          return (slot.allowedUserIds || []).includes(user.userId);
+                        }
+                        return [user.fullName, user.medicalRole, user.unit]
+                          .filter(Boolean)
+                          .some((value) =>
+                            String(value).toLocaleLowerCase("he").includes(search)
+                          );
+                      })
+                      .map((user) => {
+                        const checked = (slot.allowedUserIds || []).includes(user.userId);
+                        const disabled = user.isDischarged && slot.allowDischargedUsers !== true;
+                        return (
+                          <label
+                            key={user.userId}
+                            className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs ${
+                              checked
+                                ? "border-amber-300 bg-amber-50"
+                                : "border-slate-100 bg-white"
+                            } ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                          >
+                            <span>
+                              <span className="block font-black text-slate-800">
+                                {user.fullName}
+                              </span>
+                              <span className="text-slate-500">
+                                {[user.medicalRole, user.unit].filter(Boolean).join(" · ")}
+                                {user.isDischarged ? " · נגרע" : ""}
+                              </span>
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={disabled}
+                              onChange={() => toggleAllowedUser(slot.id, user.userId)}
+                            />
+                          </label>
+                        );
+                      })}
+                    {!userSearchBySlot[slot.id] &&
+                      (slot.allowedUserIds || []).length === 0 && (
+                        <div className="px-2 py-3 text-center text-xs text-slate-400">
+                          חפש משתמש כדי להוסיף אותו לתפקיד זה.
+                        </div>
+                      )}
                   </div>
                 </div>
 
