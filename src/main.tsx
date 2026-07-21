@@ -8,3 +8,11 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/Status/sw.js', { scope: '/Status/' }).catch((error) => {
+      console.warn('Service worker registration failed:', error);
+    });
+  });
+}
