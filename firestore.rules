@@ -93,7 +93,12 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid ||
         hasPermission("reports.manage")
       );
-      allow update: if hasPermission("reports.manage");
+      allow update: if hasPermission("reports.manage") || (
+        signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.createdBy == resource.data.createdBy
+      );
       allow delete: if hasPermission("reports.delete");
     }
 

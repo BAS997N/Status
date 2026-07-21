@@ -214,6 +214,26 @@ const latestReport = userReports
       new Date(a.updatedAt || a.timestamp).getTime()
   )[0];
 
+useEffect(() => {
+  if (!latestReport) return;
+
+  setStatus(latestReport.status);
+  setLocation(latestReport.location || "");
+  setNote(latestReport.note || "");
+  setDayMarker(
+    latestReport.dayMarker === "return_to_base" ||
+      latestReport.dayMarker === "exit_home"
+      ? latestReport.dayMarker
+      : ""
+  );
+  setCoords(
+    typeof latestReport.latitude === "number" &&
+      typeof latestReport.longitude === "number"
+      ? { lat: latestReport.latitude, lng: latestReport.longitude }
+      : undefined
+  );
+}, [latestReport?.reportId, selectedReportDate]);
+
   const commanderEditedReports = userReports
   .filter((r) => {
     const updatedByRole = (r as any).updatedByRole;
@@ -1082,7 +1102,15 @@ dayMarker || undefined
               }`}
             >
               <Send className="w-4 h-4" />
-              <span>{isSubmitting ? "שולח דיווח מאובטח..." : "שלח דיווח נוכחות ומצב לענן"}</span>
+              <span>
+                {isSubmitting
+                  ? latestReport
+                    ? "מעדכן דיווח..."
+                    : "שולח דיווח מאובטח..."
+                  : latestReport
+                  ? "עדכן את הדיווח של יום זה"
+                  : "שלח דיווח נוכחות ומצב לענן"}
+              </span>
             </button>
           </form>
 
