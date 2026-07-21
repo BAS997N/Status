@@ -1,12 +1,12 @@
-const CACHE_NAME = 'status-997-shell-v4';
+const CACHE_NAME = 'status-997-shell-v5';
 const APP_BASE = '/Status/';
 const OFFLINE_URL = `${APP_BASE}offline.html`;
 const APP_SHELL = [
   APP_BASE,
   `${APP_BASE}index.html`,
   `${APP_BASE}manifest.webmanifest`,
-  `${APP_BASE}icon-192.png`,
-  `${APP_BASE}icon-512.png`,
+  `${APP_BASE}icon-transparent-192.png`,
+  `${APP_BASE}icon-transparent-512.png`,
   OFFLINE_URL,
 ];
 
