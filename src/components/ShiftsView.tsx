@@ -40,6 +40,7 @@ import { isPublishedShift } from "./shifts/shiftViewUtils";
 interface ShiftsViewProps {
   currentUser: UserProfile;
   allUsers: UserProfile[];
+  initialShifts: ShiftRecord[];
   canManage: boolean;
   shiftSlotConfigs: ShiftSlotConfig[];
   medicalRoleConfigs: MedicalRoleConfig[];
@@ -130,6 +131,7 @@ const getReportTimeMs = (report: AttendanceReport) => {
 export default function ShiftsView({
   currentUser,
   allUsers,
+  initialShifts,
   canManage,
   shiftSlotConfigs,
   medicalRoleConfigs,
@@ -137,8 +139,8 @@ export default function ShiftsView({
   reports,
   attendanceStatuses,
 }: ShiftsViewProps) {
-  const [shifts, setShifts] = useState<ShiftRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [shifts, setShifts] = useState<ShiftRecord[]>(initialShifts);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [showPast, setShowPast] = useState(false);
@@ -373,7 +375,6 @@ export default function ShiftsView({
   };
 
   useEffect(() => {
-    loadShifts();
     dataService
       .getSystemSettings()
       .then((settings: SystemSettingsConfig) => {
@@ -405,6 +406,11 @@ export default function ShiftsView({
         console.error("Failed loading shift types:", error)
       );
   }, []);
+
+  useEffect(() => {
+    setShifts(initialShifts);
+    setLoading(false);
+  }, [initialShifts]);
 
   const visibleShifts = useMemo(() => {
     const now = Date.now();

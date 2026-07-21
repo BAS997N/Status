@@ -495,38 +495,12 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   }, [firebaseUser]);
 
   useEffect(() => {
-    let cancelled = false;
+    if (isFirebaseActive() && !auth?.currentUser) return;
 
-    const refreshSystemSettings = async () => {
-      if (isFirebaseActive() && !auth?.currentUser) return;
-
-      try {
-        const settings = await dataService.getSystemSettings(true);
-        if (!cancelled) setSystemSettings(settings);
-      } catch (error) {
-        console.error("Failed loading system settings:", error);
-      }
-    };
-
-    refreshSystemSettings();
-
-    // Keep operational modes current on every open device, even when an old
-    // settings value is still present in local cache.
-    const intervalId = window.setInterval(refreshSystemSettings, 10000);
-    const handleFocus = () => refreshSystemSettings();
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") refreshSystemSettings();
-    };
-
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
+    return dataService.subscribeSystemSettings(
+      setSystemSettings,
+      (error) => console.error("Failed listening to system settings:", error)
+    );
   }, [firebaseUser]);
 
   useEffect(() => {
@@ -690,28 +664,35 @@ useEffect(() => {
   return;
 }
 
-      const profiles = await dataService.getAllUsers();
-      setAllUsers(profiles);
-
       if (storedActiveId) {
-        let profile =
-          profiles.find(p => p.userId === storedActiveId) ||
-          profiles.find(p => p.personalId === storedPersonalId);
-
-        if (!profile && isFirebaseActive()) {
-          profile = await dataService.getCurrentUserProfile(storedActiveId);
-        }
+        const profiles = isFirebaseActive()
+          ? []
+          : await dataService.getAllUsers();
+        let profile = isFirebaseActive()
+          ? await dataService.getCurrentUserProfile(storedActiveId)
+          : profiles.find((p) => p.userId === storedActiveId) ||
+            profiles.find((p) => p.personalId === storedPersonalId) ||
+            null;
 
         if (profile) {
           setUserProfile(profile);
+          setAllUsers(isFirebaseActive() ? [profile] : profiles);
 
           localStorage.setItem("idf_active_user_id", profile.userId);
           if (profile.personalId) {
             localStorage.setItem("idf_active_personal_id", profile.personalId);
           }
 
-          const reps = await dataService.fetchAllReports();
-          const nots = await dataService.fetchNotifications();
+          const isBasicReporter =
+            profile.role === "soldier" &&
+            (!profile.systemRoleAccessLevel ||
+              profile.systemRoleAccessLevel === "reporter");
+          const reps = isBasicReporter
+            ? await dataService.fetchReportsByUser(profile.userId)
+            : await dataService.fetchAllReports();
+          const nots = isBasicReporter
+            ? []
+            : await dataService.fetchNotifications();
 
           setReports(reps);
           setNotifications(nots);
@@ -749,20 +730,36 @@ useEffect(() => {
 
   // Read updates of reports whenever actions complete
   const refreshReports = async () => {
-  if (isFirebaseActive() && !auth?.currentUser) return;
+  if ((isFirebaseActive() && !auth?.currentUser) || !userProfile) return;
 
-  const updatedReports = await dataService.fetchAllReports();
+  const updatedReports = canViewDashboard
+    ? await dataService.fetchAllReports()
+    : await dataService.fetchReportsByUser(userProfile.userId);
   setReports(updatedReports);
 
-  const updatedLogs = await dataService.fetchAttendanceLogs();
-  setAttendanceLogs(updatedLogs);
+  if (hasPermission(permissions, "dashboard.history.view")) {
+    const updatedLogs = await dataService.fetchAttendanceLogs();
+    setAttendanceLogs(updatedLogs);
+  } else {
+    setAttendanceLogs([]);
+  }
+
+  if (
+    hasPermission(permissions, "dashboard.system_logs.view") ||
+    hasPermission(permissions, "system_admin.audit.view")
+  ) {
     const updatedSystemLogs = await dataService.getSystemLogs();
-setSystemLogs(updatedSystemLogs);
+    setSystemLogs(updatedSystemLogs);
+  } else {
+    setSystemLogs([]);
+  }
 };
   const refreshReportsOnly = async () => {
-  if (isFirebaseActive() && !auth?.currentUser) return;
+  if ((isFirebaseActive() && !auth?.currentUser) || !userProfile) return;
 
-  const updatedReports = await dataService.fetchAllReports();
+  const updatedReports = canViewDashboard
+    ? await dataService.fetchAllReports()
+    : await dataService.fetchReportsByUser(userProfile.userId);
   setReports(updatedReports);
 };
 //עריכת דיווח מפקד חדש
@@ -800,6 +797,15 @@ setSystemLogs(updatedSystemLogs);
   if (!userProfile || !permissionsLoaded) return;
   refreshReports();
 
+  if (canViewDashboard || canManageShifts || canManageEmergency || isSuperAdmin) {
+    dataService
+      .getAllUsers()
+      .then(setAllUsers)
+      .catch((error) => console.error("Failed loading users:", error));
+  } else {
+    setAllUsers([userProfile]);
+  }
+
   const canLoadPersonalShifts =
     userProfile.role === "soldier" && canViewReporter;
 
@@ -836,8 +842,11 @@ setSystemLogs(updatedSystemLogs);
   userProfile,
   permissionsLoaded,
   canViewReporter,
+  canViewDashboard,
   canViewShifts,
   canManageShifts,
+  canManageEmergency,
+  isSuperAdmin,
 ]);
 
   // Notification actions
@@ -1027,13 +1036,22 @@ const handleResetReport = async (reportId: string) => {
 };
   
   
-  // Poll reports and notifications every 4 seconds in commander/adjutant mode to pop up real-time soldier reports
+  // Refresh only management dashboards. Reporter devices use their local
+  // state after submission and must not repeatedly read the full collections.
   useEffect(() => {
+    if (!userProfile || !permissionsLoaded || !canViewDashboard) return;
+
     const poll = async () => {
-      if (userProfile) {
+      if (document.visibilityState === "visible") {
         try {
           const updatedReports = await dataService.fetchAllReports();
-          const updatedNots = await dataService.fetchNotifications();
+          const canLoadNotifications = hasPermission(
+            permissions,
+            "dashboard.notifications.view"
+          );
+          const updatedNots = canLoadNotifications
+            ? await dataService.fetchNotifications()
+            : [];
           setReports(updatedReports);
           
 
@@ -1063,9 +1081,20 @@ const handleResetReport = async (reportId: string) => {
       }
     };
 
-    const interval = setInterval(poll, Math.max(10, systemSettings?.autoRefreshSeconds || 60) * 1000);
+    const interval = setInterval(
+      poll,
+      Math.max(60, systemSettings?.autoRefreshSeconds || 60) * 1000
+    );
     return () => clearInterval(interval);
-  }, [userProfile, systemSettings?.autoRefreshSeconds, systemSettings?.notificationsEnabled, systemSettings?.toastNotificationsEnabled]);
+  }, [
+    userProfile,
+    permissionsLoaded,
+    canViewDashboard,
+    permissions,
+    systemSettings?.autoRefreshSeconds,
+    systemSettings?.notificationsEnabled,
+    systemSettings?.toastNotificationsEnabled,
+  ]);
 
   if (loading) {
   return (
@@ -1211,9 +1240,15 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
 
     setUserProfile(foundProfile);
 
+    const isBasicReporter =
+      foundProfile.role === "soldier" &&
+      (!foundProfile.systemRoleAccessLevel ||
+        foundProfile.systemRoleAccessLevel === "reporter");
     const [reps, nots] = await Promise.all([
-      dataService.fetchAllReports(),
-      dataService.fetchNotifications(),
+      isBasicReporter
+        ? dataService.fetchReportsByUser(foundProfile.userId)
+        : dataService.fetchAllReports(),
+      isBasicReporter ? Promise.resolve([]) : dataService.fetchNotifications(),
     ]);
 
     setReports(reps);
@@ -1304,9 +1339,8 @@ localStorage.setItem("idf_active_personal_id", newProfile.personalId || regPerso
 setUserProfile(newProfile);
       setIsRegisteringId(false);
       
-      const users = await dataService.getAllUsers();
-      const reps = await dataService.fetchAllReports();
-      setAllUsers(users);
+      const reps = await dataService.fetchReportsByUser(newProfile.userId);
+      setAllUsers([newProfile]);
       setReports(reps);
       setSimCounter(prev => prev + 1);
 
@@ -2326,6 +2360,7 @@ const handleAdminSaveReport = async (reportData: {
                 <ShiftsView
                   currentUser={userProfile}
                   allUsers={allUsers}
+                  initialShifts={shifts}
                   canManage={canManageShifts}
                   shiftSlotConfigs={shiftSlotConfigs}
                   medicalRoleConfigs={medicalRoleConfigs}

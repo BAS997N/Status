@@ -12,7 +12,8 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  onSnapshot
 } from "firebase/firestore";
 import { db, auth, isFirebaseActive } from "../firebase";
 import {
@@ -1636,13 +1637,17 @@ export const dataService = {
       return all.filter((item) => item.responseId.startsWith(`${eventId}_`));
     }
 
-    const snapshot = await getDocs(collection(db, "emergency_responses"));
+    const snapshot = await getDocs(
+      query(
+        collection(db, "emergency_responses"),
+        where("eventId", "==", eventId)
+      )
+    );
     return snapshot.docs
       .map((item) => ({
         responseId: item.id,
         ...item.data(),
       } as EmergencyResponse))
-      .filter((item) => item.responseId.startsWith(`${eventId}_`))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   },
 
@@ -2641,6 +2646,35 @@ export const dataService = {
       saveSystemSettingsToCache(fallback);
       return fallback;
     }
+  },
+
+  subscribeSystemSettings(
+    onChange: (settings: SystemSettingsConfig) => void,
+    onError?: (error: unknown) => void
+  ): () => void {
+    if (!isFirebaseActive()) {
+      onChange(
+        getSystemSettingsFromCache() ||
+          normalizeSystemSettings(DEFAULT_SYSTEM_SETTINGS)
+      );
+      return () => undefined;
+    }
+
+    const ref = doc(db, "settings", "system_settings");
+    return onSnapshot(
+      ref,
+      (snapshot) => {
+        const settings = snapshot.exists()
+          ? normalizeSystemSettings(snapshot.data())
+          : normalizeSystemSettings(DEFAULT_SYSTEM_SETTINGS);
+        saveSystemSettingsToCache(settings);
+        onChange(settings);
+      },
+      (error) => {
+        console.error("System settings listener failed:", error);
+        onError?.(error);
+      }
+    );
   },
 
   async saveSystemSettings(settings: SystemSettingsConfig, updatedBy?: string): Promise<SystemSettingsConfig> {
@@ -3956,9 +3990,8 @@ async createSystemLog(logData: {
     const path = "attendance";
     try {
       const q = query(
-        collection(db, "attendance"), 
-        where("userId", "==", userId),
-        orderBy("timestamp", "desc")
+        collection(db, "attendance"),
+        where("userId", "==", userId)
       );
       const querySnapshot = await getDocs(q);
       const list: AttendanceReport[] = [];
@@ -3968,7 +4001,11 @@ async createSystemLog(logData: {
   ...normalizeReportDates(docSnap.data()),
 } as AttendanceReport);
       });
-      return list;
+      return list.sort(
+        (a, b) =>
+          new Date(b.updatedAt || b.timestamp).getTime() -
+          new Date(a.updatedAt || a.timestamp).getTime()
+      );
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, path);
       return [];
@@ -3976,7 +4013,7 @@ async createSystemLog(logData: {
   },
 
   async createAttendanceReport(reportData: Omit<AttendanceReport, "reportId">): Promise<string> {
-    const currentSystemSettings = await this.getSystemSettings(true);
+    const currentSystemSettings = await this.getSystemSettings();
     if (currentSystemSettings.reportingEnabled === false) {
       const actor = await getAuditActor();
       const actorRole = actor.actorRole as SystemRole;

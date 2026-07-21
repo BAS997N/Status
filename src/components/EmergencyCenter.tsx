@@ -83,7 +83,11 @@ export default function EmergencyCenter({
   useEffect(() => {
     refresh().catch(console.error);
     if (!event.active) return;
-    const id = window.setInterval(() => refresh().catch(console.error), 5000);
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        refresh().catch(console.error);
+      }
+    }, 15000);
     return () => window.clearInterval(id);
   }, [event.eventId, event.active]);
 
