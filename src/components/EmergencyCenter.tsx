@@ -263,7 +263,10 @@ export default function EmergencyCenter({
         ].filter(Boolean);
         const delivery = await sendAutomaticPush({
           kind: "emergency",
-          target: { type: "all" },
+          target: {
+            type: "users",
+            userIds: eligibleUsers.map((user) => user.userId),
+          },
           title: `מצב חירום: ${eventDraft.title.trim()}`,
           body:
             details.join(" | ") ||
