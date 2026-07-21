@@ -392,6 +392,77 @@ useEffect(() => {
       )
     : 0;
 
+  const getRefreshmentDays = (serviceDays: number) => {
+    if (serviceDays >= 57) return 9;
+    if (serviceDays >= 43) return 7;
+    if (serviceDays >= 29) return 5;
+    if (serviceDays >= 15) return 3;
+    if (serviceDays >= 10) return 2;
+    return 0;
+  };
+
+  const toLocalDateString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const addCalendarDays = (dateValue: string, days: number) => {
+    const date = new Date(`${dateValue}T12:00:00`);
+    date.setDate(date.getDate() + days);
+    return toLocalDateString(date);
+  };
+
+  const getLastPersonalServiceDate = () => {
+    if (!hasOrderPeriod || totalEffectiveOrderDays === 0) return "";
+    const excluded = new Set(excludedOrderDates);
+    let candidate = orderEndDate;
+    while (candidate >= orderStartDate && excluded.has(candidate)) {
+      candidate = addCalendarDays(candidate, -1);
+    }
+    return candidate >= orderStartDate ? candidate : "";
+  };
+
+  const calculateBenefitEndDate = (
+    firstBenefitDate: string,
+    benefitDays: number
+  ) => {
+    if (benefitDays <= 0) return addCalendarDays(firstBenefitDate, -1);
+    let current = new Date(`${firstBenefitDate}T12:00:00`);
+    let remaining = benefitDays;
+
+    while (remaining > 0) {
+      const dayOfWeek = current.getDay();
+      remaining -= 1;
+
+      // שישי ושבת רצופים צורכים יחד יום זכאות אחד.
+      if (dayOfWeek === 5) {
+        current.setDate(current.getDate() + 1);
+      }
+
+      if (remaining > 0) current.setDate(current.getDate() + 1);
+    }
+
+    return toLocalDateString(current);
+  };
+
+  const processingDays = displayedOrderEvent?.processingDays ?? 3;
+  const refreshmentDays = getRefreshmentDays(totalEffectiveOrderDays);
+  const personalLastServiceDate = getLastPersonalServiceDate();
+  const processingStartDate = personalLastServiceDate
+    ? addCalendarDays(personalLastServiceDate, 1)
+    : "";
+  const processingEndDate = processingStartDate
+    ? calculateBenefitEndDate(processingStartDate, processingDays)
+    : "";
+  const refreshmentStartDate = processingEndDate
+    ? addCalendarDays(processingEndDate, 1)
+    : "";
+  const personalEntitlementEndDate = refreshmentStartDate
+    ? calculateBenefitEndDate(refreshmentStartDate, refreshmentDays)
+    : "";
+
   // Auto set default locations based on status selection
 useEffect(() => {
   switch (status) {
@@ -712,6 +783,28 @@ dayMarker || undefined
                       <span className="rounded-md bg-amber-100 px-2 py-1 text-amber-800">
                         ימים מחוץ לצו: {excludedOrderDates.length}
                       </span>
+                    </div>
+                  )}
+                  {personalLastServiceDate && (
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+                      <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5">
+                        <span className="block font-bold text-slate-500">שירות בפועל</span>
+                        <strong className="text-slate-800">{totalEffectiveOrderDays} ימים</strong>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5">
+                        <span className="block font-bold text-slate-500">ימי עיבוד</span>
+                        <strong className="text-slate-800">{processingDays} ימים</strong>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5">
+                        <span className="block font-bold text-slate-500">ימי התרעננות</span>
+                        <strong className="text-slate-800">{refreshmentDays} ימים</strong>
+                      </div>
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-100/80 px-2 py-1.5">
+                        <span className="block font-bold text-emerald-700">סיום אישי כולל</span>
+                        <strong className="text-emerald-900">
+                          {new Date(`${personalEntitlementEndDate}T12:00:00`).toLocaleDateString("he-IL")}
+                        </strong>
+                      </div>
                     </div>
                   )}
                   {displayedOrderEvent?.location && (

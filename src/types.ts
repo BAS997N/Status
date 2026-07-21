@@ -136,6 +136,7 @@ export interface OrderEventConfig {
   startDate: string;
   endDate: string;
   location: string;
+  processingDays?: number;
   createdAt: string;
   createdBy?: string;
 }

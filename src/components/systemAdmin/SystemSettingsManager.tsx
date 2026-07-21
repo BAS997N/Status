@@ -106,6 +106,7 @@ export default function SystemSettingsManager({
   const [newOrderStartDate, setNewOrderStartDate] = useState("");
   const [newOrderEndDate, setNewOrderEndDate] = useState("");
   const [newOrderLocation, setNewOrderLocation] = useState("");
+  const [newOrderProcessingDays, setNewOrderProcessingDays] = useState(3);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -260,6 +261,7 @@ export default function SystemSettingsManager({
     setNewOrderStartDate("");
     setNewOrderEndDate("");
     setNewOrderLocation("");
+    setNewOrderProcessingDays(3);
   };
 
   const saveOrderEvent = () => {
@@ -293,6 +295,7 @@ export default function SystemSettingsManager({
                 startDate: newOrderStartDate,
                 endDate: newOrderEndDate,
                 location: newOrderLocation.trim(),
+                processingDays: newOrderProcessingDays,
               }
             : order
         )
@@ -304,6 +307,7 @@ export default function SystemSettingsManager({
         startDate: newOrderStartDate,
         endDate: newOrderEndDate,
         location: newOrderLocation.trim(),
+        processingDays: newOrderProcessingDays,
         createdAt: new Date().toISOString(),
         createdBy: currentUser.userId,
       };
@@ -325,6 +329,7 @@ export default function SystemSettingsManager({
     setNewOrderStartDate(order.startDate);
     setNewOrderEndDate(order.endDate);
     setNewOrderLocation(order.location || "");
+    setNewOrderProcessingDays(order.processingDays ?? 3);
     setMessage(null);
   };
 
@@ -592,7 +597,7 @@ export default function SystemSettingsManager({
               כל צו נשמר כאירוע נפרד. חייל שדיווח באותו יום „לא בצו” או
               „חיתוך צו” יוצג כמי שאינו בצו באותו יום.
             </p>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <Field label="שם הצו">
                 <input
                   value={newOrderTitle}
@@ -626,7 +631,26 @@ export default function SystemSettingsManager({
                   className="input"
                 />
               </Field>
+              <Field label="ימי עיבוד לאחר השירות">
+                <input
+                  type="number"
+                  min={0}
+                  max={30}
+                  value={newOrderProcessingDays}
+                  onChange={(e) =>
+                    setNewOrderProcessingDays(
+                      Math.max(0, Math.min(30, Number(e.target.value) || 0))
+                    )
+                  }
+                  className="input"
+                />
+              </Field>
             </div>
+            <p className="mt-2 text-[11px] font-bold text-slate-500">
+              את מספר ימי העיבוד מזינים בנפרד לכל צו. ימי ההתרעננות מחושבים אוטומטית לפי ימי השירות בפועל: 10–14: 2,
+              15–28: 3, 29–42: 5, 43–56: 7, 57 ומעלה: 9. שישי ושבת
+              נספרים יחד כיום אחד גם בימי העיבוד וגם בימי ההתרעננות.
+            </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
@@ -672,6 +696,7 @@ export default function SystemSettingsManager({
                             {new Date(`${order.startDate}T12:00:00`).toLocaleDateString("he-IL")} –{" "}
                             {new Date(`${order.endDate}T12:00:00`).toLocaleDateString("he-IL")}
                             {order.location ? ` · ${order.location}` : ""}
+                            {` · ${order.processingDays ?? 3} ימי עיבוד`}
                           </div>
                         </div>
                         <div className="flex gap-2">

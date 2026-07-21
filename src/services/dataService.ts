@@ -288,6 +288,11 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
         endDate: typeof item.endDate === "string" ? item.endDate : "",
         location:
           typeof item.location === "string" ? item.location.trim() : "",
+        processingDays:
+          typeof item.processingDays === "number" &&
+          Number.isFinite(item.processingDays)
+            ? Math.max(0, Math.min(30, Math.round(item.processingDays)))
+            : 3,
         createdAt:
           typeof item.createdAt === "string"
             ? item.createdAt
