@@ -198,6 +198,7 @@ export default function ShiftsView({
     useState("__general__");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<ShiftRecord | null>(null);
+  const [sendPushOnPublish, setSendPushOnPublish] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -548,6 +549,7 @@ export default function ShiftsView({
     setEndTime("17:30");
     setLocation("");
     setNote("");
+    setSendPushOnPublish(false);
     setSlotAssignments({});
     setMessage(null);
   };
@@ -592,6 +594,7 @@ export default function ShiftsView({
     setEndTime(endParts.time);
     setLocation(shift.location || "");
     setNote(shift.note || "");
+    setSendPushOnPublish(shift.sendPushOnPublish === true);
     setSlotAssignments(next);
     setIsFormOpen(true);
     setMessage(null);
@@ -722,6 +725,7 @@ export default function ShiftsView({
         note: note.trim(),
         assignments,
         status: targetStatus,
+        sendPushOnPublish,
       };
       if (editingShift) {
         await dataService.updateShift(editingShift.shiftId, values, currentUser);
@@ -739,8 +743,10 @@ export default function ShiftsView({
       await loadShifts();
 
       let pushWarning = "";
+      let pushSent = false;
       const shouldSendPublicationPush =
         targetStatus === "published" &&
+        sendPushOnPublish &&
         (!editingShift || !isPublishedShift(editingShift));
       if (shouldSendPublicationPush) {
         const assignedUserIds = Array.from(
@@ -768,6 +774,7 @@ export default function ShiftsView({
               )}${location.trim() ? ` | ${location.trim()}` : ""}`,
               url: "https://bas997n.github.io/Status/",
             });
+            pushSent = true;
           } catch (pushError) {
             console.error("Shift publication push failed:", pushError);
             pushWarning = "המשמרת פורסמה, אך שליחת ה־Push נכשלה.";
@@ -781,7 +788,10 @@ export default function ShiftsView({
         type: pushWarning ? "error" : "success",
         text:
           targetStatus === "published"
-            ? pushWarning || "המשמרת נשמרה, פורסמה ונשלחה התראת Push למשובצים."
+            ? pushWarning ||
+              (pushSent
+                ? "המשמרת נשמרה, פורסמה ונשלחה התראת Push למשובצים."
+                : "המשמרת נשמרה ופורסמה ללא Push.")
             : missing.length
             ? `המשמרת נשמרה כטיוטה עם ${missing.length} תפקידים שעדיין לא שובצו.`
             : "המשמרת נשמרה כטיוטה בהצלחה.",
@@ -838,6 +848,7 @@ export default function ShiftsView({
     setEndTime(endParts.time);
     setLocation(shift.location || "");
     setNote(shift.note || "");
+    setSendPushOnPublish(false);
 
     const nextAssignments: Record<string, string> = {};
     expandedSlots.forEach((slot, index) => {
@@ -901,7 +912,8 @@ export default function ShiftsView({
       await loadShifts();
 
       let pushWarning = "";
-      if (nextStatus === "published") {
+      let pushSent = false;
+      if (nextStatus === "published" && shift.sendPushOnPublish === true) {
         const assignedUserIds = Array.from(
           new Set(
             shift.assignments
@@ -927,6 +939,7 @@ export default function ShiftsView({
               )}${shift.location ? ` | ${shift.location}` : ""}`,
               url: "https://bas997n.github.io/Status/",
             });
+            pushSent = true;
           } catch (pushError) {
             console.error("Shift publication push failed:", pushError);
             pushWarning = "המשמרת פורסמה, אך שליחת ה־Push נכשלה.";
@@ -938,7 +951,10 @@ export default function ShiftsView({
         type: pushWarning ? "error" : "success",
         text:
           nextStatus === "published"
-            ? pushWarning || "המשמרת פורסמה ונשלחה התראת Push למשובצים."
+            ? pushWarning ||
+              (pushSent
+                ? "המשמרת פורסמה ונשלחה התראת Push למשובצים."
+                : "המשמרת פורסמה ללא Push.")
             : "המשמרת הוחזרה לטיוטה.",
       });
     } catch (error) {
@@ -2918,6 +2934,25 @@ export default function ShiftsView({
                   <option value="cancelled">בוטלה</option>
                 </select>
               </Field>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={sendPushOnPublish}
+                  onChange={(event) =>
+                    setSendPushOnPublish(event.target.checked)
+                  }
+                  className="mt-0.5 h-4 w-4 accent-indigo-600"
+                />
+                <span>
+                  <span className="block text-xs font-black text-indigo-900">
+                    שלח Push בעת פרסום המשמרת
+                  </span>
+                  <span className="mt-1 block text-[10px] font-bold text-indigo-700">
+                    ההתראה תישלח רק לחיילים ששובצו במשמרת.
+                  </span>
+                </span>
+              </label>
 
               <Field label="מיקום">
                 <input

@@ -371,6 +371,7 @@ export interface ShiftRecord {
   location?: string;
   note?: string;
   status: ShiftStatus;
+  sendPushOnPublish?: boolean;
   assignments: ShiftAssignment[];
   createdAt: string;
   createdBy: string;
