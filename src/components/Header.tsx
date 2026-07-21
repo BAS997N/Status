@@ -4,6 +4,7 @@ import { UserProfile, AppNotification, ATTENDANCE_STATUS_LABELS, SystemSettingsC
 import { isFirebaseActive } from "../firebase";
 import { motion, AnimatePresence } from "motion/react";
 import { getReliableServerNow } from "../services/dataService";
+import PushNotificationButton from "./PushNotificationButton";
 
 interface HeaderProps {
   currentUser: UserProfile;
@@ -143,6 +144,8 @@ export default function Header({
                 </>
               )}
             </div>
+
+            <PushNotificationButton currentUser={currentUser} />
 
             {canEdit && currentUser.role !== "adjutant_officer" && (
               <button

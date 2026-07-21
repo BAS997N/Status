@@ -122,6 +122,17 @@ service cloud.firestore {
       allow delete: if hasPermission("dashboard.notifications.view");
     }
 
+    match /push_subscriptions/{subscriptionId} {
+      allow create: if signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.subscriptionId == subscriptionId;
+      allow update: if signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.subscriptionId == resource.data.subscriptionId;
+      allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
     match /commander_messages/{messageId} {
       allow read: if signedIn();
       allow create, delete: if hasPermission("dashboard.notifications.view");

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'status-997-shell-v5';
+const CACHE_NAME = 'status-997-shell-v6';
 const APP_BASE = '/Status/';
 const OFFLINE_URL = `${APP_BASE}offline.html`;
 const APP_SHELL = [
@@ -67,6 +67,46 @@ self.addEventListener('fetch', (event) => {
         .catch(() => cached);
 
       return cached || network;
+    })
+  );
+});
+
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { notification: { body: event.data ? event.data.text() : '' } };
+  }
+
+  const notification = payload.notification || {};
+  const data = payload.data || {};
+  const title = notification.title || data.title || 'מערכת נוכחות 997';
+  const options = {
+    body: notification.body || data.body || 'התקבלה הודעה חדשה',
+    icon: '/Status/icon-transparent-192.png',
+    badge: '/Status/icon-transparent-192.png',
+    dir: 'rtl',
+    lang: 'he',
+    data: {
+      url: payload.fcmOptions?.link || data.url || '/Status/',
+    },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/Status/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((client) => client.url.includes('/Status/'));
+      if (existing) {
+        existing.navigate(targetUrl);
+        return existing.focus();
+      }
+      return self.clients.openWindow(targetUrl);
     })
   );
 });

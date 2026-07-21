@@ -52,6 +52,7 @@ if (firebaseState.isActive) {
 
 export const db = firestoreDb;
 export const auth = firebaseAuth;
+export const app = firebaseApp;
 export const secondaryAuth = secondaryFirebaseAuth;
 export const functionsClient = firebaseFunctions;
 export const isFirebaseActive = () => firebaseState.isActive;
