@@ -67,6 +67,7 @@ interface SystemAdminPanelProps {
     systemRole: SystemRole,
     accessLevel?: import("../types").SystemRoleAccessLevel
   ) => Promise<void>;
+  onUserCredentialsUpdated?: (userId: string, personalId: string) => void;
   onAttendanceStatusesChanged?: (
     statuses: AttendanceStatusConfig[]
   ) => void;
@@ -225,6 +226,7 @@ export default function SystemAdminPanel({
   permissions = {},
   users,
   onUpdateSystemRole,
+  onUserCredentialsUpdated,
   onAttendanceStatusesChanged,
   unitConfigs,
   onUnitConfigsChanged,
@@ -395,6 +397,7 @@ export default function SystemAdminPanel({
           currentUser={currentUser}
           users={users}
           onUpdateSystemRole={onUpdateSystemRole}
+          onCredentialsUpdated={onUserCredentialsUpdated}
         />
       ) : activeSection === "app_status" ? (
         <AppStatusManager users={users} />

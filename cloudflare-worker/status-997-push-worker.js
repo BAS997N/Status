@@ -100,7 +100,7 @@ async function getGoogleAccessToken(serviceAccount) {
     JSON.stringify({
       iss: serviceAccount.client_email,
       scope:
-        "https://www.googleapis.com/auth/firebase.messaging https://www.googleapis.com/auth/datastore",
+        "https://www.googleapis.com/auth/firebase.messaging https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/cloud-platform",
       aud: "https://oauth2.googleapis.com/token",
       iat: now,
       exp: now + 3600,
@@ -146,6 +146,32 @@ function decodeFirestoreFields(fields) {
   );
 }
 
+function encodeFirestoreValue(value) {
+  if (value === null) return { nullValue: null };
+  if (typeof value === "string") return { stringValue: value };
+  if (typeof value === "boolean") return { booleanValue: value };
+  if (typeof value === "number") {
+    return Number.isInteger(value)
+      ? { integerValue: String(value) }
+      : { doubleValue: value };
+  }
+  if (Array.isArray(value)) {
+    return { arrayValue: { values: value.map(encodeFirestoreValue) } };
+  }
+  if (typeof value === "object") {
+    return { mapValue: { fields: encodeFirestoreFields(value) } };
+  }
+  return { stringValue: String(value) };
+}
+
+function encodeFirestoreFields(value) {
+  return Object.fromEntries(
+    Object.entries(value || {})
+      .filter(([, fieldValue]) => fieldValue !== undefined)
+      .map(([key, fieldValue]) => [key, encodeFirestoreValue(fieldValue)])
+  );
+}
+
 async function getFirestoreDocument(projectId, bearerToken, documentPath) {
   const response = await fetch(
     `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${documentPath}`,
@@ -157,6 +183,257 @@ async function getFirestoreDocument(projectId, bearerToken, documentPath) {
     );
   }
   return decodeFirestoreFields((await response.json()).fields || {});
+}
+
+async function patchFirestoreDocument(
+  projectId,
+  accessToken,
+  documentPath,
+  fields
+) {
+  const updateMask = Object.keys(fields)
+    .map((field) => `updateMask.fieldPaths=${encodeURIComponent(field)}`)
+    .join("&");
+  const response = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${documentPath}?${updateMask}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ fields: encodeFirestoreFields(fields) }),
+    }
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Firestore document update failed (${response.status}): ${await response.text()}`
+    );
+  }
+}
+
+async function createAuditLog(projectId, accessToken, fields) {
+  const response = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/system_logs`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ fields: encodeFirestoreFields(fields) }),
+    }
+  );
+  if (!response.ok) {
+    console.warn("Credential audit log failed", await response.text());
+  }
+}
+
+async function findUsersByPersonalId(projectId, accessToken, personalId) {
+  const response = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: "users" }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: "personalId" },
+              op: "EQUAL",
+              value: { stringValue: personalId },
+            },
+          },
+          limit: 2,
+        },
+      }),
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Personal ID lookup failed: ${await response.text()}`);
+  }
+  const rows = await response.json();
+  return rows
+    .filter((row) => row.document?.name)
+    .map((row) => row.document.name.split("/").pop());
+}
+
+async function updateFirebaseAuthUser(projectId, accessToken, payload) {
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:update`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+  if (!response.ok) {
+    const details = await response.text();
+    if (details.includes("EMAIL_EXISTS")) {
+      throw new Error("המספר האישי כבר משויך למשתמש אחר");
+    }
+    throw new Error(`Firebase Auth update failed (${response.status}): ${details}`);
+  }
+}
+
+async function authorizeAdminRequest(request, serviceAccount, requiredPermission) {
+  const projectId = serviceAccount.project_id;
+  const authorization = request.headers.get("Authorization") || "";
+  if (!authorization.startsWith("Bearer ")) {
+    throw Object.assign(new Error("Authentication required"), { status: 401 });
+  }
+
+  const idToken = authorization.slice(7);
+  let claims;
+  try {
+    claims = await verifyFirebaseIdToken(idToken, projectId);
+  } catch (error) {
+    throw Object.assign(error, { status: 401 });
+  }
+
+  const [user, permissionSettings] = await Promise.all([
+    getFirestoreDocument(projectId, idToken, `users/${claims.sub}`),
+    getFirestoreDocument(projectId, idToken, "settings/role_permissions"),
+  ]);
+  const effectiveRole =
+    user.systemRole ||
+    (user.role === "commander"
+      ? "admin"
+      : user.role === "adjutant_officer"
+      ? "viewer"
+      : "reporter");
+  const authorized =
+    effectiveRole === "super_admin" ||
+    permissionSettings.roleMap?.[effectiveRole]?.[requiredPermission] === true;
+  if (!authorized) {
+    throw Object.assign(new Error("Permission denied"), { status: 403 });
+  }
+
+  return { claims, user, effectiveRole, idToken };
+}
+
+async function handleUserCredentials(request, env, origin) {
+  if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    return jsonResponse({ error: "Worker secret is missing" }, 500, origin);
+  }
+
+  const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  const projectId = serviceAccount.project_id;
+  let admin;
+  try {
+    admin = await authorizeAdminRequest(
+      request,
+      serviceAccount,
+      "system_admin.users.manage"
+    );
+  } catch (error) {
+    return jsonResponse({ error: error.message }, error.status || 500, origin);
+  }
+
+  const input = await request.json();
+  const targetUserId = String(input.targetUserId || "").trim();
+  const newPersonalId = String(input.newPersonalId || "").trim();
+  const newCode = String(input.newCode || "").trim();
+  if (!targetUserId || targetUserId.length > 128) {
+    return jsonResponse({ error: "משתמש יעד לא תקין" }, 400, origin);
+  }
+  if (newPersonalId && !/^\d{5,10}$/.test(newPersonalId)) {
+    return jsonResponse({ error: "מספר אישי חייב להכיל 5 עד 10 ספרות" }, 400, origin);
+  }
+  if (newCode && !/^\d{6}$/.test(newCode)) {
+    return jsonResponse({ error: "הקוד החדש חייב להכיל 6 ספרות" }, 400, origin);
+  }
+  if (!newPersonalId && !newCode) {
+    return jsonResponse({ error: "לא נבחר שינוי לביצוע" }, 400, origin);
+  }
+
+  const accessToken = await getGoogleAccessToken(serviceAccount);
+  const targetUser = await getFirestoreDocument(
+    projectId,
+    admin.idToken,
+    `users/${targetUserId}`
+  );
+  const currentPersonalId = String(targetUser.personalId || "").trim();
+  const personalIdChanged =
+    Boolean(newPersonalId) && newPersonalId !== currentPersonalId;
+  if (!personalIdChanged && !newCode) {
+    return jsonResponse({ error: "לא בוצע שינוי בפרטי המשתמש" }, 400, origin);
+  }
+
+  if (personalIdChanged) {
+    const matches = await findUsersByPersonalId(
+      projectId,
+      accessToken,
+      newPersonalId
+    );
+    if (matches.some((userId) => userId !== targetUserId)) {
+      return jsonResponse(
+        { error: "המספר האישי כבר משויך למשתמש אחר" },
+        409,
+        origin
+      );
+    }
+  }
+
+  const authUpdate = { localId: targetUserId };
+  if (personalIdChanged) authUpdate.email = `${newPersonalId}@idf.local`;
+  if (newCode) authUpdate.password = newCode;
+  await updateFirebaseAuthUser(projectId, accessToken, authUpdate);
+
+  const now = new Date().toISOString();
+  if (personalIdChanged) {
+    try {
+      await patchFirestoreDocument(projectId, accessToken, `users/${targetUserId}`, {
+        personalId: newPersonalId,
+        credentialsUpdatedAt: now,
+        credentialsUpdatedBy: admin.claims.sub,
+      });
+    } catch (error) {
+      if (currentPersonalId) {
+        await updateFirebaseAuthUser(projectId, accessToken, {
+          localId: targetUserId,
+          email: `${currentPersonalId}@idf.local`,
+        }).catch(() => undefined);
+      }
+      throw error;
+    }
+  }
+
+  await createAuditLog(projectId, accessToken, {
+    action: "update",
+    module: "users",
+    actorId: admin.claims.sub,
+    actorName: admin.user.fullName || admin.claims.email || "מנהל מערכת",
+    actorRole: admin.effectiveRole,
+    targetId: targetUserId,
+    targetLabel: targetUser.fullName || targetUserId,
+    before: { personalId: currentPersonalId },
+    after: {
+      personalId: personalIdChanged ? newPersonalId : currentPersonalId,
+      codeReset: Boolean(newCode),
+    },
+    metadata: { credentialManagement: true },
+    createdAt: now,
+    timestamp: now,
+    logType: "audit",
+  });
+
+  return jsonResponse(
+    {
+      ok: true,
+      personalId: personalIdChanged ? newPersonalId : currentPersonalId,
+      codeReset: Boolean(newCode),
+    },
+    200,
+    origin
+  );
 }
 
 async function getPushSubscriptions(projectId, accessToken) {
@@ -337,6 +614,10 @@ export default {
     }
 
     try {
+      const path = new URL(request.url).pathname.replace(/\/+$/, "") || "/";
+      if (path === "/admin/users/credentials") {
+        return await handleUserCredentials(request, env, allowedOrigin);
+      }
       return await handlePush(request, env, allowedOrigin);
     } catch (error) {
       console.error("Push worker error", error);

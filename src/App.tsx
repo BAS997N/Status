@@ -938,6 +938,21 @@ useEffect(() => {
   }
 };
 
+const handleUserCredentialsUpdated = (userId: string, personalId: string) => {
+  setAllUsers((currentUsers) =>
+    currentUsers.map((user) =>
+      user.userId === userId ? { ...user, personalId } : user
+    )
+  );
+
+  if (userProfile?.userId === userId) {
+    setUserProfile((currentProfile) =>
+      currentProfile ? { ...currentProfile, personalId } : currentProfile
+    );
+    localStorage.setItem("idf_active_personal_id", personalId);
+  }
+};
+
  const handleSyncOldReportsToSheets = async (
   startDate: string,
   endDate: string
@@ -2372,6 +2387,7 @@ const handleAdminSaveReport = async (reportData: {
                 permissions={permissions}
                 users={allUsers}
                 onUpdateSystemRole={handleUpdateUserSystemRole}
+                onUserCredentialsUpdated={handleUserCredentialsUpdated}
                 onAttendanceStatusesChanged={handleAttendanceStatusesChanged}
                 unitConfigs={unitConfigs}
                 onUnitConfigsChanged={handleUnitConfigsChanged}

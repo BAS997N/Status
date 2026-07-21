@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
+  KeyRound,
+  PencilLine,
   Search,
   ShieldAlert,
   ShieldCheck,
   UserCog,
+  X,
 } from "lucide-react";
 import {
   SystemRole,
@@ -13,6 +16,7 @@ import {
   UserProfile,
 } from "../../types";
 import { dataService } from "../../services/dataService";
+import { updateUserCredentials } from "../../services/adminUserService";
 
 interface UsersManagerProps {
   currentUser: UserProfile;
@@ -22,6 +26,7 @@ interface UsersManagerProps {
     systemRole: SystemRole,
     accessLevel?: SystemRoleAccessLevel
   ) => Promise<void>;
+  onCredentialsUpdated?: (userId: string, personalId: string) => void;
 }
 
 const getDefaultSystemRole = (user: UserProfile): SystemRole => {
@@ -35,11 +40,17 @@ export default function UsersManager({
   currentUser,
   users,
   onUpdateSystemRole,
+  onCredentialsUpdated,
 }: UsersManagerProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleOptions, setRoleOptions] = useState<SystemRoleConfig[]>([]);
   const [draftRoles, setDraftRoles] = useState<Record<string, SystemRole>>({});
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [credentialUser, setCredentialUser] = useState<UserProfile | null>(null);
+  const [credentialPersonalId, setCredentialPersonalId] = useState("");
+  const [credentialCode, setCredentialCode] = useState("");
+  const [credentialCodeConfirm, setCredentialCodeConfirm] = useState("");
+  const [savingCredentials, setSavingCredentials] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -130,6 +141,92 @@ export default function UsersManager({
       });
     } finally {
       setSavingUserId(null);
+    }
+  };
+
+  const openCredentialEditor = (user: UserProfile) => {
+    setCredentialUser(user);
+    setCredentialPersonalId(String(user.personalId || ""));
+    setCredentialCode("");
+    setCredentialCodeConfirm("");
+    setMessage(null);
+  };
+
+  const closeCredentialEditor = () => {
+    if (savingCredentials) return;
+    setCredentialUser(null);
+    setCredentialCode("");
+    setCredentialCodeConfirm("");
+  };
+
+  const handleCredentialSave = async () => {
+    if (!credentialUser) return;
+    const cleanPersonalId = credentialPersonalId.trim();
+    const cleanCode = credentialCode.trim();
+    const personalIdChanged =
+      cleanPersonalId !== String(credentialUser.personalId || "").trim();
+
+    if (!/^\d{5,10}$/.test(cleanPersonalId)) {
+      setMessage({
+        type: "error",
+        text: "מספר אישי חייב להכיל 5 עד 10 ספרות.",
+      });
+      return;
+    }
+    if (cleanCode && !/^\d{6}$/.test(cleanCode)) {
+      setMessage({ type: "error", text: "הקוד החדש חייב להכיל 6 ספרות." });
+      return;
+    }
+    if (cleanCode && cleanCode !== credentialCodeConfirm.trim()) {
+      setMessage({ type: "error", text: "אימות הקוד החדש אינו תואם." });
+      return;
+    }
+    if (!personalIdChanged && !cleanCode) {
+      setMessage({ type: "error", text: "לא הוזן שינוי לביצוע." });
+      return;
+    }
+
+    const changeDescription = [
+      personalIdChanged ? `מספר אישי חדש: ${cleanPersonalId}` : "",
+      cleanCode ? "איפוס הקוד האישי" : "",
+    ]
+      .filter(Boolean)
+      .join(" ו־");
+    if (
+      !window.confirm(
+        `לעדכן את פרטי ההתחברות של ${credentialUser.fullName}?\n${changeDescription}`
+      )
+    ) {
+      return;
+    }
+
+    setSavingCredentials(true);
+    setMessage(null);
+    try {
+      const result = await updateUserCredentials({
+        targetUserId: credentialUser.userId,
+        newPersonalId: personalIdChanged ? cleanPersonalId : undefined,
+        newCode: cleanCode || undefined,
+      });
+      onCredentialsUpdated?.(credentialUser.userId, result.personalId);
+      setCredentialUser(null);
+      setCredentialCode("");
+      setCredentialCodeConfirm("");
+      setMessage({
+        type: "success",
+        text: `פרטי ההתחברות של ${credentialUser.fullName} עודכנו בהצלחה. המשתמש ייכנס מחדש עם הפרטים המעודכנים.`,
+      });
+    } catch (error) {
+      console.error("Failed updating user credentials:", error);
+      setMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "עדכון פרטי ההתחברות נכשל.",
+      });
+    } finally {
+      setSavingCredentials(false);
     }
   };
 
@@ -247,7 +344,8 @@ export default function UsersManager({
                         }
                       </p>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="min-w-[190px] px-4 py-4">
+                      <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => handleSave(user)}
@@ -261,6 +359,15 @@ export default function UsersManager({
                         <ShieldCheck className="h-4 w-4" />
                         {savingUserId === user.userId ? "שומר..." : "שמור"}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => openCredentialEditor(user)}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-100"
+                      >
+                        <KeyRound className="h-4 w-4" />
+                        פרטי התחברות
+                      </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -275,6 +382,117 @@ export default function UsersManager({
           </div>
         )}
       </div>
+
+      {credentialUser && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeCredentialEditor();
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <PencilLine className="h-5 w-5 text-blue-600" />
+                  <h3 className="text-base font-black text-slate-900">
+                    פרטי ההתחברות של {credentialUser.fullName}
+                  </h3>
+                </div>
+                <p className="mt-1 text-[11px] font-bold leading-5 text-slate-500">
+                  ניתן לתקן מספר אישי, לאפס קוד, או לבצע את שתי הפעולות יחד.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeCredentialEditor}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="סגירה"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-black text-slate-700">
+                  מספר אישי
+                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={credentialPersonalId}
+                  onChange={(event) =>
+                    setCredentialPersonalId(
+                      event.target.value.replace(/\D/g, "").slice(0, 10)
+                    )
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-black text-slate-700">
+                  קוד חדש בן 6 ספרות
+                </span>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="new-password"
+                  value={credentialCode}
+                  onChange={(event) =>
+                    setCredentialCode(
+                      event.target.value.replace(/\D/g, "").slice(0, 6)
+                    )
+                  }
+                  placeholder="השאר ריק אם אין צורך באיפוס"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+
+              {credentialCode && (
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-black text-slate-700">
+                    אימות הקוד החדש
+                  </span>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="new-password"
+                    value={credentialCodeConfirm}
+                    onChange={(event) =>
+                      setCredentialCodeConfirm(
+                        event.target.value.replace(/\D/g, "").slice(0, 6)
+                      )
+                    }
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+              )}
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeCredentialEditor}
+                disabled={savingCredentials}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                onClick={handleCredentialSave}
+                disabled={savingCredentials}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                <KeyRound className="h-4 w-4" />
+                {savingCredentials ? "מעדכן..." : "עדכן פרטי התחברות"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
     </div>
