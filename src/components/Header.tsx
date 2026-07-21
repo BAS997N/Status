@@ -3,7 +3,6 @@ import { Shield, User, Sliders, Database, Wifi, WifiOff, RefreshCw, Layers, Bell
 import { UserProfile, AppNotification, ATTENDANCE_STATUS_LABELS, SystemSettingsConfig } from "../types";
 import { isFirebaseActive } from "../firebase";
 import { motion, AnimatePresence } from "motion/react";
-import { getReliableServerNow } from "../services/dataService";
 import PushNotificationButton from "./PushNotificationButton";
 
 interface HeaderProps {
@@ -48,28 +47,12 @@ export default function Header({
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   useEffect(() => {
-  let serverOffsetMs = 0;
-
-  const syncServerTime = async () => {
-    try {
-      const serverNow = await getReliableServerNow();
-      serverOffsetMs = serverNow.getTime() - Date.now();
-    } catch {
-      serverOffsetMs = 0;
-    }
-  };
-
-  syncServerTime();
-
   const timer = setInterval(() => {
-    setTime(new Date(Date.now() + serverOffsetMs));
+    setTime(new Date());
   }, 1000);
-
-  const syncTimer = setInterval(syncServerTime, 30000);
 
   return () => {
     clearInterval(timer);
-    clearInterval(syncTimer);
   };
 }, []);
 

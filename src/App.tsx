@@ -736,23 +736,6 @@ useEffect(() => {
     ? await dataService.fetchAllReports()
     : await dataService.fetchReportsByUser(userProfile.userId);
   setReports(updatedReports);
-
-  if (hasPermission(permissions, "dashboard.history.view")) {
-    const updatedLogs = await dataService.fetchAttendanceLogs();
-    setAttendanceLogs(updatedLogs);
-  } else {
-    setAttendanceLogs([]);
-  }
-
-  if (
-    hasPermission(permissions, "dashboard.system_logs.view") ||
-    hasPermission(permissions, "system_admin.audit.view")
-  ) {
-    const updatedSystemLogs = await dataService.getSystemLogs();
-    setSystemLogs(updatedSystemLogs);
-  } else {
-    setSystemLogs([]);
-  }
 };
   const refreshReportsOnly = async () => {
   if ((isFirebaseActive() && !auth?.currentUser) || !userProfile) return;
@@ -761,6 +744,19 @@ useEffect(() => {
     ? await dataService.fetchAllReports()
     : await dataService.fetchReportsByUser(userProfile.userId);
   setReports(updatedReports);
+};
+
+const loadAttendanceLogsOnDemand = async () => {
+  if (!hasPermission(permissions, "dashboard.history.view")) return;
+  setAttendanceLogs(await dataService.fetchAttendanceLogs());
+};
+
+const loadSystemLogsOnDemand = async () => {
+  if (
+    !hasPermission(permissions, "dashboard.system_logs.view") &&
+    !hasPermission(permissions, "system_admin.audit.view")
+  ) return;
+  setSystemLogs(await dataService.getSystemLogs());
 };
 //עריכת דיווח מפקד חדש
   const upsertReportInState = (updatedReport: AttendanceReport) => {
@@ -1216,8 +1212,6 @@ const handleResetReport = async (reportId: string) => {
     // Reload all users list to propagate name changes
     const users = await dataService.getAllUsers();
     setAllUsers(users);
-    const logs = await dataService.getSystemLogs();
-setSystemLogs(logs);
     await refreshReports();
     await refreshNotifications();
   };
@@ -1233,6 +1227,7 @@ setSystemLogs(logs);
   const handleLogout = async () => {
     setLoading(true);
     try {
+      dataService.clearSessionCaches();
       localStorage.removeItem("idf_active_user_id");
       setUserProfile(null);
       setPersonalIdInput("");
@@ -1714,8 +1709,6 @@ await signOut(secondaryAuth);
 ]);
     const users = await dataService.getAllUsers();
     setAllUsers(users);
-    const logs = await dataService.getSystemLogs();
-setSystemLogs(logs);
 
     if (userProfile && userProfile.userId === profileToSave.userId) {
       setUserProfile(profileToSave);
@@ -2521,6 +2514,8 @@ const handleAdminSaveReport = async (reportData: {
                 customRoles={customRoles}
                 onUpdateMedicalSettings={handleUpdateMedicalSettings}
                 onSyncOldReportsToSheets={handleSyncOldReportsToSheets}
+                onLoadAttendanceLogs={loadAttendanceLogsOnDemand}
+                onLoadSystemLogs={loadSystemLogsOnDemand}
               />
             </motion.div>
           ) : (

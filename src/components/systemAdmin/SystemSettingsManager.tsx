@@ -441,8 +441,8 @@ export default function SystemSettingsManager({
           <Field label="זמן Cache בדקות" hint="בין 1 ל־1,440 דקות">
             <input type="number" min={1} max={1440} value={draft.cacheMinutes} onChange={(e) => update("cacheMinutes", Number(e.target.value))} className="input" />
           </Field>
-          <Field label="רענון אוטומטי בשניות" hint="בין 10 ל־3,600 שניות">
-            <input type="number" min={10} max={3600} value={draft.autoRefreshSeconds} onChange={(e) => update("autoRefreshSeconds", Number(e.target.value))} className="input" />
+          <Field label="רענון אוטומטי בשניות" hint="בין 60 ל־3,600 שניות · מומלץ 300">
+            <input type="number" min={60} max={3600} value={draft.autoRefreshSeconds} onChange={(e) => update("autoRefreshSeconds", Number(e.target.value))} className="input" />
           </Field>
         </div>
       </section>

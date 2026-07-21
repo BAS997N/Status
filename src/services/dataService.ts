@@ -13,7 +13,8 @@ import {
   deleteDoc,
   serverTimestamp,
   writeBatch,
-  onSnapshot
+  onSnapshot,
+  limit
 } from "firebase/firestore";
 import { db, auth, isFirebaseActive } from "../firebase";
 import { sanitizeSpreadsheetCell } from "../utils/csvSecurity";
@@ -104,19 +105,6 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Ensure connection is validated if Firebase is active
-if (isFirebaseActive && db) {
-  const testConnection = async () => {
-    try {
-      await getDocFromServer(doc(db, "test", "connection"));
-    } catch (error) {
-      if (error instanceof Error && error.message.includes("client is offline")) {
-        console.warn("Firebase client is currently offline or unconfigured.");
-      }
-    }
-  };
-  testConnection();
-}
 const DEFAULT_SIMULATED_PROFILES: UserProfile[] = [];
 const DEFAULT_SIMULATED_REPORTS: AttendanceReport[] = [];
 const DEFAULT_SIMULATED_NOTIFICATIONS: AppNotification[] = [];
@@ -132,6 +120,64 @@ const initSimStorage = () => {
   }
 };
 initSimStorage();
+
+const FIRESTORE_REPORTS_CACHE_KEY = "idf_firestore_reports_cache_v1";
+const FIRESTORE_NOTIFICATIONS_CACHE_KEY = "idf_firestore_notifications_cache_v1";
+const LARGE_COLLECTION_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+interface FirestoreCollectionCache<T> {
+  cachedAt: string;
+  items: T[];
+}
+
+const readCollectionCache = <T,>(key: string): FirestoreCollectionCache<T> | null => {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as FirestoreCollectionCache<T>;
+    if (!parsed?.cachedAt || !Array.isArray(parsed.items)) return null;
+    if (Date.now() - new Date(parsed.cachedAt).getTime() > LARGE_COLLECTION_CACHE_MAX_AGE_MS) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+const writeCollectionCache = <T,>(key: string, items: T[], cachedAt = new Date().toISOString()) => {
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ cachedAt, items }));
+  } catch (error) {
+    console.warn("Local Firestore cache could not be saved:", error);
+  }
+};
+
+const removeReportFromCache = (reportId: string) => {
+  const cached = readCollectionCache<AttendanceReport>(FIRESTORE_REPORTS_CACHE_KEY);
+  if (!cached) return;
+  writeCollectionCache(
+    FIRESTORE_REPORTS_CACHE_KEY,
+    cached.items.filter((report) => report.reportId !== reportId),
+    cached.cachedAt
+  );
+};
+
+const markCachedNotificationRead = (notificationId: string) => {
+  const cached = readCollectionCache<AppNotification>(
+    FIRESTORE_NOTIFICATIONS_CACHE_KEY
+  );
+  if (!cached) return;
+  writeCollectionCache(
+    FIRESTORE_NOTIFICATIONS_CACHE_KEY,
+    cached.items.map((notification) =>
+      notification.notificationId === notificationId
+        ? { ...notification, isRead: true }
+        : notification
+    ),
+    cached.cachedAt
+  );
+};
 
 const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   systemName: "מערכת נוכחות חיילים",
@@ -1635,6 +1681,11 @@ const normalizeBackupDocument = (value: unknown, index: number) => {
 
 export const dataService = {
 
+  clearSessionCaches(): void {
+    sessionStorage.removeItem(FIRESTORE_REPORTS_CACHE_KEY);
+    sessionStorage.removeItem(FIRESTORE_NOTIFICATIONS_CACHE_KEY);
+  },
+
   async getEmergencyResponses(eventId: string): Promise<EmergencyResponse[]> {
     if (!eventId) return [];
 
@@ -1664,7 +1715,13 @@ export const dataService = {
       return JSON.parse(localStorage.getItem("idf_emergency_responses") || "[]");
     }
 
-    const snapshot = await getDocs(collection(db, "emergency_responses"));
+    const snapshot = await getDocs(
+      query(
+        collection(db, "emergency_responses"),
+        orderBy("updatedAt", "desc"),
+        limit(1000)
+      )
+    );
     return snapshot.docs
       .map((item) => ({
         responseId: item.id,
@@ -2718,7 +2775,13 @@ export const dataService = {
       return JSON.parse(localStorage.getItem("idf_audit_logs") || "[]");
     }
     try {
-      const snapshot = await getDocs(query(collection(db, "system_logs"), orderBy("timestamp", "desc")));
+      const snapshot = await getDocs(
+        query(
+          collection(db, "system_logs"),
+          orderBy("timestamp", "desc"),
+          limit(300)
+        )
+      );
       return snapshot.docs
         .filter((item) => item.data()?.logType === "audit")
         .map((item) => ({ id: item.id, ...item.data(), createdAt: item.data()?.createdAt || item.data()?.timestamp } as AuditLogEntry));
@@ -3393,6 +3456,7 @@ export const dataService = {
   const path = `attendance/${reportId}`;
   try {
     await deleteDoc(doc(db, "attendance", reportId));
+    removeReportFromCache(reportId);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
@@ -3571,7 +3635,8 @@ export const dataService = {
     const snapshot = await getDocs(
       query(
         collection(db, "system_logs"),
-        orderBy("timestamp", "desc")
+        orderBy("timestamp", "desc"),
+        limit(300)
       )
     );
 
@@ -3728,7 +3793,7 @@ async createSystemLog(logData: {
 
   // --- ATTENDANCE REPORTS METHODS ---
 
-  async fetchAllReports(): Promise<AttendanceReport[]> {
+  async fetchAllReports(forceRefresh = false): Promise<AttendanceReport[]> {
     if (!isFirebaseActive()) {
       const reports = JSON.parse(localStorage.getItem("idf_reports") || "[]");
       // Sort descending by timestamp
@@ -3737,6 +3802,30 @@ async createSystemLog(logData: {
 
     const path = "attendance";
     try {
+      const cached = forceRefresh
+        ? null
+        : readCollectionCache<AttendanceReport>(FIRESTORE_REPORTS_CACHE_KEY);
+      if (cached) {
+        const syncStartedAt = new Date().toISOString();
+        const updatedReports = await this.fetchReportsUpdatedSince(cached.cachedAt);
+        const merged = new Map<string, AttendanceReport>(
+          cached.items.map((report) => [report.reportId, report])
+        );
+        updatedReports.forEach((report) => merged.set(report.reportId, report));
+        const items = Array.from(merged.values()).sort(
+          (a, b) =>
+            new Date(b.updatedAt || b.timestamp).getTime() -
+            new Date(a.updatedAt || a.timestamp).getTime()
+        );
+        writeCollectionCache(
+          FIRESTORE_REPORTS_CACHE_KEY,
+          items,
+          syncStartedAt
+        );
+        return items;
+      }
+
+      const loadStartedAt = new Date().toISOString();
       const q = query(collection(db, "attendance"), orderBy("timestamp", "desc"));
       const querySnapshot = await getDocs(q);
       const list: AttendanceReport[] = [];
@@ -3746,6 +3835,7 @@ async createSystemLog(logData: {
   ...normalizeReportDates(docSnap.data()),
 } as AttendanceReport);
       });
+      writeCollectionCache(FIRESTORE_REPORTS_CACHE_KEY, list, loadStartedAt);
       return list;
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, path);
@@ -3862,7 +3952,7 @@ async createSystemLog(logData: {
     }
 
     try {
-      const reports = await this.fetchAllReports();
+      const reports = await this.fetchAllReports(true);
       const users = await this.getAllUsers();
       const attendanceStatusConfigs = await this.getAttendanceStatusConfigs();
       const attendanceStatusById = new Map(
@@ -4506,7 +4596,11 @@ const formattedDate =
 
     const path = "attendance_logs";
     try {
-      const q = query(collection(db, "attendance_logs"), orderBy("updatedAt", "desc"));
+      const q = query(
+        collection(db, "attendance_logs"),
+        orderBy("updatedAt", "desc"),
+        limit(300)
+      );
       const querySnapshot = await getDocs(q);
       const list: any[] = [];
       querySnapshot.forEach((docSnap) => {
@@ -4544,7 +4638,7 @@ const formattedDate =
     }
   },
 
-  async fetchNotifications(): Promise<AppNotification[]> {
+  async fetchNotifications(forceRefresh = false): Promise<AppNotification[]> {
     if (!isFirebaseActive()) {
       const notifications = JSON.parse(localStorage.getItem("idf_notifications") || "[]");
       return notifications.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -4552,12 +4646,53 @@ const formattedDate =
 
     const path = "notifications";
     try {
-      const q = query(collection(db, "notifications"), orderBy("timestamp", "desc"));
+      const cached = forceRefresh
+        ? null
+        : readCollectionCache<AppNotification>(
+            FIRESTORE_NOTIFICATIONS_CACHE_KEY
+          );
+      if (cached) {
+        const syncStartedAt = new Date().toISOString();
+        const updated = await this.fetchNotificationsSince(cached.cachedAt);
+        const merged = new Map<string, AppNotification>(
+          cached.items.map((notification) => [
+            notification.notificationId,
+            notification,
+          ])
+        );
+        updated.forEach((notification) =>
+          merged.set(notification.notificationId, notification)
+        );
+        const items = Array.from(merged.values())
+          .sort(
+            (a, b) =>
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          )
+          .slice(0, 200);
+        writeCollectionCache(
+          FIRESTORE_NOTIFICATIONS_CACHE_KEY,
+          items,
+          syncStartedAt
+        );
+        return items;
+      }
+
+      const loadStartedAt = new Date().toISOString();
+      const q = query(
+        collection(db, "notifications"),
+        orderBy("timestamp", "desc"),
+        limit(200)
+      );
       const querySnapshot = await getDocs(q);
       const list: AppNotification[] = [];
       querySnapshot.forEach((docSnap) => {
         list.push({ notificationId: docSnap.id, ...docSnap.data() } as AppNotification);
       });
+      writeCollectionCache(
+        FIRESTORE_NOTIFICATIONS_CACHE_KEY,
+        list,
+        loadStartedAt
+      );
       return list;
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, path);
@@ -4609,6 +4744,7 @@ const formattedDate =
       await updateDoc(doc(db, "notifications", notificationId), {
         isRead: true
       });
+      markCachedNotificationRead(notificationId);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }
@@ -4621,7 +4757,13 @@ const formattedDate =
     }
     const path = "notifications";
     try {
-      const querySnapshot = await getDocs(collection(db, "notifications"));
+      const querySnapshot = await getDocs(
+        query(
+          collection(db, "notifications"),
+          where("isRead", "==", false),
+          limit(500)
+        )
+      );
       const promises: Promise<void>[] = [];
       querySnapshot.forEach((docSnap) => {
         if (!docSnap.data().isRead) {
@@ -4629,6 +4771,19 @@ const formattedDate =
         }
       });
       await Promise.all(promises);
+      const cached = readCollectionCache<AppNotification>(
+        FIRESTORE_NOTIFICATIONS_CACHE_KEY
+      );
+      if (cached) {
+        writeCollectionCache(
+          FIRESTORE_NOTIFICATIONS_CACHE_KEY,
+          cached.items.map((notification) => ({
+            ...notification,
+            isRead: true,
+          })),
+          cached.cachedAt
+        );
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }
@@ -4644,7 +4799,13 @@ const formattedDate =
 
     const path = "commander_messages";
     try {
-      const snapshot = await getDocs(collection(db, "commander_messages"));
+      const snapshot = await getDocs(
+        query(
+          collection(db, "commander_messages"),
+          orderBy("createdAt", "desc"),
+          limit(100)
+        )
+      );
       return snapshot.docs
         .map(
           (item) =>

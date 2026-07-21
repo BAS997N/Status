@@ -101,6 +101,8 @@ interface CommandDashboardProps {
   customRoles?: string[];
   onUpdateMedicalSettings?: (newUnits: string[], newRoles: string[]) => void;
   attendanceLogs: any[];
+  onLoadAttendanceLogs?: () => Promise<void>;
+  onLoadSystemLogs?: () => Promise<void>;
 }
 
 export default function CommandDashboard({ 
@@ -122,7 +124,9 @@ export default function CommandDashboard({
   onAdminSaveReport,
   medicalUnits = [],
   customRoles = [],
-  onUpdateMedicalSettings
+  onUpdateMedicalSettings,
+  onLoadAttendanceLogs,
+  onLoadSystemLogs
 }: CommandDashboardProps) {
   const can = (permissionId: string) => hasPermission(permissions, permissionId);
 
@@ -235,6 +239,38 @@ export default function CommandDashboard({
   const [dashboardTab, setDashboardTab] = useState<
   "attendance" | "directory" | "summary" | "settings" | "history" | "systemlogs" | "notifications"
 >("attendance");
+  const loadedLargeTabsRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (
+      dashboardTab === "history" &&
+      canViewHistory &&
+      !loadedLargeTabsRef.current.has("history")
+    ) {
+      loadedLargeTabsRef.current.add("history");
+      onLoadAttendanceLogs?.().catch((error) => {
+        loadedLargeTabsRef.current.delete("history");
+        console.error("Failed loading attendance history:", error);
+      });
+    }
+    if (
+      dashboardTab === "systemlogs" &&
+      canViewSystemLogs &&
+      !loadedLargeTabsRef.current.has("systemlogs")
+    ) {
+      loadedLargeTabsRef.current.add("systemlogs");
+      onLoadSystemLogs?.().catch((error) => {
+        loadedLargeTabsRef.current.delete("systemlogs");
+        console.error("Failed loading system logs:", error);
+      });
+    }
+  }, [
+    dashboardTab,
+    canViewHistory,
+    canViewSystemLogs,
+    onLoadAttendanceLogs,
+    onLoadSystemLogs,
+  ]);
 
   useEffect(() => {
     const allowedTabs = [

@@ -89,9 +89,15 @@ export default function EmergencyCenter({
       if (document.visibilityState === "visible") {
         refresh().catch(console.error);
       }
-    }, 15000);
+    }, Math.max(60, settings.autoRefreshSeconds || 60) * 1000);
     return () => window.clearInterval(id);
-  }, [event.eventId, event.active]);
+  }, [
+    event.eventId,
+    event.active,
+    settings.autoRefreshSeconds,
+    canManage,
+    currentUser.userId,
+  ]);
 
   const refreshEventHistory = async () => {
     if (!canManage) return;
