@@ -4139,6 +4139,7 @@ resetByName: null,
   },
   { merge: true }
 );
+      void (async () => {
       const statusText =
   selectedStatusConfig?.label ||
   ATTENDANCE_STATUS_LABELS[reportPayload.status]?.label ||
@@ -4151,13 +4152,7 @@ resetByName: null,
   targetName: reportPayload.userName,
   details: `${statusText} | ${reportDateForLookup}`,
 });
-const users = await this.getAllUsers();
-
-const soldier = users.find(
-  (u) =>
-    u.userId === reportPayload.userId ||
-    u.personalId === (reportPayload as any).personalId
-);
+const soldier = await this.getCurrentUserProfile(reportPayload.userId);
 
 const markerText =
   reportPayload.dayMarker === "return_to_base"
@@ -4238,6 +4233,9 @@ await setDoc(notRef, {
   notificationId: notRef.id
 });
       }
+      })().catch((backgroundError) => {
+        console.warn("Attendance post-save tasks failed:", backgroundError);
+      });
 
       return docRef.id;
     } catch (error) {
