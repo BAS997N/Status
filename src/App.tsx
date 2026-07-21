@@ -63,7 +63,9 @@ import {
   Info,
   LogOut,
   CalendarDays,
-  Siren
+  Siren,
+  WifiOff,
+  RefreshCw
 } from "lucide-react";
 
 //שעה לפי אזור זמן ולא לפי חייל
@@ -94,6 +96,7 @@ export default function App() {
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   
   // App reports state
   const [reports, setReports] = useState<AttendanceReport[]>([]);
@@ -1095,6 +1098,42 @@ const handleResetReport = async (reportId: string) => {
     systemSettings?.notificationsEnabled,
     systemSettings?.toastNotificationsEnabled,
   ]);
+
+  useEffect(() => {
+    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => window.location.reload();
+
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, []);
+
+  if (!isOnline) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-5" dir="rtl">
+        <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 text-center shadow-xl">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+            <WifiOff className="h-8 w-8" />
+          </div>
+          <h1 className="mt-5 text-xl font-black text-slate-900">אין חיבור לאינטרנט</h1>
+          <p className="mt-2 text-sm font-medium leading-7 text-slate-600">
+            לא ניתן לטעון נתונים או לשלוח דיווח ללא חיבור. התחבר לרשת ונסה שוב.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-military-700 px-5 py-3 text-sm font-black text-white hover:bg-military-800"
+          >
+            <RefreshCw className="h-4 w-4" />
+            נסה שוב
+          </button>
+        </section>
+      </div>
+    );
+  }
 
   if (loading) {
   return (

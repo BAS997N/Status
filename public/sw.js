@@ -1,4 +1,4 @@
-const CACHE_NAME = 'status-997-shell-v2';
+const CACHE_NAME = 'status-997-shell-v3';
 const APP_BASE = '/Status/';
 const OFFLINE_URL = `${APP_BASE}offline.html`;
 const APP_SHELL = [
@@ -12,7 +12,17 @@ const APP_SHELL = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())
+    caches
+      .open(CACHE_NAME)
+      .then(async (cache) => {
+        await cache.addAll(APP_SHELL);
+        const indexResponse = await fetch(`${APP_BASE}index.html`, { cache: 'no-store' });
+        const indexText = await indexResponse.text();
+        const assetPaths = [...indexText.matchAll(/(?:src|href)="(\/Status\/assets\/[^"]+)"/g)]
+          .map((match) => match[1]);
+        if (assetPaths.length > 0) await cache.addAll(assetPaths);
+      })
+      .then(() => self.skipWaiting())
   );
 });
 
