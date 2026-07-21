@@ -16,6 +16,7 @@ import {
   UserProfile,
 } from "../types";
 import { dataService } from "../services/dataService";
+import { sendAutomaticPush } from "../services/pushService";
 
 interface EmergencyCenterProps {
   currentUser: UserProfile;
@@ -249,6 +250,33 @@ export default function EmergencyCenter({
         currentUser.userId
       );
       onSettingsChanged(savedSettings);
+
+      try {
+        const details = [
+          eventDraft.message.trim(),
+          eventDraft.assemblyLocation.trim()
+            ? `מיקום: ${eventDraft.assemblyLocation.trim()}`
+            : "",
+          eventDraft.assemblyTime
+            ? `שעת התייצבות: ${eventDraft.assemblyTime}`
+            : "",
+        ].filter(Boolean);
+        const delivery = await sendAutomaticPush({
+          kind: "emergency",
+          target: { type: "all" },
+          title: `מצב חירום: ${eventDraft.title.trim()}`,
+          body:
+            details.join(" | ") ||
+            "נפתח אירוע חירום חדש. יש להיכנס למערכת ולעדכן מצב.",
+          url: "https://bas997n.github.io/Status/",
+        });
+        setMessage(
+          `מצב החירום הופעל. Push נשלח ל־${delivery.sent} מכשירים.`
+        );
+      } catch (pushError) {
+        console.error("Emergency push failed:", pushError);
+        setMessage("מצב החירום הופעל, אך שליחת ה־Push נכשלה.");
+      }
     } catch (error) {
       console.error(error);
       setMessage("הפעלת מצב החירום נכשלה.");

@@ -36,6 +36,7 @@ import MonthlyShiftCalendar from "./shifts/MonthlyShiftCalendar";
 import DailyShiftView from "./shifts/DailyShiftView";
 import battalionLogo from "../assets/battalion-logo.png";
 import { isPublishedShift } from "./shifts/shiftViewUtils";
+import { sendAutomaticPush } from "../services/pushService";
 
 interface ShiftsViewProps {
   currentUser: UserProfile;
@@ -736,13 +737,51 @@ export default function ShiftsView({
         );
       }
       await loadShifts();
+
+      let pushWarning = "";
+      const shouldSendPublicationPush =
+        targetStatus === "published" &&
+        (!editingShift || !isPublishedShift(editingShift));
+      if (shouldSendPublicationPush) {
+        const assignedUserIds = Array.from(
+          new Set(
+            assignments
+              .filter(
+                (assignment) =>
+                  assignment.assigneeType !== "external" &&
+                  Boolean(assignment.userId) &&
+                  !assignment.userId.startsWith("external:")
+              )
+              .map((assignment) => assignment.userId)
+          )
+        );
+
+        if (assignedUserIds.length > 0) {
+          try {
+            await sendAutomaticPush({
+              kind: "shift",
+              target: { type: "users", userIds: assignedUserIds },
+              title: "פורסמה משמרת חדשה",
+              body: `${resolvedTitle} | ${new Date(startAt).toLocaleString(
+                "he-IL",
+                { dateStyle: "short", timeStyle: "short" }
+              )}${location.trim() ? ` | ${location.trim()}` : ""}`,
+              url: "https://bas997n.github.io/Status/",
+            });
+          } catch (pushError) {
+            console.error("Shift publication push failed:", pushError);
+            pushWarning = "המשמרת פורסמה, אך שליחת ה־Push נכשלה.";
+          }
+        }
+      }
+
       setIsFormOpen(false);
       resetForm();
       setMessage({
-        type: "success",
+        type: pushWarning ? "error" : "success",
         text:
           targetStatus === "published"
-            ? "המשמרת נשמרה ופורסמה בהצלחה."
+            ? pushWarning || "המשמרת נשמרה, פורסמה ונשלחה התראת Push למשובצים."
             : missing.length
             ? `המשמרת נשמרה כטיוטה עם ${missing.length} תפקידים שעדיין לא שובצו.`
             : "המשמרת נשמרה כטיוטה בהצלחה.",
@@ -860,11 +899,46 @@ export default function ShiftsView({
         currentUser
       );
       await loadShifts();
+
+      let pushWarning = "";
+      if (nextStatus === "published") {
+        const assignedUserIds = Array.from(
+          new Set(
+            shift.assignments
+              .filter(
+                (assignment) =>
+                  assignment.assigneeType !== "external" &&
+                  Boolean(assignment.userId) &&
+                  !assignment.userId.startsWith("external:")
+              )
+              .map((assignment) => assignment.userId)
+          )
+        );
+
+        if (assignedUserIds.length > 0) {
+          try {
+            await sendAutomaticPush({
+              kind: "shift",
+              target: { type: "users", userIds: assignedUserIds },
+              title: "פורסמה משמרת חדשה",
+              body: `${shift.title} | ${new Date(shift.startAt).toLocaleString(
+                "he-IL",
+                { dateStyle: "short", timeStyle: "short" }
+              )}${shift.location ? ` | ${shift.location}` : ""}`,
+              url: "https://bas997n.github.io/Status/",
+            });
+          } catch (pushError) {
+            console.error("Shift publication push failed:", pushError);
+            pushWarning = "המשמרת פורסמה, אך שליחת ה־Push נכשלה.";
+          }
+        }
+      }
+
       setMessage({
-        type: "success",
+        type: pushWarning ? "error" : "success",
         text:
           nextStatus === "published"
-            ? "המשמרת פורסמה לחיילים."
+            ? pushWarning || "המשמרת פורסמה ונשלחה התראת Push למשובצים."
             : "המשמרת הוחזרה לטיוטה.",
       });
     } catch (error) {
