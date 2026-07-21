@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, MessageSquarePlus, Trash2 } from "lucide-react";
 import { CommanderMessage, CommanderMessageTarget, UserProfile } from "../types";
 import { dataService } from "../services/dataService";
+import { PushTarget, sendAutomaticPush } from "../services/pushService";
 
 interface CommanderMessagesProps {
   currentUser: UserProfile;
@@ -78,7 +79,7 @@ export default function CommanderMessages({
 
     setSaving(true);
     try {
-      await dataService.createCommanderMessage({
+      const messagePayload = {
         title: title.trim(),
         content: content.trim(),
         important,
@@ -90,7 +91,32 @@ export default function CommanderMessages({
         createdBy: currentUser.userId,
         createdByName: currentUser.fullName,
         acknowledgements: {},
-      });
+      };
+      await dataService.createCommanderMessage(messagePayload);
+
+      const pushTarget: PushTarget =
+        targetType === "role"
+          ? { type: "role", role: "commander" }
+          : targetType === "unit"
+          ? { type: "unit", unit: targetUnit }
+          : targetType === "user"
+          ? { type: "user", userId: targetUserId }
+          : { type: "all" };
+      try {
+        const delivery = await sendAutomaticPush({
+          kind: "commander_message",
+          target: pushTarget,
+          title: title.trim(),
+          body: content.trim(),
+          url: "https://bas997n.github.io/Status/",
+        });
+        if (delivery.failed > 0) {
+          setError(`ההודעה פורסמה. ${delivery.sent} התראות נשלחו ו־${delivery.failed} נכשלו.`);
+        }
+      } catch (pushError) {
+        console.error("Commander message push failed:", pushError);
+        setError("ההודעה נשמרה במערכת, אך שליחת ה־Push נכשלה.");
+      }
       setTitle("");
       setContent("");
       setImportant(false);
