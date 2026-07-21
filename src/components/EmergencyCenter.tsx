@@ -61,6 +61,7 @@ export default function EmergencyCenter({
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [markingUserId, setMarkingUserId] = useState<string | null>(null);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [eventDraft, setEventDraft] = useState({
     title: event.title || "מצב חירום",
     message: event.message || "",
@@ -136,6 +137,26 @@ export default function EmergencyCenter({
   }, [canManage, event.eventId, event.active]);
 
   const myResponse = responses.find((item) => item.userId === currentUser.userId);
+
+  const parsedAssemblyTime = /^(\d{2}):(\d{2})$/.exec(
+    eventDraft.assemblyTime
+  );
+  const selectedAssemblyHour = parsedAssemblyTime?.[1] || "";
+  const selectedAssemblyMinute = parsedAssemblyTime?.[2] || "";
+
+  const chooseAssemblyHour = (hour: string) => {
+    setEventDraft((current) => ({
+      ...current,
+      assemblyTime: `${hour}:${selectedAssemblyMinute || "00"}`,
+    }));
+  };
+
+  const chooseAssemblyMinute = (minute: string) => {
+    setEventDraft((current) => ({
+      ...current,
+      assemblyTime: `${selectedAssemblyHour || "00"}:${minute}`,
+    }));
+  };
 
   const normalizeUnitName = (value = "") =>
     value
@@ -255,10 +276,10 @@ export default function EmergencyCenter({
         const details = [
           eventDraft.message.trim(),
           eventDraft.assemblyLocation.trim()
-            ? `מיקום: ${eventDraft.assemblyLocation.trim()}`
+            ? `📍 מיקום: ${eventDraft.assemblyLocation.trim()}`
             : "",
           eventDraft.assemblyTime
-            ? `שעת התייצבות: ${eventDraft.assemblyTime}`
+            ? `🕒 שעת התייצבות: ${eventDraft.assemblyTime}`
             : "",
         ].filter(Boolean);
         const delivery = await sendAutomaticPush({
@@ -269,7 +290,7 @@ export default function EmergencyCenter({
           },
           title: `🚨 מצב חירום: ${eventDraft.title.trim()}`,
           body:
-            details.join(" | ") ||
+            details.join("\n") ||
             "נפתח אירוע חירום חדש. יש להיכנס למערכת ולעדכן מצב.",
           url: "https://bas997n.github.io/Status/",
         });
@@ -455,37 +476,95 @@ export default function EmergencyCenter({
               placeholder="מקום התייצבות"
               className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400"
             />
-            <div className="flex gap-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={eventDraft.assemblyTime}
-                onChange={(changeEvent) =>
-                  setEventDraft((current) => ({
-                    ...current,
-                    assemblyTime: changeEvent.target.value,
-                  }))
-                }
-                placeholder="שעה, לדוגמה 18:30"
-                className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  setEventDraft((current) => ({
-                    ...current,
-                    assemblyTime:
-                      current.assemblyTime === "מיידי" ? "" : "מיידי",
-                  }))
-                }
-                className={`rounded-xl border px-4 py-2.5 text-xs font-black transition ${
-                  eventDraft.assemblyTime === "מיידי"
-                    ? "border-red-600 bg-red-600 text-white"
-                    : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-                }`}
-              >
-                מיידי
-              </button>
+            <div className="space-y-2 sm:col-span-2">
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={eventDraft.assemblyTime}
+                  onChange={(changeEvent) =>
+                    setEventDraft((current) => ({
+                      ...current,
+                      assemblyTime: changeEvent.target.value,
+                    }))
+                  }
+                  placeholder="שעה, לדוגמה 18:30"
+                  className="min-w-[150px] flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowTimePicker((current) => !current)}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50"
+                >
+                  {showTimePicker ? "סגור בחירה" : "בחר שעה"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEventDraft((current) => ({
+                      ...current,
+                      assemblyTime:
+                        current.assemblyTime === "מיידי" ? "" : "מיידי",
+                    }));
+                    setShowTimePicker(false);
+                  }}
+                  className={`rounded-xl border px-4 py-2.5 text-xs font-black transition ${
+                    eventDraft.assemblyTime === "מיידי"
+                      ? "border-red-600 bg-red-600 text-white"
+                      : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                  }`}
+                >
+                  מיידי
+                </button>
+              </div>
+
+              {showTimePicker && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="text-[11px] font-black text-slate-600">
+                    שעה
+                  </div>
+                  <div className="mt-2 grid grid-cols-6 gap-1.5 sm:grid-cols-8">
+                    {Array.from({ length: 24 }, (_, index) =>
+                      String(index).padStart(2, "0")
+                    ).map((hour) => (
+                      <button
+                        key={hour}
+                        type="button"
+                        onClick={() => chooseAssemblyHour(hour)}
+                        className={`rounded-lg py-2 text-xs font-black ${
+                          selectedAssemblyHour === hour
+                            ? "bg-red-600 text-white"
+                            : "border border-slate-200 bg-white text-slate-700 hover:border-red-300"
+                        }`}
+                      >
+                        {hour}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 text-[11px] font-black text-slate-600">
+                    דקות
+                  </div>
+                  <div className="mt-2 grid grid-cols-6 gap-1.5">
+                    {Array.from({ length: 12 }, (_, index) =>
+                      String(index * 5).padStart(2, "0")
+                    ).map((minute) => (
+                      <button
+                        key={minute}
+                        type="button"
+                        onClick={() => chooseAssemblyMinute(minute)}
+                        className={`rounded-lg py-2 text-xs font-black ${
+                          selectedAssemblyMinute === minute
+                            ? "bg-red-600 text-white"
+                            : "border border-slate-200 bg-white text-slate-700 hover:border-red-300"
+                        }`}
+                      >
+                        {minute}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <textarea
               rows={3}
