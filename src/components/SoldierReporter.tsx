@@ -83,6 +83,12 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
     useState<boolean>(() =>
       typeof window !== "undefined" && window.innerWidth < 640
     );
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const soldierStatusOptions = attendanceStatuses
     .filter((item) => item.enabled && item.visibleToSoldiers)
@@ -269,7 +275,7 @@ useEffect(() => {
       (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
     );
 
-  const now = new Date();
+  const now = new Date(currentTime);
   const nextShift = assignedShifts.find(
     (shift) => new Date(shift.endAt).getTime() >= now.getTime()
   );
@@ -284,7 +290,7 @@ useEffect(() => {
   const weeklyShifts = assignedShifts.filter((shift) => {
     const startAt = new Date(shift.startAt).getTime();
     const endAt = new Date(shift.endAt).getTime();
-    return endAt >= weekStart.getTime() && startAt < weekEnd.getTime();
+    return endAt >= currentTime && startAt < weekEnd.getTime();
   });
 
   const getShiftAssignmentLabel = (shift: ShiftRecord) => {
