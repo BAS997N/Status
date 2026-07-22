@@ -339,6 +339,8 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
           Number.isFinite(item.processingDays)
             ? Math.max(0, Math.min(30, Math.round(item.processingDays)))
             : 3,
+        processingDayType:
+          item.processingDayType === "family" ? "family" : "processing",
         trainingStartDate:
           typeof item.trainingStartDate === "string"
             ? item.trainingStartDate

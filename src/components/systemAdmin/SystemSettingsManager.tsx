@@ -107,6 +107,8 @@ export default function SystemSettingsManager({
   const [newOrderEndDate, setNewOrderEndDate] = useState("");
   const [newOrderLocation, setNewOrderLocation] = useState("");
   const [newOrderProcessingDays, setNewOrderProcessingDays] = useState(3);
+  const [newOrderProcessingDayType, setNewOrderProcessingDayType] =
+    useState<"processing" | "family">("processing");
   const [newOrderTrainingStartDate, setNewOrderTrainingStartDate] = useState("");
   const [newOrderLineStartDate, setNewOrderLineStartDate] = useState("");
   const [newOrderLineEndDate, setNewOrderLineEndDate] = useState("");
@@ -117,6 +119,14 @@ export default function SystemSettingsManager({
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  const getProcessingDayLabel = (
+    days: number,
+    type: "processing" | "family"
+  ) => {
+    if (type === "family") return days === 1 ? "יום משפחות" : "ימי משפחות";
+    return days === 1 ? "יום עיבוד" : "ימי עיבוד";
+  };
 
   useEffect(() => {
     if (settings && !isDirty && !saving) {
@@ -267,6 +277,7 @@ export default function SystemSettingsManager({
     setNewOrderEndDate("");
     setNewOrderLocation("");
     setNewOrderProcessingDays(3);
+    setNewOrderProcessingDayType("processing");
     setNewOrderTrainingStartDate("");
     setNewOrderLineStartDate("");
     setNewOrderLineEndDate("");
@@ -318,6 +329,7 @@ export default function SystemSettingsManager({
                 endDate: newOrderEndDate,
                 location: newOrderLocation.trim(),
                 processingDays: newOrderProcessingDays,
+                processingDayType: newOrderProcessingDayType,
                 trainingStartDate: newOrderTrainingStartDate,
                 lineStartDate: newOrderLineStartDate,
                 lineEndDate: newOrderLineEndDate,
@@ -335,6 +347,7 @@ export default function SystemSettingsManager({
         endDate: newOrderEndDate,
         location: newOrderLocation.trim(),
         processingDays: newOrderProcessingDays,
+        processingDayType: newOrderProcessingDayType,
         trainingStartDate: newOrderTrainingStartDate,
         lineStartDate: newOrderLineStartDate,
         lineEndDate: newOrderLineEndDate,
@@ -362,6 +375,7 @@ export default function SystemSettingsManager({
     setNewOrderEndDate(order.endDate);
     setNewOrderLocation(order.location || "");
     setNewOrderProcessingDays(order.processingDays ?? 3);
+    setNewOrderProcessingDayType(order.processingDayType || "processing");
     setNewOrderTrainingStartDate(order.trainingStartDate || "");
     setNewOrderLineStartDate(order.lineStartDate || "");
     setNewOrderLineEndDate(order.lineEndDate || "");
@@ -634,7 +648,7 @@ export default function SystemSettingsManager({
               כל צו נשמר כאירוע נפרד. חייל שדיווח באותו יום „לא בצו” או
               „חיתוך צו” יוצג כמי שאינו בצו באותו יום.
             </p>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
               <Field label="שם הצו">
                 <input
                   value={newOrderTitle}
@@ -668,7 +682,7 @@ export default function SystemSettingsManager({
                   className="input"
                 />
               </Field>
-              <Field label="ימי עיבוד לאחר השירות">
+              <Field label={`${getProcessingDayLabel(newOrderProcessingDays, newOrderProcessingDayType)} לאחר השירות`}>
                 <input
                   type="number"
                   min={0}
@@ -681,6 +695,20 @@ export default function SystemSettingsManager({
                   }
                   className="input"
                 />
+              </Field>
+              <Field label="סוג הימים לאחר השירות">
+                <select
+                  value={newOrderProcessingDayType}
+                  onChange={(e) =>
+                    setNewOrderProcessingDayType(
+                      e.target.value === "family" ? "family" : "processing"
+                    )
+                  }
+                  className="input"
+                >
+                  <option value="processing">עיבוד</option>
+                  <option value="family">משפחות</option>
+                </select>
               </Field>
             </div>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -709,7 +737,7 @@ export default function SystemSettingsManager({
                   className="input"
                 />
               </Field>
-              <Field label="יום עיבוד – תאריך (אופציונלי)">
+              <Field label={`${getProcessingDayLabel(newOrderProcessingDays, newOrderProcessingDayType)} – תאריך (אופציונלי)`}>
                 <input
                   type="date"
                   value={newOrderProcessingDate}
@@ -779,13 +807,22 @@ export default function SystemSettingsManager({
                             {new Date(`${order.startDate}T12:00:00`).toLocaleDateString("he-IL")} –{" "}
                             {new Date(`${order.endDate}T12:00:00`).toLocaleDateString("he-IL")}
                             {order.location ? ` · ${order.location}` : ""}
-                            {` · ${order.processingDays ?? 3} ימי עיבוד`}
+                            {` · ${order.processingDays ?? 3} ${getProcessingDayLabel(
+                              order.processingDays ?? 3,
+                              order.processingDayType || "processing"
+                            )}`}
                           </div>
                           {[
                             ["עלייה לאימון", order.trainingStartDate],
                             ["עלייה לקו", order.lineStartDate],
                             ["סיום הקו", order.lineEndDate],
-                            ["יום עיבוד", order.processingDate],
+                            [
+                              getProcessingDayLabel(
+                                order.processingDays ?? 3,
+                                order.processingDayType || "processing"
+                              ),
+                              order.processingDate,
+                            ],
                           ]
                             .filter(([, value]) => Boolean(value))
                             .map(([label, value]) => (

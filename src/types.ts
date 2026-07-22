@@ -137,6 +137,7 @@ export interface OrderEventConfig {
   endDate: string;
   location: string;
   processingDays?: number;
+  processingDayType?: "processing" | "family";
   trainingStartDate?: string;
   lineStartDate?: string;
   lineEndDate?: string;
