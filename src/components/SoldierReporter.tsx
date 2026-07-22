@@ -426,7 +426,8 @@ useEffect(() => {
 
   const calculateBenefitEndDate = (
     firstBenefitDate: string,
-    benefitDays: number
+    benefitDays: number,
+    combineFridayAndSaturday = false
   ) => {
     if (benefitDays <= 0) return addCalendarDays(firstBenefitDate, -1);
     let current = new Date(`${firstBenefitDate}T12:00:00`);
@@ -436,8 +437,8 @@ useEffect(() => {
       const dayOfWeek = current.getDay();
       remaining -= 1;
 
-      // שישי ושבת רצופים צורכים יחד יום זכאות אחד.
-      if (dayOfWeek === 5) {
+      // בתקופות עיבוד והתרעננות שישי ושבת רצופים צורכים יחד יום זכאות אחד.
+      if (combineFridayAndSaturday && dayOfWeek === 5) {
         current.setDate(current.getDate() + 1);
       }
 
@@ -450,20 +451,29 @@ useEffect(() => {
   const processingDays = displayedOrderEvent?.processingDays ?? 3;
   const totalActualServiceDays = totalEffectiveOrderDays + processingDays;
   const refreshmentDays = getRefreshmentDays(totalActualServiceDays);
-  const totalEntitlementDays = totalActualServiceDays + refreshmentDays;
   const personalLastServiceDate = getLastPersonalServiceDate();
   const processingStartDate = personalLastServiceDate
     ? addCalendarDays(personalLastServiceDate, 1)
     : "";
   const processingEndDate = processingStartDate
-    ? calculateBenefitEndDate(processingStartDate, processingDays)
+    ? calculateBenefitEndDate(processingStartDate, processingDays, true)
     : "";
   const refreshmentStartDate = processingEndDate
     ? addCalendarDays(processingEndDate, 1)
     : "";
   const personalEntitlementEndDate = refreshmentStartDate
-    ? calculateBenefitEndDate(refreshmentStartDate, refreshmentDays)
+    ? calculateBenefitEndDate(refreshmentStartDate, refreshmentDays, true)
     : "";
+  const processingCalendarDays =
+    processingStartDate && processingEndDate
+      ? getInclusiveDayCount(processingStartDate, processingEndDate)
+      : 0;
+  const refreshmentCalendarDays =
+    refreshmentStartDate && personalEntitlementEndDate
+      ? getInclusiveDayCount(refreshmentStartDate, personalEntitlementEndDate)
+      : 0;
+  const totalCalendarDays =
+    totalEffectiveOrderDays + processingCalendarDays + refreshmentCalendarDays;
 
   // Auto set default locations based on status selection
 useEffect(() => {
@@ -803,10 +813,10 @@ dayMarker || undefined
                         <strong className="text-slate-800">{refreshmentDays} ימים</strong>
                       </div>
                       <div className="rounded-lg border border-blue-200 bg-blue-50/80 px-2 py-1.5">
-                        <span className="block font-bold text-blue-700">סה״כ ימים</span>
-                        <strong className="text-blue-900">{totalEntitlementDays} ימים</strong>
+                        <span className="block font-bold text-blue-700">סה״כ ימים קלנדריים</span>
+                        <strong className="text-blue-900">{totalCalendarDays} ימים</strong>
                         <span className="mt-0.5 block text-[10px] font-bold text-blue-600">
-                          בפועל + עיבוד + התרעננות
+                          ימי צו + תקופת עיבוד + תקופת התרעננות
                         </span>
                       </div>
                       <div className="rounded-lg border border-emerald-200 bg-emerald-100/80 px-2 py-1.5">
