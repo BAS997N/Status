@@ -2013,11 +2013,9 @@ export default function ShiftsView({
     }
 
     setIsWhatsAppOptionsOpen(false);
-    window.open(
-      `https://wa.me/?text=${encodeURIComponent(completeMessage)}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
+    const whatsappUrl = new URL("https://api.whatsapp.com/send");
+    whatsappUrl.searchParams.set("text", completeMessage);
+    window.open(whatsappUrl.toString(), "_blank", "noopener,noreferrer");
   };
 
   const shareShiftOnWhatsApp = (shift: ShiftRecord) => {
@@ -2051,8 +2049,9 @@ export default function ShiftsView({
       .filter(Boolean)
       .join("\n");
 
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    const whatsappUrl = new URL("https://api.whatsapp.com/send");
+    whatsappUrl.searchParams.set("text", message);
+    window.open(whatsappUrl.toString(), "_blank", "noopener,noreferrer");
   };
 
   return (
