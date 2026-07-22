@@ -1220,14 +1220,14 @@ export default function ShiftsView({
                 </div>
                 ${
                   includeLocationInPrint && shift.location
-                    ? `<div class="shift-location">${escapeHtml(
+                    ? `<div class="shift-location"><strong>מיקום:</strong> ${escapeHtml(
                         shift.location
                       )}</div>`
                     : ""
                 }
                 ${
                   includeNotesInPrint && shift.note
-                    ? `<div class="shift-note">${escapeHtml(shift.note)}</div>`
+                    ? `<div class="shift-note"><strong>הערות:</strong> ${escapeHtml(shift.note)}</div>`
                     : ""
                 }
               </th>
@@ -1521,13 +1521,13 @@ export default function ShiftsView({
               width: 100%;
               table-layout: fixed;
               border-collapse: collapse;
-              font-size: 8.2px;
+              font-size: 9.2px;
             }
 
             .roster-table th,
             .roster-table td {
               border: 1px solid #64748b;
-              padding: 3px;
+              padding: 4px;
               text-align: center;
               vertical-align: middle;
               overflow-wrap: anywhere;
@@ -1547,22 +1547,25 @@ export default function ShiftsView({
             }
 
             .shift-title {
-              font-size: 9px;
+              font-size: 10.5px;
               font-weight: 900;
-              line-height: 1.15;
+              line-height: 1.25;
             }
 
             .shift-time {
-              margin-top: 2px;
-              font-size: 7.5px;
+              margin-top: 3px;
+              font-size: 8.8px;
+              font-weight: 800;
             }
 
             .shift-location,
             .shift-note {
-              margin-top: 2px;
-              font-size: 6.8px;
-              line-height: 1.2;
-              opacity: 0.95;
+              margin-top: 3px;
+              font-size: 8.8px;
+              font-weight: 700;
+              line-height: 1.35;
+              opacity: 1;
+              overflow-wrap: anywhere;
             }
 
             .shift-note {
@@ -1575,15 +1578,15 @@ export default function ShiftsView({
             }
 
             .assignee-name {
-              font-size: 8.5px;
+              font-size: 9.5px;
               font-weight: 800;
-              line-height: 1.15;
+              line-height: 1.25;
             }
 
             .phone-number {
               margin-top: 2px;
               direction: ltr;
-              font-size: 7px;
+              font-size: 8.2px;
               font-weight: 700;
               color: #334155;
             }
