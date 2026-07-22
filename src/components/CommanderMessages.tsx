@@ -60,6 +60,22 @@ export default function CommanderMessages({
     return activeSoldiers;
   };
 
+  const getTargetLabel = (message: CommanderMessage) => {
+    if (message.targetType === "user") {
+      const targetUser = allUsers.find(
+        (user) => user.userId === message.targetUserId
+      );
+      return `משתמש מסוים: ${
+        message.targetUserName || targetUser?.fullName || "משתמש שלא נמצא"
+      }`;
+    }
+    if (message.targetType === "unit") {
+      return `יחידה: ${message.targetUnit || "לא צוינה"}`;
+    }
+    if (message.targetType === "role") return "כלל המפקדים";
+    return "כלל החיילים";
+  };
+
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
@@ -79,13 +95,22 @@ export default function CommanderMessages({
 
     setSaving(true);
     try {
+      const selectedTargetUser =
+        targetType === "user"
+          ? activeUsers.find((user) => user.userId === targetUserId)
+          : undefined;
       const messagePayload = {
         title: title.trim(),
         content: content.trim(),
         important,
         targetType,
         ...(targetType === "unit" ? { targetUnit } : {}),
-        ...(targetType === "user" ? { targetUserId } : {}),
+        ...(targetType === "user"
+          ? {
+              targetUserId,
+              targetUserName: selectedTargetUser?.fullName || "",
+            }
+          : {}),
         ...(targetType === "role" ? { targetRole: "commander" as const } : {}),
         createdAt: new Date().toISOString(),
         createdBy: currentUser.userId,
@@ -206,6 +231,9 @@ export default function CommanderMessages({
                 </div>
                 <div className="mt-3 text-[10px] font-bold text-slate-400">
                   {new Date(message.createdAt).toLocaleString("he-IL")} · {message.createdByName}
+                </div>
+                <div className="mt-1 rounded-lg bg-blue-50 px-2.5 py-2 text-[11px] font-black text-blue-800">
+                  נשלח אל: {getTargetLabel(message)}
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-center text-[11px] font-black">
                   <div className="rounded-lg bg-emerald-50 p-2 text-emerald-700"><CheckCircle2 className="mx-auto mb-1 h-4 w-4" />אישרו: {acknowledgements.length}</div>

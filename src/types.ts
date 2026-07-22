@@ -611,6 +611,7 @@ export interface CommanderMessage {
   targetType: CommanderMessageTarget;
   targetUnit?: string;
   targetUserId?: string;
+  targetUserName?: string;
   targetRole?: UserRole;
   createdAt: string;
   createdBy: string;
