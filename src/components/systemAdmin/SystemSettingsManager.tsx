@@ -107,6 +107,11 @@ export default function SystemSettingsManager({
   const [newOrderEndDate, setNewOrderEndDate] = useState("");
   const [newOrderLocation, setNewOrderLocation] = useState("");
   const [newOrderProcessingDays, setNewOrderProcessingDays] = useState(3);
+  const [newOrderTrainingStartDate, setNewOrderTrainingStartDate] = useState("");
+  const [newOrderLineStartDate, setNewOrderLineStartDate] = useState("");
+  const [newOrderLineEndDate, setNewOrderLineEndDate] = useState("");
+  const [newOrderProcessingDate, setNewOrderProcessingDate] = useState("");
+  const [newOrderNote, setNewOrderNote] = useState("");
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -262,6 +267,11 @@ export default function SystemSettingsManager({
     setNewOrderEndDate("");
     setNewOrderLocation("");
     setNewOrderProcessingDays(3);
+    setNewOrderTrainingStartDate("");
+    setNewOrderLineStartDate("");
+    setNewOrderLineEndDate("");
+    setNewOrderProcessingDate("");
+    setNewOrderNote("");
   };
 
   const saveOrderEvent = () => {
@@ -284,6 +294,18 @@ export default function SystemSettingsManager({
       return;
     }
 
+    if (
+      newOrderLineStartDate &&
+      newOrderLineEndDate &&
+      newOrderLineEndDate < newOrderLineStartDate
+    ) {
+      setMessage({
+        type: "error",
+        text: "תאריך סיום הקו לא יכול להיות מוקדם מתאריך העלייה לקו.",
+      });
+      return;
+    }
+
     if (editingOrderId) {
       update(
         "orderEvents",
@@ -296,6 +318,11 @@ export default function SystemSettingsManager({
                 endDate: newOrderEndDate,
                 location: newOrderLocation.trim(),
                 processingDays: newOrderProcessingDays,
+                trainingStartDate: newOrderTrainingStartDate,
+                lineStartDate: newOrderLineStartDate,
+                lineEndDate: newOrderLineEndDate,
+                processingDate: newOrderProcessingDate,
+                note: newOrderNote.trim(),
               }
             : order
         )
@@ -308,6 +335,11 @@ export default function SystemSettingsManager({
         endDate: newOrderEndDate,
         location: newOrderLocation.trim(),
         processingDays: newOrderProcessingDays,
+        trainingStartDate: newOrderTrainingStartDate,
+        lineStartDate: newOrderLineStartDate,
+        lineEndDate: newOrderLineEndDate,
+        processingDate: newOrderProcessingDate,
+        note: newOrderNote.trim(),
         createdAt: new Date().toISOString(),
         createdBy: currentUser.userId,
       };
@@ -330,6 +362,11 @@ export default function SystemSettingsManager({
     setNewOrderEndDate(order.endDate);
     setNewOrderLocation(order.location || "");
     setNewOrderProcessingDays(order.processingDays ?? 3);
+    setNewOrderTrainingStartDate(order.trainingStartDate || "");
+    setNewOrderLineStartDate(order.lineStartDate || "");
+    setNewOrderLineEndDate(order.lineEndDate || "");
+    setNewOrderProcessingDate(order.processingDate || "");
+    setNewOrderNote(order.note || "");
     setMessage(null);
   };
 
@@ -646,6 +683,52 @@ export default function SystemSettingsManager({
                 />
               </Field>
             </div>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Field label="תאריך עלייה לאימון (אופציונלי)">
+                <input
+                  type="date"
+                  value={newOrderTrainingStartDate}
+                  onChange={(e) => setNewOrderTrainingStartDate(e.target.value)}
+                  className="input"
+                />
+              </Field>
+              <Field label="תאריך עלייה לקו (אופציונלי)">
+                <input
+                  type="date"
+                  value={newOrderLineStartDate}
+                  onChange={(e) => setNewOrderLineStartDate(e.target.value)}
+                  className="input"
+                />
+              </Field>
+              <Field label="תאריך סיום הקו (אופציונלי)">
+                <input
+                  type="date"
+                  min={newOrderLineStartDate || undefined}
+                  value={newOrderLineEndDate}
+                  onChange={(e) => setNewOrderLineEndDate(e.target.value)}
+                  className="input"
+                />
+              </Field>
+              <Field label="יום עיבוד – תאריך (אופציונלי)">
+                <input
+                  type="date"
+                  value={newOrderProcessingDate}
+                  onChange={(e) => setNewOrderProcessingDate(e.target.value)}
+                  className="input"
+                />
+              </Field>
+              <div className="sm:col-span-2 lg:col-span-4">
+                <Field label="הערה לצו (אופציונלי)">
+                  <textarea
+                    rows={2}
+                    value={newOrderNote}
+                    onChange={(e) => setNewOrderNote(e.target.value)}
+                    placeholder="לדוגמה: ירידה מהקו בתאריך..."
+                    className="input resize-y"
+                  />
+                </Field>
+              </div>
+            </div>
             <p className="mt-2 text-[11px] font-bold text-slate-500">
               את מספר ימי העיבוד מזינים בנפרד לכל צו. ימי ההתרעננות מחושבים אוטומטית לפי ימי השירות בפועל: 10–14: 2,
               15–28: 3, 29–42: 5, 43–56: 7, 57 ומעלה: 9. שישי ושבת
@@ -698,6 +781,26 @@ export default function SystemSettingsManager({
                             {order.location ? ` · ${order.location}` : ""}
                             {` · ${order.processingDays ?? 3} ימי עיבוד`}
                           </div>
+                          {[
+                            ["עלייה לאימון", order.trainingStartDate],
+                            ["עלייה לקו", order.lineStartDate],
+                            ["סיום הקו", order.lineEndDate],
+                            ["יום עיבוד", order.processingDate],
+                          ]
+                            .filter(([, value]) => Boolean(value))
+                            .map(([label, value]) => (
+                              <div
+                                key={label}
+                                className="mt-1 text-[11px] font-bold text-slate-500"
+                              >
+                                {label}: {new Date(`${value}T12:00:00`).toLocaleDateString("he-IL")}
+                              </div>
+                            ))}
+                          {order.note && (
+                            <div className="mt-1 whitespace-pre-wrap text-[11px] font-bold text-slate-600">
+                              הערה: {order.note}
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-2">
                           <button

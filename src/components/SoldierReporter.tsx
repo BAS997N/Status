@@ -46,6 +46,12 @@ interface SoldierReporterProps {
 ) => Promise<void>;
 }
 
+const readStoredCollapsedState = (key: string, fallback: boolean) => {
+  if (typeof window === "undefined") return fallback;
+  const stored = window.localStorage.getItem(key);
+  return stored === null ? fallback : stored === "true";
+};
+
 export default function SoldierReporter({ 
   currentUser, 
   reports,
@@ -54,6 +60,8 @@ export default function SoldierReporter({
   attendanceStatuses = DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   onSubmitReport
 }: SoldierReporterProps) {
+  const orderCollapseStorageKey = `idf_order_card_collapsed_${currentUser.userId}`;
+  const weeklyShiftsCollapseStorageKey = `idf_weekly_shifts_collapsed_${currentUser.userId}`;
   const getTodayLocalDate = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -79,16 +87,34 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [commanderMessages, setCommanderMessages] = useState<CommanderMessage[]>([]);
   const [acknowledgingMessageId, setAcknowledgingMessageId] = useState<string | null>(null);
+  const [isOrderCollapsed, setIsOrderCollapsed] = useState<boolean>(() =>
+    readStoredCollapsedState(orderCollapseStorageKey, false)
+  );
   const [isWeeklyShiftsCollapsed, setIsWeeklyShiftsCollapsed] =
     useState<boolean>(() =>
-      typeof window !== "undefined" && window.innerWidth < 640
+      readStoredCollapsedState(
+        weeklyShiftsCollapseStorageKey,
+        typeof window !== "undefined" && window.innerWidth < 640
+      )
     );
+  const [collapseHelp, setCollapseHelp] = useState<"order" | "shifts" | null>(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(orderCollapseStorageKey, String(isOrderCollapsed));
+  }, [isOrderCollapsed, orderCollapseStorageKey]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      weeklyShiftsCollapseStorageKey,
+      String(isWeeklyShiftsCollapsed)
+    );
+  }, [isWeeklyShiftsCollapsed, weeklyShiftsCollapseStorageKey]);
 
   const soldierStatusOptions = attendanceStatuses
     .filter((item) => item.enabled && item.visibleToSoldiers)
@@ -779,8 +805,39 @@ dayMarker || undefined
                     ? "הצו הסתיים"
                     : "אין צו פעיל"}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setIsOrderCollapsed((current) => !current)}
+                  className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white/80 px-2 py-1 text-[10px] font-black text-slate-600 transition hover:bg-white"
+                  aria-expanded={!isOrderCollapsed}
+                >
+                  {isOrderCollapsed ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  )}
+                  {isOrderCollapsed ? "הצג" : "מזער"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCollapseHelp((current) =>
+                      current === "order" ? null : "order"
+                    )
+                  }
+                  className="rounded-full p-1 text-slate-500 transition hover:bg-white/80 hover:text-blue-700"
+                  aria-label="הסבר על שמירת מצב המיזעור"
+                  title="הסבר על שמירת מצב המיזעור"
+                >
+                  <AlertCircle className="h-4 w-4" />
+                </button>
               </div>
-              {hasOrderPeriod ? (
+              {collapseHelp === "order" && (
+                <p className="mt-1 rounded-lg bg-white/80 px-2 py-1.5 text-[10px] font-bold leading-4 text-slate-600">
+                  מצב המיזעור נשמר במכשיר ויישאר כפי שבחרת גם בכניסה הבאה, עד שתפתח או תמזער מחדש.
+                </p>
+              )}
+              {!isOrderCollapsed && (hasOrderPeriod ? (
                 <div className="mt-1 space-y-1">
                   <p className="text-xs font-black text-slate-700">
                     {displayedOrderEvent?.title}
@@ -792,6 +849,35 @@ dayMarker || undefined
                       ({totalEffectiveOrderDays} ימי צו)
                     </span>
                   </p>
+                  {[
+                    ["תאריך עלייה לאימון", displayedOrderEvent?.trainingStartDate],
+                    ["תאריך עלייה לקו", displayedOrderEvent?.lineStartDate],
+                    ["תאריך סיום הקו", displayedOrderEvent?.lineEndDate],
+                    ["יום עיבוד", displayedOrderEvent?.processingDate],
+                  ].some(([, value]) => Boolean(value)) && (
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
+                      {[
+                        ["תאריך עלייה לאימון", displayedOrderEvent?.trainingStartDate],
+                        ["תאריך עלייה לקו", displayedOrderEvent?.lineStartDate],
+                        ["תאריך סיום הקו", displayedOrderEvent?.lineEndDate],
+                        ["יום עיבוד", displayedOrderEvent?.processingDate],
+                      ]
+                        .filter(([, value]) => Boolean(value))
+                        .map(([label, value]) => (
+                          <span
+                            key={label}
+                            className="rounded-md border border-slate-200 bg-white/80 px-2 py-1"
+                          >
+                            {label}: {new Date(`${value}T12:00:00`).toLocaleDateString("he-IL")}
+                          </span>
+                        ))}
+                    </div>
+                  )}
+                  {displayedOrderEvent?.note && (
+                    <p className="mt-2 whitespace-pre-wrap rounded-lg border border-slate-200 bg-white/80 px-2.5 py-2 text-[11px] font-bold text-slate-600">
+                      הערה: {displayedOrderEvent.note}
+                    </p>
+                  )}
                   {excludedOrderDates.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
                       <span className="rounded-md bg-emerald-100 px-2 py-1 text-emerald-800">
@@ -844,11 +930,12 @@ dayMarker || undefined
                 <p className="mt-1 text-xs font-medium text-slate-500">
                   לא נפתח צו גדודי במערכת
                 </p>
-              )}
+              ))}
             </div>
           </div>
 
-          {(orderState === "active" || orderState === "excluded") && (
+          {!isOrderCollapsed &&
+            (orderState === "active" || orderState === "excluded") && (
             <div className="rounded-lg bg-white/80 px-3 py-2 text-center shadow-sm">
               <div className="mb-0.5 block text-xs font-black leading-none text-slate-600">
                 נותרו
@@ -926,8 +1013,27 @@ dayMarker || undefined
                 )}
                 {isWeeklyShiftsCollapsed ? "הצג" : "מזער"}
               </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setCollapseHelp((current) =>
+                    current === "shifts" ? null : "shifts"
+                  )
+                }
+                className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
+                aria-label="הסבר על שמירת מצב המיזעור"
+                title="הסבר על שמירת מצב המיזעור"
+              >
+                <AlertCircle className="h-4 w-4" />
+              </button>
             </div>
           </div>
+
+          {collapseHelp === "shifts" && (
+            <p className="mb-3 rounded-lg bg-slate-50 px-2.5 py-2 text-[10px] font-bold leading-4 text-slate-600">
+              מצב המיזעור נשמר במכשיר ויישאר כפי שבחרת גם בכניסה הבאה, עד שתפתח או תמזער מחדש.
+            </p>
+          )}
 
           {!isWeeklyShiftsCollapsed && (weeklyShifts.length > 0 ? (
             <div className="max-h-64 space-y-2 overflow-y-auto pl-1 custom-scrollbar">

@@ -137,6 +137,11 @@ export interface OrderEventConfig {
   endDate: string;
   location: string;
   processingDays?: number;
+  trainingStartDate?: string;
+  lineStartDate?: string;
+  lineEndDate?: string;
+  processingDate?: string;
+  note?: string;
   createdAt: string;
   createdBy?: string;
 }
