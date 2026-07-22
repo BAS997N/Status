@@ -1674,6 +1674,7 @@ const dates = getDateRange(startDate, endDate);
                 <div key={index} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold transition">
                   <input
                     type="text"
+                    data-inline-edit="true"
                     value={unit}
                     onChange={(e) => {
                       const updated = [...medicalUnits];
@@ -1746,6 +1747,7 @@ const dates = getDateRange(startDate, endDate);
                 <div key={index} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold transition">
                   <input
                     type="text"
+                    data-inline-edit="true"
                     value={role}
                     onChange={(e) => {
                       const updated = [...customRoles];
