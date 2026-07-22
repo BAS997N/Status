@@ -4591,8 +4591,8 @@ ${se}`)){z(!0),k(null);try{const ne=await OTe({targetUserId:y.userId,newPersonal
                 <div class="shift-time">
                   ${Z(ue(en.startAt))}–${Z(ue(en.endAt))}
                 </div>
-                ${Be&&en.location?`<div class="shift-location">${Z(en.location)}</div>`:""}
-                ${ct&&en.note?`<div class="shift-note">${Z(en.note)}</div>`:""}
+                ${Be&&en.location?`<div class="shift-location"><strong>מיקום:</strong> ${Z(en.location)}</div>`:""}
+                ${ct&&en.note?`<div class="shift-note"><strong>הערות:</strong> ${Z(en.note)}</div>`:""}
               </th>
             `).join(""),aa=In.map(en=>{const Ir=An.includes(en),Yn=mt.map(Bs=>{const yr=Bs.assignments.find(mi=>(mi.slotLabel||"תפקיד")===en);if(!yr)return Ir?'<td class="assignment-cell missing-cell">חסר</td>':'<td class="assignment-cell empty-cell">—</td>';const fi=se&&yr.assigneeType!=="external"?yr.readStatus==="read"?'<span class="read-status read">✓</span>':'<span class="read-status unread">○</span>':"",hi=Fe(en)?Re(yr):"";return`
                   <td class="assignment-cell">
@@ -4768,13 +4768,13 @@ ${se}`)){z(!0),k(null);try{const ne=await OTe({targetUserId:y.userId,newPersonal
               width: 100%;
               table-layout: fixed;
               border-collapse: collapse;
-              font-size: 8.2px;
+              font-size: 9.2px;
             }
 
             .roster-table th,
             .roster-table td {
               border: 1px solid #64748b;
-              padding: 3px;
+              padding: 4px;
               text-align: center;
               vertical-align: middle;
               overflow-wrap: anywhere;
@@ -4794,22 +4794,25 @@ ${se}`)){z(!0),k(null);try{const ne=await OTe({targetUserId:y.userId,newPersonal
             }
 
             .shift-title {
-              font-size: 9px;
+              font-size: 10.5px;
               font-weight: 900;
-              line-height: 1.15;
+              line-height: 1.25;
             }
 
             .shift-time {
-              margin-top: 2px;
-              font-size: 7.5px;
+              margin-top: 3px;
+              font-size: 8.8px;
+              font-weight: 800;
             }
 
             .shift-location,
             .shift-note {
-              margin-top: 2px;
-              font-size: 6.8px;
-              line-height: 1.2;
-              opacity: 0.95;
+              margin-top: 3px;
+              font-size: 8.8px;
+              font-weight: 700;
+              line-height: 1.35;
+              opacity: 1;
+              overflow-wrap: anywhere;
             }
 
             .shift-note {
@@ -4822,15 +4825,15 @@ ${se}`)){z(!0),k(null);try{const ne=await OTe({targetUserId:y.userId,newPersonal
             }
 
             .assignee-name {
-              font-size: 8.5px;
+              font-size: 9.5px;
               font-weight: 800;
-              line-height: 1.15;
+              line-height: 1.25;
             }
 
             .phone-number {
               margin-top: 2px;
               direction: ltr;
-              font-size: 7px;
+              font-size: 8.2px;
               font-weight: 700;
               color: #334155;
             }
