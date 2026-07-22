@@ -2037,9 +2037,9 @@ export default function ShiftsView({
     const message = [
       `*${shift.title}*`,
       shift.shiftType ? `סוג: ${shift.shiftType}` : "",
-      `התחלה: ${start}`,
-      `סיום: ${end}`,
-      shift.location ? `מיקום: ${shift.location}` : "",
+      `🕒 התחלה: ${start}`,
+      `🕒 סיום: ${end}`,
+      shift.location ? `📍 מיקום: ${shift.location}` : "",
       "",
       "*שיבוץ המשמרת:*",
       assignmentsText,
