@@ -438,6 +438,18 @@ useEffect(() => {
       )
     : 0;
 
+  const remainingUntilOrderEndDays =
+    (orderState === "active" || orderState === "excluded") &&
+    todayDate <= orderEndDate
+      ? Math.max(
+          0,
+          getInclusiveDayCount(todayDate, orderEndDate) -
+            excludedOrderDates.filter(
+              (date) => date >= todayDate && date <= orderEndDate
+            ).length
+        )
+      : 0;
+
   const totalEffectiveOrderDays = hasOrderPeriod
     ? Math.max(
         0,
@@ -979,6 +991,11 @@ dayMarker || undefined
               <span className="block text-[10px] font-bold text-slate-500">
                 ימים כולל היום
               </span>
+              {orderEndDate > remainingOrderEndDate && (
+                <span className="mt-1 block border-t border-slate-200 pt-1 text-[9px] font-bold text-slate-400">
+                  עד סיום הצו: {remainingUntilOrderEndDays} ימים
+                </span>
+              )}
             </div>
           )}
         </div>
