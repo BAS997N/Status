@@ -353,6 +353,18 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
           typeof item.lineEndDate === "string" ? item.lineEndDate : "",
         processingDate:
           typeof item.processingDate === "string" ? item.processingDate : "",
+        processingExcludedUserIds: Array.isArray(
+          item.processingExcludedUserIds
+        )
+          ? Array.from(
+              new Set(
+                item.processingExcludedUserIds.filter(
+                  (userId): userId is string =>
+                    typeof userId === "string" && Boolean(userId)
+                )
+              )
+            )
+          : [],
         note: typeof item.note === "string" ? item.note.trim() : "",
         createdAt:
           typeof item.createdAt === "string"

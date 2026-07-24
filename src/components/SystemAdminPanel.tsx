@@ -456,6 +456,7 @@ export default function SystemAdminPanel({
       ) : activeSection === "settings" ? (
         <SystemSettingsManager
           currentUser={currentUser}
+          users={users}
           settings={systemSettings}
           onSettingsChanged={onSystemSettingsChanged}
         />

@@ -514,7 +514,14 @@ useEffect(() => {
     return toLocalDateString(current);
   };
 
-  const processingDays = displayedOrderEvent?.processingDays ?? 3;
+  const configuredProcessingDays = displayedOrderEvent?.processingDays ?? 3;
+  const isExcludedFromProcessing =
+    displayedOrderEvent?.processingExcludedUserIds?.includes(
+      currentUser.userId
+    ) ?? false;
+  const processingDays = isExcludedFromProcessing
+    ? 0
+    : configuredProcessingDays;
   const processingDayType = displayedOrderEvent?.processingDayType || "processing";
   const processingDayLabel =
     processingDayType === "family"
@@ -540,7 +547,7 @@ useEffect(() => {
     ? calculateBenefitEndDate(refreshmentStartDate, refreshmentDays, true)
     : "";
   const processingCalendarDays =
-    processingStartDate && processingEndDate
+    processingDays > 0 && processingStartDate && processingEndDate
       ? getInclusiveDayCount(processingStartDate, processingEndDate)
       : 0;
   const refreshmentCalendarDays =
@@ -898,14 +905,24 @@ dayMarker || undefined
                     ["תאריך עלייה לאימון", displayedOrderEvent?.trainingStartDate],
                     ["תאריך עלייה לקו", displayedOrderEvent?.lineStartDate],
                     ["תאריך סיום הקו", displayedOrderEvent?.lineEndDate],
-                    [processingDayLabel, displayedOrderEvent?.processingDate],
+                    [
+                      processingDayLabel,
+                      isExcludedFromProcessing
+                        ? ""
+                        : displayedOrderEvent?.processingDate,
+                    ],
                   ].some(([, value]) => Boolean(value)) && (
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
                       {[
                         ["תאריך עלייה לאימון", displayedOrderEvent?.trainingStartDate],
                         ["תאריך עלייה לקו", displayedOrderEvent?.lineStartDate],
                         ["תאריך סיום הקו", displayedOrderEvent?.lineEndDate],
-                        [processingDayLabel, displayedOrderEvent?.processingDate],
+                        [
+                          processingDayLabel,
+                          isExcludedFromProcessing
+                            ? ""
+                            : displayedOrderEvent?.processingDate,
+                        ],
                       ]
                         .filter(([, value]) => Boolean(value))
                         .map(([label, value]) => (
@@ -934,6 +951,14 @@ dayMarker || undefined
                       </span>
                     </div>
                   )}
+                  {isExcludedFromProcessing && (
+                    <div className="flex">
+                      <span className="rounded-md bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-800">
+                        לא משתתף בימי{" "}
+                        {processingDayType === "family" ? "המשפחות" : "העיבוד"}
+                      </span>
+                    </div>
+                  )}
                   {personalLastServiceDate && (
                     <div className="mt-2 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-2 lg:grid-cols-4">
                       <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5">
@@ -942,7 +967,13 @@ dayMarker || undefined
                           {totalActualServiceDays} ימים
                         </strong>
                         <span className="mt-0.5 block text-[10px] font-bold text-slate-500">
-                          מתוכם {processingDays} {processingDayLabel}
+                          {isExcludedFromProcessing
+                            ? `ללא ימי ${
+                                processingDayType === "family"
+                                  ? "משפחות"
+                                  : "עיבוד"
+                              }`
+                            : `מתוכם ${processingDays} ${processingDayLabel}`}
                         </span>
                       </div>
                       <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5">

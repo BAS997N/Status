@@ -25,6 +25,7 @@ import { dataService } from "../../services/dataService";
 
 interface SystemSettingsManagerProps {
   currentUser: UserProfile;
+  users: UserProfile[];
   settings: SystemSettingsConfig | null;
   onSettingsChanged: (settings: SystemSettingsConfig) => void;
 }
@@ -96,6 +97,7 @@ const SYSTEM_ROLE_OPTIONS: Array<{
 
 export default function SystemSettingsManager({
   currentUser,
+  users,
   settings,
   onSettingsChanged,
 }: SystemSettingsManagerProps) {
@@ -115,6 +117,12 @@ export default function SystemSettingsManager({
   const [newOrderLineStartDate, setNewOrderLineStartDate] = useState("");
   const [newOrderLineEndDate, setNewOrderLineEndDate] = useState("");
   const [newOrderProcessingDate, setNewOrderProcessingDate] = useState("");
+  const [
+    newOrderProcessingExcludedUserIds,
+    setNewOrderProcessingExcludedUserIds,
+  ] = useState<string[]>([]);
+  const [processingExclusionSearch, setProcessingExclusionSearch] =
+    useState("");
   const [newOrderNote, setNewOrderNote] = useState("");
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [message, setMessage] = useState<{
@@ -129,6 +137,19 @@ export default function SystemSettingsManager({
     if (type === "family") return days === 1 ? "יום משפחות" : "ימי משפחות";
     return days === 1 ? "יום עיבוד" : "ימי עיבוד";
   };
+
+  const processingExclusionUsers = users
+    .filter((user) => !user.isDischarged)
+    .filter((user) => {
+      const search = processingExclusionSearch.trim().toLocaleLowerCase("he");
+      if (!search) return true;
+      return [user.fullName, user.personalId, user.unit]
+        .filter(Boolean)
+        .some((value) =>
+          String(value).toLocaleLowerCase("he").includes(search)
+        );
+    })
+    .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"));
 
   useEffect(() => {
     if (settings && !isDirty && !saving) {
@@ -284,6 +305,8 @@ export default function SystemSettingsManager({
     setNewOrderLineStartDate("");
     setNewOrderLineEndDate("");
     setNewOrderProcessingDate("");
+    setNewOrderProcessingExcludedUserIds([]);
+    setProcessingExclusionSearch("");
     setNewOrderNote("");
   };
 
@@ -336,6 +359,8 @@ export default function SystemSettingsManager({
                 lineStartDate: newOrderLineStartDate,
                 lineEndDate: newOrderLineEndDate,
                 processingDate: newOrderProcessingDate,
+                processingExcludedUserIds:
+                  newOrderProcessingExcludedUserIds,
                 note: newOrderNote.trim(),
               }
             : order
@@ -354,6 +379,7 @@ export default function SystemSettingsManager({
         lineStartDate: newOrderLineStartDate,
         lineEndDate: newOrderLineEndDate,
         processingDate: newOrderProcessingDate,
+        processingExcludedUserIds: newOrderProcessingExcludedUserIds,
         note: newOrderNote.trim(),
         createdAt: new Date().toISOString(),
         createdBy: currentUser.userId,
@@ -382,6 +408,10 @@ export default function SystemSettingsManager({
     setNewOrderLineStartDate(order.lineStartDate || "");
     setNewOrderLineEndDate(order.lineEndDate || "");
     setNewOrderProcessingDate(order.processingDate || "");
+    setNewOrderProcessingExcludedUserIds(
+      order.processingExcludedUserIds || []
+    );
+    setProcessingExclusionSearch("");
     setNewOrderNote(order.note || "");
     setMessage(null);
   };
@@ -784,6 +814,71 @@ export default function SystemSettingsManager({
                 </Field>
               </div>
             </div>
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-xs font-black text-slate-800">
+                    חריגים מימי {newOrderProcessingDayType === "family" ? "משפחות" : "עיבוד"}
+                  </div>
+                  <p className="mt-0.5 text-[10px] font-bold text-slate-500">
+                    החיילים שייבחרו לא יקבלו את הימים האלה בחישוב האישי.
+                  </p>
+                </div>
+                {newOrderProcessingExcludedUserIds.length > 0 && (
+                  <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-800">
+                    {newOrderProcessingExcludedUserIds.length} חריגים
+                  </span>
+                )}
+              </div>
+              <input
+                type="search"
+                value={processingExclusionSearch}
+                onChange={(event) =>
+                  setProcessingExclusionSearch(event.target.value)
+                }
+                placeholder="חיפוש לפי שם, מספר אישי או יחידה..."
+                className="input mt-3"
+              />
+              <div className="mt-2 max-h-44 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
+                {processingExclusionUsers.length === 0 ? (
+                  <div className="py-3 text-center text-[11px] font-bold text-slate-400">
+                    לא נמצאו חיילים
+                  </div>
+                ) : (
+                  processingExclusionUsers.map((user) => {
+                    const checked =
+                      newOrderProcessingExcludedUserIds.includes(user.userId);
+                    return (
+                      <label
+                        key={user.userId}
+                        className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(event) =>
+                            setNewOrderProcessingExcludedUserIds((current) =>
+                              event.target.checked
+                                ? Array.from(new Set([...current, user.userId]))
+                                : current.filter(
+                                    (userId) => userId !== user.userId
+                                  )
+                            )
+                          }
+                          className="h-4 w-4 accent-amber-600"
+                        />
+                        <span>{user.fullName}</span>
+                        <span className="text-[10px] text-slate-400">
+                          {[user.personalId, user.unit]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </div>
             <p className="mt-2 text-[11px] font-bold text-slate-500">
               את מספר ימי העיבוד מזינים בנפרד לכל צו. ימי ההתרעננות מחושבים אוטומטית לפי ימי השירות בפועל: 10–14: 2,
               15–28: 3, 29–42: 5, 43–56: 7, 57 ומעלה: 9. שישי ושבת
@@ -863,6 +958,15 @@ export default function SystemSettingsManager({
                           {order.note && (
                             <div className="mt-1 whitespace-pre-wrap text-[11px] font-bold text-slate-600">
                               הערה: {order.note}
+                            </div>
+                          )}
+                          {(order.processingExcludedUserIds?.length || 0) > 0 && (
+                            <div className="mt-1 text-[11px] font-bold text-amber-700">
+                              חריגים מימי{" "}
+                              {order.processingDayType === "family"
+                                ? "משפחות"
+                                : "עיבוד"}
+                              : {order.processingExcludedUserIds?.length}
                             </div>
                           )}
                         </div>
