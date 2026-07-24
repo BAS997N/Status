@@ -34,6 +34,7 @@ const MODULE_LABELS: Record<string, string> = {
   medical_roles: "תפקידי רפואה",
   google_sheets: "Google Sheets",
   reports: "דיווחים",
+  shifts: "משמרות",
   system_settings: "הגדרות מערכת",
   backups: "גיבויים ושחזור",
 };
@@ -46,6 +47,7 @@ const MODULE_ICONS: Record<string, typeof ClipboardList> = {
   medical_roles: BadgeCheck,
   google_sheets: FileSpreadsheet,
   reports: ClipboardList,
+  shifts: ClipboardList,
   system_settings: UserCog,
   backups: DatabaseBackup,
 };
@@ -77,6 +79,12 @@ const FIELD_LABELS: Record<string, string> = {
   webAppUrl: "כתובת Web App",
   spreadsheetName: "שם הגיליון",
   permissions: "הרשאות",
+  assignments: "שיבוצים",
+  updatedAt: "מועד עדכון",
+  startAt: "שעת התחלה",
+  endAt: "שעת סיום",
+  location: "מיקום",
+  note: "הערות",
 };
 
 const SKIP_REASON_LABELS: Record<string, string> = {
@@ -94,12 +102,51 @@ const ROLE_LABELS: Record<string, string> = {
   reporter: "חייל מדווח",
 };
 
-const formatValue = (value: unknown): string => {
+const VOLATILE_AUDIT_FIELDS = new Set([
+  "createdAt",
+  "updatedAt",
+  "updatedBy",
+  "readStatus",
+]);
+
+const sanitizeAuditValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(sanitizeAuditValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([key]) => !VOLATILE_AUDIT_FIELDS.has(key))
+        .map(([key, item]) => [key, sanitizeAuditValue(item)])
+    );
+  }
+  return value;
+};
+
+const formatValue = (value: unknown, path = ""): string => {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "boolean") return value ? "כן" : "לא";
   if (typeof value === "string" && ROLE_LABELS[value]) return ROLE_LABELS[value];
-  if (Array.isArray(value)) return value.map(formatValue).join(", ");
-  if (typeof value === "object") return JSON.stringify(value);
+  if (typeof value === "string" && /(At|Date)$/.test(path)) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleString("he-IL");
+  }
+  if (Array.isArray(value)) {
+    if (path.endsWith("assignments")) {
+      if (value.length === 0) return "אין שיבוצים";
+      return value
+        .map((item) => {
+          const assignment = item as Record<string, unknown>;
+          const role = String(assignment.slotLabel || assignment.medicalRole || "תפקיד");
+          const name = String(assignment.userName || assignment.fullName || "ללא שם");
+          return `${role}: ${name}`;
+        })
+        .join("\n");
+    }
+    return value.map((item) => formatValue(item, path)).join(", ");
+  }
+  if (typeof value === "object") {
+    const item = value as Record<string, unknown>;
+    return String(item.name || item.label || item.title || item.fullName || "פריט מורכב");
+  }
   return String(value);
 };
 
@@ -142,12 +189,17 @@ const getChanges = (before: unknown, after: unknown) => {
   const keys = Array.from(new Set([...Object.keys(beforeFlat), ...Object.keys(afterFlat)]));
 
   return keys
-    .filter((key) => JSON.stringify(beforeFlat[key]) !== JSON.stringify(afterFlat[key]))
+    .filter((key) => !VOLATILE_AUDIT_FIELDS.has(key.split(".").at(-1) || ""))
+    .filter(
+      (key) =>
+        JSON.stringify(sanitizeAuditValue(beforeFlat[key])) !==
+        JSON.stringify(sanitizeAuditValue(afterFlat[key]))
+    )
     .map((key) => ({
       key,
       label: getFriendlyFieldLabel(key),
-      before: beforeFlat[key],
-      after: afterFlat[key],
+      before: sanitizeAuditValue(beforeFlat[key]),
+      after: sanitizeAuditValue(afterFlat[key]),
     }));
 };
 
@@ -285,12 +337,12 @@ const ConfigCollectionAuditDetails = ({ log }: { log: AuditLogEntry }) => {
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
                   <div className="rounded-md bg-rose-50 px-2.5 py-2 text-[11px] text-rose-800">
                     <span className="mb-1 block text-[9px] font-black text-rose-500">לפני</span>
-                    <span className="break-words">{formatValue(change.before)}</span>
+                    <span className="block min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{formatValue(change.before, change.key)}</span>
                   </div>
                   <span className="hidden text-slate-400 sm:block">←</span>
                   <div className="rounded-md bg-emerald-50 px-2.5 py-2 text-[11px] text-emerald-800">
                     <span className="mb-1 block text-[9px] font-black text-emerald-500">אחרי</span>
-                    <span className="break-words">{formatValue(change.after)}</span>
+                    <span className="block min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{formatValue(change.after, change.key)}</span>
                   </div>
                 </div>
               </div>
@@ -326,12 +378,12 @@ const ChangeDetails = ({ log }: { log: AuditLogEntry }) => {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
             <div className="rounded-md bg-rose-50 px-2.5 py-2 text-[11px] text-rose-800">
               <span className="mb-1 block text-[9px] font-black text-rose-500">לפני</span>
-              <span className="break-words">{formatValue(change.before)}</span>
+              <span className="block min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{formatValue(change.before, change.key)}</span>
             </div>
             <span className="hidden text-slate-400 sm:block">←</span>
             <div className="rounded-md bg-emerald-50 px-2.5 py-2 text-[11px] text-emerald-800">
               <span className="mb-1 block text-[9px] font-black text-emerald-500">אחרי</span>
-              <span className="break-words">{formatValue(change.after)}</span>
+              <span className="block min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{formatValue(change.after, change.key)}</span>
             </div>
           </div>
         </div>

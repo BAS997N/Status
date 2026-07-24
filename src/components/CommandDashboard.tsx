@@ -30,7 +30,8 @@ import {
   ArrowLeftCircle,
   FileX,
   Pin,
-  PinOff
+  PinOff,
+  BellRing
 } from "lucide-react";
 import { 
   UserProfile,
@@ -45,6 +46,10 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { hasPermission, PermissionMap } from "../security/permissions";
 import { buildCsv } from "../utils/csvSecurity";
+import {
+  getPushAvailableUserIds,
+  sendAutomaticPush,
+} from "../services/pushService";
 import HistoryView from "./HistoryView";
 import CommanderMessages from "./CommanderMessages";
 import { 
@@ -237,7 +242,7 @@ export default function CommandDashboard({
     ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b"][index % 6];
 
   const [dashboardTab, setDashboardTab] = useState<
-  "attendance" | "directory" | "summary" | "settings" | "history" | "systemlogs" | "notifications"
+  "attendance" | "directory" | "summary" | "settings" | "history" | "systemlogs" | "notifications" | "messages"
 >("attendance");
   const loadedLargeTabsRef = useRef(new Set<string>());
 
@@ -280,6 +285,7 @@ export default function CommandDashboard({
       { id: "history" as const, allowed: canViewHistory },
       { id: "systemlogs" as const, allowed: canViewSystemLogs },
       { id: "notifications" as const, allowed: canViewNotifications },
+      { id: "messages" as const, allowed: canViewNotifications },
       { id: "settings" as const, allowed: canViewSettings },
     ];
 
@@ -400,6 +406,9 @@ const [notificationFilterStatus, setNotificationFilterStatus] = useState("all");
 const [showOnlyMissingReports, setShowOnlyMissingReports] = useState(false);
   const [attendanceRoleFilters, setAttendanceRoleFilters] = useState<string[]>([]);
 const [attendanceStatusFilters, setAttendanceStatusFilters] = useState<string[]>([]);
+const [attendanceDayMarkerFilter, setAttendanceDayMarkerFilter] = useState<
+  "all" | "none" | "return_to_base" | "exit_home" | "after_hours"
+>("all");
 const [isRoleFilterOpen, setIsRoleFilterOpen] = useState(false);
 const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const roleFilterRef = useRef<HTMLDivElement>(null);
@@ -409,6 +418,102 @@ const statusFilterRef = useRef<HTMLDivElement>(null);
   reportId: string;
   soldierName: string;
 } | null>(null);
+  const [reminderTarget, setReminderTarget] = useState<UserProfile | null>(null);
+  const [pushEnabledUserIds, setPushEnabledUserIds] = useState<string[]>([]);
+  const [pushAvailabilityLoading, setPushAvailabilityLoading] = useState(false);
+  const [sendingPushReminder, setSendingPushReminder] = useState(false);
+
+  const matchesAttendanceDayMarker = (report?: AttendanceReport) => {
+    if (attendanceDayMarkerFilter === "all") return true;
+    if (attendanceDayMarkerFilter === "none") return !report?.dayMarker;
+    return report?.dayMarker === attendanceDayMarkerFilter;
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (dashboardTab !== "attendance" || !canManageReports) return;
+
+    setPushAvailabilityLoading(true);
+    getPushAvailableUserIds()
+      .then((userIds) => {
+        if (cancelled) return;
+        setPushEnabledUserIds(Array.from(new Set(userIds)));
+      })
+      .catch((loadError) =>
+        console.error("Failed loading push availability:", loadError)
+      )
+      .finally(() => {
+        if (!cancelled) setPushAvailabilityLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dashboardTab, canManageReports]);
+
+  const sendAttendancePushReminder = async () => {
+    if (
+      !reminderTarget ||
+      !pushEnabledUserIds.includes(reminderTarget.userId)
+    ) {
+      return;
+    }
+
+    setSendingPushReminder(true);
+    try {
+      const delivery = await sendAutomaticPush({
+        kind: "attendance_reminder",
+        target: { type: "user", userId: reminderTarget.userId },
+        title: "תזכורת לדיווח נוכחות",
+        body: `שלום ${reminderTarget.fullName}, טרם ביצעת דיווח נוכחות להיום. יש להיכנס למערכת ולדווח.`,
+        url: "https://bas997n.github.io/Status/",
+      });
+      if (delivery.sent > 0) {
+        onShowMessage?.(
+          "תזכורת נשלחה",
+          `התראת Push נשלחה ל־${reminderTarget.fullName}.`,
+          "success"
+        );
+        setReminderTarget(null);
+      } else {
+        setPushEnabledUserIds((current) =>
+          current.filter((userId) => userId !== reminderTarget.userId)
+        );
+        onShowMessage?.(
+          "לא נמצא מכשיר פעיל",
+          `לא נמצאה התראת Push פעילה עבור ${reminderTarget.fullName}.`,
+          "error"
+        );
+      }
+    } catch (pushError) {
+      console.error("Attendance reminder push failed:", pushError);
+      onShowMessage?.(
+        "שליחת התזכורת נכשלה",
+        "לא ניתן היה לשלוח את התראת ה־Push.",
+        "error"
+      );
+    } finally {
+      setSendingPushReminder(false);
+    }
+  };
+
+  const reminderHasPush = Boolean(
+    reminderTarget && pushEnabledUserIds.includes(reminderTarget.userId)
+  );
+  const reminderPhoneDigits = String(reminderTarget?.phoneNumber || "").replace(
+    /\D/g,
+    ""
+  );
+  const reminderWhatsAppNumber = reminderPhoneDigits.startsWith("972")
+    ? reminderPhoneDigits
+    : reminderPhoneDigits
+    ? `972${reminderPhoneDigits.replace(/^0/, "")}`
+    : "";
+  const reminderWhatsAppUrl = reminderTarget && reminderWhatsAppNumber
+    ? `https://wa.me/${reminderWhatsAppNumber}?text=${encodeURIComponent(
+        `שלום ${reminderTarget.fullName},\nטרם ביצעת דיווח נוכחות להיום.\n\nנא להיכנס למערכת ולדווח:\nhttps://bas997n.github.io/Status/`
+      )}`
+    : "";
   const [directorySortField, setDirectorySortField] = useState<
   "fullName" | "unit" | "medicalRole" | "role" | "personalId"
 >("fullName");
@@ -1616,6 +1721,20 @@ const dates = getDateRange(startDate, endDate);
   </button>
 )}
 
+{canViewNotifications && (
+  <button
+    onClick={() => setDashboardTab("messages")}
+    className={`min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+      dashboardTab === "messages"
+        ? "bg-slate-800 text-white shadow-sm"
+        : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
+    }`}
+  >
+    <MessageCircle className="h-4 w-4 text-blue-500" />
+    <span>הודעות לחיילים</span>
+  </button>
+)}
+
 {canViewSettings && (
   <button
     onClick={() => setDashboardTab("settings")}
@@ -1629,15 +1748,6 @@ const dates = getDateRange(startDate, endDate);
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
     </svg>
     <span>ערוך הגדרות שיוך</span>
-  </button>
-)}
-           {can("sheets.export") && onSyncOldReportsToSheets && (
-  <button
-    type="button"
-    onClick={openSheetsExportModal}
-    className="min-w-[145px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black transition-all cursor-pointer bg-orange-600 hover:bg-orange-700 text-white"
-  >
-    ייצוא טווח לשיטס
   </button>
 )}
       </div>
@@ -1819,6 +1929,16 @@ const dates = getDateRange(startDate, endDate);
   }
     onShowMessage={onShowMessage}
 />
+      ) : dashboardTab === "messages" && canViewNotifications ? (
+  <div className="overflow-hidden rounded-xl border border-blue-200 bg-white shadow-sm text-right" dir="rtl">
+    <div className="border-b border-blue-100 bg-blue-50 p-5">
+      <h2 className="text-lg font-black text-slate-800">הודעות לחיילים</h2>
+      <p className="mt-1 text-xs font-semibold text-slate-500">
+        פרסום הודעות, שליחת Push ומעקב אחר אישורי קריאה
+      </p>
+    </div>
+    <CommanderMessages currentUser={currentUser} allUsers={allSoldiers} />
+  </div>
       ) : dashboardTab === "notifications" && canViewNotifications ? (
   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-right" dir="rtl">
     <div className="p-5 border-b border-slate-100">
@@ -1827,7 +1947,6 @@ const dates = getDateRange(startDate, endDate);
         כל ההתראות שנוצרו בעקבות דיווחי נוכחות חריגים
       </p>
     </div>
-    <CommanderMessages currentUser={currentUser} allUsers={allSoldiers} />
     {/* סינון התראות */}
 <div className="p-4 border-b border-slate-100 bg-slate-50">
   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -3096,12 +3215,35 @@ const dates = getDateRange(startDate, endDate);
   </div>
 )}
 </div>
-              {(attendanceRoleFilters.length > 0 || attendanceStatusFilters.length > 0 || showOnlyMissingReports) && (
+
+<select
+  value={attendanceDayMarkerFilter}
+  onChange={(event) =>
+    setAttendanceDayMarkerFilter(
+      event.target.value as
+        | "all"
+        | "none"
+        | "return_to_base"
+        | "exit_home"
+        | "after_hours"
+    )
+  }
+  className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-600"
+>
+  <option value="all">כל סימוני היום</option>
+  <option value="return_to_base">חזרה לבסיס</option>
+  <option value="exit_home">יציאה לבית</option>
+  <option value="after_hours">אפטר</option>
+  <option value="none">ללא סימון יום</option>
+</select>
+
+              {(attendanceRoleFilters.length > 0 || attendanceStatusFilters.length > 0 || attendanceDayMarkerFilter !== "all" || showOnlyMissingReports) && (
   <button
     type="button"
     onClick={() => {
       setAttendanceRoleFilters([]);
       setAttendanceStatusFilters([]);
+      setAttendanceDayMarkerFilter("all");
       setShowOnlyMissingReports(false);
       setIsRoleFilterOpen(false);
       setIsStatusFilterOpen(false);
@@ -3206,11 +3348,13 @@ const matchesStatus =
 
 const matchesMissing =
   !showOnlyMissingReports || !latestTodayReport;
+const matchesDayMarker = matchesAttendanceDayMarker(latestTodayReport);
 
 return (
   matchesSearch &&
   matchesRole &&
   matchesStatus &&
+  matchesDayMarker &&
   matchesMissing
 );
     })
@@ -3431,25 +3575,21 @@ return (
                               {displayedTodayReport ? "ערוך דיווח" : "צור דיווח"}
                             </button>
                       )}
-                          {!displayedTodayReport && profile.phoneNumber && canManageReports && (
-  <a
-    href={`https://wa.me/972${profile.phoneNumber
-  .replace(/\D/g, "")
-  .replace(/^0/, "")}?text=${encodeURIComponent(
-  `שלום ${profile.fullName},
-טרם ביצעת דיווח נוכחות להיום.
-
-נא להיכנס למערכת ולדווח:
-https://bas997n.github.io/Status/`
-)}`}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="text-[10px] bg-green-50 hover:bg-green-100 text-green-700 font-bold py-1 px-2 rounded-md transition cursor-pointer border border-green-200 inline-flex items-center justify-center gap-1 shadow-xs"
-  >
-    <MessageCircle className="w-3 h-3" />
-    שלח תזכורת
-  </a>
-)}
+                          {!displayedTodayReport && canManageReports && (
+                            <button
+                              type="button"
+                              onClick={() => setReminderTarget(profile)}
+                              className="inline-flex items-center justify-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[10px] font-bold text-indigo-700 shadow-xs transition hover:bg-indigo-100"
+                              title={
+                                pushAvailabilityLoading
+                                  ? "בודק זמינות Push"
+                                  : "בחר שליחת Push או WhatsApp"
+                              }
+                            >
+                              <BellRing className="h-3 w-3" />
+                              שלח תזכורת
+                            </button>
+                          )}
                      
  {displayedTodayReport && onDeleteReport && canDeleteReport && (
   <button
@@ -3507,8 +3647,9 @@ const matchesStatus =
 
       const matchesMissing =
         !showOnlyMissingReports || !latestTodayReport;
+      const matchesDayMarker = matchesAttendanceDayMarker(latestTodayReport);
 
-      return matchesSearch && matchesRole && matchesStatus && matchesMissing;
+      return matchesSearch && matchesRole && matchesStatus && matchesDayMarker && matchesMissing;
     }).length
   }{" "}
   | 👮 מפקדים:{" "}
@@ -3533,12 +3674,14 @@ const matchesStatus =
 
       const matchesMissing =
         !showOnlyMissingReports || !latestTodayReport;
+      const matchesDayMarker = matchesAttendanceDayMarker(latestTodayReport);
 
       return (
         profile.role === "commander" &&
         matchesSearch &&
         matchesRole &&
         matchesStatus &&
+        matchesDayMarker &&
         matchesMissing
       );
     }).length
@@ -3565,12 +3708,14 @@ const matchesStatus =
 
       const matchesMissing =
         !showOnlyMissingReports || !latestTodayReport;
+      const matchesDayMarker = matchesAttendanceDayMarker(latestTodayReport);
 
       return (
         profile.role !== "commander" &&
         matchesSearch &&
         matchesRole &&
         matchesStatus &&
+        matchesDayMarker &&
         matchesMissing
       );
     }).length
@@ -4516,6 +4661,116 @@ await onAdminSaveReport(dataToSave);
       </AnimatePresence>
       
       
+
+      <AnimatePresence>
+        {reminderTarget && canManageReports && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[12500] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-xl"
+              dir="rtl"
+            >
+              <div className="flex items-center justify-between gap-3 bg-indigo-800 p-4 text-white">
+                <div className="flex items-center gap-2">
+                  <BellRing className="h-5 w-5" />
+                  <h3 className="text-sm font-black">שליחת תזכורת לדיווח</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReminderTarget(null)}
+                  disabled={sendingPushReminder}
+                  className="text-white/80 hover:text-white disabled:opacity-40"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 p-6">
+                <p className="text-xs font-bold leading-6 text-slate-700">
+                  בחר כיצד לשלוח תזכורת ל־
+                  <span className="font-black text-indigo-700">
+                    {reminderTarget.fullName}
+                  </span>
+                  .
+                </p>
+
+                <button
+                  type="button"
+                  onClick={sendAttendancePushReminder}
+                  disabled={
+                    !reminderHasPush ||
+                    pushAvailabilityLoading ||
+                    sendingPushReminder
+                  }
+                  className={`flex w-full items-center justify-between rounded-xl border p-4 text-right transition ${
+                    reminderHasPush
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                      : "cursor-not-allowed border-rose-300 bg-rose-50 text-rose-700"
+                  } disabled:opacity-80`}
+                >
+                  <span>
+                    <span className="block text-sm font-black">
+                      {sendingPushReminder ? "שולח..." : "שליחת התראת Push"}
+                    </span>
+                    <span className="mt-1 block text-[10px] font-bold">
+                      {pushAvailabilityLoading
+                        ? "בודק אם ההתראות פעילות..."
+                        : reminderHasPush
+                        ? "התראות פעילות במכשיר אחד לפחות"
+                        : "החייל לא הפעיל התראות — האפשרות חסומה"}
+                    </span>
+                  </span>
+                  <BellRing className="h-6 w-6" />
+                </button>
+
+                {reminderWhatsAppUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.open(
+                        reminderWhatsAppUrl,
+                        "_blank",
+                        "noopener,noreferrer"
+                      );
+                      setReminderTarget(null);
+                    }}
+                    className="flex w-full items-center justify-between rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-right text-emerald-800 transition hover:bg-emerald-100"
+                  >
+                    <span>
+                      <span className="block text-sm font-black">שליחה ב־WhatsApp</span>
+                      <span className="mt-1 block text-[10px] font-bold">
+                        תיפתח הודעת תזכורת מוכנה לשליחה
+                      </span>
+                    </span>
+                    <MessageCircle className="h-6 w-6" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="flex w-full cursor-not-allowed items-center justify-between rounded-xl border border-rose-300 bg-rose-50 p-4 text-right text-rose-700 opacity-80"
+                  >
+                    <span>
+                      <span className="block text-sm font-black">שליחה ב־WhatsApp</span>
+                      <span className="mt-1 block text-[10px] font-bold">
+                        לא הוזן מספר טלפון — האפשרות חסומה
+                      </span>
+                    </span>
+                    <MessageCircle className="h-6 w-6" />
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* CUSTOM CONFIRMATION RESET REPORT MODAL */}
 <AnimatePresence>

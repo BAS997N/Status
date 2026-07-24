@@ -34,6 +34,7 @@ interface SoldierReporterProps {
   shifts?: ShiftRecord[];
   systemSettings: SystemSettingsConfig;
   attendanceStatuses?: AttendanceStatusConfig[];
+  readOnly?: boolean;
  onSubmitReport: (
   status: AttendanceStatus,
   location: string,
@@ -58,7 +59,8 @@ export default function SoldierReporter({
   shifts = [],
   systemSettings,
   attendanceStatuses = DEFAULT_ATTENDANCE_STATUS_CONFIGS,
-  onSubmitReport
+  onSubmitReport,
+  readOnly = false
 }: SoldierReporterProps) {
   const orderCollapseStorageKey = `idf_order_card_collapsed_${currentUser.userId}`;
   const nextShiftCollapseStorageKey = `idf_next_shift_collapsed_${currentUser.userId}`;
@@ -165,6 +167,7 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
   }, [currentUser.userId, currentUser.unit]);
 
   const handleAcknowledgeMessage = async (messageId: string) => {
+    if (readOnly) return;
     setAcknowledgingMessageId(messageId);
     try {
       await dataService.acknowledgeCommanderMessage(messageId, currentUser);
@@ -765,11 +768,13 @@ dayMarker || undefined
                     ) : (
                       <button
                         type="button"
-                        disabled={acknowledgingMessageId === message.messageId}
+                        disabled={readOnly || acknowledgingMessageId === message.messageId}
                         onClick={() => handleAcknowledgeMessage(message.messageId)}
                         className="rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white hover:bg-blue-700 disabled:opacity-60"
                       >
-                        {acknowledgingMessageId === message.messageId
+                        {readOnly
+                          ? "תצוגה בלבד"
+                          : acknowledgingMessageId === message.messageId
                           ? "שומר..."
                           : "קראתי ואישרתי"}
                       </button>
@@ -1383,6 +1388,7 @@ dayMarker || undefined
               type="submit"
               disabled={
                 isSubmitting ||
+                readOnly ||
                 !location.trim() ||
                 (requiresGps && !coords) ||
                 (showDateRangeFields && (!cutOrderStartDate || !cutOrderEndDate))
@@ -1397,7 +1403,9 @@ dayMarker || undefined
             >
               <Send className="w-4 h-4" />
               <span>
-                {isSubmitting
+                {readOnly
+                  ? "תצוגה בלבד — לא ניתן לשלוח דיווח"
+                  : isSubmitting
                   ? latestReport
                     ? "מעדכן דיווח..."
                     : "שולח דיווח מאובטח..."

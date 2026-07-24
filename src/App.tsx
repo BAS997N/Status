@@ -66,7 +66,8 @@ import {
   CalendarDays,
   Siren,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  Eye
 } from "lucide-react";
 
 //שעה לפי אזור זמן ולא לפי חייל
@@ -94,6 +95,7 @@ export default function App() {
 };
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [previewUserId, setPreviewUserId] = useState("");
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
@@ -322,6 +324,11 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   }, [activeTab, firebaseUser]);
 
   const isSuperAdmin = hasPermission(permissions, "system_admin.view");
+  const canPreviewUsers =
+    getEffectiveSystemRole(permissionUser) === "super_admin";
+  const previewUser = canPreviewUsers
+    ? allUsers.find((user) => user.userId === previewUserId)
+    : undefined;
   const canViewReporter = hasPermission(permissions, "reporter.view");
   const canViewDashboard = hasPermission(permissions, "dashboard.view");
   const shiftsSystemRole = getEffectiveSystemRole(permissionUser);
@@ -1229,6 +1236,7 @@ const handleResetReport = async (reportId: string) => {
     try {
       dataService.clearSessionCaches();
       localStorage.removeItem("idf_active_user_id");
+      setPreviewUserId("");
       setUserProfile(null);
       setPersonalIdInput("");
       setLoginError("");
@@ -2248,7 +2256,7 @@ const handleAdminSaveReport = async (reportData: {
           </div>
         )}
 
-        {shouldShowEmergencyTab &&
+        {!previewUser && shouldShowEmergencyTab &&
           systemSettings?.systemMode === "emergency" &&
           systemSettings.emergencyEvent?.active && (
             <button
@@ -2283,8 +2291,63 @@ const handleAdminSaveReport = async (reportData: {
           </div>
         )}
 
+        {canPreviewUsers && (
+          <section
+            dir="rtl"
+            className={`mb-4 rounded-2xl border p-3 shadow-sm ${
+              previewUser
+                ? "border-violet-300 bg-violet-50"
+                : "border-slate-200 bg-white"
+            }`}
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 text-xs font-black text-slate-700">
+                <Eye className="h-4 w-4 text-violet-600" />
+                תצוגת סופר־אדמין כחייל אחר
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-2 sm:max-w-xl sm:flex-row">
+                <select
+                  value={previewUserId}
+                  onChange={(event) => setPreviewUserId(event.target.value)}
+                  className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold"
+                >
+                  <option value="">תצוגה רגילה כמנהל האתר</option>
+                  {[...allUsers]
+                    .filter(
+                      (user) =>
+                        user.userId !== userProfile.userId &&
+                        !user.isDischarged &&
+                        user.role === "soldier"
+                    )
+                    .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"))
+                    .map((user) => (
+                      <option key={user.userId} value={user.userId}>
+                        {user.fullName} · {user.personalId || "ללא מספר אישי"} · {user.unit}
+                      </option>
+                    ))}
+                </select>
+                {previewUser && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewUserId("")}
+                    className="rounded-xl bg-violet-700 px-4 py-2 text-xs font-black text-white hover:bg-violet-800"
+                  >
+                    חזרה לתצוגת מנהל
+                  </button>
+                )}
+              </div>
+            </div>
+            {previewUser && (
+              <p className="mt-2 text-[11px] font-bold text-violet-800">
+                מוצגת כעת התצוגה של {previewUser.fullName}. זו תצוגה בלבד — לא ניתן לדווח או לאשר הודעות בשמו.
+              </p>
+            )}
+          </section>
+        )}
+
         {/* Navigation Tabs (Only if Commander) */}
-        {(canViewReporter || canViewDashboard || canViewShifts || isSuperAdmin) && (
+        {!previewUser &&
+          (canViewReporter || canViewDashboard || canViewShifts || isSuperAdmin) && (
           <div className="custom-scrollbar mb-5 flex w-full max-w-full gap-2 overflow-x-auto border-b border-slate-200/80 pb-1">
             {canViewReporter && (
             <button
@@ -2367,7 +2430,25 @@ const handleAdminSaveReport = async (reportData: {
         )}
 
         <AnimatePresence mode="wait">
-          {activeTab === "system_admin" && isSuperAdmin ? (
+          {previewUser ? (
+            <motion.div
+              key={`preview-user-${previewUser.userId}`}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.15 }}
+            >
+              <SoldierReporter
+                currentUser={previewUser}
+                reports={reports}
+                shifts={shifts}
+                systemSettings={systemSettings!}
+                attendanceStatuses={attendanceStatuses}
+                readOnly
+                onSubmitReport={async () => undefined}
+              />
+            </motion.div>
+          ) : activeTab === "system_admin" && isSuperAdmin ? (
             <motion.div
               key="system-admin-tab"
               initial={{ opacity: 0, y: 15 }}

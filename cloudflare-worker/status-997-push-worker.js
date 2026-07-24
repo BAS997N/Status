@@ -2,6 +2,7 @@ const REQUIRED_PERMISSION_BY_KIND = {
   commander_message: "dashboard.notifications.view",
   emergency: "emergency.manage",
   shift: "shifts.manage",
+  attendance_reminder: "reports.manage",
 };
 
 const jsonResponse = (body, status, origin) =>
@@ -467,6 +468,44 @@ async function getPushSubscriptions(projectId, accessToken) {
     .map((row) => decodeFirestoreFields(row.document.fields));
 }
 
+async function handlePushAvailability(request, env, origin) {
+  if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    return jsonResponse({ error: "Worker secret is missing" }, 500, origin);
+  }
+
+  const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  let admin;
+  try {
+    admin = await authorizeAdminRequest(
+      request,
+      serviceAccount,
+      "reports.manage"
+    );
+  } catch (error) {
+    return jsonResponse({ error: error.message }, error.status || 500, origin);
+  }
+
+  const accessToken = await getGoogleAccessToken(serviceAccount);
+  const subscriptions = await getPushSubscriptions(
+    serviceAccount.project_id,
+    accessToken
+  );
+  const userIds = Array.from(
+    new Set(
+      subscriptions
+        .filter(
+          (subscription) =>
+            subscription.enabled !== false &&
+            subscription.token &&
+            subscription.userId
+        )
+        .map((subscription) => subscription.userId)
+    )
+  );
+
+  return jsonResponse({ ok: true, userIds }, 200, origin);
+}
+
 const normalizeUnit = (value) =>
   String(value || "")
     .replace(/[״׳'"`]/g, "")
@@ -617,6 +656,9 @@ export default {
       const path = new URL(request.url).pathname.replace(/\/+$/, "") || "/";
       if (path === "/admin/users/credentials") {
         return await handleUserCredentials(request, env, allowedOrigin);
+      }
+      if (path === "/push/availability") {
+        return await handlePushAvailability(request, env, allowedOrigin);
       }
       return await handlePush(request, env, allowedOrigin);
     } catch (error) {

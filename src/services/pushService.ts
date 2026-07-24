@@ -10,7 +10,7 @@ export type PushTarget =
   | { type: "users"; userIds: string[] };
 
 export interface AutomaticPushRequest {
-  kind: "commander_message" | "emergency" | "shift";
+  kind: "commander_message" | "emergency" | "shift" | "attendance_reminder";
   target: PushTarget;
   title: string;
   body: string;
@@ -31,4 +31,21 @@ export async function sendAutomaticPush(request: AutomaticPushRequest) {
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || "Push delivery failed");
   return result as { ok: true; recipients: number; sent: number; failed: number };
+}
+
+export async function getPushAvailableUserIds(): Promise<string[]> {
+  if (!auth?.currentUser) throw new Error("Push availability requires authentication");
+  const idToken = await auth.currentUser.getIdToken();
+  const response = await fetch(`${PUSH_WORKER_URL}push/availability`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "Push availability failed");
+  return Array.isArray(result.userIds)
+    ? result.userIds.filter((userId: unknown): userId is string => typeof userId === "string")
+    : [];
 }
