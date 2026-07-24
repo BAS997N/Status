@@ -202,6 +202,9 @@ export default function ShiftsView({
     useState("__general__");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<ShiftRecord | null>(null);
+  const [formStatus, setFormStatus] = useState<
+    "draft" | "published" | "cancelled"
+  >("draft");
   const [sendPushOnPublish, setSendPushOnPublish] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -555,6 +558,7 @@ export default function ShiftsView({
     setEndTime("17:30");
     setLocation("");
     setNote("");
+    setFormStatus("draft");
     setSendPushOnPublish(false);
     setSlotAssignments({});
     setMessage(null);
@@ -600,6 +604,13 @@ export default function ShiftsView({
     setEndTime(endParts.time);
     setLocation(shift.location || "");
     setNote(shift.note || "");
+    setFormStatus(
+      isPublishedShift(shift)
+        ? "published"
+        : shift.status === "cancelled"
+        ? "cancelled"
+        : "draft"
+    );
     setSendPushOnPublish(shift.sendPushOnPublish === true);
     setSlotAssignments(next);
     setIsFormOpen(true);
@@ -858,6 +869,7 @@ export default function ShiftsView({
     setEndTime(endParts.time);
     setLocation(shift.location || "");
     setNote(shift.note || "");
+    setFormStatus("draft");
     setSendPushOnPublish(false);
 
     const nextAssignments: Record<string, string> = {};
@@ -2955,24 +2967,18 @@ export default function ShiftsView({
                 />
               </Field>
 
-              <Field label="מצב פרסום">
+              <Field label="מצב המשמרת">
                 <select
-                  value={
-                    editingShift
-                      ? isPublishedShift(editingShift)
-                        ? "published"
-                        : editingShift.status
-                      : "draft"
+                  value={formStatus}
+                  onChange={(event) =>
+                    setFormStatus(
+                      event.target.value as
+                        | "draft"
+                        | "published"
+                        | "cancelled"
+                    )
                   }
-                  onChange={(event) => {
-                    if (!editingShift) return;
-                    setEditingShift({
-                      ...editingShift,
-                      status: event.target.value as ShiftRecord["status"],
-                    });
-                  }}
                   className="input"
-                  disabled={!editingShift}
                 >
                   <option value="draft">טיוטה לקראת פרסום</option>
                   <option value="published">פורסמה</option>
@@ -3153,7 +3159,7 @@ export default function ShiftsView({
               </div>
             )}
 
-            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-4">
+            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setIsFormOpen(false)}
@@ -3164,29 +3170,23 @@ export default function ShiftsView({
 
               <button
                 type="button"
-                onClick={() => saveShift("draft")}
+                onClick={() => saveShift(formStatus)}
                 disabled={saving}
-                className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-black text-amber-800 disabled:opacity-50"
+                className={`rounded-xl px-4 py-3 text-xs font-black disabled:opacity-50 ${
+                  formStatus === "published"
+                    ? "bg-indigo-600 text-white"
+                    : formStatus === "cancelled"
+                    ? "border border-slate-300 bg-slate-100 text-slate-700"
+                    : "border border-amber-300 bg-amber-50 text-amber-800"
+                }`}
               >
-                {saving ? "שומר..." : "שמור כטיוטה לקראת פרסום"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => saveShift("cancelled")}
-                disabled={saving}
-                className="rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 text-xs font-black text-slate-700 disabled:opacity-50"
-              >
-                {saving ? "שומר..." : "שמור כמבוטלת"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => saveShift("published")}
-                disabled={saving}
-                className="rounded-xl bg-indigo-600 px-4 py-3 text-xs font-black text-white disabled:opacity-50"
-              >
-                {saving ? "שומר..." : "שמור ופרסם"}
+                {saving
+                  ? "שומר..."
+                  : formStatus === "published"
+                  ? "שמור ופרסם"
+                  : formStatus === "cancelled"
+                  ? "שמור כמבוטלת"
+                  : "שמור כטיוטה לקראת פרסום"}
               </button>
             </div>
 
