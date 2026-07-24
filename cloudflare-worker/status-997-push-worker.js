@@ -695,12 +695,25 @@ async function runAttendanceReminder(env) {
       )
       .map((user) => user.id)
   );
-  const recipients = subscriptions.filter(
-    (subscription) =>
-      subscription.enabled !== false &&
-      missingUserIds.has(subscription.userId) &&
-      subscription.token
-  );
+  const recipientByUserId = new Map();
+  subscriptions
+    .filter(
+      (subscription) =>
+        subscription.enabled !== false &&
+        missingUserIds.has(subscription.userId) &&
+        subscription.token
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt || 0).getTime() -
+        new Date(a.updatedAt || 0).getTime()
+    )
+    .forEach((subscription) => {
+      if (!recipientByUserId.has(subscription.userId)) {
+        recipientByUserId.set(subscription.userId, subscription);
+      }
+    });
+  const recipients = Array.from(recipientByUserId.values());
 
   const message = {
     kind: "attendance_reminder",
