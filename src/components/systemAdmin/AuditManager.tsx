@@ -71,6 +71,8 @@ const FIELD_LABELS: Record<string, string> = {
   visibleToSoldiers: "מוצג לחיילים",
   visibleToCommanders: "מוצג למפקדים",
   exportToSheets: "ייצוא ל־Google Sheets",
+  attendanceReminderEnabled: "תזכורת Push אוטומטית",
+  attendanceReminderTime: "שעת תזכורת אוטומטית",
   requiresGps: "דורש GPS",
   requiresDateRange: "דורש טווח תאריכים",
   requiresNote: "דורש הערה",
@@ -190,6 +192,7 @@ const getChanges = (before: unknown, after: unknown) => {
 
   return keys
     .filter((key) => !VOLATILE_AUDIT_FIELDS.has(key.split(".").at(-1) || ""))
+    .filter((key) => key !== "assignments")
     .filter(
       (key) =>
         JSON.stringify(sanitizeAuditValue(beforeFlat[key])) !==
@@ -354,6 +357,106 @@ const ConfigCollectionAuditDetails = ({ log }: { log: AuditLogEntry }) => {
   );
 };
 
+type AuditAssignment = Record<string, unknown>;
+
+const getAssignmentKey = (item: AuditAssignment, index: number) =>
+  String(item.slotId || item.slotLabel || `assignment_${index}`);
+
+const getShiftAssignmentChanges = (before: unknown, after: unknown) => {
+  const beforeAssignments = Array.isArray(
+    (before as Record<string, unknown> | undefined)?.assignments
+  )
+    ? ((before as Record<string, unknown>).assignments as AuditAssignment[])
+    : [];
+  const afterAssignments = Array.isArray(
+    (after as Record<string, unknown> | undefined)?.assignments
+  )
+    ? ((after as Record<string, unknown>).assignments as AuditAssignment[])
+    : [];
+
+  const beforeBySlot = new Map(
+    beforeAssignments.map((item, index) => [getAssignmentKey(item, index), item])
+  );
+  const afterBySlot = new Map(
+    afterAssignments.map((item, index) => [getAssignmentKey(item, index), item])
+  );
+  const keys = Array.from(
+    new Set([...beforeBySlot.keys(), ...afterBySlot.keys()])
+  );
+
+  return keys
+    .filter(
+      (key) =>
+        JSON.stringify(sanitizeAuditValue(beforeBySlot.get(key))) !==
+        JSON.stringify(sanitizeAuditValue(afterBySlot.get(key)))
+    )
+    .map((key) => ({
+      key,
+      before: beforeBySlot.get(key),
+      after: afterBySlot.get(key),
+    }));
+};
+
+const assignmentName = (item?: AuditAssignment) =>
+  item
+    ? String(item.userName || item.fullName || item.personalId || "ללא שם")
+    : "לא משובץ";
+
+const assignmentRole = (
+  before?: AuditAssignment,
+  after?: AuditAssignment
+) =>
+  String(
+    after?.slotLabel ||
+      before?.slotLabel ||
+      after?.medicalRole ||
+      before?.medicalRole ||
+      "תפקיד במשמרת"
+  );
+
+const ShiftAssignmentsAuditDetails = ({
+  changes,
+}: {
+  changes: ReturnType<typeof getShiftAssignmentChanges>;
+}) => {
+  if (changes.length === 0) return null;
+
+  return (
+    <div className="mb-2 space-y-2">
+      <div className="text-[11px] font-black text-indigo-700">
+        השורות שהשתנו בשיבוץ
+      </div>
+      {changes.map((change) => (
+        <div
+          key={change.key}
+          className="rounded-lg border-2 border-indigo-300 bg-indigo-50/50 p-3 shadow-sm"
+        >
+          <div className="mb-2 text-xs font-black text-slate-800">
+            {assignmentRole(change.before, change.after)}
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+            <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-800">
+              <span className="mb-1 block text-[9px] font-black text-rose-500">
+                לפני
+              </span>
+              <span className="font-bold">{assignmentName(change.before)}</span>
+            </div>
+            <span className="hidden text-lg font-black text-indigo-400 sm:block">
+              ←
+            </span>
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">
+              <span className="mb-1 block text-[9px] font-black text-emerald-500">
+                אחרי
+              </span>
+              <span className="font-bold">{assignmentName(change.after)}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const ChangeDetails = ({ log }: { log: AuditLogEntry }) => {
   if (log.module === "google_sheets" && log.action === "sync") {
     return <GoogleSheetsAuditDetails log={log} />;
@@ -365,13 +468,18 @@ const ChangeDetails = ({ log }: { log: AuditLogEntry }) => {
   }
 
   const changes = getChanges(log.before, log.after || log.metadata);
+  const assignmentChanges =
+    log.module === "shifts"
+      ? getShiftAssignmentChanges(log.before, log.after)
+      : [];
 
-  if (changes.length === 0) {
+  if (changes.length === 0 && assignmentChanges.length === 0) {
     return <div className="text-[11px] text-slate-500">לא נשמר פירוט נוסף לפעולה זו.</div>;
   }
 
   return (
     <div className="space-y-2">
+      <ShiftAssignmentsAuditDetails changes={assignmentChanges} />
       {changes.map((change) => (
         <div key={change.key} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
           <div className="mb-2 text-[11px] font-black text-slate-700">{change.label}</div>

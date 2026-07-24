@@ -186,6 +186,48 @@ async function getFirestoreDocument(projectId, bearerToken, documentPath) {
   return decodeFirestoreFields((await response.json()).fields || {});
 }
 
+async function getOptionalFirestoreDocument(
+  projectId,
+  bearerToken,
+  documentPath
+) {
+  const response = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${documentPath}`,
+    { headers: { Authorization: `Bearer ${bearerToken}` } }
+  );
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(
+      `Firestore document read failed (${response.status}): ${documentPath} - ${await response.text()}`
+    );
+  }
+  return decodeFirestoreFields((await response.json()).fields || {});
+}
+
+async function runFirestoreQuery(projectId, accessToken, structuredQuery) {
+  const response = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ structuredQuery }),
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Firestore query failed: ${await response.text()}`);
+  }
+  const rows = await response.json();
+  return rows
+    .filter((row) => row.document?.fields)
+    .map((row) => ({
+      id: row.document.name.split("/").pop(),
+      ...decodeFirestoreFields(row.document.fields),
+    }));
+}
+
 async function patchFirestoreDocument(
   projectId,
   accessToken,
@@ -559,6 +601,139 @@ async function sendFcmMessage(projectId, accessToken, token, message) {
   return { ok: response.ok, status: response.status, text: await response.text() };
 }
 
+function getLocalDateAndTime(timeZone) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timeZone || "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  );
+  return {
+    date: `${values.year}-${values.month}-${values.day}`,
+    time: `${values.hour}:${values.minute}`,
+  };
+}
+
+async function runAttendanceReminder(env) {
+  if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    throw new Error("Worker secret is missing");
+  }
+
+  const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  const projectId = serviceAccount.project_id;
+  const accessToken = await getGoogleAccessToken(serviceAccount);
+  const settings = await getFirestoreDocument(
+    projectId,
+    accessToken,
+    "settings/system_settings"
+  );
+
+  if (
+    settings.notificationsEnabled === false ||
+    settings.attendanceReminderEnabled !== true
+  ) {
+    return { skipped: "disabled" };
+  }
+
+  const reminderTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(
+    String(settings.attendanceReminderTime || "")
+  )
+    ? String(settings.attendanceReminderTime)
+    : "09:00";
+  const local = getLocalDateAndTime(settings.timeZone || "Asia/Jerusalem");
+  if (local.time < reminderTime) return { skipped: "before-time" };
+
+  const statePath = "automation_state/attendance_reminder";
+  const state = await getOptionalFirestoreDocument(
+    projectId,
+    accessToken,
+    statePath
+  );
+  if (state?.lastSentDate === local.date) {
+    return { skipped: "already-sent" };
+  }
+
+  const [users, reports, subscriptions] = await Promise.all([
+    runFirestoreQuery(projectId, accessToken, {
+      from: [{ collectionId: "users" }],
+      limit: 500,
+    }),
+    runFirestoreQuery(projectId, accessToken, {
+      from: [{ collectionId: "attendance" }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: "reportDate" },
+          op: "EQUAL",
+          value: { stringValue: local.date },
+        },
+      },
+      limit: 500,
+    }),
+    getPushSubscriptions(projectId, accessToken),
+  ]);
+
+  const reportedUserIds = new Set(
+    reports
+      .filter((report) => report.isReset !== true && report.userId)
+      .map((report) => report.userId)
+  );
+  const missingUserIds = new Set(
+    users
+      .filter(
+        (user) =>
+          user.role === "soldier" &&
+          user.isDischarged !== true &&
+          !reportedUserIds.has(user.id)
+      )
+      .map((user) => user.id)
+  );
+  const recipients = subscriptions.filter(
+    (subscription) =>
+      subscription.enabled !== false &&
+      missingUserIds.has(subscription.userId) &&
+      subscription.token
+  );
+
+  const message = {
+    kind: "attendance_reminder",
+    title: "תזכורת לדיווח נוכחות",
+    body: "טרם ביצעת דיווח נוכחות להיום. יש להיכנס למערכת ולדווח.",
+    url: "https://bas997n.github.io/Status/",
+  };
+  const results = await Promise.all(
+    recipients.map((subscription) =>
+      sendFcmMessage(projectId, accessToken, subscription.token, message)
+    )
+  );
+  const sent = results.filter((result) => result.ok).length;
+
+  await patchFirestoreDocument(projectId, accessToken, statePath, {
+    lastSentDate: local.date,
+    lastRunAt: new Date().toISOString(),
+    scheduledTime: reminderTime,
+    missingUsers: missingUserIds.size,
+    recipients: recipients.length,
+    sent,
+    failed: results.length - sent,
+  });
+
+  return {
+    date: local.date,
+    missingUsers: missingUserIds.size,
+    recipients: recipients.length,
+    sent,
+    failed: results.length - sent,
+  };
+}
+
 async function handlePush(request, env, origin) {
   if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     return jsonResponse({ error: "Worker secret is missing" }, 500, origin);
@@ -665,5 +840,16 @@ export default {
       console.error("Push worker error", error);
       return jsonResponse({ error: error.message || "Push failed" }, 500, allowedOrigin);
     }
+  },
+  async scheduled(_event, env, context) {
+    context.waitUntil(
+      runAttendanceReminder(env)
+        .then((result) =>
+          console.log("Attendance reminder schedule completed", result)
+        )
+        .catch((error) =>
+          console.error("Attendance reminder schedule failed", error)
+        )
+    );
   },
 };

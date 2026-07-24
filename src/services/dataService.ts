@@ -189,6 +189,8 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   notificationsEnabled: true,
   toastNotificationsEnabled: true,
   notificationSoundEnabled: false,
+  attendanceReminderEnabled: false,
+  attendanceReminderTime: "09:00",
   cacheMinutes: 30,
   autoRefreshSeconds: 60,
   maintenanceMode: false,
@@ -374,6 +376,12 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
     notificationsEnabled: raw.notificationsEnabled !== false,
     toastNotificationsEnabled: raw.toastNotificationsEnabled !== false,
     notificationSoundEnabled: raw.notificationSoundEnabled === true,
+    attendanceReminderEnabled: raw.attendanceReminderEnabled === true,
+    attendanceReminderTime:
+      typeof raw.attendanceReminderTime === "string" &&
+      /^([01]\d|2[0-3]):[0-5]\d$/.test(raw.attendanceReminderTime)
+        ? raw.attendanceReminderTime
+        : DEFAULT_SYSTEM_SETTINGS.attendanceReminderTime,
     cacheMinutes: numberInRange(raw.cacheMinutes, 30, 1, 1440),
     autoRefreshSeconds: numberInRange(raw.autoRefreshSeconds, 60, 10, 3600),
     maintenanceMode: raw.maintenanceMode === true,

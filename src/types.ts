@@ -157,6 +157,8 @@ export interface SystemSettingsConfig {
   notificationsEnabled: boolean;
   toastNotificationsEnabled: boolean;
   notificationSoundEnabled: boolean;
+  attendanceReminderEnabled: boolean;
+  attendanceReminderTime: string;
   cacheMinutes: number;
   autoRefreshSeconds: number;
   maintenanceMode: boolean;

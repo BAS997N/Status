@@ -39,6 +39,8 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   notificationsEnabled: true,
   toastNotificationsEnabled: true,
   notificationSoundEnabled: false,
+  attendanceReminderEnabled: false,
+  attendanceReminderTime: "09:00",
   cacheMinutes: 30,
   autoRefreshSeconds: 60,
   maintenanceMode: false,
@@ -480,6 +482,31 @@ export default function SystemSettingsManager({
           <Toggle label="הפעלת התראות במערכת" checked={draft.notificationsEnabled} onChange={(value) => update("notificationsEnabled", value)} />
           <Toggle label="הצגת הודעות Toast" checked={draft.toastNotificationsEnabled} disabled={!draft.notificationsEnabled} onChange={(value) => update("toastNotificationsEnabled", value)} />
           <Toggle label="צליל התראה" description="התשתית נשמרת כעת ותשמש את מנגנון הצלילים בהמשך." checked={draft.notificationSoundEnabled} disabled={!draft.notificationsEnabled} onChange={(value) => update("notificationSoundEnabled", value)} />
+          <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+            <Toggle
+              label="תזכורת Push אוטומטית למי שלא דיווח"
+              description="בשעה שנבחרה תישלח תזכורת פעם אחת ביום לכל חייל פעיל שטרם דיווח ושמופעלות אצלו התראות Push."
+              checked={draft.attendanceReminderEnabled}
+              disabled={!draft.notificationsEnabled}
+              onChange={(value) => update("attendanceReminderEnabled", value)}
+            />
+            <div className="mt-3 max-w-xs">
+              <Field label="שעת שליחת התזכורת">
+                <input
+                  type="time"
+                  value={draft.attendanceReminderTime}
+                  disabled={
+                    !draft.notificationsEnabled ||
+                    !draft.attendanceReminderEnabled
+                  }
+                  onChange={(event) =>
+                    update("attendanceReminderTime", event.target.value)
+                  }
+                  className="input disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                />
+              </Field>
+            </div>
+          </div>
         </div>
       </section>
 

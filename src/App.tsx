@@ -2313,16 +2313,17 @@ const handleAdminSaveReport = async (reportData: {
                 >
                   <option value="">תצוגה רגילה כמנהל האתר</option>
                   {[...allUsers]
-                    .filter(
-                      (user) =>
-                        user.userId !== userProfile.userId &&
-                        !user.isDischarged &&
-                        user.role === "soldier"
-                    )
+                    .filter((user) => user.userId !== userProfile.userId)
                     .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"))
                     .map((user) => (
                       <option key={user.userId} value={user.userId}>
-                        {user.fullName} · {user.personalId || "ללא מספר אישי"} · {user.unit}
+                        {user.fullName} · {user.personalId || "ללא מספר אישי"} ·{" "}
+                        {user.role === "commander"
+                          ? "מפקד"
+                          : user.role === "adjutant_officer"
+                          ? "שליש"
+                          : "חייל"}
+                        {user.isDischarged ? " · לא פעיל" : ""} · {user.unit}
                       </option>
                     ))}
                 </select>

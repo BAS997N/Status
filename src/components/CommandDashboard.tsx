@@ -406,13 +406,15 @@ const [notificationFilterStatus, setNotificationFilterStatus] = useState("all");
 const [showOnlyMissingReports, setShowOnlyMissingReports] = useState(false);
   const [attendanceRoleFilters, setAttendanceRoleFilters] = useState<string[]>([]);
 const [attendanceStatusFilters, setAttendanceStatusFilters] = useState<string[]>([]);
-const [attendanceDayMarkerFilter, setAttendanceDayMarkerFilter] = useState<
-  "all" | "none" | "return_to_base" | "exit_home" | "after_hours"
->("all");
+const [attendanceDayMarkerFilters, setAttendanceDayMarkerFilters] = useState<
+  Array<"none" | "return_to_base" | "exit_home" | "after_hours">
+>([]);
 const [isRoleFilterOpen, setIsRoleFilterOpen] = useState(false);
 const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+const [isDayMarkerFilterOpen, setIsDayMarkerFilterOpen] = useState(false);
   const roleFilterRef = useRef<HTMLDivElement>(null);
 const statusFilterRef = useRef<HTMLDivElement>(null);
+const dayMarkerFilterRef = useRef<HTMLDivElement>(null);
   const [soldierToDelete, setSoldierToDelete] = useState<UserProfile | null>(null);
   const [reportToReset, setReportToReset] = useState<{
   reportId: string;
@@ -424,9 +426,9 @@ const statusFilterRef = useRef<HTMLDivElement>(null);
   const [sendingPushReminder, setSendingPushReminder] = useState(false);
 
   const matchesAttendanceDayMarker = (report?: AttendanceReport) => {
-    if (attendanceDayMarkerFilter === "all") return true;
-    if (attendanceDayMarkerFilter === "none") return !report?.dayMarker;
-    return report?.dayMarker === attendanceDayMarkerFilter;
+    if (attendanceDayMarkerFilters.length === 0) return true;
+    if (!report?.dayMarker) return attendanceDayMarkerFilters.includes("none");
+    return attendanceDayMarkerFilters.includes(report.dayMarker);
   };
 
   useEffect(() => {
@@ -610,6 +612,13 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
       !statusFilterRef.current.contains(target)
     ) {
       setIsStatusFilterOpen(false);
+    }
+
+    if (
+      dayMarkerFilterRef.current &&
+      !dayMarkerFilterRef.current.contains(target)
+    ) {
+      setIsDayMarkerFilterOpen(false);
     }
   };
 
@@ -3078,6 +3087,7 @@ const dates = getDateRange(startDate, endDate);
     onClick={() => {
   setIsRoleFilterOpen(!isRoleFilterOpen);
   setIsStatusFilterOpen(false);
+  setIsDayMarkerFilterOpen(false);
 }}
     className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white font-bold text-slate-600"
   >
@@ -3141,6 +3151,7 @@ const dates = getDateRange(startDate, endDate);
     onClick={() => {
   setIsStatusFilterOpen(!isStatusFilterOpen);
   setIsRoleFilterOpen(false);
+  setIsDayMarkerFilterOpen(false);
 }}
     className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white font-bold text-slate-600"
   >
@@ -3216,37 +3227,94 @@ const dates = getDateRange(startDate, endDate);
 )}
 </div>
 
-<select
-  value={attendanceDayMarkerFilter}
-  onChange={(event) =>
-    setAttendanceDayMarkerFilter(
-      event.target.value as
-        | "all"
-        | "none"
-        | "return_to_base"
-        | "exit_home"
-        | "after_hours"
-    )
-  }
-  className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-600"
->
-  <option value="all">כל סימוני היום</option>
-  <option value="return_to_base">חזרה לבסיס</option>
-  <option value="exit_home">יציאה לבית</option>
-  <option value="after_hours">אפטר</option>
-  <option value="none">ללא סימון יום</option>
-</select>
+<div className="relative" ref={dayMarkerFilterRef}>
+  <button
+    type="button"
+    onClick={() => {
+      setIsDayMarkerFilterOpen(!isDayMarkerFilterOpen);
+      setIsRoleFilterOpen(false);
+      setIsStatusFilterOpen(false);
+    }}
+    className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-600"
+  >
+    {attendanceDayMarkerFilters.length === 0
+      ? "סימון יום"
+      : attendanceDayMarkerFilters.length === 1
+      ? ({
+          return_to_base: "חזרה לבסיס",
+          exit_home: "יציאה לבית",
+          after_hours: "אפטר",
+          none: "ללא סימון יום",
+        } as const)[attendanceDayMarkerFilters[0]]
+      : `${attendanceDayMarkerFilters.length} סימוני יום`} ▾
+  </button>
 
-              {(attendanceRoleFilters.length > 0 || attendanceStatusFilters.length > 0 || attendanceDayMarkerFilter !== "all" || showOnlyMissingReports) && (
+  {isDayMarkerFilterOpen && (
+    <div className="absolute z-50 mt-1 w-56 overflow-hidden rounded-lg border border-slate-200 bg-white text-xs shadow-xl">
+      <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
+        <button
+          type="button"
+          onClick={() =>
+            setAttendanceDayMarkerFilters([
+              "return_to_base",
+              "exit_home",
+              "after_hours",
+              "none",
+            ])
+          }
+          className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900"
+        >
+          ✓ בחר הכל
+        </button>
+        <button
+          type="button"
+          onClick={() => setAttendanceDayMarkerFilters([])}
+          className="text-[10px] font-bold text-rose-700 hover:text-rose-900"
+        >
+          ✕ נקה הכל
+        </button>
+      </div>
+      <div className="space-y-1 p-2">
+        {[
+          { id: "return_to_base" as const, label: "חזרה לבסיס" },
+          { id: "exit_home" as const, label: "יציאה לבית" },
+          { id: "after_hours" as const, label: "אפטר" },
+          { id: "none" as const, label: "ללא סימון יום" },
+        ].map((option) => (
+          <label
+            key={option.id}
+            className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-slate-50"
+          >
+            <input
+              type="checkbox"
+              checked={attendanceDayMarkerFilters.includes(option.id)}
+              onChange={(event) =>
+                setAttendanceDayMarkerFilters((current) =>
+                  event.target.checked
+                    ? [...current, option.id]
+                    : current.filter((item) => item !== option.id)
+                )
+              }
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
+
+              {(attendanceRoleFilters.length > 0 || attendanceStatusFilters.length > 0 || attendanceDayMarkerFilters.length > 0 || showOnlyMissingReports) && (
   <button
     type="button"
     onClick={() => {
       setAttendanceRoleFilters([]);
       setAttendanceStatusFilters([]);
-      setAttendanceDayMarkerFilter("all");
+      setAttendanceDayMarkerFilters([]);
       setShowOnlyMissingReports(false);
       setIsRoleFilterOpen(false);
       setIsStatusFilterOpen(false);
+      setIsDayMarkerFilterOpen(false);
     }}
     className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 rounded-md border border-slate-200"
   >
