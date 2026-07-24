@@ -47,8 +47,8 @@ export const isPublishedShift = (shift: ShiftRecord) =>
   shift.status === "published" || shift.status === "scheduled";
 
 export const getStatusLabel = (shift: ShiftRecord) => {
-  if (shift.status === "draft") return "טיוטה";
-  if (shift.status === "cancelled") return "בוטלה";
+  if (shift.status === "draft") return "טיוטה לקראת פרסום";
+  if (shift.status === "cancelled") return "מבוטלת";
   return "פורסמה";
 };
 

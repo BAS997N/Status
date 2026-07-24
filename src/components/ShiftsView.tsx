@@ -184,9 +184,11 @@ export default function ShiftsView({
   const [includeLocationInWhatsApp, setIncludeLocationInWhatsApp] =
     useState(true);
   const [includeNotesInWhatsApp, setIncludeNotesInWhatsApp] =
-    useState(false);
-  const [includePhonesInWhatsApp, setIncludePhonesInWhatsApp] =
     useState(true);
+  const [includePhonesInWhatsApp, setIncludePhonesInWhatsApp] =
+    useState(false);
+  const [includeDraftsInWhatsApp, setIncludeDraftsInWhatsApp] =
+    useState(false);
   const [phoneRoleMode, setPhoneRoleMode] = useState<"all" | "custom">(
     "all"
   );
@@ -604,7 +606,9 @@ export default function ShiftsView({
     setMessage(null);
   };
 
-  const saveShift = async (targetStatus: "draft" | "published") => {
+  const saveShift = async (
+    targetStatus: "draft" | "published" | "cancelled"
+  ) => {
     setMessage(null);
     const resolvedTitle =
       selectedShiftTypeId === "custom" ? customTitle.trim() : title.trim();
@@ -642,7 +646,7 @@ export default function ShiftsView({
         type: "error",
         text: `לא ניתן לפרסם לפני השלמת השיבוץ עבור: ${missing
           .map((slot) => slot.label)
-          .join(", ")}. ניתן לשמור את המשמרת כטיוטה.`,
+          .join(", ")}. ניתן לשמור את המשמרת כטיוטה לקראת פרסום.`,
       });
       return;
     }
@@ -796,9 +800,11 @@ export default function ShiftsView({
               (pushSent
                 ? "המשמרת נשמרה, פורסמה ונשלחה התראת Push למשובצים."
                 : "המשמרת נשמרה ופורסמה ללא Push.")
+            : targetStatus === "cancelled"
+            ? "המשמרת נשמרה כמבוטלת. היא לא תוצג לחיילים ולא תיכלל בשיתוף WhatsApp."
             : missing.length
             ? `המשמרת נשמרה כטיוטה עם ${missing.length} תפקידים שעדיין לא שובצו.`
-            : "המשמרת נשמרה כטיוטה בהצלחה.",
+            : "המשמרת נשמרה כטיוטה לקראת פרסום.",
       });
     } catch (error) {
       console.error("Failed saving shift:", error);
@@ -959,7 +965,7 @@ export default function ShiftsView({
               (pushSent
                 ? "המשמרת פורסמה ונשלחה התראת Push למשובצים."
                 : "המשמרת פורסמה ללא Push.")
-            : "המשמרת הוחזרה לטיוטה.",
+            : "המשמרת הוחזרה לטיוטה לקראת פרסום.",
       });
     } catch (error) {
       console.error("Failed updating shift publication:", error);
@@ -984,9 +990,9 @@ export default function ShiftsView({
           ? shift.assignments.map((assignment) => [
               shift.title,
               shift.status === "draft"
-                ? "טיוטה"
+                ? "טיוטה לקראת פרסום"
                 : shift.status === "cancelled"
-                ? "בוטלה"
+                ? "מבוטלת"
                 : "פורסמה",
               new Date(shift.startAt).toLocaleString("he-IL"),
               new Date(shift.endAt).toLocaleString("he-IL"),
@@ -1752,6 +1758,10 @@ export default function ShiftsView({
     preset: "today" | "week" | "range" = "range"
   ) => {
     const today = getTodayInputDate();
+    setIncludeLocationInWhatsApp(true);
+    setIncludeNotesInWhatsApp(true);
+    setIncludePhonesInWhatsApp(false);
+    setIncludeDraftsInWhatsApp(false);
 
     if (preset === "today") {
       setWhatsAppStartDate(today);
@@ -1783,7 +1793,11 @@ export default function ShiftsView({
   const whatsappRangeShifts = useMemo(
     () =>
       visibleShifts
-        .filter((shift) => isPublishedShift(shift))
+        .filter(
+          (shift) =>
+            isPublishedShift(shift) ||
+            (includeDraftsInWhatsApp && shift.status === "draft")
+        )
         .filter((shift) => {
           const shiftDate = toLocalParts(shift.startAt).date;
           return (
@@ -1796,7 +1810,12 @@ export default function ShiftsView({
         .sort((first, second) =>
           first.startAt.localeCompare(second.startAt)
         ),
-    [visibleShifts, whatsAppStartDate, whatsAppEndDate]
+    [
+      visibleShifts,
+      whatsAppStartDate,
+      whatsAppEndDate,
+      includeDraftsInWhatsApp,
+    ]
   );
 
   const availablePhoneRoles = useMemo(
@@ -2020,10 +2039,10 @@ export default function ShiftsView({
   };
 
   const shareShiftOnWhatsApp = (shift: ShiftRecord) => {
-    if (!isPublishedShift(shift)) {
+    if (shift.status === "cancelled") {
       setMessage({
         type: "error",
-        text: "טיוטה פרטית אינה משותפת ב־WhatsApp. יש לפרסם את המשמרת לפני השיתוף.",
+        text: "משמרת מבוטלת אינה ניתנת לשיתוף ב־WhatsApp.",
       });
       return;
     }
@@ -2285,6 +2304,17 @@ export default function ShiftsView({
             </div>
 
             <div className="mt-4 space-y-2">
+              <label className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800">
+                <input
+                  type="checkbox"
+                  checked={includeDraftsInWhatsApp}
+                  onChange={(event) =>
+                    setIncludeDraftsInWhatsApp(event.target.checked)
+                  }
+                />
+                כלול גם טיוטות לקראת פרסום
+              </label>
+
               <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-700">
                 <input
                   type="checkbox"
@@ -2692,9 +2722,9 @@ export default function ShiftsView({
                     }`}
                   >
                     {detailsShift.status === "draft"
-                      ? "טיוטה"
+                      ? "טיוטה לקראת פרסום"
                       : detailsShift.status === "cancelled"
-                      ? "בוטלה"
+                      ? "מבוטלת"
                       : "פורסמה"}
                   </span>
                 </div>
@@ -2770,7 +2800,7 @@ export default function ShiftsView({
                   עריכה
                 </button>
 
-                {isPublishedShift(detailsShift) ? (
+                {detailsShift.status !== "cancelled" ? (
                   <button
                     type="button"
                     onClick={() => shareShiftOnWhatsApp(detailsShift)}
@@ -2781,7 +2811,7 @@ export default function ShiftsView({
                   </button>
                 ) : (
                   <div className="flex items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-center text-[10px] font-black text-amber-800">
-                    טיוטה אינה משותפת
+                    משמרת מבוטלת אינה משותפת
                   </div>
                 )}
 
@@ -2808,7 +2838,7 @@ export default function ShiftsView({
                   className="rounded-xl border border-amber-200 px-3 py-2.5 text-xs font-black text-amber-800 hover:bg-amber-50"
                 >
                   {isPublishedShift(detailsShift)
-                    ? "החזר לטיוטה"
+                    ? "החזר לטיוטה לקראת פרסום"
                     : "פרסם"}
                 </button>
 
@@ -2944,9 +2974,9 @@ export default function ShiftsView({
                   className="input"
                   disabled={!editingShift}
                 >
-                  <option value="draft">טיוטה</option>
+                  <option value="draft">טיוטה לקראת פרסום</option>
                   <option value="published">פורסמה</option>
-                  <option value="cancelled">בוטלה</option>
+                  <option value="cancelled">מבוטלת</option>
                 </select>
               </Field>
 
@@ -3123,7 +3153,7 @@ export default function ShiftsView({
               </div>
             )}
 
-            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-4">
               <button
                 type="button"
                 onClick={() => setIsFormOpen(false)}
@@ -3138,7 +3168,16 @@ export default function ShiftsView({
                 disabled={saving}
                 className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-black text-amber-800 disabled:opacity-50"
               >
-                {saving ? "שומר..." : "שמור כטיוטה פרטית"}
+                {saving ? "שומר..." : "שמור כטיוטה לקראת פרסום"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => saveShift("cancelled")}
+                disabled={saving}
+                className="rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 text-xs font-black text-slate-700 disabled:opacity-50"
+              >
+                {saving ? "שומר..." : "שמור כמבוטלת"}
               </button>
 
               <button
@@ -3152,7 +3191,7 @@ export default function ShiftsView({
             </div>
 
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[10px] font-bold leading-5 text-amber-800">
-              טיוטה מוצגת למנהלים בלבד, אינה מתפרסמת לחיילים ואינה נכללת בשיתוף WhatsApp. ניתן לשמור אותה גם כאשר לא כל תפקידי החובה שובצו.
+              טיוטה לקראת פרסום מוצגת למנהלים בלבד וניתן לצרף אותה לשיתוף WhatsApp לפי בחירה. משמרת מבוטלת אינה מוצגת לחיילים ולעולם אינה נכללת בשיתוף. ניתן לשמור בשני המצבים גם כאשר לא כל תפקידי החובה שובצו.
               פרסום המשמרת יתאפשר רק לאחר השלמת כל השיבוצים הנדרשים.
             </div>
           </div>

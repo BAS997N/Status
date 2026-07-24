@@ -118,7 +118,7 @@ export default function CompactShiftList({
                 >
                   <Copy className="h-4 w-4" />
                 </button>
-                {isPublishedShift(shift) && (
+                {shift.status !== "cancelled" && (
                   <button
                     type="button"
                     onClick={() => onShare?.(shift)}

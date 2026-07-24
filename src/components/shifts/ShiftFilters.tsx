@@ -72,9 +72,9 @@ export default function ShiftFilters({
           className="input xl:w-40"
         >
           <option value="">כל הסטטוסים</option>
-          <option value="draft">טיוטה</option>
+          <option value="draft">טיוטה לקראת פרסום</option>
           <option value="published">פורסמה</option>
-          <option value="cancelled">בוטלה</option>
+          <option value="cancelled">מבוטלת</option>
         </select>
 
         <label className="flex items-center gap-2 whitespace-nowrap text-xs font-bold text-slate-600">
