@@ -414,45 +414,82 @@ const assignmentRole = (
       "תפקיד במשמרת"
   );
 
+const getAuditAssignments = (value: unknown): AuditAssignment[] =>
+  Array.isArray((value as Record<string, unknown> | undefined)?.assignments)
+    ? ((value as Record<string, unknown>).assignments as AuditAssignment[])
+    : [];
+
 const ShiftAssignmentsAuditDetails = ({
+  before,
+  after,
   changes,
 }: {
+  before: unknown;
+  after: unknown;
   changes: ReturnType<typeof getShiftAssignmentChanges>;
 }) => {
   if (changes.length === 0) return null;
 
-  return (
-    <div className="mb-2 space-y-2">
-      <div className="text-[11px] font-black text-indigo-700">
-        השורות שהשתנו בשיבוץ
+  const changedKeys = new Set(changes.map((change) => change.key));
+  const beforeAssignments = getAuditAssignments(before);
+  const afterAssignments = getAuditAssignments(after);
+
+  const renderAssignments = (
+    assignments: AuditAssignment[],
+    side: "before" | "after"
+  ) => (
+    <div
+      className={`rounded-md px-3 py-2 text-[11px] ${
+        side === "before"
+          ? "bg-rose-50 text-rose-900"
+          : "bg-emerald-50 text-emerald-900"
+      }`}
+    >
+      <span
+        className={`mb-2 block text-[9px] font-black ${
+          side === "before" ? "text-rose-500" : "text-emerald-600"
+        }`}
+      >
+        {side === "before" ? "לפני" : "אחרי"}
+      </span>
+      <div className="space-y-1.5">
+        {assignments.map((assignment, index) => {
+          const key = getAssignmentKey(assignment, index);
+          const changed = changedKeys.has(key);
+          return (
+            <div
+              key={`${side}-${key}`}
+              className="flex min-w-0 items-baseline gap-1.5"
+            >
+              <span className="shrink-0 font-black">
+                {assignmentRole(assignment, assignment)}:
+              </span>
+              <span
+                className={`min-w-0 break-words rounded px-1.5 py-0.5 font-bold ${
+                  changed
+                    ? side === "before"
+                      ? "bg-rose-200 text-rose-950"
+                      : "bg-emerald-200 text-emerald-950"
+                    : ""
+                }`}
+              >
+                {assignmentName(assignment)}
+              </span>
+            </div>
+          );
+        })}
       </div>
-      {changes.map((change) => (
-        <div
-          key={change.key}
-          className="rounded-lg border-2 border-indigo-300 bg-indigo-50/50 p-3 shadow-sm"
-        >
-          <div className="mb-2 text-xs font-black text-slate-800">
-            {assignmentRole(change.before, change.after)}
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-            <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-800">
-              <span className="mb-1 block text-[9px] font-black text-rose-500">
-                לפני
-              </span>
-              <span className="font-bold">{assignmentName(change.before)}</span>
-            </div>
-            <span className="hidden text-lg font-black text-indigo-400 sm:block">
-              ←
-            </span>
-            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">
-              <span className="mb-1 block text-[9px] font-black text-emerald-500">
-                אחרי
-              </span>
-              <span className="font-bold">{assignmentName(change.after)}</span>
-            </div>
-          </div>
-        </div>
-      ))}
+    </div>
+  );
+
+  return (
+    <div className="mb-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <div className="mb-2 text-[11px] font-black text-slate-700">שיבוצים</div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-start">
+        {renderAssignments(beforeAssignments, "before")}
+        <span className="hidden pt-8 text-slate-400 sm:block">←</span>
+        {renderAssignments(afterAssignments, "after")}
+      </div>
     </div>
   );
 };
@@ -479,7 +516,11 @@ const ChangeDetails = ({ log }: { log: AuditLogEntry }) => {
 
   return (
     <div className="space-y-2">
-      <ShiftAssignmentsAuditDetails changes={assignmentChanges} />
+      <ShiftAssignmentsAuditDetails
+        before={log.before}
+        after={log.after}
+        changes={assignmentChanges}
+      />
       {changes.map((change) => (
         <div key={change.key} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
           <div className="mb-2 text-[11px] font-black text-slate-700">{change.label}</div>
