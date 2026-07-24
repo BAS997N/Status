@@ -1783,6 +1783,7 @@ export default function ShiftsView({
   const whatsappRangeShifts = useMemo(
     () =>
       visibleShifts
+        .filter((shift) => isPublishedShift(shift))
         .filter((shift) => {
           const shiftDate = toLocalParts(shift.startAt).date;
           return (
@@ -1918,11 +1919,11 @@ export default function ShiftsView({
                 minute: "2-digit",
               })}`,
               includeLocationInWhatsApp && shift.location
-                ? `📍 ${shift.location}`
+                ? `📍 מיקום: ${shift.location}`
                 : "",
               assignments || "• טרם שובצו חיילים",
               includeNotesInWhatsApp && shift.note
-                ? `📝 ${shift.note}`
+                ? `📝 הערה: ${shift.note}`
                 : "",
             ]
               .filter(Boolean)
@@ -2019,6 +2020,14 @@ export default function ShiftsView({
   };
 
   const shareShiftOnWhatsApp = (shift: ShiftRecord) => {
+    if (!isPublishedShift(shift)) {
+      setMessage({
+        type: "error",
+        text: "טיוטה פרטית אינה משותפת ב־WhatsApp. יש לפרסם את המשמרת לפני השיתוף.",
+      });
+      return;
+    }
+
     const start = new Date(shift.startAt).toLocaleString("he-IL", {
       dateStyle: "medium",
       timeStyle: "short",
@@ -2044,7 +2053,7 @@ export default function ShiftsView({
       "",
       "*שיבוץ המשמרת:*",
       assignmentsText,
-      shift.note ? `\nהערות: ${shift.note}` : "",
+      shift.note ? `\n📝 הערה: ${shift.note}` : "",
     ]
       .filter(Boolean)
       .join("\n");
@@ -2761,14 +2770,20 @@ export default function ShiftsView({
                   עריכה
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => shareShiftOnWhatsApp(detailsShift)}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-black text-white hover:bg-emerald-700"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  WhatsApp
-                </button>
+                {isPublishedShift(detailsShift) ? (
+                  <button
+                    type="button"
+                    onClick={() => shareShiftOnWhatsApp(detailsShift)}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-black text-white hover:bg-emerald-700"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    WhatsApp
+                  </button>
+                ) : (
+                  <div className="flex items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-center text-[10px] font-black text-amber-800">
+                    טיוטה אינה משותפת
+                  </div>
+                )}
 
                 <button
                   type="button"
@@ -3123,7 +3138,7 @@ export default function ShiftsView({
                 disabled={saving}
                 className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-black text-amber-800 disabled:opacity-50"
               >
-                {saving ? "שומר..." : "שמור כטיוטה"}
+                {saving ? "שומר..." : "שמור כטיוטה פרטית"}
               </button>
 
               <button
@@ -3137,7 +3152,7 @@ export default function ShiftsView({
             </div>
 
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[10px] font-bold leading-5 text-amber-800">
-              ניתן לשמור טיוטה גם כאשר לא כל תפקידי החובה שובצו.
+              טיוטה מוצגת למנהלים בלבד, אינה מתפרסמת לחיילים ואינה נכללת בשיתוף WhatsApp. ניתן לשמור אותה גם כאשר לא כל תפקידי החובה שובצו.
               פרסום המשמרת יתאפשר רק לאחר השלמת כל השיבוצים הנדרשים.
             </div>
           </div>

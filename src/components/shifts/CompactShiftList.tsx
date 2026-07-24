@@ -118,14 +118,16 @@ export default function CompactShiftList({
                 >
                   <Copy className="h-4 w-4" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onShare?.(shift)}
-                  className="rounded-lg border border-slate-200 p-2 text-emerald-600 hover:bg-emerald-50"
-                  title="WhatsApp"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                </button>
+                {isPublishedShift(shift) && (
+                  <button
+                    type="button"
+                    onClick={() => onShare?.(shift)}
+                    className="rounded-lg border border-slate-200 p-2 text-emerald-600 hover:bg-emerald-50"
+                    title="WhatsApp"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => onEdit?.(shift)}
