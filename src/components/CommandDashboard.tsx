@@ -110,6 +110,39 @@ interface CommandDashboardProps {
   onLoadSystemLogs?: () => Promise<void>;
 }
 
+interface CommanderChartCollapsePreferences {
+  allCharts: boolean;
+  pieChart: boolean;
+  barChart: boolean;
+  baseVsOutside: boolean;
+  lineChart: boolean;
+  unitComparison: boolean;
+}
+
+const getCommanderChartCollapsePreferences = (
+  userId: string
+): CommanderChartCollapsePreferences => {
+  const defaults: CommanderChartCollapsePreferences = {
+    allCharts: false,
+    pieChart: false,
+    barChart: false,
+    baseVsOutside: false,
+    lineChart: false,
+    unitComparison: false,
+  };
+
+  if (typeof window === "undefined") return defaults;
+
+  try {
+    const saved = window.localStorage.getItem(
+      `idf_commander_chart_collapse_${userId}`
+    );
+    return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+  } catch {
+    return defaults;
+  }
+};
+
 export default function CommandDashboard({ 
   currentUser, 
   permissions,
@@ -390,17 +423,31 @@ export default function CommandDashboard({
 const [systemLogFilterUser, setSystemLogFilterUser] = useState("");
 const [systemLogFilterAction, setSystemLogFilterAction] = useState("all");
   const [notificationFilterDate, setNotificationFilterDate] = useState("");
-const [notificationFilterSoldier, setNotificationFilterSoldier] = useState("");
+  const [notificationFilterSoldier, setNotificationFilterSoldier] = useState("");
 const [notificationFilterStatus, setNotificationFilterStatus] = useState("all");
 
   // Collapsible States
+  const [initialChartCollapsePreferences] = useState(() =>
+    getCommanderChartCollapsePreferences(currentUser.userId)
+  );
   const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
-  const [isChartsCollapsed, setIsChartsCollapsed] = useState(false);
-  const [isPieChartCollapsed, setIsPieChartCollapsed] = useState(false);
-  const [isBarChartCollapsed, setIsBarChartCollapsed] = useState(false);
-  const [isBaseVsOutsideCardCollapsed, setIsBaseVsOutsideCardCollapsed] = useState(false);
-  const [isLineChartCollapsed, setIsLineChartCollapsed] = useState(false);
-  const [isUnitComparisonCollapsed, setIsUnitComparisonCollapsed] = useState(false);
+  const [isChartsCollapsed, setIsChartsCollapsed] = useState(
+    initialChartCollapsePreferences.allCharts
+  );
+  const [isPieChartCollapsed, setIsPieChartCollapsed] = useState(
+    initialChartCollapsePreferences.pieChart
+  );
+  const [isBarChartCollapsed, setIsBarChartCollapsed] = useState(
+    initialChartCollapsePreferences.barChart
+  );
+  const [isBaseVsOutsideCardCollapsed, setIsBaseVsOutsideCardCollapsed] =
+    useState(initialChartCollapsePreferences.baseVsOutside);
+  const [isLineChartCollapsed, setIsLineChartCollapsed] = useState(
+    initialChartCollapsePreferences.lineChart
+  );
+  const [isUnitComparisonCollapsed, setIsUnitComparisonCollapsed] = useState(
+    initialChartCollapsePreferences.unitComparison
+  );
   const [isAttendanceGridCollapsed, setIsAttendanceGridCollapsed] = useState(false);
   const [attendanceSearchQuery, setAttendanceSearchQuery] = useState("");
 const [showOnlyMissingReports, setShowOnlyMissingReports] = useState(false);
@@ -595,6 +642,28 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
       String(isDirectoryFreezeEnabled)
     );
   }, [isDirectoryFreezeEnabled]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      `idf_commander_chart_collapse_${currentUser.userId}`,
+      JSON.stringify({
+        allCharts: isChartsCollapsed,
+        pieChart: isPieChartCollapsed,
+        barChart: isBarChartCollapsed,
+        baseVsOutside: isBaseVsOutsideCardCollapsed,
+        lineChart: isLineChartCollapsed,
+        unitComparison: isUnitComparisonCollapsed,
+      } satisfies CommanderChartCollapsePreferences)
+    );
+  }, [
+    currentUser.userId,
+    isChartsCollapsed,
+    isPieChartCollapsed,
+    isBarChartCollapsed,
+    isBaseVsOutsideCardCollapsed,
+    isLineChartCollapsed,
+    isUnitComparisonCollapsed,
+  ]);
 
   useEffect(() => {
   const handleClickOutside = (event: MouseEvent) => {
