@@ -99,6 +99,12 @@ export default function Header({
                 <span className="text-xs bg-military-600 font-normal px-2.5 py-0.5 rounded-full border border-military-400">
                   {systemSettings?.unitName || "תאג״ד 997"}
                 </span>
+                <span
+                  className="rounded-full border border-military-500 bg-military-900/50 px-2 py-0.5 font-mono text-[10px] font-normal text-military-200"
+                  title="גרסת המערכת"
+                >
+                  גרסה {systemSettings?.systemVersion || "1.0.0"}
+                </span>
               </h1>
               <p className="text-xs text-military-200 mt-0.5 font-mono">
                 {formattedDate} | <span className="font-semibold">{formattedTime}</span>
