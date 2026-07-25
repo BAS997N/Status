@@ -11,7 +11,10 @@ createRoot(document.getElementById('root')!).render(
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/Status/sw.js', { scope: '/Status/' }).catch((error) => {
+    navigator.serviceWorker.register('/Status/sw.js', {
+      scope: '/Status/',
+      updateViaCache: 'none',
+    }).catch((error) => {
       console.warn('Service worker registration failed:', error);
     });
   });

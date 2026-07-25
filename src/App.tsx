@@ -47,6 +47,7 @@ import {
 import { dataService } from "./services/dataService";
 import { getEffectiveSystemRole, getPermissionsForUser, hasPermission, PermissionMap } from "./security/permissions";
 import Header from "./components/Header";
+import VersionUpdateNotice from "./components/VersionUpdateNotice";
 import SoldierReporter from "./components/SoldierReporter";
 import CommandDashboard from "./components/CommandDashboard";
 import SystemAdminPanel from "./components/SystemAdminPanel";
@@ -2221,6 +2222,9 @@ const handleAdminSaveReport = async (reportData: {
         medicalUnits={medicalUnits}
         canEdit={hasPermission(permissions, "soldiers.edit")}
         systemSettings={systemSettings}
+      />
+      <VersionUpdateNotice
+        systemVersion={systemSettings?.systemVersion}
       />
 
       {userProfile.role !== "soldier" && (
