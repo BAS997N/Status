@@ -548,6 +548,12 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       "emergency.manage"
     );
 
+    // Commanders and administrators who can access the command dashboard
+    // should always return to it after a refresh. Soldier-only startup rules
+    // (active order, constraints and first emergency view) must not override
+    // their management landing screen.
+    if (profileCanViewDashboard) return "dashboard";
+
     const emergencyEventId = systemSettings?.emergencyEvent?.eventId;
     const hasSeenEmergency =
       emergencyEventId &&
@@ -580,7 +586,6 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       return "reporter";
     }
 
-    if (profileCanViewDashboard) return "dashboard";
     if (profileCanViewShifts) return "shifts";
     if (profileCanViewReporter) return "reporter";
     if (profileCanViewLinePlanning) return "line_planning";
