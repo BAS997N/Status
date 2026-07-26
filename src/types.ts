@@ -171,10 +171,24 @@ export interface LineConstraint {
   userName: string;
   unit: string;
   unavailableDates: string[];
+  periods?: LineConstraintPeriod[];
   notesByDate?: Record<string, string>;
   note?: string;
   submittedAt: string;
   updatedAt: string;
+}
+
+export type LineConstraintPriority =
+  | "request"
+  | "preferred"
+  | "required";
+
+export interface LineConstraintPeriod {
+  periodId: string;
+  startDate: string;
+  endDate: string;
+  priority: LineConstraintPriority;
+  note?: string;
 }
 
 export type LinePresenceStatus = "line" | "home";

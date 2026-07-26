@@ -13,10 +13,13 @@ import {
   Plus,
   Save,
   Search,
+  Trash2,
   Unlock,
 } from "lucide-react";
 import {
   LineConstraint,
+  LineConstraintPeriod,
+  LineConstraintPriority,
   LineCycle,
   LineCycleStatus,
   LinePresencePlan,
@@ -60,6 +63,48 @@ const getDatesInRange = (startDate: string, endDate: string) => {
   return dates;
 };
 
+const priorityLabel: Record<LineConstraintPriority, string> = {
+  request: "בקשה",
+  preferred: "מועדף",
+  required: "חובה",
+};
+
+const priorityClasses: Record<LineConstraintPriority, string> = {
+  request: "border-violet-200 bg-violet-50 text-violet-800",
+  preferred: "border-amber-200 bg-amber-50 text-amber-800",
+  required: "border-rose-200 bg-rose-50 text-rose-800",
+};
+
+const legacyDatesToPeriods = (
+  dates: string[],
+  notesByDate: Record<string, string> = {}
+): LineConstraintPeriod[] => {
+  const sortedDates = Array.from(new Set(dates)).sort();
+  const periods: LineConstraintPeriod[] = [];
+
+  sortedDates.forEach((date) => {
+    const previous = periods[periods.length - 1];
+    if (previous && addDays(previous.endDate, 1) === date) {
+      previous.endDate = date;
+      const dateNote = notesByDate[date]?.trim();
+      if (dateNote && !previous.note?.includes(dateNote)) {
+        previous.note = [previous.note, dateNote].filter(Boolean).join(" | ");
+      }
+      return;
+    }
+
+    periods.push({
+      periodId: `legacy_${date}`,
+      startDate: date,
+      endDate: date,
+      priority: "required",
+      note: notesByDate[date]?.trim() || "",
+    });
+  });
+
+  return periods;
+};
+
 const formatDate = (value: string, includeYear = false) =>
   new Date(`${value}T12:00:00`).toLocaleDateString("he-IL", {
     day: "2-digit",
@@ -101,9 +146,14 @@ export default function LinePlanning({
   const [newDeadline, setNewDeadline] = useState(today);
   const [editingCycleId, setEditingCycleId] = useState("");
   const [search, setSearch] = useState("");
-  const [myUnavailableDates, setMyUnavailableDates] = useState<string[]>([]);
+  const [myPeriods, setMyPeriods] = useState<LineConstraintPeriod[]>([]);
   const [myNote, setMyNote] = useState("");
-  const [myNotesByDate, setMyNotesByDate] = useState<Record<string, string>>({});
+  const [periodStartDate, setPeriodStartDate] = useState(today);
+  const [periodEndDate, setPeriodEndDate] = useState(today);
+  const [periodPriority, setPeriodPriority] =
+    useState<LineConstraintPriority>("request");
+  const [periodNote, setPeriodNote] = useState("");
+  const [editingPeriodId, setEditingPeriodId] = useState("");
   const [draftPlans, setDraftPlans] = useState<
     Record<string, Record<string, LinePresenceStatus>>
   >({});
@@ -118,6 +168,12 @@ export default function LinePlanning({
         : [],
     [selectedCycle]
   );
+
+  useEffect(() => {
+    if (!selectedCycle || editingPeriodId) return;
+    setPeriodStartDate(selectedCycle.startDate);
+    setPeriodEndDate(selectedCycle.startDate);
+  }, [selectedCycle?.cycleId, editingPeriodId]);
 
   const planningUsers = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase("he");
@@ -198,9 +254,15 @@ export default function LinePlanning({
         const mine = nextConstraints.find(
           (item) => item.userId === currentUser.userId
         );
-        setMyUnavailableDates(mine?.unavailableDates || []);
+        setMyPeriods(
+          mine?.periods?.length
+            ? mine.periods
+            : legacyDatesToPeriods(
+                mine?.unavailableDates || [],
+                mine?.notesByDate || {}
+              )
+        );
         setMyNote(mine?.note || "");
-        setMyNotesByDate(mine?.notesByDate || {});
       } catch {
         if (!cancelled) {
           setMessage({ type: "error", text: "טעינת נתוני הקו נכשלה." });
@@ -364,20 +426,88 @@ export default function LinePlanning({
     (!selectedCycle.submissionDeadline ||
       today <= selectedCycle.submissionDeadline);
 
+  const resetPeriodForm = () => {
+    setEditingPeriodId("");
+    setPeriodStartDate(selectedCycle?.startDate || today);
+    setPeriodEndDate(selectedCycle?.startDate || today);
+    setPeriodPriority("request");
+    setPeriodNote("");
+  };
+
+  const savePeriodToDraft = () => {
+    if (!selectedCycle || !periodStartDate || !periodEndDate) return;
+    if (
+      periodEndDate < periodStartDate ||
+      periodStartDate < selectedCycle.startDate ||
+      periodEndDate > selectedCycle.endDate
+    ) {
+      setMessage({
+        type: "error",
+        text: "תקופת האילוץ חייבת להיות בתוך תאריכי הקו.",
+      });
+      return;
+    }
+
+    const period: LineConstraintPeriod = {
+      periodId: editingPeriodId || `period_${Date.now()}`,
+      startDate: periodStartDate,
+      endDate: periodEndDate,
+      priority: periodPriority,
+      note: periodNote.trim(),
+    };
+
+    setMyPeriods((current) =>
+      [
+        ...current.filter((item) => item.periodId !== period.periodId),
+        period,
+      ].sort((a, b) => a.startDate.localeCompare(b.startDate))
+    );
+    resetPeriodForm();
+    setMessage(null);
+  };
+
+  const editPeriod = (period: LineConstraintPeriod) => {
+    setEditingPeriodId(period.periodId);
+    setPeriodStartDate(period.startDate);
+    setPeriodEndDate(period.endDate);
+    setPeriodPriority(period.priority);
+    setPeriodNote(period.note || "");
+  };
+
+  const removePeriod = (periodId: string) => {
+    setMyPeriods((current) =>
+      current.filter((period) => period.periodId !== periodId)
+    );
+    if (editingPeriodId === periodId) resetPeriodForm();
+  };
+
   const saveMyConstraints = async () => {
     if (!selectedCycle || !canSubmitConstraints) return;
     const now = new Date().toISOString();
+    const unavailableDates = Array.from(
+      new Set(
+        myPeriods.flatMap((period) =>
+          getDatesInRange(period.startDate, period.endDate)
+        )
+      )
+    ).sort();
     const constraint: LineConstraint = {
       constraintId: `${selectedCycle.cycleId}_${currentUser.userId}`,
       cycleId: selectedCycle.cycleId,
       userId: currentUser.userId,
       userName: currentUser.fullName,
       unit: currentUser.unit,
-      unavailableDates: [...myUnavailableDates].sort(),
+      unavailableDates,
+      periods: myPeriods,
       note: myNote.trim(),
       notesByDate: Object.fromEntries(
-        myUnavailableDates
-          .map((date) => [date, (myNotesByDate[date] || "").trim()])
+        myPeriods
+          .flatMap((period) =>
+            getDatesInRange(period.startDate, period.endDate).map((date) => [
+              date,
+              period.note?.trim() || "",
+            ])
+          )
           .filter(([, note]) => Boolean(note))
       ),
       submittedAt:
@@ -748,6 +878,14 @@ export default function LinePlanning({
                 <tbody>
                   {planningUsers.map((user) => {
                     const constraint = constraintByUser.get(user.userId);
+                    const constraintPeriods = constraint
+                      ? constraint.periods?.length
+                        ? constraint.periods
+                        : legacyDatesToPeriods(
+                            constraint.unavailableDates || [],
+                            constraint.notesByDate || {}
+                          )
+                      : [];
                     const unavailable = new Set(
                       constraint?.unavailableDates || []
                     );
@@ -769,6 +907,31 @@ export default function LinePlanning({
                               {constraint.note}
                             </div>
                           )}
+                          {constraintPeriods.length > 0 && (
+                            <div className="mt-1.5 space-y-1">
+                              {constraintPeriods.map((period) => (
+                                <div
+                                  key={period.periodId}
+                                  className={`max-w-44 rounded-md border px-1.5 py-1 text-[9px] font-black ${priorityClasses[period.priority]}`}
+                                  title={period.note || ""}
+                                >
+                                  <span>
+                                    {formatDate(period.startDate)}
+                                    {period.endDate !== period.startDate
+                                      ? `–${formatDate(period.endDate)}`
+                                      : ""}
+                                    {" · "}
+                                    {priorityLabel[period.priority]}
+                                  </span>
+                                  {period.note && (
+                                    <span className="mt-0.5 block truncate font-bold">
+                                      {period.note}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         {cycleDates.map((date) => {
                           const planStatus = cyclePlanStatus(
@@ -776,6 +939,13 @@ export default function LinePlanning({
                             date
                           );
                           const isUnavailable = unavailable.has(date);
+                          const constraintPeriod = constraintPeriods.find(
+                            (period) =>
+                              period.startDate <= date &&
+                              period.endDate >= date
+                          );
+                          const constraintPriority =
+                            constraintPeriod?.priority || "required";
                           const conflict =
                             isUnavailable && planStatus === "line";
                           return (
@@ -793,7 +963,11 @@ export default function LinePlanning({
                                   conflict
                                     ? "שובץ לקו למרות אילוץ"
                                     : isUnavailable
-                                    ? "החייל סימן אילוץ"
+                                    ? `${priorityLabel[constraintPriority]}${
+                                        constraintPeriod?.note
+                                          ? `: ${constraintPeriod.note}`
+                                          : ""
+                                      }`
                                     : "לחיצה מחליפה: קו / בית / ריק"
                                 }
                                 className={`h-auto min-h-9 w-full rounded-md px-1 py-1 text-[9px] font-black disabled:cursor-default ${
@@ -804,7 +978,7 @@ export default function LinePlanning({
                                     : planStatus === "home"
                                     ? "bg-sky-500 text-white"
                                     : isUnavailable
-                                    ? "bg-rose-100 text-rose-700"
+                                    ? priorityClasses[constraintPriority]
                                     : "bg-slate-100 text-slate-400 hover:bg-slate-200"
                                 }`}
                               >
@@ -816,15 +990,20 @@ export default function LinePlanning({
                                     : planStatus === "home"
                                     ? "בבית"
                                     : isUnavailable
-                                    ? "אילוץ"
+                                    ? priorityLabel[constraintPriority]
                                     : "—"}
                                 </span>
-                                {constraint?.notesByDate?.[date] && (
+                                {(constraintPeriod?.note ||
+                                  constraint?.notesByDate?.[date]) && (
                                   <span
                                     className="mt-0.5 block max-w-14 truncate font-bold"
-                                    title={constraint.notesByDate[date]}
+                                    title={
+                                      constraintPeriod?.note ||
+                                      constraint?.notesByDate?.[date]
+                                    }
                                   >
-                                    {constraint.notesByDate[date]}
+                                    {constraintPeriod?.note ||
+                                      constraint?.notesByDate?.[date]}
                                   </span>
                                 )}
                               </button>
@@ -840,7 +1019,9 @@ export default function LinePlanning({
             <div className="flex flex-wrap gap-3 border-t border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-black">
               <span className="text-emerald-700">ירוק — בקו</span>
               <span className="text-sky-700">כחול — בבית</span>
-              <span className="text-rose-700">אדום — אילוץ</span>
+              <span className="text-violet-700">סגול — בקשה</span>
+              <span className="text-amber-700">צהוב — מועדף</span>
+              <span className="text-rose-700">אדום — חובה</span>
               <span className="text-orange-700">
                 כתום — שיבוץ לקו בניגוד לאילוץ
               </span>
@@ -881,88 +1062,157 @@ export default function LinePlanning({
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-3 text-sm font-black text-slate-900">
-              סמן את הימים שבהם אינך יכול להגיע
+              הוספת תקופת אילוץ
             </div>
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-7 lg:grid-cols-10">
-              {cycleDates.map((date) => {
-                const selected = myUnavailableDates.includes(date);
-                return (
-                  <button
-                    key={date}
-                    type="button"
-                    disabled={!canSubmitConstraints || readOnly}
-                    onClick={() =>
-                      setMyUnavailableDates((current) => {
-                        if (current.includes(date)) {
-                          setMyNotesByDate((notes) => {
-                            const next = { ...notes };
-                            delete next[date];
-                            return next;
-                          });
-                          return current.filter((item) => item !== date);
-                        }
-                        return [...current, date];
-                      })
-                    }
-                    className={`rounded-lg border px-2 py-2 text-[10px] font-black ${
-                      selected
-                        ? "border-rose-300 bg-rose-100 text-rose-800"
-                        : "border-slate-200 bg-slate-50 text-slate-600"
-                    } disabled:opacity-60`}
-                  >
-                    <span className="block">
-                      {new Date(`${date}T12:00:00`).toLocaleDateString(
-                        "he-IL",
-                        { weekday: "short" }
-                      )}
-                    </span>
-                    <span>{formatDate(date)}</span>
-                  </button>
-                );
-              })}
+            <p className="mb-3 text-[11px] font-bold leading-5 text-slate-500">
+              לכל תקופה מגדירים תאריכי התחלה וסיום, עדיפות והערה אחת.
+              אילוץ ליום בודד מוזן עם אותו תאריך בשני השדות.
+            </p>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="text-xs font-black text-slate-700">
+                מתאריך
+                <input
+                  type="date"
+                  min={selectedCycle.startDate}
+                  max={selectedCycle.endDate}
+                  value={periodStartDate}
+                  disabled={!canSubmitConstraints || readOnly}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setPeriodStartDate(value);
+                    if (periodEndDate < value) setPeriodEndDate(value);
+                  }}
+                  className="input mt-1"
+                />
+              </label>
+              <label className="text-xs font-black text-slate-700">
+                עד תאריך
+                <input
+                  type="date"
+                  min={periodStartDate || selectedCycle.startDate}
+                  max={selectedCycle.endDate}
+                  value={periodEndDate}
+                  disabled={!canSubmitConstraints || readOnly}
+                  onChange={(event) => setPeriodEndDate(event.target.value)}
+                  className="input mt-1"
+                />
+              </label>
+              <label className="text-xs font-black text-slate-700">
+                רמת עדיפות
+                <select
+                  value={periodPriority}
+                  disabled={!canSubmitConstraints || readOnly}
+                  onChange={(event) =>
+                    setPeriodPriority(
+                      event.target.value as LineConstraintPriority
+                    )
+                  }
+                  className="input mt-1"
+                >
+                  <option value="request">1. בקשה</option>
+                  <option value="preferred">2. מועדף</option>
+                  <option value="required">3. חובה</option>
+                </select>
+              </label>
+              <label className="text-xs font-black text-slate-700">
+                הערה לתקופה
+                <input
+                  value={periodNote}
+                  disabled={!canSubmitConstraints || readOnly}
+                  onChange={(event) => setPeriodNote(event.target.value)}
+                  placeholder="לדוגמה: לימודים או אירוע משפחתי"
+                  className="input mt-1"
+                />
+              </label>
             </div>
 
-            {myUnavailableDates.length > 0 && (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <div className="mb-2 text-xs font-black text-amber-900">
-                  הערה לכל תאריך שסומן
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={savePeriodToDraft}
+                disabled={!canSubmitConstraints || readOnly}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50"
+              >
+                {editingPeriodId ? (
+                  <Pencil className="h-4 w-4" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                {editingPeriodId ? "עדכן תקופה" : "הוסף תקופה"}
+              </button>
+              {editingPeriodId && (
+                <button
+                  type="button"
+                  onClick={resetPeriodForm}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-700"
+                >
+                  ביטול עריכה
+                </button>
+              )}
+            </div>
+
+            {myPeriods.length > 0 && (
+              <div className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="text-xs font-black text-slate-800">
+                  תקופות האילוץ שלי
                 </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {[...myUnavailableDates].sort().map((date) => (
-                    <label
-                      key={`note_${date}`}
-                      className="text-[10px] font-black text-slate-700"
-                    >
-                      {formatDate(date, true)}
-                      <input
-                        value={myNotesByDate[date] || ""}
-                        disabled={!canSubmitConstraints || readOnly}
-                        onChange={(event) =>
-                          setMyNotesByDate((current) => ({
-                            ...current,
-                            [date]: event.target.value,
-                          }))
-                        }
-                        placeholder="סיבת האילוץ בתאריך זה..."
-                        className="input mt-1"
-                      />
-                    </label>
-                  ))}
-                </div>
+                {myPeriods.map((period) => (
+                  <div
+                    key={period.periodId}
+                    className={`flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${priorityClasses[period.priority]}`}
+                  >
+                    <div className="min-w-0">
+                      <div className="text-xs font-black">
+                        {formatDate(period.startDate, true)}
+                        {period.endDate !== period.startDate
+                          ? ` עד ${formatDate(period.endDate, true)}`
+                          : ""}
+                        {" · "}
+                        {priorityLabel[period.priority]}
+                      </div>
+                      {period.note && (
+                        <div className="mt-1 text-[11px] font-bold">
+                          {period.note}
+                        </div>
+                      )}
+                    </div>
+                    {!readOnly && canSubmitConstraints && (
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editPeriod(period)}
+                          className="rounded-lg border border-current/20 bg-white/70 p-2"
+                          aria-label="עריכת תקופה"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removePeriod(period.periodId)}
+                          className="rounded-lg border border-current/20 bg-white/70 p-2"
+                          aria-label="מחיקת תקופה"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 
-            <label className="mt-4 block text-xs font-black text-slate-700">
-              הערה כללית
-              <textarea
-                rows={3}
-                value={myNote}
-                disabled={!canSubmitConstraints || readOnly}
-                onChange={(event) => setMyNote(event.target.value)}
-                placeholder="לדוגמה: לימודים, טיפול רפואי או אילוץ משפחתי..."
-                className="input mt-1 resize-y"
-              />
-            </label>
+            {myPeriods.length === 0 && (
+              <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center text-xs font-bold text-slate-400">
+                עדיין לא נוספו תקופות אילוץ.
+              </div>
+            )}
+
+            {myNote && (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[11px] font-bold text-slate-600">
+                הערה כללית מאילוצים קודמים: {myNote}
+              </div>
+            )}
             <button
               type="button"
               onClick={saveMyConstraints}
