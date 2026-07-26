@@ -817,8 +817,11 @@ export default function LinePlanning({
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2">
+          <div
+            ref={matrixScrollRef}
+            className="relative max-h-[72vh] touch-pan-x overflow-auto scroll-smooth rounded-2xl border border-slate-200 bg-white shadow-sm"
+          >
+            <div className="sticky left-0 right-0 top-0 z-50 flex min-w-full items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 shadow-sm">
               <span className="text-[10px] font-black text-slate-600">
                 הזזת תאריכים
               </span>
@@ -851,12 +854,9 @@ export default function LinePlanning({
                 </button>
               </div>
             </div>
-            <div
-              ref={matrixScrollRef}
-              className="touch-pan-x overflow-x-auto scroll-smooth"
-            >
+            <div>
               <table className="min-w-max border-collapse text-center text-[10px]">
-                <thead className="sticky top-0 z-20 bg-slate-100">
+                <thead className="sticky top-[51px] z-40 bg-slate-100 shadow-sm">
                   <tr>
                     <th className="sticky right-0 z-30 min-w-48 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 text-right text-xs">
                       חייל
