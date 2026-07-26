@@ -662,11 +662,24 @@ export default function ShiftsView({
       return;
     }
 
-    const selected = Object.values(slotAssignments).filter(Boolean);
-    const duplicate = selected.find(
-      (userId, index) => selected.indexOf(userId) !== index
+    const selectedSlotsByAssignee = expandedSlots.reduce<
+      Record<string, ExpandedSlot[]>
+    >((result, slot) => {
+      const assigneeId = slotAssignments[slot.key];
+      if (!assigneeId) return result;
+      result[assigneeId] = [...(result[assigneeId] || []), slot];
+      return result;
+    }, {});
+    const invalidDuplicate = Object.entries(selectedSlotsByAssignee).find(
+      ([, slots]) =>
+        slots.length > 1 &&
+        !(
+          slots.length === 2 &&
+          slots.some((slot) => slot.configId === "duty_commander")
+        )
     );
-    if (duplicate) {
+    if (invalidDuplicate) {
+      const [duplicate] = invalidDuplicate;
       const duplicateUserId = duplicate.replace("user:", "");
       const user = selectableUsers.find(
         (item) => item.userId === duplicateUserId
