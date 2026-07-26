@@ -24,6 +24,8 @@ export const PERMISSION_DEFINITIONS = [
   { id: "soldiers.delete", label: "מחיקת חיילים", category: "חיילים" },
   { id: "shifts.view", label: "צפייה במשמרות", category: "משמרות" },
   { id: "shifts.manage", label: "יצירה, עריכה ומחיקת משמרות", category: "משמרות" },
+  { id: "line_planning.view", label: "צפייה והזנת אילוצים לקו", category: "תכנון קו" },
+  { id: "line_planning.manage", label: "פתיחת קווים ותכנון נוכחות", category: "תכנון קו" },
   { id: "emergency.view", label: "צפייה במרכז חירום", category: "חירום" },
   { id: "emergency.manage", label: "הפעלה וניהול של מצב חירום", category: "חירום" },
   { id: "sheets.export", label: "ייצוא ל־Google Sheets", category: "ייצוא" },
@@ -87,6 +89,10 @@ export const getPermissionsForRole = (
 
   if (configuredPermissions["shifts.manage"] === true) {
     configuredPermissions["shifts.view"] = true;
+  }
+
+  if (configuredPermissions["line_planning.manage"] === true) {
+    configuredPermissions["line_planning.view"] = true;
   }
 
   if (configuredPermissions["emergency.manage"] === true) {

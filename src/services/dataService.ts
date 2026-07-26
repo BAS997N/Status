@@ -55,6 +55,9 @@ import {
   CommanderMessage,
   PushDeviceStatus,
   PwaInstallationStatus,
+  LineCycle,
+  LineConstraint,
+  LinePresencePlan,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -4832,6 +4835,165 @@ const formattedDate =
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  },
+
+  async getLineCycles(): Promise<LineCycle[]> {
+    if (!isFirebaseActive()) {
+      const cycles: LineCycle[] = JSON.parse(
+        localStorage.getItem("idf_line_cycles") || "[]"
+      );
+      return cycles.sort((a, b) => b.startDate.localeCompare(a.startDate));
+    }
+
+    const path = "line_cycles";
+    try {
+      const snapshot = await getDocs(
+        query(collection(db, path), orderBy("startDate", "desc"))
+      );
+      return snapshot.docs.map(
+        (item) => ({ cycleId: item.id, ...item.data() } as LineCycle)
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
+  async saveLineCycle(cycle: LineCycle): Promise<LineCycle> {
+    if (!isFirebaseActive()) {
+      const cycles: LineCycle[] = JSON.parse(
+        localStorage.getItem("idf_line_cycles") || "[]"
+      );
+      const next = cycles.filter((item) => item.cycleId !== cycle.cycleId);
+      next.push(cycle);
+      localStorage.setItem("idf_line_cycles", JSON.stringify(next));
+      return cycle;
+    }
+
+    const path = `line_cycles/${cycle.cycleId}`;
+    try {
+      await setDoc(doc(db, "line_cycles", cycle.cycleId), cycle);
+      return cycle;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+      throw error;
+    }
+  },
+
+  async getLineConstraints(
+    cycleId: string,
+    userId?: string
+  ): Promise<LineConstraint[]> {
+    if (!isFirebaseActive()) {
+      const items: LineConstraint[] = JSON.parse(
+        localStorage.getItem("idf_line_constraints") || "[]"
+      );
+      return items.filter(
+        (item) =>
+          item.cycleId === cycleId && (!userId || item.userId === userId)
+      );
+    }
+
+    const path = "line_constraints";
+    try {
+      const conditions = [where("cycleId", "==", cycleId)];
+      if (userId) conditions.push(where("userId", "==", userId));
+      const snapshot = await getDocs(
+        query(collection(db, path), ...conditions)
+      );
+      return snapshot.docs.map(
+        (item) =>
+          ({ constraintId: item.id, ...item.data() } as LineConstraint)
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
+  async saveLineConstraint(
+    constraint: LineConstraint
+  ): Promise<LineConstraint> {
+    if (!isFirebaseActive()) {
+      const items: LineConstraint[] = JSON.parse(
+        localStorage.getItem("idf_line_constraints") || "[]"
+      );
+      const next = items.filter(
+        (item) => item.constraintId !== constraint.constraintId
+      );
+      next.push(constraint);
+      localStorage.setItem("idf_line_constraints", JSON.stringify(next));
+      return constraint;
+    }
+
+    const path = `line_constraints/${constraint.constraintId}`;
+    try {
+      await setDoc(
+        doc(db, "line_constraints", constraint.constraintId),
+        constraint
+      );
+      return constraint;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+      throw error;
+    }
+  },
+
+  async getLinePresencePlans(
+    cycleId: string,
+    userId?: string
+  ): Promise<LinePresencePlan[]> {
+    if (!isFirebaseActive()) {
+      const items: LinePresencePlan[] = JSON.parse(
+        localStorage.getItem("idf_line_presence_plans") || "[]"
+      );
+      return items.filter(
+        (item) =>
+          item.cycleId === cycleId && (!userId || item.userId === userId)
+      );
+    }
+
+    const path = "line_presence_plans";
+    try {
+      const conditions = [where("cycleId", "==", cycleId)];
+      if (userId) conditions.push(where("userId", "==", userId));
+      const snapshot = await getDocs(
+        query(collection(db, path), ...conditions)
+      );
+      return snapshot.docs.map(
+        (item) =>
+          ({ planId: item.id, ...item.data() } as LinePresencePlan)
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
+  async saveLinePresencePlan(
+    plan: LinePresencePlan
+  ): Promise<LinePresencePlan> {
+    if (!isFirebaseActive()) {
+      const items: LinePresencePlan[] = JSON.parse(
+        localStorage.getItem("idf_line_presence_plans") || "[]"
+      );
+      const next = items.filter((item) => item.planId !== plan.planId);
+      next.push(plan);
+      localStorage.setItem("idf_line_presence_plans", JSON.stringify(next));
+      return plan;
+    }
+
+    const path = `line_presence_plans/${plan.planId}`;
+    try {
+      await setDoc(
+        doc(db, "line_presence_plans", plan.planId),
+        plan
+      );
+      return plan;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+      throw error;
     }
   },
 

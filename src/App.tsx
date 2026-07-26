@@ -53,6 +53,7 @@ import CommandDashboard from "./components/CommandDashboard";
 import SystemAdminPanel from "./components/SystemAdminPanel";
 import AppMessageModal from "./components/AppMessageModal";
 import ShiftsView from "./components/ShiftsView";
+import LinePlanning from "./components/LinePlanning";
 import EmergencyCenter from "./components/EmergencyCenter";
 import CommanderMessageInbox from "./components/CommanderMessageInbox";
 import { motion, AnimatePresence } from "motion/react";
@@ -65,6 +66,7 @@ import {
   Info,
   LogOut,
   CalendarDays,
+  ClipboardList,
   Siren,
   WifiOff,
   RefreshCw,
@@ -111,7 +113,12 @@ export default function App() {
   const [shiftSlotConfigs, setShiftSlotConfigs] = useState<ShiftSlotConfig[]>([]);
   const [externalStaff, setExternalStaff] = useState<ExternalStaffMember[]>([]);
   const [activeTab, setActiveTab] = useState<
-    "reporter" | "dashboard" | "system_admin" | "shifts" | "emergency"
+    | "reporter"
+    | "dashboard"
+    | "system_admin"
+    | "shifts"
+    | "line_planning"
+    | "emergency"
   >("reporter");
 
   // ID-based login states
@@ -335,6 +342,13 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const shiftsSystemRole = getEffectiveSystemRole(permissionUser);
   const canViewShifts = hasPermission(permissions, "shifts.view");
   const canManageShifts = hasPermission(permissions, "shifts.manage");
+  const canManageLinePlanning =
+    userProfile?.role === "commander" ||
+    hasPermission(permissions, "line_planning.manage");
+  const canViewLinePlanning =
+    userProfile?.role === "soldier" ||
+    canManageLinePlanning ||
+    hasPermission(permissions, "line_planning.view");
   const canViewEmergency = hasPermission(permissions, "emergency.view");
   const canManageEmergency = hasPermission(permissions, "emergency.manage");
   const canViewNotifications = hasPermission(
@@ -457,6 +471,11 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       profilePermissions,
       "shifts.view"
     );
+    const profileCanViewLinePlanning =
+      profile.role === "soldier" ||
+      profile.role === "commander" ||
+      hasPermission(profilePermissions, "line_planning.view") ||
+      hasPermission(profilePermissions, "line_planning.manage");
     const profileCanViewEmergency = hasPermission(
       profilePermissions,
       "emergency.view"
@@ -487,6 +506,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     if (profileCanViewDashboard) return "dashboard";
     if (profileCanViewShifts) return "shifts";
     if (profileCanViewReporter) return "reporter";
+    if (profileCanViewLinePlanning) return "line_planning";
     if (profileCanManageEmergency) return "emergency";
     if (profileCanViewSystemAdmin) return "system_admin";
 
@@ -570,6 +590,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       (activeTab === "dashboard" && canViewDashboard) ||
       (activeTab === "reporter" && canViewReporter) ||
       (activeTab === "shifts" && canViewShifts) ||
+      (activeTab === "line_planning" && canViewLinePlanning) ||
       (activeTab === "emergency" && shouldShowEmergencyTab);
 
     if (activeTabIsAllowed) return;
@@ -580,6 +601,8 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       setActiveTab("shifts");
     } else if (canViewReporter) {
       setActiveTab("reporter");
+    } else if (canViewLinePlanning) {
+      setActiveTab("line_planning");
     } else if (shouldShowEmergencyTab) {
       setActiveTab("emergency");
     } else if (isSuperAdmin) {
@@ -593,6 +616,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     canViewDashboard,
     canViewReporter,
     canViewShifts,
+    canViewLinePlanning,
     shouldShowEmergencyTab,
   ]);
 
@@ -2352,7 +2376,11 @@ const handleAdminSaveReport = async (reportData: {
 
         {/* Navigation Tabs (Only if Commander) */}
         {!previewUser &&
-          (canViewReporter || canViewDashboard || canViewShifts || isSuperAdmin) && (
+          (canViewReporter ||
+            canViewDashboard ||
+            canViewShifts ||
+            canViewLinePlanning ||
+            isSuperAdmin) && (
           <div className="custom-scrollbar mb-5 flex w-full max-w-full gap-2 overflow-x-auto border-b border-slate-200/80 pb-1">
             {canViewReporter && (
             <button
@@ -2401,6 +2429,20 @@ const handleAdminSaveReport = async (reportData: {
               >
                 <CalendarDays className="w-4 h-4" />
                 <span>משמרות</span>
+              </button>
+            )}
+
+            {canViewLinePlanning && (
+              <button
+                onClick={() => setActiveTab("line_planning")}
+                className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === "line_planning"
+                    ? "border-teal-600 text-teal-700"
+                    : "border-transparent text-slate-400 hover:text-slate-500"
+                }`}
+              >
+                <ClipboardList className="h-4 w-4" />
+                <span>תכנון קו ואילוצים</span>
               </button>
             )}
 
@@ -2536,6 +2578,20 @@ const handleAdminSaveReport = async (reportData: {
                   attendanceStatuses={attendanceStatuses}
                 />
               )}
+            </motion.div>
+          ) : activeTab === "line_planning" && canViewLinePlanning ? (
+            <motion.div
+              key="line-planning-tab"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.15 }}
+            >
+              <LinePlanning
+                currentUser={userProfile}
+                allUsers={allUsers}
+                canManage={canManageLinePlanning}
+              />
             </motion.div>
           ) : activeTab === "reporter" && canViewReporter ? (
             <motion.div

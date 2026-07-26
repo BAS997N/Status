@@ -32,6 +32,16 @@ service cloud.firestore {
       return hasUserDocument() && effectiveSystemRole() == "super_admin";
     }
 
+    function canManageLinePlanning() {
+      return isSuperAdmin() || (
+        hasUserDocument() &&
+        (
+          myUser().data.role == "commander" ||
+          hasPermission("line_planning.manage")
+        )
+      );
+    }
+
     function permissionSettingsExist() {
       return exists(/databases/$(database)/documents/settings/role_permissions);
     }
@@ -181,6 +191,38 @@ service cloud.firestore {
         myUser().data.role == "soldier"
       );
       allow create, update, delete: if hasPermission("shifts.manage");
+    }
+
+    match /line_cycles/{cycleId} {
+      allow read: if signedIn();
+      allow create, update, delete: if canManageLinePlanning();
+    }
+
+    match /line_constraints/{constraintId} {
+      allow read: if canManageLinePlanning() || (
+        signedIn() && resource.data.userId == request.auth.uid
+      );
+      allow create: if canManageLinePlanning() || (
+        signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        exists(/databases/$(database)/documents/line_cycles/$(request.resource.data.cycleId)) &&
+        get(/databases/$(database)/documents/line_cycles/$(request.resource.data.cycleId)).data.status == "open"
+      );
+      allow update: if canManageLinePlanning() || (
+        signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.cycleId == resource.data.cycleId &&
+        get(/databases/$(database)/documents/line_cycles/$(resource.data.cycleId)).data.status == "open"
+      );
+      allow delete: if canManageLinePlanning();
+    }
+
+    match /line_presence_plans/{planId} {
+      allow read: if canManageLinePlanning() || (
+        signedIn() && resource.data.userId == request.auth.uid
+      );
+      allow create, update, delete: if canManageLinePlanning();
     }
 
     match /external_staff/{staffId} {

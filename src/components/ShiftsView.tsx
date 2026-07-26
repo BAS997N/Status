@@ -670,7 +670,11 @@ export default function ShiftsView({
       result[assigneeId] = [...(result[assigneeId] || []), slot];
       return result;
     }, {});
-    const invalidDuplicate = Object.entries(selectedSlotsByAssignee).find(
+    const invalidDuplicate = (
+      Object.entries(selectedSlotsByAssignee) as Array<
+        [string, ExpandedSlot[]]
+      >
+    ).find(
       ([, slots]) =>
         slots.length > 1 &&
         !(

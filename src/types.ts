@@ -148,6 +148,48 @@ export interface OrderEventConfig {
   createdBy?: string;
 }
 
+export type LineCycleStatus = "open" | "closed" | "archived";
+
+export interface LineCycle {
+  cycleId: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  submissionDeadline?: string;
+  status: LineCycleStatus;
+  createdAt: string;
+  createdBy: string;
+  createdByName: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface LineConstraint {
+  constraintId: string;
+  cycleId: string;
+  userId: string;
+  userName: string;
+  unit: string;
+  unavailableDates: string[];
+  note?: string;
+  submittedAt: string;
+  updatedAt: string;
+}
+
+export type LinePresenceStatus = "line" | "home";
+
+export interface LinePresencePlan {
+  planId: string;
+  cycleId: string;
+  userId: string;
+  userName: string;
+  unit: string;
+  dates: Record<string, LinePresenceStatus>;
+  updatedAt: string;
+  updatedBy: string;
+  updatedByName: string;
+}
+
 export interface SystemSettingsConfig {
   systemName: string;
   unitName: string;
