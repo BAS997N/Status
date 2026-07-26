@@ -180,6 +180,7 @@ export default function LinePlanning({
   const [newDeadline, setNewDeadline] = useState(today);
   const [editingCycleId, setEditingCycleId] = useState("");
   const [search, setSearch] = useState("");
+  const [constraintDetailsUserId, setConstraintDetailsUserId] = useState("");
   const [myPeriods, setMyPeriods] = useState<LineConstraintPeriod[]>([]);
   const [myNote, setMyNote] = useState("");
   const [draftPlans, setDraftPlans] = useState<
@@ -220,6 +221,20 @@ export default function LinePlanning({
     () => new Map(constraints.map((item) => [item.userId, item])),
     [constraints]
   );
+  const constraintDetailsUser = allUsers.find(
+    (user) => user.userId === constraintDetailsUserId
+  );
+  const constraintDetails = constraintDetailsUserId
+    ? constraintByUser.get(constraintDetailsUserId)
+    : undefined;
+  const constraintDetailsPeriods = constraintDetails
+    ? constraintDetails.periods?.length
+      ? constraintDetails.periods
+      : legacyDatesToPeriods(
+          constraintDetails.unavailableDates || [],
+          constraintDetails.notesByDate || {}
+        )
+    : [];
 
   const loadCycles = async () => {
     setLoading(true);
@@ -912,29 +927,19 @@ export default function LinePlanning({
                             </div>
                           )}
                           {constraintPeriods.length > 0 && (
-                            <div className="mt-1.5 space-y-1">
-                              {constraintPeriods.map((period) => (
-                                <div
-                                  key={period.periodId}
-                                  className={`max-w-44 rounded-md border px-1.5 py-1 text-[9px] font-black ${priorityClasses[period.priority]}`}
-                                  title={period.note || ""}
-                                >
-                                  <span>
-                                    {formatDate(period.startDate)}
-                                    {period.endDate !== period.startDate
-                                      ? `–${formatDate(period.endDate)}`
-                                      : ""}
-                                    {" · "}
-                                    {priorityLabel[period.priority]}
-                                  </span>
-                                  {period.note && (
-                                    <span className="mt-0.5 block truncate font-bold">
-                                      {period.note}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setConstraintDetailsUserId(user.userId)
+                              }
+                              className="mt-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[9px] font-black text-indigo-700 hover:bg-indigo-100"
+                            >
+                              {constraintPeriods.length}{" "}
+                              {constraintPeriods.length === 1
+                                ? "אילוץ"
+                                : "אילוצים"}{" "}
+                              · הצג
+                            </button>
                           )}
                         </td>
                         {cycleDates.map((date) => {
@@ -974,7 +979,7 @@ export default function LinePlanning({
                                       }`
                                     : "לחיצה מחליפה: קו / בית / ריק"
                                 }
-                                className={`h-auto min-h-9 w-full rounded-md px-1 py-1 text-[9px] font-black disabled:cursor-default ${
+                                className={`h-10 w-full rounded-md px-1 py-1 text-[9px] font-black disabled:cursor-default ${
                                   conflict
                                     ? "bg-orange-500 text-white ring-2 ring-orange-200"
                                     : planStatus === "line"
@@ -997,19 +1002,6 @@ export default function LinePlanning({
                                     ? priorityLabel[constraintPriority]
                                     : "—"}
                                 </span>
-                                {(constraintPeriod?.note ||
-                                  constraint?.notesByDate?.[date]) && (
-                                  <span
-                                    className="mt-0.5 block max-w-14 truncate font-bold"
-                                    title={
-                                      constraintPeriod?.note ||
-                                      constraint?.notesByDate?.[date]
-                                    }
-                                  >
-                                    {constraintPeriod?.note ||
-                                      constraint?.notesByDate?.[date]}
-                                  </span>
-                                )}
                               </button>
                             </td>
                           );
@@ -1031,6 +1023,67 @@ export default function LinePlanning({
               </span>
             </div>
           </div>
+
+          {constraintDetailsUser && constraintDetails && (
+            <div
+              className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 p-4"
+              onClick={() => setConstraintDetailsUserId("")}
+            >
+              <div
+                dir="rtl"
+                className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">
+                      האילוצים של {constraintDetailsUser.fullName}
+                    </h3>
+                    <p className="mt-1 text-xs font-bold text-slate-500">
+                      {constraintDetailsUser.unit} ·{" "}
+                      {constraintDetailsPeriods.length} אילוצים
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setConstraintDetailsUserId("")}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700"
+                  >
+                    סגור
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  {constraintDetailsPeriods.map((period) => (
+                    <div
+                      key={period.periodId}
+                      className={`rounded-xl border p-3 ${priorityClasses[period.priority]}`}
+                    >
+                      <div className="text-xs font-black">
+                        {formatDate(period.startDate, true)}
+                        {period.endDate !== period.startDate
+                          ? ` עד ${formatDate(period.endDate, true)}`
+                          : ""}
+                        {" · "}
+                        {priorityLabel[period.priority]}
+                      </div>
+                      {period.note && (
+                        <div className="mt-1 text-xs font-bold">
+                          {period.note}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {constraintDetails.note && (
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-600">
+                    הערה כללית: {constraintDetails.note}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
