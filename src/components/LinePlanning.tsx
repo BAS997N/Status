@@ -105,6 +105,40 @@ const legacyDatesToPeriods = (
   return periods;
 };
 
+const datesToPeriods = (
+  dates: string[],
+  existingPeriods: LineConstraintPeriod[]
+): LineConstraintPeriod[] => {
+  const grouped = legacyDatesToPeriods(dates);
+  const usedIds = new Set<string>();
+
+  return grouped.map((group, index) => {
+    const matchingPeriod = [...existingPeriods]
+      .map((period) => ({
+        period,
+        overlap: getDatesInRange(group.startDate, group.endDate).filter(
+          (date) => date >= period.startDate && date <= period.endDate
+        ).length,
+      }))
+      .sort((a, b) => b.overlap - a.overlap)
+      .find((item) => item.overlap > 0)?.period;
+
+    const canReuseId =
+      matchingPeriod && !usedIds.has(matchingPeriod.periodId);
+    const periodId = canReuseId
+      ? matchingPeriod.periodId
+      : `period_${group.startDate}_${index}_${Date.now()}`;
+    usedIds.add(periodId);
+
+    return {
+      ...group,
+      periodId,
+      priority: matchingPeriod?.priority || "request",
+      note: matchingPeriod?.note || "",
+    };
+  });
+};
+
 const formatDate = (value: string, includeYear = false) =>
   new Date(`${value}T12:00:00`).toLocaleDateString("he-IL", {
     day: "2-digit",
@@ -148,12 +182,6 @@ export default function LinePlanning({
   const [search, setSearch] = useState("");
   const [myPeriods, setMyPeriods] = useState<LineConstraintPeriod[]>([]);
   const [myNote, setMyNote] = useState("");
-  const [periodStartDate, setPeriodStartDate] = useState(today);
-  const [periodEndDate, setPeriodEndDate] = useState(today);
-  const [periodPriority, setPeriodPriority] =
-    useState<LineConstraintPriority>("request");
-  const [periodNote, setPeriodNote] = useState("");
-  const [editingPeriodId, setEditingPeriodId] = useState("");
   const [draftPlans, setDraftPlans] = useState<
     Record<string, Record<string, LinePresenceStatus>>
   >({});
@@ -169,11 +197,6 @@ export default function LinePlanning({
     [selectedCycle]
   );
 
-  useEffect(() => {
-    if (!selectedCycle || editingPeriodId) return;
-    setPeriodStartDate(selectedCycle.startDate);
-    setPeriodEndDate(selectedCycle.startDate);
-  }, [selectedCycle?.cycleId, editingPeriodId]);
 
   const planningUsers = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase("he");
@@ -426,59 +449,40 @@ export default function LinePlanning({
     (!selectedCycle.submissionDeadline ||
       today <= selectedCycle.submissionDeadline);
 
-  const resetPeriodForm = () => {
-    setEditingPeriodId("");
-    setPeriodStartDate(selectedCycle?.startDate || today);
-    setPeriodEndDate(selectedCycle?.startDate || today);
-    setPeriodPriority("request");
-    setPeriodNote("");
-  };
-
-  const savePeriodToDraft = () => {
-    if (!selectedCycle || !periodStartDate || !periodEndDate) return;
-    if (
-      periodEndDate < periodStartDate ||
-      periodStartDate < selectedCycle.startDate ||
-      periodEndDate > selectedCycle.endDate
-    ) {
-      setMessage({
-        type: "error",
-        text: "תקופת האילוץ חייבת להיות בתוך תאריכי הקו.",
-      });
-      return;
-    }
-
-    const period: LineConstraintPeriod = {
-      periodId: editingPeriodId || `period_${Date.now()}`,
-      startDate: periodStartDate,
-      endDate: periodEndDate,
-      priority: periodPriority,
-      note: periodNote.trim(),
-    };
-
-    setMyPeriods((current) =>
-      [
-        ...current.filter((item) => item.periodId !== period.periodId),
-        period,
-      ].sort((a, b) => a.startDate.localeCompare(b.startDate))
-    );
-    resetPeriodForm();
-    setMessage(null);
-  };
-
-  const editPeriod = (period: LineConstraintPeriod) => {
-    setEditingPeriodId(period.periodId);
-    setPeriodStartDate(period.startDate);
-    setPeriodEndDate(period.endDate);
-    setPeriodPriority(period.priority);
-    setPeriodNote(period.note || "");
-  };
-
   const removePeriod = (periodId: string) => {
     setMyPeriods((current) =>
       current.filter((period) => period.periodId !== periodId)
     );
-    if (editingPeriodId === periodId) resetPeriodForm();
+  };
+
+  const selectedConstraintDates = new Set(
+    myPeriods.flatMap((period) =>
+      getDatesInRange(period.startDate, period.endDate)
+    )
+  );
+
+  const toggleConstraintDate = (date: string) => {
+    setMyPeriods((current) => {
+      const selectedDates = new Set(
+        current.flatMap((period) =>
+          getDatesInRange(period.startDate, period.endDate)
+        )
+      );
+      if (selectedDates.has(date)) selectedDates.delete(date);
+      else selectedDates.add(date);
+      return datesToPeriods(Array.from(selectedDates), current);
+    });
+  };
+
+  const updatePeriod = (
+    periodId: string,
+    changes: Partial<Pick<LineConstraintPeriod, "priority" | "note">>
+  ) => {
+    setMyPeriods((current) =>
+      current.map((period) =>
+        period.periodId === periodId ? { ...period, ...changes } : period
+      )
+    );
   };
 
   const saveMyConstraints = async () => {
@@ -1062,95 +1066,50 @@ export default function LinePlanning({
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-3 text-sm font-black text-slate-900">
-              הוספת תקופת אילוץ
+              בחירת תאריכי אילוץ
             </div>
             <p className="mb-3 text-[11px] font-bold leading-5 text-slate-500">
-              לכל תקופה מגדירים תאריכי התחלה וסיום, עדיפות והערה אחת.
-              אילוץ ליום בודד מוזן עם אותו תאריך בשני השדות.
+              לחץ על כל התאריכים שבהם יש לך אילוץ. ימים רצופים יאוחדו
+              אוטומטית לתקופה אחת, ויום שאינו רצוף יוצג בנפרד.
             </p>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="text-xs font-black text-slate-700">
-                מתאריך
-                <input
-                  type="date"
-                  min={selectedCycle.startDate}
-                  max={selectedCycle.endDate}
-                  value={periodStartDate}
-                  disabled={!canSubmitConstraints || readOnly}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setPeriodStartDate(value);
-                    if (periodEndDate < value) setPeriodEndDate(value);
-                  }}
-                  className="input mt-1"
-                />
-              </label>
-              <label className="text-xs font-black text-slate-700">
-                עד תאריך
-                <input
-                  type="date"
-                  min={periodStartDate || selectedCycle.startDate}
-                  max={selectedCycle.endDate}
-                  value={periodEndDate}
-                  disabled={!canSubmitConstraints || readOnly}
-                  onChange={(event) => setPeriodEndDate(event.target.value)}
-                  className="input mt-1"
-                />
-              </label>
-              <label className="text-xs font-black text-slate-700">
-                רמת עדיפות
-                <select
-                  value={periodPriority}
-                  disabled={!canSubmitConstraints || readOnly}
-                  onChange={(event) =>
-                    setPeriodPriority(
-                      event.target.value as LineConstraintPriority
-                    )
-                  }
-                  className="input mt-1"
-                >
-                  <option value="request">1. בקשה</option>
-                  <option value="preferred">2. מועדף</option>
-                  <option value="required">3. חובה</option>
-                </select>
-              </label>
-              <label className="text-xs font-black text-slate-700">
-                הערה לתקופה
-                <input
-                  value={periodNote}
-                  disabled={!canSubmitConstraints || readOnly}
-                  onChange={(event) => setPeriodNote(event.target.value)}
-                  placeholder="לדוגמה: לימודים או אירוע משפחתי"
-                  className="input mt-1"
-                />
-              </label>
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-7 lg:grid-cols-10">
+              {cycleDates.map((date) => {
+                const selected = selectedConstraintDates.has(date);
+                return (
+                  <button
+                    key={date}
+                    type="button"
+                    disabled={!canSubmitConstraints || readOnly}
+                    onClick={() => toggleConstraintDate(date)}
+                    className={`rounded-lg border px-2 py-2 text-[10px] font-black transition ${
+                      selected
+                        ? "border-rose-300 bg-rose-100 text-rose-800 ring-1 ring-rose-200"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-300"
+                    } disabled:opacity-60`}
+                  >
+                    <span className="block">
+                      {new Date(`${date}T12:00:00`).toLocaleDateString(
+                        "he-IL",
+                        { weekday: "short" }
+                      )}
+                    </span>
+                    <span>{formatDate(date)}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
+            {myPeriods.length > 0 && (
               <button
                 type="button"
-                onClick={savePeriodToDraft}
                 disabled={!canSubmitConstraints || readOnly}
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50"
+                onClick={() => setMyPeriods([])}
+                className="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[10px] font-black text-slate-600 disabled:opacity-50"
               >
-                {editingPeriodId ? (
-                  <Pencil className="h-4 w-4" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
-                {editingPeriodId ? "עדכן תקופה" : "הוסף תקופה"}
+                נקה את כל הבחירות
               </button>
-              {editingPeriodId && (
-                <button
-                  type="button"
-                  onClick={resetPeriodForm}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-700"
-                >
-                  ביטול עריכה
-                </button>
-              )}
-            </div>
+            )}
 
             {myPeriods.length > 0 && (
               <div className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -1160,9 +1119,9 @@ export default function LinePlanning({
                 {myPeriods.map((period) => (
                   <div
                     key={period.periodId}
-                    className={`flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${priorityClasses[period.priority]}`}
+                    className={`rounded-xl border p-3 ${priorityClasses[period.priority]}`}
                   >
-                    <div className="min-w-0">
+                    <div className="flex items-center justify-between gap-2">
                       <div className="text-xs font-black">
                         {formatDate(period.startDate, true)}
                         {period.endDate !== period.startDate
@@ -1171,22 +1130,7 @@ export default function LinePlanning({
                         {" · "}
                         {priorityLabel[period.priority]}
                       </div>
-                      {period.note && (
-                        <div className="mt-1 text-[11px] font-bold">
-                          {period.note}
-                        </div>
-                      )}
-                    </div>
-                    {!readOnly && canSubmitConstraints && (
-                      <div className="flex shrink-0 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => editPeriod(period)}
-                          className="rounded-lg border border-current/20 bg-white/70 p-2"
-                          aria-label="עריכת תקופה"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
+                      {!readOnly && canSubmitConstraints && (
                         <button
                           type="button"
                           onClick={() => removePeriod(period.periodId)}
@@ -1195,8 +1139,42 @@ export default function LinePlanning({
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <label className="text-[10px] font-black">
+                        רמת עדיפות
+                        <select
+                          value={period.priority}
+                          disabled={!canSubmitConstraints || readOnly}
+                          onChange={(event) =>
+                            updatePeriod(period.periodId, {
+                              priority:
+                                event.target.value as LineConstraintPriority,
+                            })
+                          }
+                          className="input mt-1 bg-white"
+                        >
+                          <option value="request">1. בקשה</option>
+                          <option value="preferred">2. מועדף</option>
+                          <option value="required">3. חובה</option>
+                        </select>
+                      </label>
+                      <label className="text-[10px] font-black">
+                        הערה לאילוץ
+                        <input
+                          value={period.note || ""}
+                          disabled={!canSubmitConstraints || readOnly}
+                          onChange={(event) =>
+                            updatePeriod(period.periodId, {
+                              note: event.target.value,
+                            })
+                          }
+                          placeholder="לדוגמה: לימודים או אירוע משפחתי"
+                          className="input mt-1 bg-white"
+                        />
+                      </label>
+                    </div>
                   </div>
                 ))}
               </div>
