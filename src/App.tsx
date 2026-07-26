@@ -403,7 +403,7 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const emergencyIsActive =
     systemSettings?.systemMode === "emergency" &&
     systemSettings.emergencyEvent?.active === true;
-  const todayDateKey = getIsraelDateKey(new Date());
+  const todayDateKey = getIsraelDateString(new Date());
   const hasActiveOrder = (systemSettings?.orderEvents || []).some(
     (order) =>
       order.startDate <= todayDateKey && order.endDate >= todayDateKey
@@ -2693,7 +2693,7 @@ const handleAdminSaveReport = async (reportData: {
                 allUsers={allUsers}
                 canManage={canManageLinePlanning}
                 readOnly={Boolean(previewUser)}
-                systemSettings={systemSettings!}
+                systemSettings={systemSettings}
                 onSystemSettingsChanged={handleSystemSettingsChanged}
               />
             </motion.div>

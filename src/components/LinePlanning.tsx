@@ -31,7 +31,7 @@ interface LinePlanningProps {
   allUsers: UserProfile[];
   canManage: boolean;
   readOnly?: boolean;
-  systemSettings: SystemSettingsConfig;
+  systemSettings?: SystemSettingsConfig | null;
   onSystemSettingsChanged: (settings: SystemSettingsConfig) => void;
 }
 
@@ -298,7 +298,7 @@ export default function LinePlanning({
   };
 
   const toggleSoldierVisibility = async () => {
-    if (!canEdit) return;
+    if (!canEdit || !systemSettings) return;
     setSaving(true);
     try {
       const saved = await dataService.saveSystemSettings(
@@ -598,12 +598,12 @@ export default function LinePlanning({
                 disabled={saving}
                 className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 disabled:opacity-50"
               >
-                {systemSettings.linePlanningVisibleToSoldiers === false ? (
+                {systemSettings?.linePlanningVisibleToSoldiers === false ? (
                   <Eye className="h-4 w-4" />
                 ) : (
                   <EyeOff className="h-4 w-4" />
                 )}
-                {systemSettings.linePlanningVisibleToSoldiers === false
+                {systemSettings?.linePlanningVisibleToSoldiers === false
                   ? "הצג אילוצים לחיילים"
                   : "הסתר אילוצים מהחיילים"}
               </button>
