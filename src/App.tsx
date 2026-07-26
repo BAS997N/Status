@@ -42,6 +42,7 @@ import {
   ShiftRecord,
   ShiftSlotConfig,
   ExternalStaffMember,
+  LineCycle,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "./types";
 import { dataService } from "./services/dataService";
@@ -112,6 +113,9 @@ export default function App() {
   const [shifts, setShifts] = useState<ShiftRecord[]>([]);
   const [shiftSlotConfigs, setShiftSlotConfigs] = useState<ShiftSlotConfig[]>([]);
   const [externalStaff, setExternalStaff] = useState<ExternalStaffMember[]>([]);
+  const [lineCycles, setLineCycles] = useState<LineCycle[]>([]);
+  const [lineCyclesLoaded, setLineCyclesLoaded] = useState(false);
+  const startupScreenAppliedRef = useRef("");
   const [activeTab, setActiveTab] = useState<
     | "reporter"
     | "dashboard"
@@ -203,6 +207,23 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     DEFAULT_ATTENDANCE_STATUS_CONFIGS
   );
 
+  useEffect(() => {
+    if (isFirebaseActive() && !auth?.currentUser) return;
+    let cancelled = false;
+    dataService
+      .getLineCycles()
+      .then((items) => {
+        if (!cancelled) setLineCycles(items);
+      })
+      .catch((error) => console.error("Failed loading line cycles:", error))
+      .finally(() => {
+        if (!cancelled) setLineCyclesLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [firebaseUser]);
+
   const handleAttendanceStatusesChanged = (
     statuses: AttendanceStatusConfig[]
   ) => {
@@ -250,10 +271,31 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       ? { ...userProfile, systemRole: "super_admin" as SystemRole }
       : userProfile;
 
-  const permissions: PermissionMap = getPermissionsForUser(
+  const actualPermissions: PermissionMap = getPermissionsForUser(
     permissionUser,
     permissionConfigs
   );
+  const canPreviewUsers =
+    getEffectiveSystemRole(permissionUser) === "super_admin";
+  const previewUser = canPreviewUsers
+    ? allUsers.find((user) => user.userId === previewUserId)
+    : undefined;
+  const viewingProfile = previewUser || userProfile;
+  const viewingPermissionUser =
+    viewingProfile?.personalId === "5749199"
+      ? { ...viewingProfile, systemRole: "super_admin" as SystemRole }
+      : viewingProfile;
+  const viewingPermissions: PermissionMap = previewUser
+    ? getPermissionsForUser(viewingPermissionUser, permissionConfigs)
+    : actualPermissions;
+  const permissions: PermissionMap = previewUser
+    ? Object.fromEntries(
+        Object.entries(viewingPermissions).map(([permissionId, allowed]) => [
+          permissionId,
+          permissionId.endsWith(".view") ? allowed : false,
+        ])
+      )
+    : viewingPermissions;
 
 
   const statusLabels = React.useMemo(
@@ -332,25 +374,24 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   }, [activeTab, firebaseUser]);
 
   const isSuperAdmin = hasPermission(permissions, "system_admin.view");
-  const canPreviewUsers =
-    getEffectiveSystemRole(permissionUser) === "super_admin";
-  const previewUser = canPreviewUsers
-    ? allUsers.find((user) => user.userId === previewUserId)
-    : undefined;
   const canViewReporter = hasPermission(permissions, "reporter.view");
   const canViewDashboard = hasPermission(permissions, "dashboard.view");
-  const shiftsSystemRole = getEffectiveSystemRole(permissionUser);
+  const shiftsSystemRole = getEffectiveSystemRole(viewingPermissionUser);
   const canViewShifts = hasPermission(permissions, "shifts.view");
   const canManageShifts = hasPermission(permissions, "shifts.manage");
   const canManageLinePlanning =
-    userProfile?.role === "commander" ||
-    hasPermission(permissions, "line_planning.manage");
+    viewingProfile?.role === "commander" ||
+    hasPermission(viewingPermissions, "line_planning.manage");
   const canViewLinePlanning =
-    userProfile?.role === "soldier" ||
     canManageLinePlanning ||
-    hasPermission(permissions, "line_planning.view");
+    (viewingProfile?.role === "soldier"
+      ? systemSettings?.linePlanningVisibleToSoldiers !== false
+      : hasPermission(viewingPermissions, "line_planning.view"));
   const canViewEmergency = hasPermission(permissions, "emergency.view");
-  const canManageEmergency = hasPermission(permissions, "emergency.manage");
+  const canManageEmergency = hasPermission(
+    viewingPermissions,
+    "emergency.manage"
+  );
   const canViewNotifications = hasPermission(
     permissions,
     "dashboard.notifications.view"
@@ -362,7 +403,15 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const emergencyIsActive =
     systemSettings?.systemMode === "emergency" &&
     systemSettings.emergencyEvent?.active === true;
-  const normalizedCurrentUnit = (userProfile?.unit || "")
+  const todayDateKey = getIsraelDateKey(new Date());
+  const hasActiveOrder = (systemSettings?.orderEvents || []).some(
+    (order) =>
+      order.startDate <= todayDateKey && order.endDate >= todayDateKey
+  );
+  const hasOpenLineCycle = lineCycles.some(
+    (cycle) => cycle.status === "open"
+  );
+  const normalizedCurrentUnit = (viewingProfile?.unit || "")
     .replace(/[״׳'\"`]/g, "")
     .replace(/\s+/g, "")
     .toLowerCase();
@@ -382,28 +431,12 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       (emergencyIsActive && (canViewEmergency || canViewReporter)));
 
   useEffect(() => {
-    let cancelled = false;
     if (!emergencyIsActive || !userProfile?.userId || !systemSettings?.emergencyEvent.eventId) {
       setEmergencyArrivalConfirmed(false);
       return;
     }
-
-    dataService
-      .getEmergencyResponse(systemSettings.emergencyEvent.eventId, userProfile.userId)
-      .then((response) => {
-        if (cancelled) return;
-        const hasArrived =
-          response?.status === "arrived" ||
-          response?.history?.some((item) => item.status === "arrived") === true;
-        setEmergencyArrivalConfirmed(hasArrived);
-      })
-      .catch(() => {
-        if (!cancelled) setEmergencyArrivalConfirmed(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    const key = `idf_emergency_seen_${systemSettings.emergencyEvent.eventId}_${userProfile.userId}`;
+    setEmergencyArrivalConfirmed(localStorage.getItem(key) === "1");
   }, [
     emergencyIsActive,
     systemSettings?.emergencyEvent.eventId,
@@ -428,6 +461,29 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     canManageEmergency,
     shouldShowEmergencyTab,
     activeTab,
+  ]);
+
+  useEffect(() => {
+    if (
+      previewUser ||
+      activeTab !== "emergency" ||
+      !emergencyIsActive ||
+      canManageEmergency ||
+      !userProfile?.userId ||
+      !systemSettings?.emergencyEvent.eventId
+    ) {
+      return;
+    }
+    const key = `idf_emergency_seen_${systemSettings.emergencyEvent.eventId}_${userProfile.userId}`;
+    localStorage.setItem(key, "1");
+    setEmergencyArrivalConfirmed(true);
+  }, [
+    previewUser,
+    activeTab,
+    emergencyIsActive,
+    canManageEmergency,
+    userProfile?.userId,
+    systemSettings?.emergencyEvent.eventId,
   ]);
 
   useEffect(() => {
@@ -471,11 +527,14 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       profilePermissions,
       "shifts.view"
     );
-    const profileCanViewLinePlanning =
-      profile.role === "soldier" ||
+    const profileCanManageLinePlanning =
       profile.role === "commander" ||
-      hasPermission(profilePermissions, "line_planning.view") ||
       hasPermission(profilePermissions, "line_planning.manage");
+    const profileCanViewLinePlanning =
+      profileCanManageLinePlanning ||
+      (profile.role === "soldier"
+        ? systemSettings?.linePlanningVisibleToSoldiers !== false
+        : hasPermission(profilePermissions, "line_planning.view"));
     const profileCanViewEmergency = hasPermission(
       profilePermissions,
       "emergency.view"
@@ -489,11 +548,29 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       "emergency.manage"
     );
 
+    const emergencyEventId = systemSettings?.emergencyEvent?.eventId;
+    const hasSeenEmergency =
+      emergencyEventId &&
+      localStorage.getItem(
+        `idf_emergency_seen_${emergencyEventId}_${profile.userId}`
+      ) === "1";
+
     if (
       emergencyIsActive &&
-      (profileCanViewEmergency || profileCanViewReporter || profileCanManageEmergency)
+      (profileCanViewEmergency || profileCanViewReporter || profileCanManageEmergency) &&
+      (profileCanManageEmergency || !hasSeenEmergency)
     ) {
       return "emergency";
+    }
+
+    if (hasActiveOrder && profileCanViewReporter) return "reporter";
+
+    if (
+      !hasActiveOrder &&
+      hasOpenLineCycle &&
+      profileCanViewLinePlanning
+    ) {
+      return "line_planning";
     }
 
     if (
@@ -512,6 +589,37 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
     return "reporter";
   };
+
+  useEffect(() => {
+    if (!userProfile) {
+      startupScreenAppliedRef.current = "";
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
+    if (
+      !userProfile ||
+      previewUser ||
+      !permissionsLoaded ||
+      !systemSettings ||
+      !lineCyclesLoaded
+    ) {
+      return;
+    }
+    const startupKey = `${userProfile.userId}:${firebaseUser?.uid || "local"}`;
+    if (startupScreenAppliedRef.current === startupKey) return;
+    startupScreenAppliedRef.current = startupKey;
+    setActiveTab(getInitialTabForProfile(userProfile));
+  }, [
+    userProfile,
+    previewUser,
+    permissionsLoaded,
+    systemSettings,
+    lineCyclesLoaded,
+    firebaseUser?.uid,
+    hasActiveOrder,
+    hasOpenLineCycle,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2336,7 +2444,18 @@ const handleAdminSaveReport = async (reportData: {
               <div className="flex min-w-0 flex-1 flex-col gap-2 sm:max-w-xl sm:flex-row">
                 <select
                   value={previewUserId}
-                  onChange={(event) => setPreviewUserId(event.target.value)}
+                  onChange={(event) => {
+                    const nextId = event.target.value;
+                    setPreviewUserId(nextId);
+                    const nextProfile = allUsers.find(
+                      (user) => user.userId === nextId
+                    );
+                    setActiveTab(
+                      nextProfile
+                        ? getInitialTabForProfile(nextProfile)
+                        : getInitialTabForProfile(userProfile)
+                    );
+                  }}
                   className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold"
                 >
                   <option value="">תצוגה רגילה כמנהל האתר</option>
@@ -2375,8 +2494,7 @@ const handleAdminSaveReport = async (reportData: {
         )}
 
         {/* Navigation Tabs (Only if Commander) */}
-        {!previewUser &&
-          (canViewReporter ||
+        {(canViewReporter ||
             canViewDashboard ||
             canViewShifts ||
             canViewLinePlanning ||
@@ -2477,25 +2595,7 @@ const handleAdminSaveReport = async (reportData: {
         )}
 
         <AnimatePresence mode="wait">
-          {previewUser ? (
-            <motion.div
-              key={`preview-user-${previewUser.userId}`}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.15 }}
-            >
-              <SoldierReporter
-                currentUser={previewUser}
-                reports={reports}
-                shifts={shifts}
-                systemSettings={systemSettings!}
-                attendanceStatuses={attendanceStatuses}
-                readOnly
-                onSubmitReport={async () => undefined}
-              />
-            </motion.div>
-          ) : activeTab === "system_admin" && isSuperAdmin ? (
+          {activeTab === "system_admin" && isSuperAdmin ? (
             <motion.div
               key="system-admin-tab"
               initial={{ opacity: 0, y: 15 }}
@@ -2533,12 +2633,13 @@ const handleAdminSaveReport = async (reportData: {
               transition={{ duration: 0.15 }}
             >
               <EmergencyCenter
-                currentUser={userProfile}
+                currentUser={viewingProfile!}
                 allUsers={allUsers}
-                canManage={canManageEmergency}
+                canManage={!previewUser && canManageEmergency}
                 settings={systemSettings!}
                 onSettingsChanged={handleSystemSettingsChanged}
                 onArrivalConfirmed={() => setEmergencyArrivalConfirmed(true)}
+                readOnly={Boolean(previewUser)}
               />
             </motion.div>
           ) : activeTab === "shifts" && canViewShifts ? (
@@ -2567,10 +2668,10 @@ const handleAdminSaveReport = async (reportData: {
                 </section>
               ) : (
                 <ShiftsView
-                  currentUser={userProfile}
+                  currentUser={viewingProfile!}
                   allUsers={allUsers}
                   initialShifts={shifts}
-                  canManage={canManageShifts}
+                  canManage={!previewUser && canManageShifts}
                   shiftSlotConfigs={shiftSlotConfigs}
                   medicalRoleConfigs={medicalRoleConfigs}
                   externalStaff={externalStaff}
@@ -2588,9 +2689,12 @@ const handleAdminSaveReport = async (reportData: {
               transition={{ duration: 0.15 }}
             >
               <LinePlanning
-                currentUser={userProfile}
+                currentUser={viewingProfile!}
                 allUsers={allUsers}
                 canManage={canManageLinePlanning}
+                readOnly={Boolean(previewUser)}
+                systemSettings={systemSettings!}
+                onSystemSettingsChanged={handleSystemSettingsChanged}
               />
             </motion.div>
           ) : activeTab === "reporter" && canViewReporter ? (
@@ -2619,12 +2723,15 @@ const handleAdminSaveReport = async (reportData: {
                 </section>
               ) : (
                 <SoldierReporter
-                  currentUser={userProfile}
+                  currentUser={viewingProfile!}
                   reports={reports}
                   shifts={shifts}
                   systemSettings={systemSettings!}
                   attendanceStatuses={attendanceStatuses}
-                  onSubmitReport={handleSubmitReport}
+                  readOnly={Boolean(previewUser)}
+                  onSubmitReport={
+                    previewUser ? async () => undefined : handleSubmitReport
+                  }
                 />
               )}
             </motion.div>
@@ -2637,7 +2744,7 @@ const handleAdminSaveReport = async (reportData: {
               transition={{ duration: 0.15 }}
             >
               <CommandDashboard
-                currentUser={userProfile}
+                currentUser={viewingProfile!}
                 permissions={permissions}
                 attendanceStatuses={attendanceStatuses}
                 reports={reports}

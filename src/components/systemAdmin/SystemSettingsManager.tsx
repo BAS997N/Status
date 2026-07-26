@@ -51,6 +51,7 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   reportingClosedMessage: "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
   reportingClosedAllowedRoles: ["super_admin", "admin"],
   orderEvents: [],
+  linePlanningVisibleToSoldiers: true,
   shiftsEnabled: true,
   shiftsClosedMessage: "מסך המשמרות אינו זמין כעת. יש להתעדכן מול המפקד.",
   systemMode: "routine",

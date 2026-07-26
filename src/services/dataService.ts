@@ -203,6 +203,7 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   reportingClosedMessage: "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
   reportingClosedAllowedRoles: ["super_admin", "admin"],
   orderEvents: [],
+  linePlanningVisibleToSoldiers: true,
   shiftsEnabled: true,
   shiftsClosedMessage: "מסך המשמרות אינו זמין כעת. יש להתעדכן מול המפקד.",
   systemMode: "routine",
@@ -415,6 +416,8 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
       DEFAULT_SYSTEM_SETTINGS.reportingClosedAllowedRoles
     ),
     orderEvents: normalizeOrderEvents(raw.orderEvents),
+    linePlanningVisibleToSoldiers:
+      raw.linePlanningVisibleToSoldiers !== false,
     shiftsEnabled: raw.shiftsEnabled !== false,
     shiftsClosedMessage:
       typeof raw.shiftsClosedMessage === "string" &&

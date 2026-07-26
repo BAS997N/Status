@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   CalendarDays,
   CheckCircle2,
   ClipboardList,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Pencil,
   Lock,
   Plus,
   Save,
@@ -16,6 +21,7 @@ import {
   LineCycleStatus,
   LinePresencePlan,
   LinePresenceStatus,
+  SystemSettingsConfig,
   UserProfile,
 } from "../types";
 import { dataService } from "../services/dataService";
@@ -24,6 +30,9 @@ interface LinePlanningProps {
   currentUser: UserProfile;
   allUsers: UserProfile[];
   canManage: boolean;
+  readOnly?: boolean;
+  systemSettings: SystemSettingsConfig;
+  onSystemSettingsChanged: (settings: SystemSettingsConfig) => void;
 }
 
 const getLocalDate = () => {
@@ -68,7 +77,12 @@ export default function LinePlanning({
   currentUser,
   allUsers,
   canManage,
+  readOnly = false,
+  systemSettings,
+  onSystemSettingsChanged,
 }: LinePlanningProps) {
+  const canEdit = canManage && !readOnly;
+  const matrixScrollRef = useRef<HTMLDivElement>(null);
   const today = getLocalDate();
   const [cycles, setCycles] = useState<LineCycle[]>([]);
   const [selectedCycleId, setSelectedCycleId] = useState("");
@@ -85,9 +99,11 @@ export default function LinePlanning({
   const [newStartDate, setNewStartDate] = useState(today);
   const [newEndDate, setNewEndDate] = useState(addDays(today, 27));
   const [newDeadline, setNewDeadline] = useState(today);
+  const [editingCycleId, setEditingCycleId] = useState("");
   const [search, setSearch] = useState("");
   const [myUnavailableDates, setMyUnavailableDates] = useState<string[]>([]);
   const [myNote, setMyNote] = useState("");
+  const [myNotesByDate, setMyNotesByDate] = useState<Record<string, string>>({});
   const [draftPlans, setDraftPlans] = useState<
     Record<string, Record<string, LinePresenceStatus>>
   >({});
@@ -184,6 +200,7 @@ export default function LinePlanning({
         );
         setMyUnavailableDates(mine?.unavailableDates || []);
         setMyNote(mine?.note || "");
+        setMyNotesByDate(mine?.notesByDate || {});
       } catch {
         if (!cancelled) {
           setMessage({ type: "error", text: "טעינת נתוני הקו נכשלה." });
@@ -217,16 +234,21 @@ export default function LinePlanning({
     }
 
     const now = new Date().toISOString();
+    const existingCycle = cycles.find(
+      (item) => item.cycleId === editingCycleId
+    );
     const cycle: LineCycle = {
-      cycleId: `line_${Date.now()}`,
+      ...(existingCycle || {
+        cycleId: `line_${Date.now()}`,
+        status: "open" as LineCycleStatus,
+        createdAt: now,
+        createdBy: currentUser.userId,
+        createdByName: currentUser.fullName,
+      }),
       title: newTitle.trim(),
       startDate: newStartDate,
       endDate: newEndDate,
       ...(newDeadline ? { submissionDeadline: newDeadline } : {}),
-      status: "open",
-      createdAt: now,
-      createdBy: currentUser.userId,
-      createdByName: currentUser.fullName,
       updatedAt: now,
       updatedBy: currentUser.userId,
     };
@@ -234,12 +256,72 @@ export default function LinePlanning({
     setSaving(true);
     try {
       await dataService.saveLineCycle(cycle);
-      setCycles((current) => [cycle, ...current]);
+      setCycles((current) =>
+        existingCycle
+          ? current.map((item) =>
+              item.cycleId === cycle.cycleId ? cycle : item
+            )
+          : [cycle, ...current]
+      );
       setSelectedCycleId(cycle.cycleId);
       setNewTitle("");
-      setMessage({ type: "success", text: "הקו נפתח להזנת אילוצים." });
+      setEditingCycleId("");
+      setMessage({
+        type: "success",
+        text: existingCycle
+          ? "פרטי הקו והתאריכים עודכנו."
+          : "הקו נפתח להזנת אילוצים.",
+      });
     } catch {
       setMessage({ type: "error", text: "פתיחת הקו נכשלה." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEditingCycle = () => {
+    if (!selectedCycle) return;
+    setEditingCycleId(selectedCycle.cycleId);
+    setNewTitle(selectedCycle.title);
+    setNewStartDate(selectedCycle.startDate);
+    setNewEndDate(selectedCycle.endDate);
+    setNewDeadline(selectedCycle.submissionDeadline || "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const cancelEditingCycle = () => {
+    setEditingCycleId("");
+    setNewTitle("");
+    setNewStartDate(today);
+    setNewEndDate(addDays(today, 27));
+    setNewDeadline(today);
+  };
+
+  const toggleSoldierVisibility = async () => {
+    if (!canEdit) return;
+    setSaving(true);
+    try {
+      const saved = await dataService.saveSystemSettings(
+        {
+          ...systemSettings,
+          linePlanningVisibleToSoldiers:
+            systemSettings.linePlanningVisibleToSoldiers === false,
+        },
+        currentUser.userId
+      );
+      onSystemSettingsChanged(saved);
+      setMessage({
+        type: "success",
+        text:
+          saved.linePlanningVisibleToSoldiers === false
+            ? "מסך האילוצים הוסתר מהחיילים."
+            : "מסך האילוצים מוצג כעת לחיילים.",
+      });
+    } catch {
+      setMessage({
+        type: "error",
+        text: "עדכון הצגת מסך האילוצים נכשל.",
+      });
     } finally {
       setSaving(false);
     }
@@ -293,6 +375,11 @@ export default function LinePlanning({
       unit: currentUser.unit,
       unavailableDates: [...myUnavailableDates].sort(),
       note: myNote.trim(),
+      notesByDate: Object.fromEntries(
+        myUnavailableDates
+          .map((date) => [date, (myNotesByDate[date] || "").trim()])
+          .filter(([, note]) => Boolean(note))
+      ),
       submittedAt:
         constraintByUser.get(currentUser.userId)?.submittedAt || now,
       updatedAt: now,
@@ -408,10 +495,10 @@ export default function LinePlanning({
         </div>
       )}
 
-      {canManage && (
+      {canEdit && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-3 text-sm font-black text-slate-900">
-            פתיחת קו חדש
+            {editingCycleId ? "עריכת קו קיים" : "פתיחת קו חדש"}
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <label className="text-xs font-black text-slate-700">
@@ -458,9 +545,22 @@ export default function LinePlanning({
             disabled={saving}
             className="mt-3 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50"
           >
-            <Plus className="h-4 w-4" />
-            פתח קו חדש
+            {editingCycleId ? (
+              <Pencil className="h-4 w-4" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            {editingCycleId ? "שמור שינויים" : "פתח קו חדש"}
           </button>
+          {editingCycleId && (
+            <button
+              type="button"
+              onClick={cancelEditingCycle}
+              className="mt-3 mr-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-700"
+            >
+              ביטול עריכה
+            </button>
+          )}
         </div>
       )}
 
@@ -482,8 +582,31 @@ export default function LinePlanning({
               ))}
             </select>
           </label>
-          {selectedCycle && canManage && (
+          {selectedCycle && canEdit && (
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={startEditingCycle}
+                className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700"
+              >
+                <Pencil className="h-4 w-4" />
+                ערוך תאריכים
+              </button>
+              <button
+                type="button"
+                onClick={toggleSoldierVisibility}
+                disabled={saving}
+                className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 disabled:opacity-50"
+              >
+                {systemSettings.linePlanningVisibleToSoldiers === false ? (
+                  <Eye className="h-4 w-4" />
+                ) : (
+                  <EyeOff className="h-4 w-4" />
+                )}
+                {systemSettings.linePlanningVisibleToSoldiers === false
+                  ? "הצג אילוצים לחיילים"
+                  : "הסתר אילוצים מהחיילים"}
+              </button>
               {selectedCycle.status !== "open" && (
                 <button
                   type="button"
@@ -546,20 +669,58 @@ export default function LinePlanning({
                   className="input pr-9"
                 />
               </div>
-              <button
-                type="button"
-                onClick={savePlans}
-                disabled={saving || dirtyPlanUserIds.length === 0}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-40"
-              >
-                <Save className="h-4 w-4" />
-                שמור תכנון
-              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={savePlans}
+                  disabled={saving || dirtyPlanUserIds.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-40"
+                >
+                  <Save className="h-4 w-4" />
+                  שמור תכנון
+                </button>
+              )}
             </div>
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2">
+              <span className="text-[10px] font-black text-slate-600">
+                הזזת תאריכים
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    matrixScrollRef.current?.scrollBy({
+                      left: 280,
+                      behavior: "smooth",
+                    })
+                  }
+                  className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700"
+                  aria-label="הזז תאריכים ימינה"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    matrixScrollRef.current?.scrollBy({
+                      left: -280,
+                      behavior: "smooth",
+                    })
+                  }
+                  className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700"
+                  aria-label="הזז תאריכים שמאלה"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div
+              ref={matrixScrollRef}
+              className="touch-pan-x overflow-x-auto scroll-smooth"
+            >
               <table className="min-w-max border-collapse text-center text-[10px]">
                 <thead className="sticky top-0 z-20 bg-slate-100">
                   <tr>
@@ -624,6 +785,7 @@ export default function LinePlanning({
                             >
                               <button
                                 type="button"
+                                disabled={!canEdit}
                                 onClick={() =>
                                   togglePlanCell(user.userId, date)
                                 }
@@ -634,7 +796,7 @@ export default function LinePlanning({
                                     ? "החייל סימן אילוץ"
                                     : "לחיצה מחליפה: קו / בית / ריק"
                                 }
-                                className={`h-9 w-full rounded-md text-[9px] font-black ${
+                                className={`h-auto min-h-9 w-full rounded-md px-1 py-1 text-[9px] font-black disabled:cursor-default ${
                                   conflict
                                     ? "bg-orange-500 text-white ring-2 ring-orange-200"
                                     : planStatus === "line"
@@ -646,15 +808,25 @@ export default function LinePlanning({
                                     : "bg-slate-100 text-slate-400 hover:bg-slate-200"
                                 }`}
                               >
-                                {conflict
-                                  ? "חריגה"
-                                  : planStatus === "line"
-                                  ? "בקו"
-                                  : planStatus === "home"
-                                  ? "בבית"
-                                  : isUnavailable
-                                  ? "אילוץ"
-                                  : "—"}
+                                <span className="block">
+                                  {conflict
+                                    ? "חריגה"
+                                    : planStatus === "line"
+                                    ? "בקו"
+                                    : planStatus === "home"
+                                    ? "בבית"
+                                    : isUnavailable
+                                    ? "אילוץ"
+                                    : "—"}
+                                </span>
+                                {constraint?.notesByDate?.[date] && (
+                                  <span
+                                    className="mt-0.5 block max-w-14 truncate font-bold"
+                                    title={constraint.notesByDate[date]}
+                                  >
+                                    {constraint.notesByDate[date]}
+                                  </span>
+                                )}
                               </button>
                             </td>
                           );
@@ -718,13 +890,19 @@ export default function LinePlanning({
                   <button
                     key={date}
                     type="button"
-                    disabled={!canSubmitConstraints}
+                    disabled={!canSubmitConstraints || readOnly}
                     onClick={() =>
-                      setMyUnavailableDates((current) =>
-                        current.includes(date)
-                          ? current.filter((item) => item !== date)
-                          : [...current, date]
-                      )
+                      setMyUnavailableDates((current) => {
+                        if (current.includes(date)) {
+                          setMyNotesByDate((notes) => {
+                            const next = { ...notes };
+                            delete next[date];
+                            return next;
+                          });
+                          return current.filter((item) => item !== date);
+                        }
+                        return [...current, date];
+                      })
                     }
                     className={`rounded-lg border px-2 py-2 text-[10px] font-black ${
                       selected
@@ -744,12 +922,42 @@ export default function LinePlanning({
               })}
             </div>
 
+            {myUnavailableDates.length > 0 && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <div className="mb-2 text-xs font-black text-amber-900">
+                  הערה לכל תאריך שסומן
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {[...myUnavailableDates].sort().map((date) => (
+                    <label
+                      key={`note_${date}`}
+                      className="text-[10px] font-black text-slate-700"
+                    >
+                      {formatDate(date, true)}
+                      <input
+                        value={myNotesByDate[date] || ""}
+                        disabled={!canSubmitConstraints || readOnly}
+                        onChange={(event) =>
+                          setMyNotesByDate((current) => ({
+                            ...current,
+                            [date]: event.target.value,
+                          }))
+                        }
+                        placeholder="סיבת האילוץ בתאריך זה..."
+                        className="input mt-1"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <label className="mt-4 block text-xs font-black text-slate-700">
               הערה כללית
               <textarea
                 rows={3}
                 value={myNote}
-                disabled={!canSubmitConstraints}
+                disabled={!canSubmitConstraints || readOnly}
                 onChange={(event) => setMyNote(event.target.value)}
                 placeholder="לדוגמה: לימודים, טיפול רפואי או אילוץ משפחתי..."
                 className="input mt-1 resize-y"
@@ -758,7 +966,7 @@ export default function LinePlanning({
             <button
               type="button"
               onClick={saveMyConstraints}
-              disabled={saving || !canSubmitConstraints}
+              disabled={saving || !canSubmitConstraints || readOnly}
               className="mt-3 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50"
             >
               <CheckCircle2 className="h-4 w-4" />

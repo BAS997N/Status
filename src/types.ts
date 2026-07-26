@@ -171,6 +171,7 @@ export interface LineConstraint {
   userName: string;
   unit: string;
   unavailableDates: string[];
+  notesByDate?: Record<string, string>;
   note?: string;
   submittedAt: string;
   updatedAt: string;
@@ -211,6 +212,7 @@ export interface SystemSettingsConfig {
   reportingClosedMessage: string;
   reportingClosedAllowedRoles: SystemRole[];
   orderEvents: OrderEventConfig[];
+  linePlanningVisibleToSoldiers?: boolean;
   shiftsEnabled: boolean;
   shiftsClosedMessage: string;
   systemMode: SystemMode;

@@ -25,6 +25,7 @@ interface EmergencyCenterProps {
   settings: SystemSettingsConfig;
   onSettingsChanged: (settings: SystemSettingsConfig) => void;
   onArrivalConfirmed?: () => void;
+  readOnly?: boolean;
 }
 
 const STATUS_OPTIONS: Array<{
@@ -46,6 +47,7 @@ export default function EmergencyCenter({
   settings,
   onSettingsChanged,
   onArrivalConfirmed,
+  readOnly = false,
 }: EmergencyCenterProps) {
   const event = settings.emergencyEvent;
   const [responses, setResponses] = useState<EmergencyResponse[]>([]);
@@ -665,7 +667,13 @@ export default function EmergencyCenter({
         </div>
       )}
 
-      {!canManage && (
+      {!canManage && readOnly && (
+        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-xs font-black text-violet-800 shadow-sm">
+          תצוגה בלבד — לא ניתן לשלוח תגובת חירום בשם המשתמש.
+        </div>
+      )}
+
+      {!canManage && !readOnly && (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-sm font-black text-slate-900">עדכון סטטוס אישי</h2>
           <p className="mt-1 text-xs text-slate-500">

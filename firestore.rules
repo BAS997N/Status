@@ -93,6 +93,11 @@ service cloud.firestore {
             hasPermission("emergency.manage") &&
             request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(["systemMode", "emergencyEvent", "updatedAt", "updatedBy"])
+          ) ||
+          (
+            canManageLinePlanning() &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(["linePlanningVisibleToSoldiers", "updatedAt", "updatedBy"])
           )
         ));
     }
