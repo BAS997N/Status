@@ -217,6 +217,24 @@ export default function LinePlanning({
       .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"));
   }, [allUsers, search]);
 
+  const dischargedConstraintUsers = useMemo(
+    () =>
+      allUsers
+        .filter((user) => user.isDischarged)
+        .filter((user) => {
+          const constraint = constraints.find(
+            (item) => item.userId === user.userId
+          );
+          return Boolean(
+            constraint &&
+              ((constraint.periods?.length || 0) > 0 ||
+                (constraint.unavailableDates?.length || 0) > 0)
+          );
+        })
+        .sort((a, b) => a.fullName.localeCompare(b.fullName, "he")),
+    [allUsers, constraints]
+  );
+
   const constraintByUser = useMemo(
     () => new Map(constraints.map((item) => [item.userId, item])),
     [constraints]
@@ -1031,6 +1049,85 @@ export default function LinePlanning({
               </span>
             </div>
           </div>
+
+          {dischargedConstraintUsers.length > 0 && (
+            <div className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm">
+              <div className="mb-3">
+                <h3 className="text-sm font-black text-slate-900">
+                  חיילים שנגרעו שהזינו אילוצים
+                </h3>
+                <p className="mt-1 text-[11px] font-bold text-slate-500">
+                  החיילים אינם נכללים בטבלת התכנון הפעילה, אך האילוצים
+                  שהזינו נשמרים ומוצגים כאן.
+                </p>
+              </div>
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full min-w-[560px] border-collapse text-right text-xs">
+                  <thead className="bg-amber-50 text-slate-700">
+                    <tr>
+                      <th className="border-b border-slate-200 px-3 py-2">
+                        חייל
+                      </th>
+                      <th className="border-b border-slate-200 px-3 py-2">
+                        יחידה
+                      </th>
+                      <th className="border-b border-slate-200 px-3 py-2">
+                        מספר אילוצים
+                      </th>
+                      <th className="border-b border-slate-200 px-3 py-2">
+                        עדכון אחרון
+                      </th>
+                      <th className="border-b border-slate-200 px-3 py-2">
+                        פירוט
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dischargedConstraintUsers.map((user) => {
+                      const constraint = constraintByUser.get(user.userId)!;
+                      const periods = constraint.periods?.length
+                        ? constraint.periods
+                        : legacyDatesToPeriods(
+                            constraint.unavailableDates || [],
+                            constraint.notesByDate || {}
+                          );
+                      return (
+                        <tr key={user.userId} className="bg-white">
+                          <td className="border-b border-slate-100 px-3 py-2 font-black text-slate-800">
+                            {user.fullName}
+                          </td>
+                          <td className="border-b border-slate-100 px-3 py-2 font-bold text-slate-500">
+                            {user.unit}
+                          </td>
+                          <td className="border-b border-slate-100 px-3 py-2 font-black text-amber-800">
+                            {periods.length}
+                          </td>
+                          <td className="border-b border-slate-100 px-3 py-2 font-bold text-slate-500">
+                            {constraint.updatedAt
+                              ? new Date(
+                                  constraint.updatedAt
+                                ).toLocaleString("he-IL")
+                              : "—"}
+                          </td>
+                          <td className="border-b border-slate-100 px-3 py-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setConstraintDetailsUserId(user.userId)
+                              }
+                              className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[10px] font-black text-indigo-700 hover:bg-indigo-100"
+                            >
+                              הצג אילוצים
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {constraintDetailsUser && constraintDetails && (
             <div
