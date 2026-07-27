@@ -896,16 +896,16 @@ export default function LinePlanning({
               </div>
             </div>
             <div>
-              <table className="min-w-max border-collapse text-center text-[10px]">
+              <table className="w-max min-w-full border-collapse text-center text-[10px]">
                 <thead className="sticky top-[51px] z-40 bg-slate-100 shadow-sm">
                   <tr>
-                    <th className="sticky right-0 z-30 min-w-48 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 text-right text-xs">
+                    <th className="sticky right-0 z-30 min-w-60 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 text-right text-xs">
                       חייל
                     </th>
                     {cycleDates.map((date) => (
                       <th
                         key={date}
-                        className="min-w-16 border-b border-l border-slate-200 px-1 py-2"
+                        className="min-w-24 border-b border-l border-slate-200 px-2 py-2"
                       >
                         <span className="block font-black">
                           {new Date(`${date}T12:00:00`).toLocaleDateString(
