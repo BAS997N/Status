@@ -586,8 +586,8 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       return "reporter";
     }
 
-    if (profileCanViewShifts) return "shifts";
     if (profileCanViewReporter) return "reporter";
+    if (profileCanViewShifts) return "shifts";
     if (profileCanViewLinePlanning) return "line_planning";
     if (profileCanManageEmergency) return "emergency";
     if (profileCanViewSystemAdmin) return "system_admin";
@@ -710,10 +710,10 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
     if (canViewDashboard) {
       setActiveTab("dashboard");
-    } else if (canViewShifts) {
-      setActiveTab("shifts");
     } else if (canViewReporter) {
       setActiveTab("reporter");
+    } else if (canViewShifts) {
+      setActiveTab("shifts");
     } else if (canViewLinePlanning) {
       setActiveTab("line_planning");
     } else if (shouldShowEmergencyTab) {
