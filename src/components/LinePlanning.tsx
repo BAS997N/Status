@@ -619,16 +619,39 @@ export default function LinePlanning({
   return (
     <section dir="rtl" className="min-w-0 space-y-4">
       <div className="rounded-2xl bg-slate-900 p-5 text-white shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-white/10 p-2">
-            <ClipboardList className="h-6 w-6" />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-white/10 p-2">
+              <ClipboardList className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black">תכנון קו ואילוצים</h2>
+              <p className="mt-1 text-xs font-bold text-slate-300">
+                כל קו נשמר בנפרד יחד עם האילוצים ותכנון הנוכחות שלו.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-black">תכנון קו ואילוצים</h2>
-            <p className="mt-1 text-xs font-bold text-slate-300">
-              כל קו נשמר בנפרד יחד עם האילוצים ותכנון הנוכחות שלו.
-            </p>
-          </div>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={toggleSoldierVisibility}
+              disabled={saving || !systemSettings}
+              className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-black transition disabled:opacity-50 ${
+                systemSettings?.linePlanningVisibleToSoldiers === false
+                  ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30"
+                  : "border-rose-400/40 bg-rose-500/20 text-rose-100 hover:bg-rose-500/30"
+              }`}
+            >
+              {systemSettings?.linePlanningVisibleToSoldiers === false ? (
+                <Eye className="h-4 w-4" />
+              ) : (
+                <EyeOff className="h-4 w-4" />
+              )}
+              {systemSettings?.linePlanningVisibleToSoldiers === false
+                ? "הצג עמוד לחיילים"
+                : "הסתר עמוד מחיילים"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -740,21 +763,6 @@ export default function LinePlanning({
               >
                 <Pencil className="h-4 w-4" />
                 ערוך תאריכים
-              </button>
-              <button
-                type="button"
-                onClick={toggleSoldierVisibility}
-                disabled={saving}
-                className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 disabled:opacity-50"
-              >
-                {systemSettings?.linePlanningVisibleToSoldiers === false ? (
-                  <Eye className="h-4 w-4" />
-                ) : (
-                  <EyeOff className="h-4 w-4" />
-                )}
-                {systemSettings?.linePlanningVisibleToSoldiers === false
-                  ? "הצג אילוצים לחיילים"
-                  : "הסתר אילוצים מהחיילים"}
               </button>
               {selectedCycle.status !== "open" && (
                 <button
