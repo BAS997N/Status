@@ -958,9 +958,9 @@ export default function LinePlanning({
 
           <div
             ref={matrixScrollRef}
-            className="relative max-h-[72vh] overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+            className="relative touch-pan-x overflow-x-auto scroll-smooth rounded-2xl border border-slate-200 bg-white shadow-sm"
           >
-            <div className="hidden">
+            <div className="sticky left-0 right-0 top-0 z-50 flex min-w-full items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 shadow-sm">
               <span className="text-[10px] font-black text-slate-600">
                 הזזת תאריכים
               </span>
@@ -994,16 +994,10 @@ export default function LinePlanning({
               </div>
             </div>
             <div>
-              <table className="w-full table-fixed border-collapse text-center text-[9px]">
-                <colgroup>
-                  <col className="w-44" />
-                  {cycleDates.map((date) => (
-                    <col key={`col_${date}`} />
-                  ))}
-                </colgroup>
-                <thead className="sticky top-0 z-40 bg-slate-100 shadow-sm">
+              <table className="w-max min-w-full border-collapse text-center text-[10px]">
+                <thead className="sticky top-[51px] z-40 bg-slate-100 shadow-sm">
                   <tr>
-                    <th className="sticky right-0 z-30 border-b border-l border-slate-200 bg-slate-100 px-2 py-3 text-right text-xs">
+                    <th className="sticky right-0 z-30 min-w-60 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 text-right text-xs">
                       חייל
                     </th>
                     {cycleDates.map((date) => (
@@ -1014,19 +1008,16 @@ export default function LinePlanning({
                         ).toLocaleDateString("he-IL", {
                           weekday: "long",
                         })}, ${formatDate(date, true)}`}
-                        className="border-b border-l border-slate-200 px-0 py-1 text-[8px]"
+                        className="min-w-28 border-b border-l border-slate-200 px-2 py-2 text-[10px]"
                       >
                         <span className="block font-black text-slate-800">
-                          {new Date(`${date}T12:00:00`)
-                            .toLocaleDateString("he-IL", { weekday: "short" })
-                            .replace("יום ", "")
-                            .slice(0, 1)}
+                          {new Date(`${date}T12:00:00`).toLocaleDateString(
+                            "he-IL",
+                            { weekday: "short" }
+                          )}
                         </span>
-                        <span className="block text-[8px] font-black leading-3 text-slate-600">
-                          {date.slice(8, 10)}
-                        </span>
-                        <span className="block text-[7px] font-bold leading-3 text-slate-400">
-                          {date.slice(5, 7)}
+                        <span className="block text-[9px] font-bold text-slate-500">
+                          {formatDate(date)}
                         </span>
                       </th>
                     ))}
@@ -1102,7 +1093,7 @@ export default function LinePlanning({
                           return (
                             <td
                               key={`${user.userId}_${date}`}
-                              className="border-b border-l border-slate-200 p-0.5"
+                              className="border-b border-l border-slate-200 p-1"
                             >
                               <select
                                 disabled={!canEdit}
@@ -1125,7 +1116,7 @@ export default function LinePlanning({
                                       }`
                                     : "לחיצה מחליפה: קו / בית / ריק"
                                 }
-                                className={`h-9 w-full cursor-pointer appearance-none truncate rounded-md border px-0.5 py-1 text-center text-[8px] font-black disabled:cursor-default ${
+                                className={`h-10 w-full cursor-pointer rounded-md border px-1 py-1 text-center text-[9px] font-black disabled:cursor-default ${
                                   conflict
                                     ? "bg-orange-500 text-white ring-2 ring-orange-200"
                                     : selectedStatus
