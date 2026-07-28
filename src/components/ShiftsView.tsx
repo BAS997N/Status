@@ -3126,8 +3126,10 @@ export default function ShiftsView({
                             const details = [
                               user.medicalRole,
                               user.unit,
-                              attendance.label,
-                              attendance.dayMarkerLabel,
+                              `נוכחות: ${attendance.label}`,
+                              attendance.dayMarkerLabel
+                                ? `סימון יום: ${attendance.dayMarkerLabel}`
+                                : "סימון יום: ללא",
                               user.isDischarged ? "נגרע" : "",
                               overlappingShift
                                 ? `חפיפה: ${overlappingShift.title}`
