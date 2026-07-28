@@ -112,9 +112,9 @@ const getSystemRole = (user: UserProfile): SystemRole => {
 };
 
 const DAY_MARKER_LABELS: Record<string, string> = {
-  return_to_base: "חזרה לבסיס",
+  return_to_base: "חזרה מהבית",
   exit_home: "יציאה לבית",
-  after_hours: "אחרי שעות",
+  after_hours: "אפטר",
 };
 
 const getReportDateKey = (report: AttendanceReport) => {
@@ -325,9 +325,12 @@ export default function ShiftsView({
     return {
       report,
       label,
-      dayMarkerLabel: report.dayMarker
-        ? DAY_MARKER_LABELS[report.dayMarker] || report.dayMarker
-        : "",
+      dayMarkerLabel:
+        report.dayMarker === "after_hours"
+          ? `אפטר${report.afterHours ? ` ${report.afterHours} שעות` : ""}`
+          : report.dayMarker
+          ? DAY_MARKER_LABELS[report.dayMarker] || report.dayMarker
+          : "",
       priority: report.status === "base" ? 0 : 1,
     };
   };
@@ -3127,9 +3130,7 @@ export default function ShiftsView({
                               user.medicalRole,
                               user.unit,
                               `נוכחות: ${attendance.label}`,
-                              attendance.dayMarkerLabel
-                                ? `סימון יום: ${attendance.dayMarkerLabel}`
-                                : "סימון יום: ללא",
+                              attendance.dayMarkerLabel,
                               user.isDischarged ? "נגרע" : "",
                               overlappingShift
                                 ? `חפיפה: ${overlappingShift.title}`

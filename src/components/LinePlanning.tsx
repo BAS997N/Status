@@ -1009,16 +1009,24 @@ export default function LinePlanning({
                     {cycleDates.map((date) => (
                       <th
                         key={date}
-                        className="border-b border-l border-slate-200 px-0.5 py-2 text-[8px]"
+                        title={`${new Date(
+                          `${date}T12:00:00`
+                        ).toLocaleDateString("he-IL", {
+                          weekday: "long",
+                        })}, ${formatDate(date, true)}`}
+                        className="border-b border-l border-slate-200 px-0 py-1 text-[8px]"
                       >
-                        <span className="block truncate font-black">
-                          {new Date(`${date}T12:00:00`).toLocaleDateString(
-                            "he-IL",
-                            { weekday: "short" }
-                          )}
+                        <span className="block font-black text-slate-800">
+                          {new Date(`${date}T12:00:00`)
+                            .toLocaleDateString("he-IL", { weekday: "short" })
+                            .replace("יום ", "")
+                            .slice(0, 1)}
                         </span>
-                        <span className="block truncate text-[7px] text-slate-500">
-                          {formatDate(date)}
+                        <span className="block text-[8px] font-black leading-3 text-slate-600">
+                          {date.slice(8, 10)}
+                        </span>
+                        <span className="block text-[7px] font-bold leading-3 text-slate-400">
+                          {date.slice(5, 7)}
                         </span>
                       </th>
                     ))}
