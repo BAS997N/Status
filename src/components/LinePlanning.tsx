@@ -17,6 +17,7 @@ import {
   Unlock,
 } from "lucide-react";
 import {
+  AttendanceStatusConfig,
   LineConstraint,
   LineConstraintPeriod,
   LineConstraintPriority,
@@ -35,6 +36,7 @@ interface LinePlanningProps {
   canManage: boolean;
   readOnly?: boolean;
   systemSettings?: SystemSettingsConfig | null;
+  attendanceStatuses: AttendanceStatusConfig[];
   onSystemSettingsChanged: (settings: SystemSettingsConfig) => void;
 }
 
@@ -152,12 +154,72 @@ const statusLabel: Record<LineCycleStatus, string> = {
   archived: "בארכיון",
 };
 
+const PLANNING_ONLY_STATUSES: AttendanceStatusConfig[] = [
+  {
+    id: "exit_home",
+    label: "יציאה לבית",
+    enabled: true,
+    visibleToSoldiers: false,
+    visibleToCommanders: true,
+    sortOrder: 1001,
+    systemStatus: false,
+    chartCategory: "absent",
+    color: "text-purple-800",
+    bg: "bg-purple-100",
+    border: "border-purple-300",
+  },
+  {
+    id: "return_to_base",
+    label: "חזרה לבסיס",
+    enabled: true,
+    visibleToSoldiers: false,
+    visibleToCommanders: true,
+    sortOrder: 1002,
+    systemStatus: false,
+    chartCategory: "present",
+    color: "text-blue-800",
+    bg: "bg-blue-100",
+    border: "border-blue-300",
+  },
+  {
+    id: "recall_base",
+    label: "הקפצה (בסיס)",
+    enabled: true,
+    visibleToSoldiers: false,
+    visibleToCommanders: true,
+    sortOrder: 1003,
+    systemStatus: false,
+    chartCategory: "present",
+    color: "text-red-800",
+    bg: "bg-red-100",
+    border: "border-red-300",
+  },
+];
+
+const normalizeRoleName = (value?: string) =>
+  String(value || "")
+    .replace(/[״"'׳/\\().\-\s]/g, "")
+    .toLocaleLowerCase("he");
+
+const getPlanningRoleRank = (user: UserProfile) => {
+  const role = normalizeRoleName(`${user.medicalRole || ""} ${user.unit || ""}`);
+  if (role.includes("מפרפואה")) return 0;
+  if (role.includes("סגל") && role.includes("פיקוד") && role.includes("רפוא")) return 1;
+  if (role.includes("רופא")) return 2;
+  if (role.includes("פראמדיק") || role.includes("פרמדיק")) return 3;
+  if (role.includes("מנהל") && role.includes("אירוע")) return 4;
+  if (role.includes("חייל") && role.includes("תאגד")) return 5;
+  if (role.includes("תאגד") && role.includes("מסופח")) return 6;
+  return 99;
+};
+
 export default function LinePlanning({
   currentUser,
   allUsers,
   canManage,
   readOnly = false,
   systemSettings,
+  attendanceStatuses,
   onSystemSettingsChanged,
 }: LinePlanningProps) {
   const canEdit = canManage && !readOnly;
@@ -198,6 +260,36 @@ export default function LinePlanning({
     [selectedCycle]
   );
 
+  const planningStatusOptions = useMemo(() => {
+    const configured = attendanceStatuses
+      .filter((status) => status.enabled && status.visibleToCommanders)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    const configuredIds = new Set(configured.map((status) => status.id));
+    return [
+      ...configured,
+      ...PLANNING_ONLY_STATUSES.filter(
+        (status) => !configuredIds.has(status.id)
+      ),
+    ];
+  }, [attendanceStatuses]);
+
+  const planningStatusById = useMemo(() => {
+    const entries = planningStatusOptions.map(
+      (status) => [status.id, status] as const
+    );
+    const legacyLine =
+      planningStatusOptions.find((status) => status.id === "base") ||
+      ({
+        id: "line",
+        label: "בקו",
+        chartCategory: "present",
+        color: "text-emerald-800",
+        bg: "bg-emerald-100",
+        border: "border-emerald-300",
+      } as AttendanceStatusConfig);
+    return new Map([...entries, ["line", legacyLine] as const]);
+  }, [planningStatusOptions]);
+
 
   const planningUsers = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase("he");
@@ -214,7 +306,13 @@ export default function LinePlanning({
               )
           : true
       )
-      .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"));
+      .sort((a, b) => {
+        const roleDifference =
+          getPlanningRoleRank(a) - getPlanningRoleRank(b);
+        return (
+          roleDifference || a.fullName.localeCompare(b.fullName, "he")
+        );
+      });
   }, [allUsers, search]);
 
   const dischargedConstraintUsers = useMemo(
@@ -572,11 +670,11 @@ export default function LinePlanning({
     date: string
   ): LinePresenceStatus | undefined => draftPlans[userId]?.[date];
 
-  const togglePlanCell = (userId: string, date: string) => {
-    const current = cyclePlanStatus(userId, date);
-    const next =
-      current === undefined ? "line" : current === "line" ? "home" : undefined;
-
+  const setPlanCellStatus = (
+    userId: string,
+    date: string,
+    next: LinePresenceStatus | undefined
+  ) => {
     setDraftPlans((allPlans) => {
       const userDates = { ...(allPlans[userId] || {}) };
       if (next) userDates[date] = next;
@@ -860,9 +958,9 @@ export default function LinePlanning({
 
           <div
             ref={matrixScrollRef}
-            className="relative max-h-[72vh] touch-pan-x overflow-auto scroll-smooth rounded-2xl border border-slate-200 bg-white shadow-sm"
+            className="relative max-h-[72vh] overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
           >
-            <div className="sticky left-0 right-0 top-0 z-50 flex min-w-full items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 shadow-sm">
+            <div className="hidden">
               <span className="text-[10px] font-black text-slate-600">
                 הזזת תאריכים
               </span>
@@ -896,24 +994,30 @@ export default function LinePlanning({
               </div>
             </div>
             <div>
-              <table className="w-max min-w-full border-collapse text-center text-[10px]">
-                <thead className="sticky top-[51px] z-40 bg-slate-100 shadow-sm">
+              <table className="w-full table-fixed border-collapse text-center text-[9px]">
+                <colgroup>
+                  <col className="w-44" />
+                  {cycleDates.map((date) => (
+                    <col key={`col_${date}`} />
+                  ))}
+                </colgroup>
+                <thead className="sticky top-0 z-40 bg-slate-100 shadow-sm">
                   <tr>
-                    <th className="sticky right-0 z-30 min-w-60 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 text-right text-xs">
+                    <th className="sticky right-0 z-30 border-b border-l border-slate-200 bg-slate-100 px-2 py-3 text-right text-xs">
                       חייל
                     </th>
                     {cycleDates.map((date) => (
                       <th
                         key={date}
-                        className="min-w-24 border-b border-l border-slate-200 px-2 py-2"
+                        className="border-b border-l border-slate-200 px-0.5 py-2 text-[8px]"
                       >
-                        <span className="block font-black">
+                        <span className="block truncate font-black">
                           {new Date(`${date}T12:00:00`).toLocaleDateString(
                             "he-IL",
                             { weekday: "short" }
                           )}
                         </span>
-                        <span className="text-slate-500">
+                        <span className="block truncate text-[7px] text-slate-500">
                           {formatDate(date)}
                         </span>
                       </th>
@@ -973,6 +1077,9 @@ export default function LinePlanning({
                             user.userId,
                             date
                           );
+                          const selectedStatus = planStatus
+                            ? planningStatusById.get(planStatus)
+                            : undefined;
                           const isUnavailable = unavailable.has(date);
                           const constraintPeriod = constraintPeriods.find(
                             (period) =>
@@ -982,17 +1089,22 @@ export default function LinePlanning({
                           const constraintPriority =
                             constraintPeriod?.priority || "required";
                           const conflict =
-                            isUnavailable && planStatus === "line";
+                            isUnavailable &&
+                            selectedStatus?.chartCategory === "present";
                           return (
                             <td
                               key={`${user.userId}_${date}`}
-                              className="border-b border-l border-slate-200 p-1"
+                              className="border-b border-l border-slate-200 p-0.5"
                             >
-                              <button
-                                type="button"
+                              <select
                                 disabled={!canEdit}
-                                onClick={() =>
-                                  togglePlanCell(user.userId, date)
+                                value={planStatus || ""}
+                                onChange={(event) =>
+                                  setPlanCellStatus(
+                                    user.userId,
+                                    date,
+                                    event.target.value || undefined
+                                  )
                                 }
                                 title={
                                   conflict
@@ -1005,19 +1117,17 @@ export default function LinePlanning({
                                       }`
                                     : "לחיצה מחליפה: קו / בית / ריק"
                                 }
-                                className={`h-10 w-full rounded-md px-1 py-1 text-[9px] font-black disabled:cursor-default ${
+                                className={`h-9 w-full cursor-pointer appearance-none truncate rounded-md border px-0.5 py-1 text-center text-[8px] font-black disabled:cursor-default ${
                                   conflict
                                     ? "bg-orange-500 text-white ring-2 ring-orange-200"
-                                    : planStatus === "line"
-                                    ? "bg-emerald-500 text-white"
-                                    : planStatus === "home"
-                                    ? "bg-sky-500 text-white"
+                                    : selectedStatus
+                                    ? `${selectedStatus.bg} ${selectedStatus.color} ${selectedStatus.border}`
                                     : isUnavailable
                                     ? priorityClasses[constraintPriority]
-                                    : "bg-slate-100 text-slate-400 hover:bg-slate-200"
+                                    : "border-slate-200 bg-slate-100 text-slate-400 hover:bg-slate-200"
                                 }`}
                               >
-                                <span className="block">
+                                <option value="">
                                   {conflict
                                     ? "חריגה"
                                     : planStatus === "line"
@@ -1027,8 +1137,16 @@ export default function LinePlanning({
                                     : isUnavailable
                                     ? priorityLabel[constraintPriority]
                                     : "—"}
-                                </span>
-                              </button>
+                                </option>
+                                {planStatus === "line" && (
+                                  <option value="line">בקו</option>
+                                )}
+                                {planningStatusOptions.map((status) => (
+                                  <option key={status.id} value={status.id}>
+                                    {status.label}
+                                  </option>
+                                ))}
+                              </select>
                             </td>
                           );
                         })}
@@ -1039,8 +1157,14 @@ export default function LinePlanning({
               </table>
             </div>
             <div className="flex flex-wrap gap-3 border-t border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-black">
-              <span className="text-emerald-700">ירוק — בקו</span>
-              <span className="text-sky-700">כחול — בבית</span>
+              {planningStatusOptions.map((status) => (
+                <span
+                  key={`legend_${status.id}`}
+                  className={`rounded-md border px-2 py-1 ${status.bg} ${status.color} ${status.border}`}
+                >
+                  {status.label}
+                </span>
+              ))}
               <span className="text-violet-700">סגול — בקשה</span>
               <span className="text-amber-700">צהוב — מועדף</span>
               <span className="text-rose-700">אדום — חובה</span>
@@ -1369,19 +1493,21 @@ export default function LinePlanning({
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-7 lg:grid-cols-10">
                 {cycleDates.map((date) => {
                   const value = plans[0].dates[date];
+                  const selectedStatus = value
+                    ? planningStatusById.get(value)
+                    : undefined;
                   return (
                     <div
                       key={date}
                       className={`rounded-lg px-2 py-2 text-center text-[10px] font-black ${
-                        value === "line"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : value === "home"
-                          ? "bg-sky-100 text-sky-800"
+                        selectedStatus
+                          ? `${selectedStatus.bg} ${selectedStatus.color}`
                           : "bg-slate-100 text-slate-400"
                       }`}
                     >
                       <span className="block">{formatDate(date)}</span>
-                      <span>
+                      <span>{selectedStatus?.label || "טרם נקבע"}</span>
+                      <span className="hidden">
                         {value === "line"
                           ? "בקו"
                           : value === "home"

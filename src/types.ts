@@ -191,7 +191,9 @@ export interface LineConstraintPeriod {
   note?: string;
 }
 
-export type LinePresenceStatus = "line" | "home";
+// Planning statuses are sourced from the dynamic attendance-status settings.
+// Keep this open-ended so newly configured statuses can be used without a code change.
+export type LinePresenceStatus = string;
 
 export interface LinePresencePlan {
   planId: string;

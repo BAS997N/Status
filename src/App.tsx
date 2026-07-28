@@ -2699,6 +2699,7 @@ const handleAdminSaveReport = async (reportData: {
                 canManage={canManageLinePlanning}
                 readOnly={Boolean(previewUser)}
                 systemSettings={systemSettings}
+                attendanceStatuses={attendanceStatuses}
                 onSystemSettingsChanged={handleSystemSettingsChanged}
               />
             </motion.div>
