@@ -167,6 +167,37 @@ const removeReportFromCache = (reportId: string) => {
   );
 };
 
+const upsertReportInCache = (updatedReport: AttendanceReport) => {
+  const cached = readCollectionCache<AttendanceReport>(
+    FIRESTORE_REPORTS_CACHE_KEY
+  );
+  if (!cached) return;
+
+  const reportDate =
+    updatedReport.reportDate ||
+    (typeof updatedReport.timestamp === "string"
+      ? updatedReport.timestamp.split("T")[0]
+      : "");
+  const items = cached.items.filter((report) => {
+    const cachedReportDate =
+      report.reportDate ||
+      (typeof report.timestamp === "string"
+        ? report.timestamp.split("T")[0]
+        : "");
+    return !(
+      report.reportId === updatedReport.reportId ||
+      (report.userId === updatedReport.userId &&
+        cachedReportDate === reportDate)
+    );
+  });
+
+  writeCollectionCache(
+    FIRESTORE_REPORTS_CACHE_KEY,
+    [updatedReport, ...items],
+    cached.cachedAt
+  );
+};
+
 const markCachedNotificationRead = (notificationId: string) => {
   const cached = readCollectionCache<AppNotification>(
     FIRESTORE_NOTIFICATIONS_CACHE_KEY
@@ -4500,6 +4531,20 @@ resetByName: null,
   },
   { merge: true }
 );
+      upsertReportInCache({
+        ...reportPayload,
+        reportId: docRef.id,
+        reportDate: reportDateForLookup,
+        timestamp: reportPayload.timestamp || new Date().toISOString(),
+        verifiedAt: requiresCommanderApproval
+          ? undefined
+          : reportPayload.verifiedAt || new Date().toISOString(),
+        verifiedBy: requiresCommanderApproval
+          ? undefined
+          : reportPayload.verifiedBy || "SYSTEM_AUTO",
+        updatedAt: new Date().toISOString(),
+        isReset: false,
+      });
       void (async () => {
       const statusText =
   selectedStatusConfig?.label ||
@@ -4890,6 +4935,7 @@ const finalReportData = {
       reportId,
       ...updatedSnap.data(),
     } as AttendanceReport;
+    upsertReportInCache(updatedReport);
 
     const attendanceStatusConfigs = await this.getAttendanceStatusConfigs();
     const selectedStatusConfig = attendanceStatusConfigs.find(

@@ -1745,7 +1745,6 @@ resetByName: undefined,
 
   showAlertToast();
 
-  refreshReports();
   refreshNotifications();
 };
 
