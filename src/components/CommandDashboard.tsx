@@ -133,6 +133,17 @@ interface CommanderChartCollapsePreferences {
   unitComparison: boolean;
 }
 
+interface BulkAttendancePeriod {
+  id: string;
+  startDate: string;
+  endDate: string;
+  status: AttendanceStatus;
+  location: string;
+  note: string;
+  startDayMarker: "" | "return_to_base" | "exit_home";
+  endDayMarker: "" | "return_to_base" | "exit_home";
+}
+
 const getCommanderChartCollapsePreferences = (
   userId: string
 ): CommanderChartCollapsePreferences => {
@@ -641,17 +652,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   const [bulkEndDate, setBulkEndDate] = useState(
     new Date().toLocaleDateString("en-CA")
   );
-  const [bulkStatus, setBulkStatus] = useState<AttendanceStatus>(
-    commanderStatusOptions[0]?.id as AttendanceStatus || "base"
-  );
-  const [bulkLocation, setBulkLocation] = useState("בסיס קבע");
-  const [bulkNote, setBulkNote] = useState("");
-  const [bulkStartDayMarker, setBulkStartDayMarker] = useState<
-    "" | "return_to_base" | "exit_home"
-  >("");
-  const [bulkEndDayMarker, setBulkEndDayMarker] = useState<
-    "" | "return_to_base" | "exit_home"
-  >("");
+  const [bulkPeriods, setBulkPeriods] = useState<BulkAttendancePeriod[]>([]);
   const [bulkOverwriteExisting, setBulkOverwriteExisting] = useState(false);
   const [isBulkAttendanceSaving, setIsBulkAttendanceSaving] = useState(false);
 
@@ -1384,10 +1385,10 @@ const latestTodayReport = [...todayReports].sort(
         : first.fullName.localeCompare(second.fullName, "he");
     });
 
-  const getBulkDateKeys = () => {
-    if (!bulkStartDate || !bulkEndDate) return [];
-    const start = new Date(`${bulkStartDate}T12:00:00`);
-    const end = new Date(`${bulkEndDate}T12:00:00`);
+  const getDateRangeKeys = (startDate: string, endDate: string) => {
+    if (!startDate || !endDate) return [];
+    const start = new Date(`${startDate}T12:00:00`);
+    const end = new Date(`${endDate}T12:00:00`);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
       return [];
     }
@@ -1401,32 +1402,116 @@ const latestTodayReport = [...todayReports].sort(
     return dates;
   };
 
-  const bulkDateKeys = getBulkDateKeys();
-  const bulkPotentialReports = bulkSelectedUserIds.length * bulkDateKeys.length;
+  const bulkDateKeys = getDateRangeKeys(bulkStartDate, bulkEndDate);
+  const bulkScheduleByDate = new Map<string, BulkAttendancePeriod>();
+  const bulkOverlappingDates = new Set<string>();
+
+  bulkPeriods.forEach((period) => {
+    getDateRangeKeys(period.startDate, period.endDate).forEach((dateKey) => {
+      if (bulkScheduleByDate.has(dateKey)) bulkOverlappingDates.add(dateKey);
+      else bulkScheduleByDate.set(dateKey, period);
+    });
+  });
+
+  const bulkUncoveredDates = bulkDateKeys.filter(
+    (dateKey) => !bulkScheduleByDate.has(dateKey)
+  );
+  const bulkCoveredDates = bulkDateKeys.filter((dateKey) =>
+    bulkScheduleByDate.has(dateKey)
+  );
+  const bulkPotentialReports =
+    bulkSelectedUserIds.length * bulkCoveredDates.length;
+
+  const addBulkAttendancePeriod = () => {
+    const firstUncoveredDate = bulkUncoveredDates[0] || bulkStartDate;
+    const defaultStatus =
+      (commanderStatusOptions[0]?.id as AttendanceStatus) || "base";
+    setBulkPeriods((current) => [
+      ...current,
+      {
+        id: `period_${Date.now()}_${current.length}`,
+        startDate: firstUncoveredDate,
+        endDate: firstUncoveredDate,
+        status: defaultStatus,
+        location: defaultStatus === "base" ? "בסיס קבע" : "לא צוין",
+        note: "",
+        startDayMarker: "",
+        endDayMarker: "",
+      },
+    ]);
+  };
+
+  const updateBulkAttendancePeriod = (
+    periodId: string,
+    patch: Partial<BulkAttendancePeriod>
+  ) => {
+    setBulkPeriods((current) =>
+      current.map((period) =>
+        period.id === periodId ? { ...period, ...patch } : period
+      )
+    );
+  };
 
   const handleBulkAttendanceSave = async () => {
     if (
       !onAdminBulkSaveReports ||
       bulkSelectedUserIds.length === 0 ||
-      bulkDateKeys.length === 0
+      bulkDateKeys.length === 0 ||
+      bulkPeriods.length === 0
     ) {
       onShowMessage?.(
         "חסרים נתונים",
-        "יש לבחור לפחות חייל אחד וטווח תאריכים תקין.",
+        "יש לבחור לפחות חייל אחד, טווח תאריכים ותקופת נוכחות אחת.",
         "error"
       );
       return;
     }
 
-    const selectedConfig = attendanceStatuses.find(
-      (status) => status.id === bulkStatus
+    const hasInvalidPeriod = bulkPeriods.some(
+      (period) =>
+        getDateRangeKeys(period.startDate, period.endDate).length === 0 ||
+        period.startDate < bulkStartDate ||
+        period.endDate > bulkEndDate
     );
-    if (selectedConfig?.requiresNote && !bulkNote.trim()) {
+    if (hasInvalidPeriod) {
       onShowMessage?.(
-        "חסרה הערה",
-        "הסטטוס שנבחר מחייב הזנת הערה.",
+        "תקופה לא תקינה",
+        "כל התקופות חייבות להיות בתוך הטווח הכללי ותאריך הסיום חייב להיות אחרי תאריך ההתחלה.",
         "error"
       );
+      return;
+    }
+
+    if (bulkOverlappingDates.size > 0) {
+      onShowMessage?.(
+        "נמצאה חפיפה בין תקופות",
+        "יש תאריכים שמופיעים ביותר מתקופה אחת. יש לתקן את התאריכים לפני השמירה.",
+        "error"
+      );
+      return;
+    }
+
+    const periodMissingRequiredNote = bulkPeriods.find((period) => {
+      const selectedConfig = attendanceStatuses.find(
+        (status) => status.id === period.status
+      );
+      return selectedConfig?.requiresNote && !period.note.trim();
+    });
+    if (periodMissingRequiredNote) {
+      onShowMessage?.(
+        "חסרה הערה",
+        "אחת התקופות משתמשת בסטטוס שמחייב הזנת הערה.",
+        "error"
+      );
+      return;
+    }
+
+    if (
+      bulkUncoveredDates.length > 0 &&
+      !window.confirm(
+        `נותרו ${bulkUncoveredDates.length} ימים ללא הגדרה. להמשיך ולשמור רק את הימים שהוגדרו?`
+      )
+    ) {
       return;
     }
 
@@ -1447,41 +1532,48 @@ const latestTodayReport = [...todayReports].sort(
     }> = [];
 
     selectedProfiles.forEach((profile) => {
-      bulkDateKeys.forEach((reportDate) => {
-        const existingReport = reports
-          .filter(
-            (report) =>
-              !(report as any).isReset &&
-              report.userId === profile.userId &&
-              isReportForDate(report, reportDate)
-          )
-          .sort(
-            (first, second) =>
-              getTimeMsFromTimestamp(second.updatedAt || second.timestamp) -
-              getTimeMsFromTimestamp(first.updatedAt || first.timestamp)
-          )[0];
+      bulkPeriods.forEach((period) => {
+        const periodDateKeys = getDateRangeKeys(
+          period.startDate,
+          period.endDate
+        );
 
-        if (existingReport && !bulkOverwriteExisting) return;
+        periodDateKeys.forEach((reportDate) => {
+          const existingReport = reports
+            .filter(
+              (report) =>
+                !(report as any).isReset &&
+                report.userId === profile.userId &&
+                isReportForDate(report, reportDate)
+            )
+            .sort(
+              (first, second) =>
+                getTimeMsFromTimestamp(second.updatedAt || second.timestamp) -
+                getTimeMsFromTimestamp(first.updatedAt || first.timestamp)
+            )[0];
 
-        const dayMarker =
-          bulkStartDate === bulkEndDate
-            ? bulkStartDayMarker || bulkEndDayMarker || undefined
-            : reportDate === bulkStartDate
-            ? bulkStartDayMarker || undefined
-            : reportDate === bulkEndDate
-            ? bulkEndDayMarker || undefined
-            : undefined;
+          if (existingReport && !bulkOverwriteExisting) return;
 
-        entries.push({
-          reportId: existingReport?.reportId,
-          userId: profile.userId,
-          userName: profile.fullName,
-          unit: profile.unit,
-          status: bulkStatus,
-          location: bulkLocation.trim() || "לא צוין",
-          note: bulkNote.trim(),
-          reportDate,
-          dayMarker,
+          const dayMarker =
+            period.startDate === period.endDate
+              ? period.startDayMarker || period.endDayMarker || undefined
+              : reportDate === period.startDate
+              ? period.startDayMarker || undefined
+              : reportDate === period.endDate
+              ? period.endDayMarker || undefined
+              : undefined;
+
+          entries.push({
+            reportId: existingReport?.reportId,
+            userId: profile.userId,
+            userName: profile.fullName,
+            unit: profile.unit,
+            status: period.status,
+            location: period.location.trim() || "לא צוין",
+            note: period.note.trim(),
+            reportDate,
+            dayMarker,
+          });
         });
       });
     });
@@ -1505,9 +1597,7 @@ const latestTodayReport = [...todayReports].sort(
       );
       setIsBulkAttendanceOpen(false);
       setBulkSelectedUserIds([]);
-      setBulkNote("");
-      setBulkStartDayMarker("");
-      setBulkEndDayMarker("");
+      setBulkPeriods([]);
     } catch (error) {
       console.error("Bulk attendance save failed:", error);
       onShowMessage?.(
@@ -3606,6 +3696,18 @@ const dates = getDateRange(startDate, endDate);
                 onClick={() => {
                   setBulkStartDate(selectedDate);
                   setBulkEndDate(selectedDate);
+                  setBulkPeriods([
+                    {
+                      id: `period_${Date.now()}`,
+                      startDate: selectedDate,
+                      endDate: selectedDate,
+                      status: "base",
+                      location: "בסיס קבע",
+                      note: "",
+                      startDayMarker: "",
+                      endDayMarker: "",
+                    },
+                  ]);
                   setIsBulkAttendanceOpen(true);
                 }}
                 className="flex cursor-pointer items-center gap-1.5 rounded-lg border-none bg-blue-700 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800"
@@ -4821,130 +4923,269 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                     </label>
                   </div>
 
-                  {bulkStartDate === bulkEndDate ? (
-                    <label className="block space-y-1">
-                      <span className="block text-xs font-black text-slate-600">
-                        סימון יום לתאריך שנבחר
-                      </span>
-                      <select
-                        value={bulkStartDayMarker || bulkEndDayMarker}
-                        onChange={(event) => {
-                          setBulkStartDayMarker(
-                            event.target.value as
-                              | ""
-                              | "return_to_base"
-                              | "exit_home"
-                          );
-                          setBulkEndDayMarker("");
-                        }}
-                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                      >
-                        <option value="">ללא סימון יום</option>
-                        <option value="return_to_base">חזרה לבסיס</option>
-                        <option value="exit_home">יציאה לבית</option>
-                      </select>
-                    </label>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <label className="space-y-1">
-                        <span className="block text-xs font-black text-slate-600">
-                          סימון ביום תחילת הטווח
-                        </span>
-                        <select
-                          value={bulkStartDayMarker}
-                          onChange={(event) =>
-                            setBulkStartDayMarker(
-                              event.target.value as
-                                | ""
-                                | "return_to_base"
-                                | "exit_home"
-                            )
-                          }
-                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                        >
-                          <option value="">ללא סימון</option>
-                          <option value="return_to_base">חזרה לבסיס</option>
-                          <option value="exit_home">יציאה לבית</option>
-                        </select>
-                      </label>
-                      <label className="space-y-1">
-                        <span className="block text-xs font-black text-slate-600">
-                          סימון ביום סיום הטווח
-                        </span>
-                        <select
-                          value={bulkEndDayMarker}
-                          onChange={(event) =>
-                            setBulkEndDayMarker(
-                              event.target.value as
-                                | ""
-                                | "return_to_base"
-                                | "exit_home"
-                            )
-                          }
-                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                        >
-                          <option value="">ללא סימון</option>
-                          <option value="return_to_base">חזרה לבסיס</option>
-                          <option value="exit_home">יציאה לבית</option>
-                        </select>
-                      </label>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-black text-slate-800">
+                        תקופות בתוך הטווח
+                      </h4>
+                      <p className="text-[10px] font-semibold text-slate-400">
+                        ניתן להוסיף תקופות שונות של בסיס, בית או כל סטטוס אחר.
+                      </p>
                     </div>
-                  )}
-
-                  <p className="-mt-2 text-[10px] font-semibold leading-5 text-slate-400">
-                    הסימון נשמר רק ביום הראשון או האחרון שבחרת, ולא בכל הימים שבטווח.
-                  </p>
-
-                  <label className="block space-y-1">
-                    <span className="block text-xs font-black text-slate-600">סטטוס נוכחות</span>
-                    <select
-                      value={bulkStatus}
-                      onChange={(event) => {
-                        const status = event.target.value as AttendanceStatus;
-                        setBulkStatus(status);
-                        setBulkLocation(
-                          status === "base"
-                            ? "בסיס קבע"
-                            : status === "home"
-                            ? "בית"
-                            : status === "field"
-                            ? "שטח / אימון"
-                            : status === "sick"
-                            ? "בית - גימלים"
-                            : "לא צוין"
-                        );
-                      }}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    <button
+                      type="button"
+                      onClick={addBulkAttendancePeriod}
+                      className="flex shrink-0 items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 text-[10px] font-black text-blue-700 hover:bg-blue-100"
                     >
-                      {commanderStatusOptions.map((status) => (
-                        <option key={status.id} value={status.id}>
-                          {status.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      <Plus className="h-3.5 w-3.5" />
+                      הוסף תקופה
+                    </button>
+                  </div>
 
-                  <label className="block space-y-1">
-                    <span className="block text-xs font-black text-slate-600">מיקום</span>
-                    <input
-                      type="text"
-                      value={bulkLocation}
-                      onChange={(event) => setBulkLocation(event.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                      placeholder="לדוגמה: בסיס קבע"
-                    />
-                  </label>
+                  <div className="space-y-3">
+                    {bulkPeriods.map((period, periodIndex) => (
+                      <div
+                        key={period.id}
+                        className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-black text-slate-700">
+                            תקופה {periodIndex + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setBulkPeriods((current) =>
+                                current.filter((item) => item.id !== period.id)
+                              )
+                            }
+                            className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-100"
+                            title="מחק תקופה"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
 
-                  <label className="block space-y-1">
-                    <span className="block text-xs font-black text-slate-600">הערה (לא חובה)</span>
-                    <textarea
-                      value={bulkNote}
-                      onChange={(event) => setBulkNote(event.target.value)}
-                      rows={3}
-                      className="w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                      placeholder="הערה שתישמר בכל הדיווחים שנבחרו"
-                    />
-                  </label>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <label className="space-y-1">
+                            <span className="block text-[10px] font-black text-slate-500">
+                              מתאריך
+                            </span>
+                            <input
+                              type="date"
+                              value={period.startDate}
+                              min={bulkStartDate}
+                              max={bulkEndDate}
+                              onChange={(event) =>
+                                updateBulkAttendancePeriod(period.id, {
+                                  startDate: event.target.value,
+                                })
+                              }
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] font-bold"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="block text-[10px] font-black text-slate-500">
+                              עד תאריך
+                            </span>
+                            <input
+                              type="date"
+                              value={period.endDate}
+                              min={period.startDate || bulkStartDate}
+                              max={bulkEndDate}
+                              onChange={(event) =>
+                                updateBulkAttendancePeriod(period.id, {
+                                  endDate: event.target.value,
+                                })
+                              }
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] font-bold"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <label className="space-y-1">
+                            <span className="block text-[10px] font-black text-slate-500">
+                              סטטוס
+                            </span>
+                            <select
+                              value={period.status}
+                              onChange={(event) => {
+                                const status = event.target
+                                  .value as AttendanceStatus;
+                                updateBulkAttendancePeriod(period.id, {
+                                  status,
+                                  location:
+                                    status === "base"
+                                      ? "בסיס קבע"
+                                      : status === "home"
+                                      ? "בית"
+                                      : status === "field"
+                                      ? "שטח / אימון"
+                                      : status === "sick"
+                                      ? "בית - גימלים"
+                                      : "לא צוין",
+                                });
+                              }}
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] font-bold"
+                            >
+                              {commanderStatusOptions.map((status) => (
+                                <option key={status.id} value={status.id}>
+                                  {status.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="space-y-1">
+                            <span className="block text-[10px] font-black text-slate-500">
+                              מיקום
+                            </span>
+                            <input
+                              type="text"
+                              value={period.location}
+                              onChange={(event) =>
+                                updateBulkAttendancePeriod(period.id, {
+                                  location: event.target.value,
+                                })
+                              }
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] font-bold"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <label className="space-y-1">
+                            <span className="block text-[10px] font-black text-slate-500">
+                              סימון ביום הראשון
+                            </span>
+                            <select
+                              value={period.startDayMarker}
+                              onChange={(event) =>
+                                updateBulkAttendancePeriod(period.id, {
+                                  startDayMarker: event.target.value as
+                                    | ""
+                                    | "return_to_base"
+                                    | "exit_home",
+                                })
+                              }
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] font-bold"
+                            >
+                              <option value="">ללא סימון</option>
+                              <option value="return_to_base">חזרה לבסיס</option>
+                              <option value="exit_home">יציאה לבית</option>
+                            </select>
+                          </label>
+                          <label className="space-y-1">
+                            <span className="block text-[10px] font-black text-slate-500">
+                              סימון ביום האחרון
+                            </span>
+                            <select
+                              value={period.endDayMarker}
+                              onChange={(event) =>
+                                updateBulkAttendancePeriod(period.id, {
+                                  endDayMarker: event.target.value as
+                                    | ""
+                                    | "return_to_base"
+                                    | "exit_home",
+                                })
+                              }
+                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] font-bold"
+                            >
+                              <option value="">ללא סימון</option>
+                              <option value="return_to_base">חזרה לבסיס</option>
+                              <option value="exit_home">יציאה לבית</option>
+                            </select>
+                          </label>
+                        </div>
+
+                        <label className="block space-y-1">
+                          <span className="block text-[10px] font-black text-slate-500">
+                            הערה לתקופה
+                          </span>
+                          <input
+                            type="text"
+                            value={period.note}
+                            onChange={(event) =>
+                              updateBulkAttendancePeriod(period.id, {
+                                note: event.target.value,
+                              })
+                            }
+                            placeholder="לא חובה"
+                            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] font-semibold"
+                          />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-700">
+                        תצוגה מקדימה
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {bulkCoveredDates.length} מתוך {bulkDateKeys.length} ימים הוגדרו
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                      {bulkDateKeys.map((dateKey) => {
+                        const period = bulkScheduleByDate.get(dateKey);
+                        const statusConfig = period
+                          ? attendanceStatuses.find(
+                              (status) => status.id === period.status
+                            )
+                          : undefined;
+                        const hasOverlap = bulkOverlappingDates.has(dateKey);
+                        return (
+                          <div
+                            key={dateKey}
+                            title={
+                              hasOverlap
+                                ? "התאריך מופיע ביותר מתקופה אחת"
+                                : period
+                                ? statusConfig?.label || period.status
+                                : "יום ללא הגדרה"
+                            }
+                            className={`min-w-0 rounded-lg border px-1 py-1.5 text-center ${
+                              hasOverlap
+                                ? "border-rose-400 bg-rose-100 text-rose-800"
+                                : period
+                                ? "border-blue-200 bg-blue-50 text-blue-800"
+                                : "border-dashed border-slate-300 bg-slate-50 text-slate-400"
+                            }`}
+                          >
+                            <span className="block text-[8px] font-bold">
+                              {new Date(`${dateKey}T12:00:00`).toLocaleDateString(
+                                "he-IL",
+                                { weekday: "short" }
+                              )}
+                            </span>
+                            <span className="block text-[10px] font-black">
+                              {new Date(`${dateKey}T12:00:00`).toLocaleDateString(
+                                "he-IL",
+                                { day: "2-digit", month: "2-digit" }
+                              )}
+                            </span>
+                            <span className="block truncate text-[8px] font-bold">
+                              {period
+                                ? statusConfig?.label || period.status
+                                : "לא הוגדר"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {bulkOverlappingDates.size > 0 && (
+                      <p className="mt-2 text-[10px] font-black text-rose-700">
+                        נמצאה חפיפה ב־{bulkOverlappingDates.size} תאריכים.
+                      </p>
+                    )}
+                    {bulkUncoveredDates.length > 0 && (
+                      <p className="mt-2 text-[10px] font-black text-amber-700">
+                        {bulkUncoveredDates.length} ימים עדיין ללא הגדרה.
+                      </p>
+                    )}
+                  </div>
 
                   <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
                     <input
@@ -5042,7 +5283,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                     <span className="text-rose-700">טווח התאריכים אינו תקין</span>
                   ) : (
                     <span>
-                      {bulkSelectedUserIds.length} חיילים × {bulkDateKeys.length} ימים = עד{" "}
+                      {bulkSelectedUserIds.length} חיילים × {bulkCoveredDates.length} ימים מוגדרים = עד{" "}
                       <strong className="text-blue-800">{bulkPotentialReports}</strong> דיווחים
                     </span>
                   )}
@@ -5062,7 +5303,9 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                     disabled={
                       isBulkAttendanceSaving ||
                       bulkSelectedUserIds.length === 0 ||
-                      bulkDateKeys.length === 0
+                      bulkDateKeys.length === 0 ||
+                      bulkPeriods.length === 0 ||
+                      bulkOverlappingDates.size > 0
                     }
                     className="rounded-xl bg-blue-700 px-5 py-2 text-xs font-black text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
