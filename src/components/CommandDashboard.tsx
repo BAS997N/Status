@@ -1027,9 +1027,25 @@ const exitHomeTodayCount = reportedTodayList.filter(
       (item) => !item.latestTodayReport?.dayMarker
     );
   const availableWithDayMarkerDetails =
-    availableForActivityDetails.filter(
-      (item) => Boolean(item.latestTodayReport?.dayMarker)
-    );
+    availableForActivityDetails
+      .filter((item) => Boolean(item.latestTodayReport?.dayMarker))
+      .sort((first, second) => {
+        const markerOrder: Record<string, number> = {
+          exit_home: 0,
+          after_hours: 1,
+          return_to_base: 2,
+        };
+        const firstOrder =
+          markerOrder[first.latestTodayReport?.dayMarker || ""] ?? 99;
+        const secondOrder =
+          markerOrder[second.latestTodayReport?.dayMarker || ""] ?? 99;
+
+        if (firstOrder !== secondOrder) return firstOrder - secondOrder;
+        return (first.profile.fullName || "").localeCompare(
+          second.profile.fullName || "",
+          "he"
+        );
+      });
   const outsideUnitDetails = reportedTodayList.filter(
     (item) => getChartCategory(item.latestTodayReport?.status) === "absent"
   );
@@ -1058,22 +1074,25 @@ const exitHomeTodayCount = reportedTodayList.filter(
     items: Array<{
       profile: UserProfile;
       latestTodayReport?: AttendanceReport;
-    }>
+    }>,
+    preserveOrder = false
   ) => {
+    const mappedItems = items.map((item) => ({
+      profile: item.profile,
+      report: item.latestTodayReport,
+    }));
+
     setAttendanceStatDetails({
       title,
       description,
-      items: items
-        .map((item) => ({
-          profile: item.profile,
-          report: item.latestTodayReport,
-        }))
-        .sort((first, second) =>
-          (first.profile.fullName || "").localeCompare(
-            second.profile.fullName || "",
-            "he"
-          )
-        ),
+      items: preserveOrder
+        ? mappedItems
+        : mappedItems.sort((first, second) =>
+            (first.profile.fullName || "").localeCompare(
+              second.profile.fullName || "",
+              "he"
+            )
+          ),
     });
   };
 
@@ -3533,7 +3552,8 @@ const dates = getDateRange(startDate, endDate);
             openAttendanceStatDetails(
               "זמינים לפעילות עם סימון יום",
               "חיילים שדיווחו שהם בבסיס או בשטח ובחרו גם סימון יום.",
-              availableWithDayMarkerDetails
+              availableWithDayMarkerDetails,
+              true
             )
           }
           className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md"
