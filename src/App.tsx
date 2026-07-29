@@ -2063,20 +2063,49 @@ const handleAdminBulkSaveReports = async (
 
   const result = await dataService.saveBulkAttendanceReports(payloads);
   const userById = new Map(allUsers.map((profile) => [profile.userId, profile]));
-  const sheetsResult = await dataService.syncAttendanceEntriesToGoogleSheets(
-    entries.map((entry) => {
-      const profile = userById.get(entry.userId);
-      return {
-        personalId: profile?.personalId,
-        fullName: profile?.fullName || entry.userName,
-        medicalRole: profile?.medicalRole,
-        phoneNumber: profile?.phoneNumber,
-        status: entry.status,
-        reportDate: entry.reportDate,
-        dayMarker: entry.dayMarker,
-      };
+  const sheetsEntries = entries.map((entry) => {
+    const profile = userById.get(entry.userId);
+    return {
+      personalId: profile?.personalId,
+      fullName: profile?.fullName || entry.userName,
+      medicalRole: profile?.medicalRole,
+      phoneNumber: profile?.phoneNumber,
+      status: entry.status,
+      reportDate: entry.reportDate,
+      dayMarker: entry.dayMarker,
+    };
+  });
+
+  void dataService
+    .syncAttendanceEntriesToGoogleSheets(sheetsEntries)
+    .then((sheetsResult) => {
+      if (!sheetsResult.enabled) {
+        showAppMessage(
+          "העדכון נשמר",
+          "הדיווחים נשמרו במערכת, אך הסנכרון ל־Google Sheets כבוי.",
+          "info"
+        );
+        return;
+      }
+
+      showAppMessage(
+        sheetsResult.failed > 0
+          ? "סנכרון Google Sheets הסתיים חלקית"
+          : "סנכרון Google Sheets הושלם",
+        `נשלחו ${sheetsResult.sent} דיווחים${
+          sheetsResult.failed ? `, ${sheetsResult.failed} נכשלו` : ""
+        }${sheetsResult.skipped ? `, ${sheetsResult.skipped} דולגו` : ""}.`,
+        sheetsResult.failed > 0 ? "error" : "success"
+      );
     })
-  );
+    .catch((syncError) => {
+      console.error("Background Google Sheets sync failed:", syncError);
+      showAppMessage(
+        "הדיווחים נשמרו",
+        "העדכון נשמר במערכת, אך הסנכרון ל־Google Sheets נכשל.",
+        "error"
+      );
+    });
 
   const uniqueSoldiers = new Set(entries.map((entry) => entry.userId)).size;
   const sortedDates = entries
@@ -2097,10 +2126,7 @@ const handleAdminBulkSaveReports = async (
   await refreshReports();
   return {
     ...result,
-    sheetsEnabled: sheetsResult.enabled,
-    sheetsSent: sheetsResult.sent,
-    sheetsFailed: sheetsResult.failed,
-    sheetsSkipped: sheetsResult.skipped,
+    sheetsPending: true,
   };
 };
 

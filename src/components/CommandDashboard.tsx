@@ -117,6 +117,7 @@ interface CommandDashboardProps {
     sheetsSent?: number;
     sheetsFailed?: number;
     sheetsSkipped?: number;
+    sheetsPending?: boolean;
   }>;
   onShowMessage?: (
   title: string,
@@ -1597,8 +1598,9 @@ const latestTodayReport = [...todayReports].sort(
     setIsBulkAttendanceSaving(true);
     try {
       const result = await onAdminBulkSaveReports(entries);
-      const sheetsSummary =
-        result.sheetsEnabled === false
+      const sheetsSummary = result.sheetsPending
+        ? " הסנכרון ל־Google Sheets ממשיך ברקע ויוצג עדכון נוסף בסיום."
+        : result.sheetsEnabled === false
           ? " הסנכרון ל־Google Sheets כבוי."
           : ` לשיטס נשלחו ${result.sheetsSent || 0} דיווחים${
               result.sheetsFailed
@@ -4942,7 +4944,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                     </label>
                   </div>
 
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="sticky top-0 z-10 -mx-2 flex items-center justify-between gap-3 border-b border-slate-100 bg-white/95 px-2 py-2 backdrop-blur-sm">
                     <div>
                       <h4 className="text-sm font-black text-slate-800">
                         תקופות בתוך הטווח
@@ -5136,6 +5138,15 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                       </div>
                     ))}
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={addBulkAttendancePeriod}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/60 px-4 py-3 text-xs font-black text-blue-700 transition hover:border-blue-400 hover:bg-blue-100"
+                  >
+                    <Plus className="h-4 w-4" />
+                    הוסף תקופה נוספת
+                  </button>
 
                   <div className="rounded-2xl border border-slate-200 bg-white p-3">
                     <div className="mb-2 flex items-center justify-between">
