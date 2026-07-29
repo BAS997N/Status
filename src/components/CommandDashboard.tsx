@@ -1740,7 +1740,7 @@ const latestTodayReport = [...todayReports].sort(
     });
 
     const dateChunkSize = attendancePdfSinglePage
-      ? dateKeys.length
+      ? 14
       : dateKeys.length <= 16 && selectedProfiles.length <= 24
       ? dateKeys.length
       : 14;
@@ -1749,16 +1749,6 @@ const latestTodayReport = [...todayReports].sort(
       : dateKeys.length <= 16 && selectedProfiles.length <= 24
       ? selectedProfiles.length
       : 24;
-    const singlePageFontSize = Math.max(
-      3.5,
-      Math.min(8, 145 / Math.max(dateKeys.length, 12))
-    );
-    const singlePageCellPadding =
-      selectedProfiles.length > 60 || dateKeys.length > 35
-        ? "0.35mm 0.2mm"
-        : selectedProfiles.length > 35 || dateKeys.length > 24
-        ? "0.55mm 0.3mm"
-        : "0.9mm 0.5mm";
     const dateChunks: string[][] = [];
     const soldierChunks: UserProfile[][] = [];
     for (let index = 0; index < dateKeys.length; index += dateChunkSize) {
@@ -1772,92 +1762,136 @@ const latestTodayReport = [...todayReports].sort(
       soldierChunks.push(selectedProfiles.slice(index, index + soldierChunkSize));
     }
 
-    const pages = soldierChunks.flatMap((soldierChunk) =>
-      dateChunks.map((dateChunk) => {
-        const headerCells = dateChunk
-          .map((dateKey) => {
-            const date = new Date(`${dateKey}T12:00:00`);
-            return `<th class="date-column"><span>${escapeHtml(
-              date.toLocaleDateString("he-IL", { weekday: "short" })
-            )}</span><strong>${escapeHtml(
-              date.toLocaleDateString("he-IL", {
-                day: "2-digit",
-                month: "2-digit",
-              })
-            )}</strong></th>`;
-          })
-          .join("");
+    const singlePageRowCount = selectedProfiles.length * dateChunks.length;
+    const singlePageFontSize =
+      singlePageRowCount > 90
+        ? 4
+        : singlePageRowCount > 60
+        ? 4.8
+        : singlePageRowCount > 36
+        ? 5.6
+        : 7;
+    const singlePageCellPadding =
+      singlePageRowCount > 90
+        ? "0.25mm 0.25mm"
+        : singlePageRowCount > 60
+        ? "0.4mm 0.3mm"
+        : singlePageRowCount > 36
+        ? "0.55mm 0.35mm"
+        : "0.9mm 0.5mm";
 
-        const bodyRows = soldierChunk
-          .map((profile) => {
-            const statusCounts = new Map<string, number>();
-            const dateCells = dateChunk
-              .map((dateKey) => {
-                const report = latestReportByUserAndDate.get(
-                  `${profile.userId}_${dateKey}`
-                );
-                if (!report) return `<td class="empty-cell">—</td>`;
-                const statusConfig = attendanceStatuses.find(
-                  (status) => status.id === report.status
-                );
-                const statusText =
-                  statusConfig?.label ||
-                  statusLabels[report.status]?.label ||
-                  report.status;
-                statusCounts.set(
-                  statusText,
-                  (statusCounts.get(statusText) || 0) + 1
-                );
-                const marker = markerLabel(report);
-                const category = getChartCategory(report.status);
-                return `<td class="status-cell status-${escapeHtml(
-                  category
-                )}"><strong>${escapeHtml(statusText)}</strong>${
-                  marker ? `<small>${escapeHtml(marker)}</small>` : ""
-                }</td>`;
-              })
-              .join("");
-            const summary = Array.from(statusCounts.entries())
-              .map(([label, count]) => `${label}: ${count}`)
-              .join(" · ");
+    const buildAttendanceTable = (
+      soldierChunk: UserProfile[],
+      dateChunk: string[]
+    ) => {
+      const headerCells = dateChunk
+        .map((dateKey) => {
+          const date = new Date(`${dateKey}T12:00:00`);
+          return `<th class="date-column"><span>${escapeHtml(
+            date.toLocaleDateString("he-IL", { weekday: "short" })
+          )}</span><strong>${escapeHtml(
+            date.toLocaleDateString("he-IL", {
+              day: "2-digit",
+              month: "2-digit",
+            })
+          )}</strong></th>`;
+        })
+        .join("");
 
-            return `<tr><td class="name-cell"><strong>${escapeHtml(
-              profile.fullName
-            )}</strong><small>${escapeHtml(
-              profile.medicalRole || ""
-            )}</small></td>${dateCells}<td class="summary-cell">${escapeHtml(
-              summary || "אין דיווחים"
-            )}</td></tr>`;
-          })
-          .join("");
+      const bodyRows = soldierChunk
+        .map((profile) => {
+          const statusCounts = new Map<string, number>();
+          const dateCells = dateChunk
+            .map((dateKey) => {
+              const report = latestReportByUserAndDate.get(
+                `${profile.userId}_${dateKey}`
+              );
+              if (!report) return `<td class="empty-cell">—</td>`;
+              const statusConfig = attendanceStatuses.find(
+                (status) => status.id === report.status
+              );
+              const statusText =
+                statusConfig?.label ||
+                statusLabels[report.status]?.label ||
+                report.status;
+              statusCounts.set(
+                statusText,
+                (statusCounts.get(statusText) || 0) + 1
+              );
+              const marker = markerLabel(report);
+              const category = getChartCategory(report.status);
+              return `<td class="status-cell status-${escapeHtml(
+                category
+              )}"><strong>${escapeHtml(statusText)}</strong>${
+                marker ? `<small>${escapeHtml(marker)}</small>` : ""
+              }</td>`;
+            })
+            .join("");
+          const summary = Array.from(statusCounts.entries())
+            .map(([label, count]) => `${label}: ${count}`)
+            .join(" · ");
 
-        return `<section class="report-page">
-          <header>
-            <div>
-              <h1>דוח נוכחות</h1>
-              <p>${escapeHtml(
-                new Date(`${attendancePdfStartDate}T12:00:00`).toLocaleDateString(
-                  "he-IL"
-                )
-              )} – ${escapeHtml(
-          new Date(`${attendancePdfEndDate}T12:00:00`).toLocaleDateString(
-            "he-IL"
+          return `<tr><td class="name-cell"><strong>${escapeHtml(
+            profile.fullName
+          )}</strong><small>${escapeHtml(
+            profile.medicalRole || ""
+          )}</small></td>${dateCells}<td class="summary-cell">${escapeHtml(
+            summary || "אין דיווחים"
+          )}</td></tr>`;
+        })
+        .join("");
+      const firstDate = new Date(`${dateChunk[0]}T12:00:00`);
+      const lastDate = new Date(
+        `${dateChunk[dateChunk.length - 1]}T12:00:00`
+      );
+
+      return `<div class="table-block">
+        <div class="chunk-title">${escapeHtml(
+          firstDate.toLocaleDateString("he-IL")
+        )} – ${escapeHtml(lastDate.toLocaleDateString("he-IL"))}</div>
+        <table>
+          <thead><tr><th class="name-column">חייל/ת</th>${headerCells}<th class="summary-column">סיכום</th></tr></thead>
+          <tbody>${bodyRows}</tbody>
+        </table>
+      </div>`;
+    };
+
+    const buildAttendancePage = (tablesMarkup: string) => `<section class="report-page">
+      <header>
+        <div>
+          <h1>דוח נוכחות</h1>
+          <p>${escapeHtml(
+            new Date(`${attendancePdfStartDate}T12:00:00`).toLocaleDateString(
+              "he-IL"
+            )
+          )} – ${escapeHtml(
+      new Date(`${attendancePdfEndDate}T12:00:00`).toLocaleDateString("he-IL")
+    )}</p>
+        </div>
+        <div class="report-meta">${escapeHtml(
+          currentUser.fullName
+        )}<br/>הופק: ${escapeHtml(new Date().toLocaleString("he-IL"))}</div>
+      </header>
+      ${tablesMarkup}
+    </section>`;
+
+    const pages = attendancePdfSinglePage
+      ? [
+          buildAttendancePage(
+            dateChunks
+              .map((dateChunk) =>
+                buildAttendanceTable(selectedProfiles, dateChunk)
+              )
+              .join("")
+          ),
+        ]
+      : soldierChunks.flatMap((soldierChunk) =>
+          dateChunks.map((dateChunk) =>
+            buildAttendancePage(
+              buildAttendanceTable(soldierChunk, dateChunk)
+            )
           )
-        )}</p>
-            </div>
-            <div class="report-meta">${escapeHtml(
-              currentUser.fullName
-            )}<br/>הופק: ${escapeHtml(
-          new Date().toLocaleString("he-IL")
-        )}</div>
-          </header>
-          <table>
-            <thead><tr><th class="name-column">חייל/ת</th>${headerCells}<th class="summary-column">סיכום</th></tr></thead>
-            <tbody>${bodyRows}</tbody>
-          </table>
-        </section>`;
-      })
-    );
+        );
 
     printWindow.document.open();
     printWindow.document.write(`<!doctype html>
@@ -1881,6 +1915,12 @@ const latestTodayReport = [...todayReports].sort(
             h1 { margin: 0; font-size: 18px; }
             header p { margin: 1mm 0 0; font-size: 10px; font-weight: 700; }
             .report-meta { font-size: 8px; line-height: 1.5; text-align: left; }
+            .table-block + .table-block { margin-top: ${
+              attendancePdfSinglePage ? "2mm" : "5mm"
+            }; }
+            .chunk-title { margin-bottom: 0.7mm; font-size: ${
+              attendancePdfSinglePage ? "6px" : "9px"
+            }; font-weight: 900; color: #475569; }
             table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: ${
               attendancePdfSinglePage
                 ? `${singlePageFontSize}px`
@@ -1914,7 +1954,9 @@ const latestTodayReport = [...todayReports].sort(
             .summary-cell { font-size: 0.9em; line-height: 1.45; }
             @media screen {
               body { padding: 10px; background: #e2e8f0; }
-              .report-page { background: white; padding: 6mm; margin: 0 auto 12px; max-width: 297mm; min-height: 190mm; box-shadow: 0 4px 18px rgba(15,23,42,.15); }
+              .report-page { background: white; padding: 6mm; margin: 0 auto 12px; max-width: ${
+                attendancePdfSinglePage ? "420mm" : "297mm"
+              }; min-height: 190mm; box-shadow: 0 4px 18px rgba(15,23,42,.15); }
             }
           </style>
         </head>
@@ -5268,10 +5310,10 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                   />
                   <span>
                     <span className="block text-xs font-black text-blue-900">
-                      התאם את כל הדוח לעמוד אחד
+                      הצג את כל מקטעי התאריכים באותו עמוד
                     </span>
                     <span className="mt-1 block text-[10px] font-semibold leading-5 text-blue-700">
-                      הדוח יודפס ב־A3 אופקי והטבלה תוקטן לפי מספר החיילים והתאריכים.
+                      תאריכים שלא נכנסים לרוחב יופיעו בטבלה נוספת מתחת לטבלה הראשונה, באותו עמוד A3.
                     </span>
                   </span>
                 </label>
@@ -5359,7 +5401,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
               <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-[10px] font-bold leading-5 text-slate-500">
                   {attendancePdfSinglePage
-                    ? "כל החיילים והתאריכים יודפסו בעמוד אחד. בבחירה גדולה מאוד הטקסט יוקטן."
+                    ? "התאריכים יחולקו למקטעים שיופיעו אחד מתחת לשני באותו עמוד, בלי לכווץ את כולם לשורה אחת."
                     : "עד 16 תאריכים ו־24 חיילים יותאמו לעמוד אחד. דוח גדול יותר יחולק לעמודים קריאים עם כותרות חוזרות."}
                 </p>
                 <div className="flex shrink-0 gap-2">
