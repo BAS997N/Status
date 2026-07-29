@@ -2062,6 +2062,21 @@ const handleAdminBulkSaveReports = async (
   }));
 
   const result = await dataService.saveBulkAttendanceReports(payloads);
+  const userById = new Map(allUsers.map((profile) => [profile.userId, profile]));
+  const sheetsResult = await dataService.syncAttendanceEntriesToGoogleSheets(
+    entries.map((entry) => {
+      const profile = userById.get(entry.userId);
+      return {
+        personalId: profile?.personalId,
+        fullName: profile?.fullName || entry.userName,
+        medicalRole: profile?.medicalRole,
+        phoneNumber: profile?.phoneNumber,
+        status: entry.status,
+        reportDate: entry.reportDate,
+        dayMarker: entry.dayMarker,
+      };
+    })
+  );
 
   const uniqueSoldiers = new Set(entries.map((entry) => entry.userId)).size;
   const sortedDates = entries
@@ -2080,7 +2095,13 @@ const handleAdminBulkSaveReports = async (
   });
 
   await refreshReports();
-  return result;
+  return {
+    ...result,
+    sheetsEnabled: sheetsResult.enabled,
+    sheetsSent: sheetsResult.sent,
+    sheetsFailed: sheetsResult.failed,
+    sheetsSkipped: sheetsResult.skipped,
+  };
 };
 
   // IDF Military and National ID Sign-in Gateway screen

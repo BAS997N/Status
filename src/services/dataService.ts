@@ -4729,6 +4729,108 @@ await setDoc(notRef, {
     return { created, updated };
   },
 
+  async syncAttendanceEntriesToGoogleSheets(
+    entries: Array<{
+      personalId?: string;
+      fullName: string;
+      medicalRole?: string;
+      phoneNumber?: string;
+      status: AttendanceStatus;
+      reportDate: string;
+      dayMarker?: "return_to_base" | "exit_home" | "after_hours";
+      afterHours?: number;
+    }>
+  ): Promise<{
+    enabled: boolean;
+    sent: number;
+    failed: number;
+    skipped: number;
+  }> {
+    if (entries.length === 0) {
+      return { enabled: true, sent: 0, failed: 0, skipped: 0 };
+    }
+
+    const googleSheetsConfig = await this.getGoogleSheetsConfig();
+    if (!googleSheetsConfig.enabled || !googleSheetsConfig.webAppUrl) {
+      return {
+        enabled: false,
+        sent: 0,
+        failed: 0,
+        skipped: entries.length,
+      };
+    }
+
+    const attendanceStatusConfigs = await this.getAttendanceStatusConfigs();
+    const statusById = new Map(
+      attendanceStatusConfigs.map((status) => [status.id, status])
+    );
+    const payloads: Record<string, unknown>[] = [];
+    let skipped = 0;
+
+    entries.forEach((entry) => {
+      const statusConfig = statusById.get(entry.status);
+      const personalId = getSheetsPersonalId(entry.personalId);
+      if (!personalId || statusConfig?.exportToSheets === false) {
+        skipped += 1;
+        return;
+      }
+
+      const markerText =
+        entry.dayMarker === "return_to_base"
+          ? "חזרה לבסיס"
+          : entry.dayMarker === "exit_home"
+          ? "יציאה לבית"
+          : entry.dayMarker === "after_hours"
+          ? `אפטר ${entry.afterHours || ""} שעות`
+          : "";
+      const statusText =
+        statusConfig?.label ||
+        ATTENDANCE_STATUS_LABELS[entry.status]?.label ||
+        entry.status;
+      const [year, month, day] = entry.reportDate.split("-");
+
+      payloads.push({
+        personalId,
+        fullName: sanitizeSpreadsheetCell(entry.fullName),
+        medicalRole: sanitizeSpreadsheetCell(entry.medicalRole || ""),
+        role: sanitizeSpreadsheetCell(entry.medicalRole || ""),
+        phone: sanitizeSpreadsheetCell(entry.phoneNumber || ""),
+        date:
+          year && month && day
+            ? `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`
+            : entry.reportDate,
+        cellValue: sanitizeSpreadsheetCell(
+          markerText ? `${statusText}/${markerText}` : statusText
+        ),
+      });
+    });
+
+    let sent = 0;
+    let failed = 0;
+    for (let offset = 0; offset < payloads.length; offset += 5) {
+      const results = await Promise.all(
+        payloads.slice(offset, offset + 5).map(async (payload) => {
+          try {
+            await fetch(googleSheetsConfig.webAppUrl, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "text/plain;charset=utf-8" },
+              body: JSON.stringify(payload),
+            });
+            return true;
+          } catch (error) {
+            console.warn("Bulk attendance Google Sheets sync failed:", error);
+            return false;
+          }
+        })
+      );
+      sent += results.filter(Boolean).length;
+      failed += results.filter((success) => !success).length;
+    }
+
+    return { enabled: true, sent, failed, skipped };
+  },
+
   async updateAttendanceReport(
   reportId: string,
   reportData: Partial<AttendanceReport>,

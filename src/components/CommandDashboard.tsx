@@ -110,7 +110,14 @@ interface CommandDashboardProps {
       reportDate: string;
       dayMarker?: "return_to_base" | "exit_home";
     }>
-  ) => Promise<{ created: number; updated: number }>;
+  ) => Promise<{
+    created: number;
+    updated: number;
+    sheetsEnabled?: boolean;
+    sheetsSent?: number;
+    sheetsFailed?: number;
+    sheetsSkipped?: number;
+  }>;
   onShowMessage?: (
   title: string,
   message: string,
@@ -1590,9 +1597,21 @@ const latestTodayReport = [...todayReports].sort(
     setIsBulkAttendanceSaving(true);
     try {
       const result = await onAdminBulkSaveReports(entries);
+      const sheetsSummary =
+        result.sheetsEnabled === false
+          ? " הסנכרון ל־Google Sheets כבוי."
+          : ` לשיטס נשלחו ${result.sheetsSent || 0} דיווחים${
+              result.sheetsFailed
+                ? `, ו־${result.sheetsFailed} נכשלו`
+                : ""
+            }${
+              result.sheetsSkipped
+                ? `, ו־${result.sheetsSkipped} דולגו`
+                : ""
+            }.`;
       onShowMessage?.(
         "העדכון המרוכז הושלם",
-        `נוצרו ${result.created} דיווחים ועודכנו ${result.updated} דיווחים קיימים.`,
+        `נוצרו ${result.created} דיווחים ועודכנו ${result.updated} דיווחים קיימים.${sheetsSummary}`,
         "success"
       );
       setIsBulkAttendanceOpen(false);
