@@ -678,6 +678,11 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
     useState<string[]>([]);
   const [attendancePdfSearch, setAttendancePdfSearch] = useState("");
   const [attendancePdfSinglePage, setAttendancePdfSinglePage] = useState(true);
+  const [attendancePdfRoleFilters, setAttendancePdfRoleFilters] = useState<
+    string[]
+  >([]);
+  const [sharingAttendanceImageUserId, setSharingAttendanceImageUserId] =
+    useState<string | null>(null);
 
  const defaultShortUnits = ["תאג״ד"];
 
@@ -1660,16 +1665,27 @@ const latestTodayReport = [...todayReports].sort(
     }
   };
 
+  const attendancePdfAvailableRoles = Array.from(
+    new Set(
+      statusList
+        .map(({ profile }) => profile.medicalRole || "")
+        .filter(Boolean)
+    )
+  ).sort((first, second) => compareMedicalRoles(first, second));
+
   const attendancePdfSoldiers = statusList
     .map(({ profile }) => profile)
     .filter((profile) => {
       const query = attendancePdfSearch.trim().toLocaleLowerCase("he");
-      if (!query) return true;
-      return (
+      const matchesSearch =
+        !query ||
         profile.fullName.toLocaleLowerCase("he").includes(query) ||
         profile.personalId?.includes(query) ||
-        profile.medicalRole?.toLocaleLowerCase("he").includes(query)
-      );
+        profile.medicalRole?.toLocaleLowerCase("he").includes(query);
+      const matchesRole =
+        attendancePdfRoleFilters.length === 0 ||
+        attendancePdfRoleFilters.includes(profile.medicalRole || "");
+      return Boolean(matchesSearch && matchesRole);
     })
     .sort((first, second) => {
       const roleComparison = compareMedicalRoles(
@@ -1681,16 +1697,17 @@ const latestTodayReport = [...todayReports].sort(
         : first.fullName.localeCompare(second.fullName, "he");
     });
 
-  const printAttendancePdf = () => {
+  const printAttendancePdf = (
+    targetUserIds: string[] = attendancePdfSelectedUserIds,
+    closeSelectionWindow = true
+  ) => {
     const dateKeys = getDateRangeKeys(
       attendancePdfStartDate,
       attendancePdfEndDate
     );
     const selectedProfiles = statusList
       .map(({ profile }) => profile)
-      .filter((profile) =>
-        attendancePdfSelectedUserIds.includes(profile.userId)
-      )
+      .filter((profile) => targetUserIds.includes(profile.userId))
       .sort((first, second) => {
         const roleComparison = compareMedicalRoles(
           first.medicalRole,
@@ -1873,10 +1890,14 @@ const latestTodayReport = [...todayReports].sort(
       </div>`;
     };
 
+    const reportTitle =
+      selectedProfiles.length === 1
+        ? `דוח נוכחות אישי – ${selectedProfiles[0].fullName}`
+        : "דוח נוכחות";
     const buildAttendancePage = (tablesMarkup: string) => `<section class="report-page">
       <header>
         <div>
-          <h1>דוח נוכחות</h1>
+          <h1>${escapeHtml(reportTitle)}</h1>
           <p>${escapeHtml(
             new Date(`${attendancePdfStartDate}T12:00:00`).toLocaleDateString(
               "he-IL"
@@ -1915,7 +1936,7 @@ const latestTodayReport = [...todayReports].sort(
       <html lang="he" dir="rtl">
         <head>
           <meta charset="utf-8" />
-          <title>דוח נוכחות</title>
+          <title>${escapeHtml(reportTitle)}</title>
           <style>
             @page { size: ${attendancePdfSinglePage ? "A3" : "A4"} landscape; margin: ${
       attendancePdfSinglePage ? "4mm" : "6mm"
@@ -1982,7 +2003,224 @@ const latestTodayReport = [...todayReports].sort(
         </body>
       </html>`);
     printWindow.document.close();
-    setIsAttendancePdfOpen(false);
+    if (closeSelectionWindow) setIsAttendancePdfOpen(false);
+  };
+
+  const sharePersonalAttendanceImage = async (profile: UserProfile) => {
+    const dateKeys = getDateRangeKeys(
+      attendancePdfStartDate,
+      attendancePdfEndDate
+    );
+    if (dateKeys.length === 0) {
+      onShowMessage?.(
+        "טווח לא תקין",
+        "יש לבחור תאריך התחלה ותאריך סיום תקינים.",
+        "error"
+      );
+      return;
+    }
+
+    setSharingAttendanceImageUserId(profile.userId);
+    const renderRoot = document.createElement("div");
+    renderRoot.dir = "rtl";
+    renderRoot.style.position = "fixed";
+    renderRoot.style.right = "-20000px";
+    renderRoot.style.top = "0";
+    renderRoot.style.width = "1200px";
+    renderRoot.style.padding = "44px";
+    renderRoot.style.background = "#ffffff";
+    renderRoot.style.color = "#0f172a";
+    renderRoot.style.fontFamily = "Arial, sans-serif";
+
+    try {
+      const escapeHtml = (value: unknown) =>
+        String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      const latestByDate = new Map<string, AttendanceReport>();
+
+      reports.forEach((report) => {
+        if (
+          (report as any).isReset ||
+          (report.userId !== profile.userId &&
+            (report as any).personalId !== profile.personalId)
+        ) {
+          return;
+        }
+        const reportDate =
+          report.reportDate ||
+          (typeof report.timestamp === "string"
+            ? report.timestamp.split("T")[0]
+            : "");
+        if (!dateKeys.includes(reportDate)) return;
+        const existing = latestByDate.get(reportDate);
+        if (
+          !existing ||
+          getTimeMsFromTimestamp(report.updatedAt || report.timestamp) >=
+            getTimeMsFromTimestamp(existing.updatedAt || existing.timestamp)
+        ) {
+          latestByDate.set(reportDate, report);
+        }
+      });
+
+      const summary = new Map<string, number>();
+      const dateCards = dateKeys
+        .map((dateKey) => {
+          const report = latestByDate.get(dateKey);
+          const statusConfig = report
+            ? attendanceStatuses.find((status) => status.id === report.status)
+            : undefined;
+          const statusText = report
+            ? statusConfig?.label ||
+              statusLabels[report.status]?.label ||
+              report.status
+            : "לא דווח";
+          summary.set(statusText, (summary.get(statusText) || 0) + 1);
+          const marker =
+            report?.dayMarker === "return_to_base"
+              ? "חזרה לבסיס"
+              : report?.dayMarker === "exit_home"
+              ? "יציאה לבית"
+              : report?.dayMarker === "after_hours"
+              ? `אפטר ${report.afterHours || ""} שעות`
+              : "";
+          const category = report ? getChartCategory(report.status) : "missing";
+          const palette: Record<string, { bg: string; border: string; text: string }> = {
+            present: { bg: "#dcfce7", border: "#86efac", text: "#166534" },
+            absent: { bg: "#fee2e2", border: "#fca5a5", text: "#991b1b" },
+            medical: { bg: "#ffedd5", border: "#fdba74", text: "#9a3412" },
+            administrative: {
+              bg: "#e0e7ff",
+              border: "#a5b4fc",
+              text: "#3730a3",
+            },
+            not_on_order: {
+              bg: "#fef3c7",
+              border: "#fcd34d",
+              text: "#92400e",
+            },
+            neutral: { bg: "#f1f5f9", border: "#cbd5e1", text: "#334155" },
+            missing: { bg: "#f8fafc", border: "#cbd5e1", text: "#64748b" },
+          };
+          const colors = palette[category] || palette.neutral;
+          const date = new Date(`${dateKey}T12:00:00`);
+
+          return `<div style="min-height:118px;border:2px solid ${colors.border};background:${colors.bg};color:${colors.text};border-radius:14px;padding:13px;text-align:center;display:flex;flex-direction:column;justify-content:center;">
+            <div style="font-size:15px;font-weight:800;">${escapeHtml(
+              date.toLocaleDateString("he-IL", { weekday: "long" })
+            )}</div>
+            <div style="font-size:20px;font-weight:900;margin-top:3px;">${escapeHtml(
+              date.toLocaleDateString("he-IL", {
+                day: "2-digit",
+                month: "2-digit",
+              })
+            )}</div>
+            <div style="font-size:16px;font-weight:900;margin-top:8px;">${escapeHtml(
+              statusText
+            )}</div>
+            ${
+              marker
+                ? `<div style="font-size:13px;font-weight:800;margin-top:5px;">${escapeHtml(
+                    marker
+                  )}</div>`
+                : ""
+            }
+          </div>`;
+        })
+        .join("");
+      const summaryText = Array.from(summary.entries())
+        .map(([label, count]) => `${escapeHtml(label)}: ${count}`)
+        .join(" · ");
+
+      renderRoot.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:4px solid #1e3a5f;padding-bottom:18px;margin-bottom:24px;">
+          <div>
+            <div style="font-size:32px;font-weight:900;">דוח נוכחות אישי</div>
+            <div style="font-size:25px;font-weight:900;margin-top:7px;">${escapeHtml(
+              profile.fullName
+            )}</div>
+            <div style="font-size:16px;font-weight:700;color:#64748b;margin-top:5px;">${escapeHtml(
+              profile.medicalRole || ""
+            )} · ${escapeHtml(profile.unit)}</div>
+          </div>
+          <div style="font-size:16px;font-weight:800;text-align:left;line-height:1.6;">
+            ${escapeHtml(
+              new Date(
+                `${attendancePdfStartDate}T12:00:00`
+              ).toLocaleDateString("he-IL")
+            )} – ${escapeHtml(
+        new Date(`${attendancePdfEndDate}T12:00:00`).toLocaleDateString("he-IL")
+      )}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:10px;">${dateCards}</div>
+        <div style="margin-top:24px;border:2px solid #cbd5e1;background:#f8fafc;border-radius:14px;padding:16px;font-size:16px;font-weight:900;">
+          סיכום: ${summaryText}
+        </div>
+        <div style="margin-top:15px;font-size:12px;font-weight:700;color:#94a3b8;text-align:left;">
+          הופק ${escapeHtml(new Date().toLocaleString("he-IL"))}
+        </div>`;
+      document.body.appendChild(renderRoot);
+
+      const { default: html2canvas } = await import("html2canvas");
+      const canvas = await html2canvas(renderRoot, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const imageBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error("Image creation failed"))),
+          "image/png",
+          0.95
+        );
+      });
+      const safeName = profile.fullName.replace(/[\\/:*?"<>|]/g, "-").trim();
+      const imageFile = new File(
+        [imageBlob],
+        `נוכחות-${safeName}-${attendancePdfStartDate}-${attendancePdfEndDate}.png`,
+        { type: "image/png" }
+      );
+      const canShareFile =
+        typeof navigator.share === "function" &&
+        (typeof navigator.canShare !== "function" ||
+          navigator.canShare({ files: [imageFile] }));
+
+      if (canShareFile) {
+        await navigator.share({
+          files: [imageFile],
+          title: `דוח נוכחות – ${profile.fullName}`,
+          text: `דוח נוכחות לתאריכים ${attendancePdfStartDate} עד ${attendancePdfEndDate}`,
+        });
+      } else {
+        const downloadUrl = URL.createObjectURL(imageBlob);
+        const downloadLink = document.createElement("a");
+        downloadLink.href = downloadUrl;
+        downloadLink.download = imageFile.name;
+        downloadLink.click();
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        onShowMessage?.(
+          "התמונה הורדה",
+          "במחשב יש לצרף את התמונה שהורדה לשיחת WhatsApp Web.",
+          "success"
+        );
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      console.error("Attendance image sharing failed:", error);
+      onShowMessage?.(
+        "יצירת התמונה נכשלה",
+        "לא ניתן היה ליצור או לשתף את תמונת הנוכחות.",
+        "error"
+      );
+    } finally {
+      renderRoot.remove();
+      setSharingAttendanceImageUserId(null);
+    }
   };
 
   const handleExportToCSV = (exportType: "filtered" | "all" | "military" = "filtered") => {
@@ -4127,6 +4365,8 @@ const dates = getDateRange(startDate, endDate);
                 setAttendancePdfSelectedUserIds(
                   filteredSoldiersStatus.map(({ profile }) => profile.userId)
                 );
+                setAttendancePdfSearch("");
+                setAttendancePdfRoleFilters([]);
                 setIsAttendancePdfOpen(true);
               }}
               className="flex cursor-pointer items-center gap-1.5 rounded-lg border-none bg-rose-700 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-rose-800"
@@ -5382,37 +5622,93 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                   className="mb-3 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
                 />
 
+                <div className="mb-3 rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-black text-slate-600">
+                      סינון לפי תפקידים
+                    </span>
+                    {attendancePdfRoleFilters.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setAttendancePdfRoleFilters([])}
+                        className="text-[10px] font-black text-rose-700 hover:text-rose-900"
+                      >
+                        נקה סינון
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
+                    {attendancePdfAvailableRoles.map((role) => {
+                      const selected = attendancePdfRoleFilters.includes(role);
+                      return (
+                        <button
+                          key={role}
+                          type="button"
+                          onClick={() =>
+                            setAttendancePdfRoleFilters((current) =>
+                              selected
+                                ? current.filter((item) => item !== role)
+                                : [...current, role]
+                            )
+                          }
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-black transition ${
+                            selected
+                              ? "border-rose-700 bg-rose-700 text-white"
+                              : "border-slate-200 bg-slate-50 text-slate-600 hover:border-rose-300"
+                          }`}
+                        >
+                          {role}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2 sm:grid-cols-2">
                   {attendancePdfSoldiers.map((profile) => (
-                    <label
+                    <div
                       key={profile.userId}
-                      className="flex cursor-pointer items-center gap-3 rounded-lg border border-transparent bg-white px-3 py-2 hover:border-rose-200 hover:bg-rose-50"
+                      className="flex items-center gap-2 rounded-lg border border-transparent bg-white px-3 py-2 hover:border-rose-200 hover:bg-rose-50"
                     >
-                      <input
-                        type="checkbox"
-                        checked={attendancePdfSelectedUserIds.includes(
-                          profile.userId
-                        )}
-                        onChange={(event) =>
-                          setAttendancePdfSelectedUserIds((current) =>
-                            event.target.checked
-                              ? [...new Set([...current, profile.userId])]
-                              : current.filter(
-                                  (userId) => userId !== profile.userId
-                                )
-                          )
-                        }
-                        className="h-4 w-4 accent-rose-700"
-                      />
-                      <span className="min-w-0">
-                        <span className="block truncate text-xs font-black text-slate-800">
-                          {profile.fullName}
+                      <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={attendancePdfSelectedUserIds.includes(
+                            profile.userId
+                          )}
+                          onChange={(event) =>
+                            setAttendancePdfSelectedUserIds((current) =>
+                              event.target.checked
+                                ? [...new Set([...current, profile.userId])]
+                                : current.filter(
+                                    (userId) => userId !== profile.userId
+                                  )
+                            )
+                          }
+                          className="h-4 w-4 accent-rose-700"
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-black text-slate-800">
+                            {profile.fullName}
+                          </span>
+                          <span className="block truncate text-[10px] font-semibold text-slate-400">
+                            {profile.medicalRole || "ללא תפקיד"} · {profile.unit}
+                          </span>
                         </span>
-                        <span className="block truncate text-[10px] font-semibold text-slate-400">
-                          {profile.medicalRole || "ללא תפקיד"} · {profile.unit}
-                        </span>
-                      </span>
-                    </label>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => sharePersonalAttendanceImage(profile)}
+                        disabled={sharingAttendanceImageUserId !== null}
+                        className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[9px] font-black text-emerald-700 hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-50"
+                        title="צור תמונת נוכחות ושתף דרך WhatsApp"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        {sharingAttendanceImageUserId === profile.userId
+                          ? "מכין..."
+                          : "שתף תמונה"}
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -5433,7 +5729,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                   </button>
                   <button
                     type="button"
-                    onClick={printAttendancePdf}
+                    onClick={() => printAttendancePdf()}
                     disabled={attendancePdfSelectedUserIds.length === 0}
                     className="flex items-center gap-2 rounded-xl bg-rose-700 px-5 py-2 text-xs font-black text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
