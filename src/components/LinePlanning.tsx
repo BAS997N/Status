@@ -224,6 +224,7 @@ export default function LinePlanning({
 }: LinePlanningProps) {
   const canEdit = canManage && !readOnly;
   const matrixScrollRef = useRef<HTMLDivElement>(null);
+  const matrixHeaderScrollRef = useRef<HTMLDivElement>(null);
   const today = getLocalDate();
   const [cycles, setCycles] = useState<LineCycle[]>([]);
   const [selectedCycleId, setSelectedCycleId] = useState("");
@@ -956,11 +957,9 @@ export default function LinePlanning({
             </div>
           </div>
 
-          <div
-            ref={matrixScrollRef}
-            className="relative overflow-visible rounded-2xl border border-slate-200 bg-white shadow-sm"
-          >
-            <div className="sticky left-0 right-0 top-0 z-50 flex min-w-full items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 shadow-sm">
+          <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="sticky top-0 z-50 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2">
               <span className="text-[10px] font-black text-slate-600">
                 הזזת תאריכים
               </span>
@@ -968,7 +967,7 @@ export default function LinePlanning({
                 <button
                   type="button"
                   onClick={() =>
-                    window.scrollBy({
+                    matrixScrollRef.current?.scrollBy({
                       left: 280,
                       behavior: "smooth",
                     })
@@ -981,7 +980,7 @@ export default function LinePlanning({
                 <button
                   type="button"
                   onClick={() =>
-                    window.scrollBy({
+                    matrixScrollRef.current?.scrollBy({
                       left: -280,
                       behavior: "smooth",
                     })
@@ -993,9 +992,12 @@ export default function LinePlanning({
                 </button>
               </div>
             </div>
-            <div>
+            <div
+              ref={matrixHeaderScrollRef}
+              className="overflow-hidden"
+            >
               <table className="w-max min-w-full border-collapse text-center text-[10px]">
-                <thead className="sticky top-[51px] z-40 bg-slate-100 shadow-sm">
+                <thead className="bg-slate-100">
                   <tr>
                     <th className="sticky right-0 z-30 min-w-60 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 text-right text-xs">
                       חייל
@@ -1023,6 +1025,20 @@ export default function LinePlanning({
                     ))}
                   </tr>
                 </thead>
+              </table>
+            </div>
+            </div>
+            <div
+              ref={matrixScrollRef}
+              onScroll={(event) => {
+                if (matrixHeaderScrollRef.current) {
+                  matrixHeaderScrollRef.current.scrollLeft =
+                    event.currentTarget.scrollLeft;
+                }
+              }}
+              className="overflow-x-auto scroll-smooth"
+            >
+              <table className="w-max min-w-full border-collapse text-center text-[10px]">
                 <tbody>
                   {planningUsers.map((user) => {
                     const constraint = constraintByUser.get(user.userId);
@@ -1039,7 +1055,7 @@ export default function LinePlanning({
                     );
                     return (
                       <tr key={user.userId} className="hover:bg-slate-50">
-                        <td className="sticky right-0 z-10 border-b border-l border-slate-200 bg-white px-3 py-2 text-right">
+                        <td className="sticky right-0 z-10 min-w-60 border-b border-l border-slate-200 bg-white px-3 py-2 text-right">
                           <div className="font-black text-slate-800">
                             {user.fullName}
                           </div>
@@ -1093,7 +1109,7 @@ export default function LinePlanning({
                           return (
                             <td
                               key={`${user.userId}_${date}`}
-                              className="border-b border-l border-slate-200 p-1"
+                              className="min-w-28 border-b border-l border-slate-200 p-1"
                             >
                               <select
                                 disabled={!canEdit}
