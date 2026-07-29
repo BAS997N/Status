@@ -721,7 +721,11 @@ export default function ShiftsView({
       (slot) => slot.required && !slotAssignments[slot.key]
     );
 
-    if (targetStatus === "published" && missing.length) {
+    if (
+      targetStatus === "published" &&
+      missing.length &&
+      !signupRequestsEnabled
+    ) {
       setMessage({
         type: "error",
         text: `לא ניתן לפרסם לפני השלמת השיבוץ עבור: ${missing
@@ -3504,7 +3508,9 @@ export default function ShiftsView({
 
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[10px] font-bold leading-5 text-amber-800">
               טיוטה לקראת פרסום מוצגת למנהלים בלבד וניתן לצרף אותה לשיתוף WhatsApp לפי בחירה. משמרת מבוטלת אינה מוצגת לחיילים ולעולם אינה נכללת בשיתוף. ניתן לשמור בשני המצבים גם כאשר לא כל תפקידי החובה שובצו.
-              פרסום המשמרת יתאפשר רק לאחר השלמת כל השיבוצים הנדרשים.
+              {signupRequestsEnabled
+                ? " כאשר בקשות השיבוץ פתוחות, ניתן לפרסם גם לפני השלמת תפקידי החובה כדי שהחיילים יוכלו לראות את המשמרת ולבקש להשתבץ."
+                : " פרסום המשמרת יתאפשר רק לאחר השלמת כל השיבוצים הנדרשים."}
             </div>
           </div>
         </div>
