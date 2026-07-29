@@ -2032,7 +2032,8 @@ const handleAdminBulkSaveReports = async (
     location: string;
     note?: string;
     reportDate: string;
-    dayMarker?: "return_to_base" | "exit_home";
+    dayMarker?: "return_to_base" | "exit_home" | "after_hours";
+    afterHours?: number;
   }>
 ) => {
   if (!userProfile || entries.length === 0) {
@@ -2051,6 +2052,7 @@ const handleAdminBulkSaveReports = async (
       reportDate: entry.reportDate,
       timestamp: new Date(`${entry.reportDate}T12:00:00`).toISOString(),
       dayMarker: entry.dayMarker,
+      afterHours: entry.afterHours,
       createdBy: userProfile.userId,
       createdByName: userProfile.fullName,
       createdByRole: userProfile.role,
@@ -2072,6 +2074,7 @@ const handleAdminBulkSaveReports = async (
       status: entry.status,
       reportDate: entry.reportDate,
       dayMarker: entry.dayMarker,
+      afterHours: entry.afterHours,
     };
   });
 

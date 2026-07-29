@@ -109,7 +109,8 @@ interface CommandDashboardProps {
       location: string;
       note?: string;
       reportDate: string;
-      dayMarker?: "return_to_base" | "exit_home";
+      dayMarker?: "return_to_base" | "exit_home" | "after_hours";
+      afterHours?: number;
     }>
   ) => Promise<{
     created: number;
@@ -149,8 +150,10 @@ interface BulkAttendancePeriod {
   status: AttendanceStatus;
   location: string;
   note: string;
-  startDayMarker: "" | "return_to_base" | "exit_home";
-  endDayMarker: "" | "return_to_base" | "exit_home";
+  startDayMarker: "" | "return_to_base" | "exit_home" | "after_hours";
+  endDayMarker: "" | "return_to_base" | "exit_home" | "after_hours";
+  startAfterHours: number;
+  endAfterHours: number;
 }
 
 const getCommanderChartCollapsePreferences = (
@@ -1457,6 +1460,8 @@ const latestTodayReport = [...todayReports].sort(
         note: "",
         startDayMarker: "",
         endDayMarker: "",
+        startAfterHours: 4,
+        endAfterHours: 4,
       },
     ]);
   };
@@ -1548,7 +1553,8 @@ const latestTodayReport = [...todayReports].sort(
       location: string;
       note?: string;
       reportDate: string;
-      dayMarker?: "return_to_base" | "exit_home";
+      dayMarker?: "return_to_base" | "exit_home" | "after_hours";
+      afterHours?: number;
     }> = [];
 
     selectedProfiles.forEach((profile) => {
@@ -1582,6 +1588,16 @@ const latestTodayReport = [...todayReports].sort(
               : reportDate === period.endDate
               ? period.endDayMarker || undefined
               : undefined;
+          const afterHours =
+            dayMarker === "after_hours"
+              ? period.startDate === period.endDate
+                ? period.startDayMarker === "after_hours"
+                  ? period.startAfterHours
+                  : period.endAfterHours
+                : reportDate === period.startDate
+                ? period.startAfterHours
+                : period.endAfterHours
+              : undefined;
 
           entries.push({
             reportId: existingReport?.reportId,
@@ -1593,6 +1609,7 @@ const latestTodayReport = [...todayReports].sort(
             note: period.note.trim(),
             reportDate,
             dayMarker,
+            afterHours,
           });
         });
       });
@@ -4064,6 +4081,8 @@ const dates = getDateRange(startDate, endDate);
                       note: "",
                       startDayMarker: "",
                       endDayMarker: "",
+                      startAfterHours: 4,
+                      endAfterHours: 4,
                     },
                   ]);
                   setIsBulkAttendanceOpen(true);
@@ -5631,7 +5650,8 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                                   startDayMarker: event.target.value as
                                     | ""
                                     | "return_to_base"
-                                    | "exit_home",
+                                    | "exit_home"
+                                    | "after_hours",
                                 })
                               }
                               className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] font-bold"
@@ -5639,7 +5659,26 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                               <option value="">ללא סימון</option>
                               <option value="return_to_base">חזרה לבסיס</option>
                               <option value="exit_home">יציאה לבית</option>
+                              <option value="after_hours">אפטר</option>
                             </select>
+                            {period.startDayMarker === "after_hours" && (
+                              <input
+                                type="number"
+                                min={1}
+                                max={24}
+                                value={period.startAfterHours}
+                                onChange={(event) =>
+                                  updateBulkAttendancePeriod(period.id, {
+                                    startAfterHours: Math.max(
+                                      1,
+                                      Math.min(24, Number(event.target.value) || 1)
+                                    ),
+                                  })
+                                }
+                                className="w-full rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-2.5 py-2 text-[11px] font-bold"
+                                placeholder="מספר שעות"
+                              />
+                            )}
                           </label>
                           <label className="space-y-1">
                             <span className="block text-[10px] font-black text-slate-500">
@@ -5652,7 +5691,8 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                                   endDayMarker: event.target.value as
                                     | ""
                                     | "return_to_base"
-                                    | "exit_home",
+                                    | "exit_home"
+                                    | "after_hours",
                                 })
                               }
                               className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] font-bold"
@@ -5660,7 +5700,26 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                               <option value="">ללא סימון</option>
                               <option value="return_to_base">חזרה לבסיס</option>
                               <option value="exit_home">יציאה לבית</option>
+                              <option value="after_hours">אפטר</option>
                             </select>
+                            {period.endDayMarker === "after_hours" && (
+                              <input
+                                type="number"
+                                min={1}
+                                max={24}
+                                value={period.endAfterHours}
+                                onChange={(event) =>
+                                  updateBulkAttendancePeriod(period.id, {
+                                    endAfterHours: Math.max(
+                                      1,
+                                      Math.min(24, Number(event.target.value) || 1)
+                                    ),
+                                  })
+                                }
+                                className="w-full rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-2.5 py-2 text-[11px] font-bold"
+                                placeholder="מספר שעות"
+                              />
+                            )}
                           </label>
                         </div>
 
