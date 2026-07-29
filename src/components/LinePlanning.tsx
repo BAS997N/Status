@@ -243,6 +243,10 @@ export default function LinePlanning({
   const [newDeadline, setNewDeadline] = useState(today);
   const [editingCycleId, setEditingCycleId] = useState("");
   const [search, setSearch] = useState("");
+  const [hidePastPlanningDates, setHidePastPlanningDates] = useState(
+    () =>
+      localStorage.getItem("idf_line_planning_hide_past_dates") !== "false"
+  );
   const [constraintDetailsUserId, setConstraintDetailsUserId] = useState("");
   const [myPeriods, setMyPeriods] = useState<LineConstraintPeriod[]>([]);
   const [myNote, setMyNote] = useState("");
@@ -260,6 +264,23 @@ export default function LinePlanning({
         : [],
     [selectedCycle]
   );
+  const managerCycleDates = useMemo(
+    () =>
+      hidePastPlanningDates
+        ? cycleDates.filter((date) => date >= today)
+        : cycleDates,
+    [cycleDates, hidePastPlanningDates, today]
+  );
+  const pastPlanningDateCount = cycleDates.filter(
+    (date) => date < today
+  ).length;
+
+  useEffect(() => {
+    localStorage.setItem(
+      "idf_line_planning_hide_past_dates",
+      String(hidePastPlanningDates)
+    );
+  }, [hidePastPlanningDates]);
 
   const planningStatusOptions = useMemo(() => {
     const configured = attendanceStatuses
@@ -933,7 +954,25 @@ export default function LinePlanning({
                 {constraints.length} הזינו אילוצים
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {pastPlanningDateCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setHidePastPlanningDates((current) => !current)
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50"
+                >
+                  {hidePastPlanningDates ? (
+                    <Eye className="h-4 w-4" />
+                  ) : (
+                    <EyeOff className="h-4 w-4" />
+                  )}
+                  {hidePastPlanningDates
+                    ? `הצג ${pastPlanningDateCount} ימים שעברו`
+                    : "הסתר ימים שעברו"}
+                </button>
+              )}
               <div className="relative">
                 <Search className="absolute right-3 top-2.5 h-4 w-4 text-slate-400" />
                 <input
@@ -1002,7 +1041,7 @@ export default function LinePlanning({
                     <th className="sticky right-0 z-30 min-w-60 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 text-right text-xs">
                       חייל
                     </th>
-                    {cycleDates.map((date) => (
+                    {managerCycleDates.map((date) => (
                       <th
                         key={date}
                         title={`${new Date(
@@ -1087,7 +1126,7 @@ export default function LinePlanning({
                             </button>
                           )}
                         </td>
-                        {cycleDates.map((date) => {
+                        {managerCycleDates.map((date) => {
                           const planStatus = cyclePlanStatus(
                             user.userId,
                             date
