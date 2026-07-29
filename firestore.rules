@@ -300,6 +300,39 @@ service cloud.firestore {
       allow delete: if hasPermission("shifts.manage");
     }
 
+    match /shift_signup_requests/{requestId} {
+      allow read: if hasPermission("shifts.manage") || (
+        signedIn() && resource.data.userId == request.auth.uid
+      );
+
+      allow create: if signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.shiftId is string &&
+        request.resource.data.userName is string &&
+        requestId.matches(".*_" + request.auth.uid) &&
+        exists(/databases/$(database)/documents/shifts/$(request.resource.data.shiftId)) &&
+        get(/databases/$(database)/documents/shifts/$(request.resource.data.shiftId))
+          .data.signupRequestsEnabled == true &&
+        get(/databases/$(database)/documents/shifts/$(request.resource.data.shiftId))
+          .data.signupRequestsLocked != true &&
+        (
+          get(/databases/$(database)/documents/shifts/$(request.resource.data.shiftId))
+            .data.status == "published" ||
+          get(/databases/$(database)/documents/shifts/$(request.resource.data.shiftId))
+            .data.status == "scheduled"
+        );
+
+      allow update: if false;
+
+      allow delete: if hasPermission("shifts.manage") || (
+        signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        exists(/databases/$(database)/documents/shifts/$(resource.data.shiftId)) &&
+        get(/databases/$(database)/documents/shifts/$(resource.data.shiftId))
+          .data.signupRequestsLocked != true
+      );
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

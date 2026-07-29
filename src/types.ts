@@ -309,7 +309,8 @@ export type AuditModule =
   | "reports"
   | "system_settings"
   | "backups"
-  | "shifts";
+  | "shifts"
+  | "line_planning";
 
 export interface AuditLogEntry {
   id: string;
@@ -443,6 +444,8 @@ export interface ShiftRecord {
   note?: string;
   status: ShiftStatus;
   sendPushOnPublish?: boolean;
+  signupRequestsEnabled?: boolean;
+  signupRequestsLocked?: boolean;
   assignments: ShiftAssignment[];
   createdAt: string;
   createdBy: string;
@@ -450,6 +453,19 @@ export interface ShiftRecord {
   updatedAt?: string;
   updatedBy?: string;
   updatedByName?: string;
+}
+
+export interface ShiftSignupRequest {
+  requestId: string;
+  shiftId: string;
+  shiftTitle: string;
+  shiftStartAt: string;
+  userId: string;
+  userName: string;
+  personalId?: string;
+  unit?: string;
+  medicalRole?: string;
+  createdAt: string;
 }
 
 export interface PushDeviceStatus {

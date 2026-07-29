@@ -46,6 +46,7 @@ import {
   SystemBackupFile,
   BackupRestoreResult,
   ShiftRecord,
+  ShiftSignupRequest,
   ShiftSlotConfig,
   ExternalStaffMember,
   ShiftTypeConfig,
@@ -2479,6 +2480,137 @@ export const dataService = {
       targetId: shiftId,
       targetLabel: before?.title || "משמרת",
       before,
+    });
+  },
+
+  async getShiftSignupRequests(
+    userId?: string
+  ): Promise<ShiftSignupRequest[]> {
+    if (!isFirebaseActive()) {
+      const items: ShiftSignupRequest[] = JSON.parse(
+        localStorage.getItem("idf_shift_signup_requests") || "[]"
+      );
+      return items
+        .filter((item) => !userId || item.userId === userId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }
+
+    try {
+      const source = userId
+        ? query(
+            collection(db, "shift_signup_requests"),
+            where("userId", "==", userId)
+          )
+        : collection(db, "shift_signup_requests");
+      const snapshot = await getDocs(source);
+      return snapshot.docs
+        .map(
+          (item) =>
+            ({
+              requestId: item.id,
+              ...item.data(),
+            } as ShiftSignupRequest)
+        )
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    } catch (error) {
+      handleFirestoreError(
+        error,
+        OperationType.LIST,
+        "shift_signup_requests"
+      );
+      return [];
+    }
+  },
+
+  async createShiftSignupRequest(
+    shift: ShiftRecord,
+    user: UserProfile
+  ): Promise<ShiftSignupRequest> {
+    const request: ShiftSignupRequest = {
+      requestId: `${shift.shiftId}_${user.userId}`,
+      shiftId: shift.shiftId,
+      shiftTitle: shift.title,
+      shiftStartAt: shift.startAt,
+      userId: user.userId,
+      userName: user.fullName,
+      personalId: user.personalId,
+      unit: user.unit,
+      medicalRole: user.medicalRole,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (!isFirebaseActive()) {
+      const items: ShiftSignupRequest[] = JSON.parse(
+        localStorage.getItem("idf_shift_signup_requests") || "[]"
+      );
+      localStorage.setItem(
+        "idf_shift_signup_requests",
+        JSON.stringify([
+          request,
+          ...items.filter((item) => item.requestId !== request.requestId),
+        ])
+      );
+    } else {
+      try {
+        const { requestId: _requestId, ...payload } = request;
+        await setDoc(
+          doc(db, "shift_signup_requests", request.requestId),
+          removeUndefinedValues(payload)
+        );
+      } catch (error) {
+        handleFirestoreError(
+          error,
+          OperationType.CREATE,
+          `shift_signup_requests/${request.requestId}`
+        );
+        throw error;
+      }
+    }
+
+    await writeAuditLog({
+      action: "create",
+      module: "shifts",
+      targetId: request.requestId,
+      targetLabel: `בקשת שיבוץ: ${shift.title} — ${user.fullName}`,
+      after: request,
+    });
+    return request;
+  },
+
+  async deleteShiftSignupRequest(
+    request: ShiftSignupRequest
+  ): Promise<void> {
+    if (!isFirebaseActive()) {
+      const items: ShiftSignupRequest[] = JSON.parse(
+        localStorage.getItem("idf_shift_signup_requests") || "[]"
+      );
+      localStorage.setItem(
+        "idf_shift_signup_requests",
+        JSON.stringify(
+          items.filter((item) => item.requestId !== request.requestId)
+        )
+      );
+    } else {
+      try {
+        await deleteDoc(
+          doc(db, "shift_signup_requests", request.requestId)
+        );
+      } catch (error) {
+        handleFirestoreError(
+          error,
+          OperationType.DELETE,
+          `shift_signup_requests/${request.requestId}`
+        );
+        throw error;
+      }
+    }
+
+    await writeAuditLog({
+      action: "delete",
+      module: "shifts",
+      targetId: request.requestId,
+      targetLabel: `ביטול בקשת שיבוץ: ${request.shiftTitle} — ${request.userName}`,
+      before: request,
     });
   },
 
@@ -4918,29 +5050,59 @@ const formattedDate =
   async saveLineConstraint(
     constraint: LineConstraint
   ): Promise<LineConstraint> {
+    let before: LineConstraint | undefined;
     if (!isFirebaseActive()) {
       const items: LineConstraint[] = JSON.parse(
         localStorage.getItem("idf_line_constraints") || "[]"
+      );
+      before = items.find(
+        (item) => item.constraintId === constraint.constraintId
       );
       const next = items.filter(
         (item) => item.constraintId !== constraint.constraintId
       );
       next.push(constraint);
       localStorage.setItem("idf_line_constraints", JSON.stringify(next));
-      return constraint;
+    } else {
+      const path = `line_constraints/${constraint.constraintId}`;
+      try {
+        const existing = await getDoc(
+          doc(db, "line_constraints", constraint.constraintId)
+        );
+        before = existing.exists()
+          ? ({
+              constraintId: existing.id,
+              ...existing.data(),
+            } as LineConstraint)
+          : undefined;
+        await setDoc(
+          doc(db, "line_constraints", constraint.constraintId),
+          constraint
+        );
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, path);
+        throw error;
+      }
     }
 
-    const path = `line_constraints/${constraint.constraintId}`;
-    try {
-      await setDoc(
-        doc(db, "line_constraints", constraint.constraintId),
-        constraint
-      );
-      return constraint;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
-      throw error;
-    }
+    const hasValues =
+      (constraint.periods?.length || 0) > 0 ||
+      (constraint.unavailableDates?.length || 0) > 0 ||
+      Boolean(constraint.note?.trim());
+    await writeAuditLog({
+      action: !before ? "create" : hasValues ? "update" : "delete",
+      module: "line_planning",
+      targetId: constraint.constraintId,
+      targetLabel: constraint.userName,
+      before,
+      after: constraint,
+      metadata: {
+        cycleId: constraint.cycleId,
+        userId: constraint.userId,
+      },
+    });
+
+    return constraint;
   },
 
   async getLinePresencePlans(

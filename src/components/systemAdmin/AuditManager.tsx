@@ -35,6 +35,7 @@ const MODULE_LABELS: Record<string, string> = {
   google_sheets: "Google Sheets",
   reports: "דיווחים",
   shifts: "משמרות",
+  line_planning: "אילוצים ותכנון קו",
   system_settings: "הגדרות מערכת",
   backups: "גיבויים ושחזור",
 };
@@ -48,6 +49,7 @@ const MODULE_ICONS: Record<string, typeof ClipboardList> = {
   google_sheets: FileSpreadsheet,
   reports: ClipboardList,
   shifts: ClipboardList,
+  line_planning: ClipboardList,
   system_settings: UserCog,
   backups: DatabaseBackup,
 };

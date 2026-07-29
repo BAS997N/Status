@@ -958,7 +958,7 @@ export default function LinePlanning({
 
           <div
             ref={matrixScrollRef}
-            className="relative touch-pan-x overflow-x-auto scroll-smooth rounded-2xl border border-slate-200 bg-white shadow-sm"
+            className="relative overflow-visible rounded-2xl border border-slate-200 bg-white shadow-sm"
           >
             <div className="sticky left-0 right-0 top-0 z-50 flex min-w-full items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2 shadow-sm">
               <span className="text-[10px] font-black text-slate-600">
@@ -968,7 +968,7 @@ export default function LinePlanning({
                 <button
                   type="button"
                   onClick={() =>
-                    matrixScrollRef.current?.scrollBy({
+                    window.scrollBy({
                       left: 280,
                       behavior: "smooth",
                     })
@@ -981,7 +981,7 @@ export default function LinePlanning({
                 <button
                   type="button"
                   onClick={() =>
-                    matrixScrollRef.current?.scrollBy({
+                    window.scrollBy({
                       left: -280,
                       behavior: "smooth",
                     })

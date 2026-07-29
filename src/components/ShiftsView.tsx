@@ -7,11 +7,13 @@ import {
   Edit2,
   MapPin,
   MessageCircle,
+  LockKeyhole,
   Plus,
   Search,
   Trash2,
   UserRoundCheck,
   Users,
+  UnlockKeyhole,
   X,
 } from "lucide-react";
 import {
@@ -21,6 +23,7 @@ import {
   MedicalRoleConfig,
   ShiftAssignment,
   ShiftRecord,
+  ShiftSignupRequest,
   ShiftSlotConfig,
   ShiftTypeConfig,
   SystemRole,
@@ -206,6 +209,12 @@ export default function ShiftsView({
     "draft" | "published" | "cancelled"
   >("draft");
   const [sendPushOnPublish, setSendPushOnPublish] = useState(false);
+  const [signupRequestsEnabled, setSignupRequestsEnabled] = useState(false);
+  const [signupRequestsLocked, setSignupRequestsLocked] = useState(false);
+  const [signupRequests, setSignupRequests] = useState<ShiftSignupRequest[]>(
+    []
+  );
+  const [signupRequestSavingId, setSignupRequestSavingId] = useState("");
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -388,6 +397,22 @@ export default function ShiftsView({
     }
   };
 
+  const loadSignupRequests = async () => {
+    try {
+      setSignupRequests(
+        await dataService.getShiftSignupRequests(
+          canManage ? undefined : currentUser.userId
+        )
+      );
+    } catch (error) {
+      console.error("Failed loading shift signup requests:", error);
+      setMessage({
+        type: "error",
+        text: "טעינת בקשות השיבוץ נכשלה.",
+      });
+    }
+  };
+
   useEffect(() => {
     dataService
       .getSystemSettings()
@@ -425,6 +450,16 @@ export default function ShiftsView({
     setShifts(initialShifts);
     setLoading(false);
   }, [initialShifts]);
+
+  useEffect(() => {
+    void loadSignupRequests();
+  }, [canManage, currentUser.userId]);
+
+  useEffect(() => {
+    if (canManage && detailsShift?.signupRequestsEnabled) {
+      void loadSignupRequests();
+    }
+  }, [canManage, detailsShift?.shiftId]);
 
   const visibleShifts = useMemo(() => {
     const now = Date.now();
@@ -471,6 +506,33 @@ export default function ShiftsView({
     shiftTypeFilter,
     statusFilter,
   ]);
+
+  const signupRequestsByShiftId = useMemo(() => {
+    const map = new Map<string, ShiftSignupRequest[]>();
+    signupRequests.forEach((request) => {
+      map.set(request.shiftId, [
+        ...(map.get(request.shiftId) || []),
+        request,
+      ]);
+    });
+    return map;
+  }, [signupRequests]);
+
+  const shiftsOpenForSignup = useMemo(
+    () =>
+      shifts
+        .filter(
+          (shift) =>
+            isPublishedShift(shift) &&
+            shift.signupRequestsEnabled === true &&
+            !shift.assignments.some(
+              (assignment) => assignment.userId === currentUser.userId
+            ) &&
+            new Date(shift.endAt).getTime() >= Date.now()
+        )
+        .sort((a, b) => a.startAt.localeCompare(b.startAt)),
+    [shifts, currentUser.userId]
+  );
 
   const printRangeShifts = useMemo(
     () =>
@@ -563,6 +625,8 @@ export default function ShiftsView({
     setNote("");
     setFormStatus("draft");
     setSendPushOnPublish(false);
+    setSignupRequestsEnabled(false);
+    setSignupRequestsLocked(false);
     setSlotAssignments({});
     setMessage(null);
   };
@@ -615,6 +679,8 @@ export default function ShiftsView({
         : "draft"
     );
     setSendPushOnPublish(shift.sendPushOnPublish === true);
+    setSignupRequestsEnabled(shift.signupRequestsEnabled === true);
+    setSignupRequestsLocked(shift.signupRequestsLocked === true);
     setSlotAssignments(next);
     setIsFormOpen(true);
     setMessage(null);
@@ -765,6 +831,9 @@ export default function ShiftsView({
         assignments,
         status: targetStatus,
         sendPushOnPublish,
+        signupRequestsEnabled,
+        signupRequestsLocked:
+          signupRequestsEnabled && signupRequestsLocked,
       };
       if (editingShift) {
         await dataService.updateShift(editingShift.shiftId, values, currentUser);
@@ -870,6 +939,57 @@ export default function ShiftsView({
     }
   };
 
+  const requestShiftSignup = async (shift: ShiftRecord) => {
+    setSignupRequestSavingId(shift.shiftId);
+    setMessage(null);
+    try {
+      const created = await dataService.createShiftSignupRequest(
+        shift,
+        currentUser
+      );
+      setSignupRequests((current) => [
+        created,
+        ...current.filter((item) => item.requestId !== created.requestId),
+      ]);
+      setMessage({
+        type: "success",
+        text: `בקשת השיבוץ למשמרת „${shift.title}” נשלחה.`,
+      });
+    } catch {
+      setMessage({
+        type: "error",
+        text: "שליחת בקשת השיבוץ נכשלה.",
+      });
+    } finally {
+      setSignupRequestSavingId("");
+    }
+  };
+
+  const cancelShiftSignupRequest = async (
+    shift: ShiftRecord,
+    request: ShiftSignupRequest
+  ) => {
+    setSignupRequestSavingId(shift.shiftId);
+    setMessage(null);
+    try {
+      await dataService.deleteShiftSignupRequest(request);
+      setSignupRequests((current) =>
+        current.filter((item) => item.requestId !== request.requestId)
+      );
+      setMessage({
+        type: "success",
+        text: `בקשת השיבוץ למשמרת „${shift.title}” בוטלה.`,
+      });
+    } catch {
+      setMessage({
+        type: "error",
+        text: "ביטול בקשת השיבוץ נכשל.",
+      });
+    } finally {
+      setSignupRequestSavingId("");
+    }
+  };
+
   const duplicateShift = (shift: ShiftRecord) => {
     const startParts = toLocalParts(shift.startAt);
     const endParts = toLocalParts(shift.endAt);
@@ -891,6 +1011,8 @@ export default function ShiftsView({
     setNote(shift.note || "");
     setFormStatus("draft");
     setSendPushOnPublish(false);
+    setSignupRequestsEnabled(false);
+    setSignupRequestsLocked(false);
 
     const nextAssignments: Record<string, string> = {};
     expandedSlots.forEach((slot, index) => {
@@ -2174,6 +2296,76 @@ export default function ShiftsView({
         onExport={exportShiftsCsv}
       />
 
+      {!canManage && shiftsOpenForSignup.length > 0 && (
+        <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <UserRoundCheck className="h-5 w-5 text-emerald-700" />
+            <h3 className="text-sm font-black text-emerald-950">
+              משמרות פתוחות לבקשת שיבוץ
+            </h3>
+          </div>
+          <p className="mt-1 text-[11px] font-bold text-emerald-800">
+            הבקשה מועברת למפקד ואינה מהווה שיבוץ מאושר.
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {shiftsOpenForSignup.map((shift) => {
+              const ownRequest = (
+                signupRequestsByShiftId.get(shift.shiftId) || []
+              ).find((request) => request.userId === currentUser.userId);
+              const locked = shift.signupRequestsLocked === true;
+              const saving = signupRequestSavingId === shift.shiftId;
+
+              return (
+                <div
+                  key={`signup_${shift.shiftId}`}
+                  className="rounded-xl border border-emerald-200 bg-white p-3"
+                >
+                  <div className="font-black text-slate-900">
+                    {shift.title}
+                  </div>
+                  <div className="mt-1 text-[11px] font-bold text-slate-500">
+                    {formatDateTime(shift.startAt)} —{" "}
+                    {formatDateTime(shift.endAt)}
+                  </div>
+                  {shift.location && (
+                    <div className="mt-1 text-[10px] font-bold text-slate-500">
+                      {shift.location}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    disabled={saving || locked}
+                    onClick={() =>
+                      ownRequest
+                        ? cancelShiftSignupRequest(shift, ownRequest)
+                        : requestShiftSignup(shift)
+                    }
+                    className={`mt-3 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-60 ${
+                      ownRequest
+                        ? "bg-rose-600 hover:bg-rose-700"
+                        : "bg-emerald-600 hover:bg-emerald-700"
+                    }`}
+                  >
+                    {locked ? (
+                      <LockKeyhole className="h-4 w-4" />
+                    ) : (
+                      <UserRoundCheck className="h-4 w-4" />
+                    )}
+                    {locked
+                      ? ownRequest
+                        ? "הבקשה נשמרה — ההרשמה נעולה"
+                        : "הבקשות נעולות"
+                      : ownRequest
+                      ? "בטל בקשת שיבוץ"
+                      : "בקש להשתבץ"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
 
       {message && (
         <div
@@ -2811,6 +3003,53 @@ export default function ShiftsView({
               ))}
             </div>
 
+            {canManage && detailsShift.signupRequestsEnabled && (
+              <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm font-black text-emerald-950">
+                    <UserRoundCheck className="h-4 w-4" />
+                    בקשות שיבוץ
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-emerald-800">
+                    {detailsShift.signupRequestsLocked ? (
+                      <LockKeyhole className="h-3.5 w-3.5" />
+                    ) : (
+                      <UnlockKeyhole className="h-3.5 w-3.5" />
+                    )}
+                    {detailsShift.signupRequestsLocked ? "נעול" : "פתוח"}
+                  </span>
+                </div>
+                {(signupRequestsByShiftId.get(detailsShift.shiftId) || [])
+                  .length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {(
+                      signupRequestsByShiftId.get(detailsShift.shiftId) || []
+                    ).map((request) => (
+                      <div
+                        key={request.requestId}
+                        className="rounded-lg border border-emerald-200 bg-white px-3 py-2"
+                      >
+                        <div className="text-xs font-black text-slate-900">
+                          {request.userName}
+                        </div>
+                        <div className="mt-0.5 text-[10px] font-bold text-slate-500">
+                          {[request.medicalRole, request.unit]
+                            .filter(Boolean)
+                            .join(" | ")}
+                          {" · "}
+                          {new Date(request.createdAt).toLocaleString("he-IL")}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 text-xs font-bold text-emerald-800">
+                    עדיין לא התקבלו בקשות.
+                  </div>
+                )}
+              </div>
+            )}
+
             {detailsShift.note && (
               <div className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-6 text-amber-900">
                 {detailsShift.note}
@@ -3021,6 +3260,59 @@ export default function ShiftsView({
                   </span>
                   <span className="mt-1 block text-[10px] font-bold text-indigo-700">
                     ההתראה תישלח רק לחיילים ששובצו במשמרת.
+                  </span>
+                </span>
+              </label>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={signupRequestsEnabled}
+                  onChange={(event) => {
+                    setSignupRequestsEnabled(event.target.checked);
+                    if (!event.target.checked) {
+                      setSignupRequestsLocked(false);
+                    }
+                  }}
+                  className="mt-0.5 h-4 w-4 accent-emerald-600"
+                />
+                <span>
+                  <span className="block text-xs font-black text-emerald-900">
+                    אפשר לחיילים לבקש להשתבץ
+                  </span>
+                  <span className="mt-1 block text-[10px] font-bold text-emerald-700">
+                    החיילים יראו את המשמרת גם אם עדיין אינם משובצים בה.
+                  </span>
+                </span>
+              </label>
+
+              <label
+                className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${
+                  signupRequestsEnabled
+                    ? "cursor-pointer border-amber-200 bg-amber-50"
+                    : "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={signupRequestsLocked}
+                  disabled={!signupRequestsEnabled}
+                  onChange={(event) =>
+                    setSignupRequestsLocked(event.target.checked)
+                  }
+                  className="mt-0.5 h-4 w-4 accent-amber-600"
+                />
+                <span>
+                  <span className="flex items-center gap-1.5 text-xs font-black text-amber-900">
+                    {signupRequestsLocked ? (
+                      <LockKeyhole className="h-4 w-4" />
+                    ) : (
+                      <UnlockKeyhole className="h-4 w-4" />
+                    )}
+                    נעל בקשות שיבוץ
+                  </span>
+                  <span className="mt-1 block text-[10px] font-bold text-amber-700">
+                    הבקשות הקיימות יישמרו, אך לא ניתן יהיה להוסיף או לבטל.
                   </span>
                 </span>
               </label>

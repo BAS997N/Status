@@ -2389,7 +2389,13 @@ const handleAdminSaveReport = async (reportData: {
           </section>
         </main>
       ) : (
-      <main className="mx-auto w-full max-w-7xl min-w-0 flex-grow overflow-x-hidden px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
+      <main
+        className={`mx-auto w-full max-w-7xl min-w-0 flex-grow px-3 py-4 sm:px-6 sm:py-6 lg:px-8 ${
+          activeTab === "line_planning"
+            ? "overflow-x-visible"
+            : "overflow-x-hidden"
+        }`}
+      >
         
         {effectiveSystemMode === "operational" && (
           <div className="mb-4 rounded-2xl border border-orange-300 bg-orange-50 px-4 py-3 text-xs font-bold text-orange-900 shadow-sm">
