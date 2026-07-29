@@ -108,6 +108,7 @@ interface CommandDashboardProps {
       location: string;
       note?: string;
       reportDate: string;
+      dayMarker?: "return_to_base" | "exit_home";
     }>
   ) => Promise<{ created: number; updated: number }>;
   onShowMessage?: (
@@ -645,6 +646,12 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   );
   const [bulkLocation, setBulkLocation] = useState("בסיס קבע");
   const [bulkNote, setBulkNote] = useState("");
+  const [bulkStartDayMarker, setBulkStartDayMarker] = useState<
+    "" | "return_to_base" | "exit_home"
+  >("");
+  const [bulkEndDayMarker, setBulkEndDayMarker] = useState<
+    "" | "return_to_base" | "exit_home"
+  >("");
   const [bulkOverwriteExisting, setBulkOverwriteExisting] = useState(false);
   const [isBulkAttendanceSaving, setIsBulkAttendanceSaving] = useState(false);
 
@@ -1436,6 +1443,7 @@ const latestTodayReport = [...todayReports].sort(
       location: string;
       note?: string;
       reportDate: string;
+      dayMarker?: "return_to_base" | "exit_home";
     }> = [];
 
     selectedProfiles.forEach((profile) => {
@@ -1455,6 +1463,15 @@ const latestTodayReport = [...todayReports].sort(
 
         if (existingReport && !bulkOverwriteExisting) return;
 
+        const dayMarker =
+          bulkStartDate === bulkEndDate
+            ? bulkStartDayMarker || bulkEndDayMarker || undefined
+            : reportDate === bulkStartDate
+            ? bulkStartDayMarker || undefined
+            : reportDate === bulkEndDate
+            ? bulkEndDayMarker || undefined
+            : undefined;
+
         entries.push({
           reportId: existingReport?.reportId,
           userId: profile.userId,
@@ -1464,6 +1481,7 @@ const latestTodayReport = [...todayReports].sort(
           location: bulkLocation.trim() || "לא צוין",
           note: bulkNote.trim(),
           reportDate,
+          dayMarker,
         });
       });
     });
@@ -1488,6 +1506,8 @@ const latestTodayReport = [...todayReports].sort(
       setIsBulkAttendanceOpen(false);
       setBulkSelectedUserIds([]);
       setBulkNote("");
+      setBulkStartDayMarker("");
+      setBulkEndDayMarker("");
     } catch (error) {
       console.error("Bulk attendance save failed:", error);
       onShowMessage?.(
@@ -4800,6 +4820,80 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                       />
                     </label>
                   </div>
+
+                  {bulkStartDate === bulkEndDate ? (
+                    <label className="block space-y-1">
+                      <span className="block text-xs font-black text-slate-600">
+                        סימון יום לתאריך שנבחר
+                      </span>
+                      <select
+                        value={bulkStartDayMarker || bulkEndDayMarker}
+                        onChange={(event) => {
+                          setBulkStartDayMarker(
+                            event.target.value as
+                              | ""
+                              | "return_to_base"
+                              | "exit_home"
+                          );
+                          setBulkEndDayMarker("");
+                        }}
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      >
+                        <option value="">ללא סימון יום</option>
+                        <option value="return_to_base">חזרה לבסיס</option>
+                        <option value="exit_home">יציאה לבית</option>
+                      </select>
+                    </label>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label className="space-y-1">
+                        <span className="block text-xs font-black text-slate-600">
+                          סימון ביום תחילת הטווח
+                        </span>
+                        <select
+                          value={bulkStartDayMarker}
+                          onChange={(event) =>
+                            setBulkStartDayMarker(
+                              event.target.value as
+                                | ""
+                                | "return_to_base"
+                                | "exit_home"
+                            )
+                          }
+                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        >
+                          <option value="">ללא סימון</option>
+                          <option value="return_to_base">חזרה לבסיס</option>
+                          <option value="exit_home">יציאה לבית</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block text-xs font-black text-slate-600">
+                          סימון ביום סיום הטווח
+                        </span>
+                        <select
+                          value={bulkEndDayMarker}
+                          onChange={(event) =>
+                            setBulkEndDayMarker(
+                              event.target.value as
+                                | ""
+                                | "return_to_base"
+                                | "exit_home"
+                            )
+                          }
+                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        >
+                          <option value="">ללא סימון</option>
+                          <option value="return_to_base">חזרה לבסיס</option>
+                          <option value="exit_home">יציאה לבית</option>
+                        </select>
+                      </label>
+                    </div>
+                  )}
+
+                  <p className="-mt-2 text-[10px] font-semibold leading-5 text-slate-400">
+                    הסימון נשמר רק ביום הראשון או האחרון שבחרת, ולא בכל הימים שבטווח.
+                  </p>
 
                   <label className="block space-y-1">
                     <span className="block text-xs font-black text-slate-600">סטטוס נוכחות</span>

@@ -2033,6 +2033,7 @@ const handleAdminBulkSaveReports = async (
     location: string;
     note?: string;
     reportDate: string;
+    dayMarker?: "return_to_base" | "exit_home";
   }>
 ) => {
   if (!userProfile || entries.length === 0) {
@@ -2050,6 +2051,7 @@ const handleAdminBulkSaveReports = async (
       note: entry.note || "",
       reportDate: entry.reportDate,
       timestamp: new Date(`${entry.reportDate}T12:00:00`).toISOString(),
+      dayMarker: entry.dayMarker,
       createdBy: userProfile.userId,
       createdByName: userProfile.fullName,
       createdByRole: userProfile.role,
