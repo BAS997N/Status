@@ -1022,6 +1022,14 @@ const exitHomeTodayCount = reportedTodayList.filter(
   const availableForActivityDetails = reportedTodayList.filter(
     (item) => getChartCategory(item.latestTodayReport?.status) === "present"
   );
+  const availableWithoutDayMarkerDetails =
+    availableForActivityDetails.filter(
+      (item) => !item.latestTodayReport?.dayMarker
+    );
+  const availableWithDayMarkerDetails =
+    availableForActivityDetails.filter(
+      (item) => Boolean(item.latestTodayReport?.dayMarker)
+    );
   const outsideUnitDetails = reportedTodayList.filter(
     (item) => getChartCategory(item.latestTodayReport?.status) === "absent"
   );
@@ -2074,7 +2082,10 @@ const latestTodayReport = [...todayReports].sort(
     if (closeSelectionWindow) setIsAttendancePdfOpen(false);
   };
 
-  const sharePersonalAttendanceImage = async (profile: UserProfile) => {
+  const sharePersonalAttendanceImage = async (
+    profile: UserProfile,
+    openDirectChat = false
+  ) => {
     const dateKeys = getDateRangeKeys(
       attendancePdfStartDate,
       attendancePdfEndDate
@@ -2086,6 +2097,19 @@ const latestTodayReport = [...todayReports].sort(
         "error"
       );
       return;
+    }
+
+    const directChatUrl = openDirectChat
+      ? getAttendanceWhatsAppUrl(profile)
+      : "";
+    const isMobileDevice =
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      navigator.maxTouchPoints > 1;
+    const canUseMobileFileShare =
+      isMobileDevice && typeof navigator.share === "function";
+
+    if (directChatUrl && !canUseMobileFileShare) {
+      window.open(directChatUrl, "_blank", "noopener,noreferrer");
     }
 
     setSharingAttendanceImageUserId(profile.userId);
@@ -2258,24 +2282,54 @@ const latestTodayReport = [...todayReports].sort(
         (typeof navigator.canShare !== "function" ||
           navigator.canShare({ files: [imageFile] }));
 
-      if (canShareFile) {
+      if (canShareFile && (!openDirectChat || isMobileDevice)) {
         await navigator.share({
           files: [imageFile],
           title: `דוח נוכחות – ${profile.fullName}`,
-          text: `דוח נוכחות לתאריכים ${attendancePdfStartDate} עד ${attendancePdfEndDate}`,
+          text: `שלום ${profile.fullName}, מצורף דוח הנוכחות שלך לתאריכים ${attendancePdfStartDate} עד ${attendancePdfEndDate}.`,
         });
       } else {
-        const downloadUrl = URL.createObjectURL(imageBlob);
-        const downloadLink = document.createElement("a");
-        downloadLink.href = downloadUrl;
-        downloadLink.download = imageFile.name;
-        downloadLink.click();
-        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-        onShowMessage?.(
-          "התמונה הורדה",
-          "במחשב יש לצרף את התמונה שהורדה לשיחת WhatsApp Web.",
-          "success"
-        );
+        let copiedToClipboard = false;
+
+        if (
+          openDirectChat &&
+          navigator.clipboard?.write &&
+          typeof ClipboardItem !== "undefined"
+        ) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ "image/png": imageBlob }),
+            ]);
+            copiedToClipboard = true;
+          } catch (clipboardError) {
+            console.warn(
+              "Attendance image clipboard copy failed:",
+              clipboardError
+            );
+          }
+        }
+
+        if (copiedToClipboard) {
+          onShowMessage?.(
+            "הצ׳אט נפתח והתמונה הועתקה",
+            "בחלון WhatsApp יש ללחוץ Ctrl+V ולאחר מכן לשלוח.",
+            "success"
+          );
+        } else {
+          const downloadUrl = URL.createObjectURL(imageBlob);
+          const downloadLink = document.createElement("a");
+          downloadLink.href = downloadUrl;
+          downloadLink.download = imageFile.name;
+          downloadLink.click();
+          window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+          onShowMessage?.(
+            openDirectChat ? "הצ׳אט נפתח והתמונה הורדה" : "התמונה הורדה",
+            openDirectChat
+              ? "יש לגרור או לצרף את התמונה שהורדה אל שיחת WhatsApp."
+              : "במחשב יש לצרף את התמונה שהורדה לשיחת WhatsApp Web.",
+            "success"
+          );
+        }
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
@@ -3450,25 +3504,52 @@ const dates = getDateRange(startDate, endDate);
           type="button"
           onClick={() =>
             openAttendanceStatDetails(
-              "זמינים לפעילות",
-              "חיילים שדיווחו שהם בבסיס או בשטח וזמינים למשימות.",
-              availableForActivityDetails
+              "זמינים לפעילות ללא סימון יום",
+              "חיילים שדיווחו שהם בבסיס או בשטח וזמינים למשימות, ללא סימון יום נוסף.",
+              availableWithoutDayMarkerDetails
             )
           }
           className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
         >
           <div>
-            <span className="text-xs text-slate-400 font-bold block">זמינים לפעילות (בסיס/שטח)</span>
+            <span className="text-xs text-slate-400 font-bold block">זמינים לפעילות ללא סימון יום</span>
             <span className="text-2xl font-black text-emerald-600 tracking-tight mt-1 block">
-              {presentCount} 
+              {availableWithoutDayMarkerDetails.length}
               <span className="text-xs text-slate-400 font-normal pr-1.5">
-                ({totalSoldiersCount > 0 ? Math.round((presentCount / totalSoldiersCount) * 100) : 0}%)
+                ({totalSoldiersCount > 0 ? Math.round((availableWithoutDayMarkerDetails.length / totalSoldiersCount) * 100) : 0}%)
               </span>
             </span>
-            <span className="text-[10px] text-slate-500 font-medium">כוח אדם זמין למשימות</span>
+            <span className="text-[10px] text-slate-500 font-medium">כוח אדם זמין ללא יציאה, חזרה או אפטר</span>
           </div>
           <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
             <Activity className="w-5 h-5" />
+          </div>
+        </button>
+
+        {/* Present Status With Day Marker */}
+        <button
+          type="button"
+          onClick={() =>
+            openAttendanceStatDetails(
+              "זמינים לפעילות עם סימון יום",
+              "חיילים שדיווחו שהם בבסיס או בשטח ובחרו גם סימון יום.",
+              availableWithDayMarkerDetails
+            )
+          }
+          className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md"
+        >
+          <div>
+            <span className="text-xs text-slate-400 font-bold block">זמינים לפעילות עם סימון יום</span>
+            <span className="text-2xl font-black text-teal-600 tracking-tight mt-1 block">
+              {availableWithDayMarkerDetails.length}
+              <span className="text-xs text-slate-400 font-normal pr-1.5">
+                ({totalSoldiersCount > 0 ? Math.round((availableWithDayMarkerDetails.length / totalSoldiersCount) * 100) : 0}%)
+              </span>
+            </span>
+            <span className="text-[10px] text-slate-500 font-medium">כולל יציאה, חזרה לבסיס או אפטר</span>
+          </div>
+          <div className="p-3 bg-teal-50 rounded-lg text-teal-600">
+            <FileCheck className="w-5 h-5" />
           </div>
         </button>
 
@@ -5861,17 +5942,16 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                         <button
                           type="button"
                           onClick={() =>
-                            window.open(
-                              getAttendanceWhatsAppUrl(profile),
-                              "_blank",
-                              "noopener,noreferrer"
-                            )
+                            sharePersonalAttendanceImage(profile, true)
                           }
-                          className="flex shrink-0 items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2 py-1.5 text-[9px] font-black text-green-700 hover:bg-green-100"
-                          title="פתח את שיחת WhatsApp של החייל"
+                          disabled={sharingAttendanceImageUserId !== null}
+                          className="flex shrink-0 items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2 py-1.5 text-[9px] font-black text-green-700 hover:bg-green-100 disabled:cursor-wait disabled:opacity-50"
+                          title="הכן תמונה ופתח שיתוף או צ׳אט WhatsApp עם החייל"
                         >
                           <MessageCircle className="h-3.5 w-3.5" />
-                          פתח צ׳אט
+                          {sharingAttendanceImageUserId === profile.userId
+                            ? "מכין..."
+                            : "שלח לחייל"}
                         </button>
                       )}
                     </div>
