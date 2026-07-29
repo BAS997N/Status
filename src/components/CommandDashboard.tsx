@@ -2223,6 +2223,17 @@ const latestTodayReport = [...todayReports].sort(
     }
   };
 
+  const getAttendanceWhatsAppUrl = (profile: UserProfile) => {
+    const phoneDigits = String(profile.phoneNumber || "").replace(/\D/g, "");
+    if (!phoneDigits) return "";
+    const whatsappNumber = phoneDigits.startsWith("972")
+      ? phoneDigits
+      : `972${phoneDigits.replace(/^0/, "")}`;
+    return `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
+      `שלום ${profile.fullName}, מצורף דוח הנוכחות שלך לתאריכים ${attendancePdfStartDate} עד ${attendancePdfEndDate}.`
+    )}`;
+  };
+
   const handleExportToCSV = (exportType: "filtered" | "all" | "military" = "filtered") => {
     // Determine which list to use
     let targetList = filteredSoldiersStatus;
@@ -5509,7 +5520,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.96, y: 14 }}
               onClick={(event) => event.stopPropagation()}
-              className="flex h-[88vh] w-[96vw] max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-2xl"
+              className="flex h-[96vh] w-[98vw] max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-2xl"
             >
               <div className="flex items-center justify-between bg-rose-800 px-5 py-4 text-white">
                 <div className="flex items-center gap-2">
@@ -5578,7 +5589,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                 </label>
               </div>
 
-              <div className="flex min-h-0 flex-1 flex-col p-4">
+              <div className="flex min-h-[360px] flex-1 flex-col p-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h4 className="text-sm font-black text-slate-800">
@@ -5664,7 +5675,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                   </div>
                 </div>
 
-                <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2 sm:grid-cols-2">
+                <div className="grid min-h-[280px] flex-1 grid-cols-1 content-start gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-3">
                   {attendancePdfSoldiers.map((profile) => (
                     <div
                       key={profile.userId}
@@ -5688,7 +5699,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                           className="h-4 w-4 accent-rose-700"
                         />
                         <span className="min-w-0">
-                          <span className="block truncate text-xs font-black text-slate-800">
+                          <span className="block truncate text-sm font-black text-slate-800">
                             {profile.fullName}
                           </span>
                           <span className="block truncate text-[10px] font-semibold text-slate-400">
@@ -5708,6 +5719,23 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                           ? "מכין..."
                           : "שתף תמונה"}
                       </button>
+                      {getAttendanceWhatsAppUrl(profile) && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            window.open(
+                              getAttendanceWhatsAppUrl(profile),
+                              "_blank",
+                              "noopener,noreferrer"
+                            )
+                          }
+                          className="flex shrink-0 items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2 py-1.5 text-[9px] font-black text-green-700 hover:bg-green-100"
+                          title="פתח את שיחת WhatsApp של החייל"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
+                          פתח צ׳אט
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
