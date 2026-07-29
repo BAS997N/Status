@@ -674,6 +674,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   const [attendancePdfSelectedUserIds, setAttendancePdfSelectedUserIds] =
     useState<string[]>([]);
   const [attendancePdfSearch, setAttendancePdfSearch] = useState("");
+  const [attendancePdfSinglePage, setAttendancePdfSinglePage] = useState(true);
 
  const defaultShortUnits = ["תאג״ד"];
 
@@ -1738,14 +1739,26 @@ const latestTodayReport = [...todayReports].sort(
       }
     });
 
-    const dateChunkSize =
-      dateKeys.length <= 16 && selectedProfiles.length <= 24
-        ? dateKeys.length
-        : 14;
-    const soldierChunkSize =
-      dateKeys.length <= 16 && selectedProfiles.length <= 24
-        ? selectedProfiles.length
-        : 24;
+    const dateChunkSize = attendancePdfSinglePage
+      ? dateKeys.length
+      : dateKeys.length <= 16 && selectedProfiles.length <= 24
+      ? dateKeys.length
+      : 14;
+    const soldierChunkSize = attendancePdfSinglePage
+      ? selectedProfiles.length
+      : dateKeys.length <= 16 && selectedProfiles.length <= 24
+      ? selectedProfiles.length
+      : 24;
+    const singlePageFontSize = Math.max(
+      3.5,
+      Math.min(8, 145 / Math.max(dateKeys.length, 12))
+    );
+    const singlePageCellPadding =
+      selectedProfiles.length > 60 || dateKeys.length > 35
+        ? "0.35mm 0.2mm"
+        : selectedProfiles.length > 35 || dateKeys.length > 24
+        ? "0.55mm 0.3mm"
+        : "0.9mm 0.5mm";
     const dateChunks: string[][] = [];
     const soldierChunks: UserProfile[][] = [];
     for (let index = 0; index < dateKeys.length; index += dateChunkSize) {
@@ -1853,22 +1866,42 @@ const latestTodayReport = [...todayReports].sort(
           <meta charset="utf-8" />
           <title>דוח נוכחות</title>
           <style>
-            @page { size: A4 landscape; margin: 6mm; }
+            @page { size: ${attendancePdfSinglePage ? "A3" : "A4"} landscape; margin: ${
+      attendancePdfSinglePage ? "4mm" : "6mm"
+    }; }
             * { box-sizing: border-box; }
             body { margin: 0; font-family: Arial, sans-serif; color: #0f172a; background: white; }
-            .report-page { page-break-after: always; width: 100%; }
+            .report-page { page-break-after: always; width: 100%; ${
+              attendancePdfSinglePage
+                ? "page-break-inside: avoid; break-inside: avoid;"
+                : ""
+            } }
             .report-page:last-child { page-break-after: auto; }
             header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5mm; border-bottom: 2px solid #1e3a5f; padding-bottom: 2mm; }
             h1 { margin: 0; font-size: 18px; }
             header p { margin: 1mm 0 0; font-size: 10px; font-weight: 700; }
             .report-meta { font-size: 8px; line-height: 1.5; text-align: left; }
             table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: ${
-              dateChunkSize <= 10 ? "8.5px" : "7px"
+              attendancePdfSinglePage
+                ? `${singlePageFontSize}px`
+                : dateChunkSize <= 10
+                ? "8.5px"
+                : "7px"
             }; }
-            th, td { border: 1px solid #cbd5e1; padding: 1.3mm 0.7mm; text-align: center; vertical-align: middle; overflow-wrap: anywhere; }
+            th, td { border: 1px solid #cbd5e1; padding: ${
+              attendancePdfSinglePage
+                ? singlePageCellPadding
+                : "1.3mm 0.7mm"
+            }; text-align: center; vertical-align: middle; overflow-wrap: anywhere; line-height: ${
+      attendancePdfSinglePage ? "1.08" : "normal"
+    }; }
             th { background: #e2e8f0; font-weight: 900; }
-            .name-column, .name-cell { width: 29mm; text-align: right; }
-            .summary-column, .summary-cell { width: 35mm; text-align: right; }
+            .name-column, .name-cell { width: ${
+              attendancePdfSinglePage ? "23mm" : "29mm"
+            }; text-align: right; }
+            .summary-column, .summary-cell { width: ${
+              attendancePdfSinglePage ? "29mm" : "35mm"
+            }; text-align: right; }
             .date-column span, .date-column strong, .name-cell strong, .name-cell small, .status-cell strong, .status-cell small { display: block; }
             .name-cell small, .status-cell small { margin-top: 0.7mm; color: #475569; font-size: 0.88em; }
             .empty-cell { color: #94a3b8; background: #f8fafc; }
@@ -5224,6 +5257,24 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                     className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold"
                   />
                 </label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={attendancePdfSinglePage}
+                    onChange={(event) =>
+                      setAttendancePdfSinglePage(event.target.checked)
+                    }
+                    className="mt-0.5 h-4 w-4 accent-blue-700"
+                  />
+                  <span>
+                    <span className="block text-xs font-black text-blue-900">
+                      התאם את כל הדוח לעמוד אחד
+                    </span>
+                    <span className="mt-1 block text-[10px] font-semibold leading-5 text-blue-700">
+                      הדוח יודפס ב־A3 אופקי והטבלה תוקטן לפי מספר החיילים והתאריכים.
+                    </span>
+                  </span>
+                </label>
               </div>
 
               <div className="flex min-h-0 flex-1 flex-col p-4">
@@ -5307,8 +5358,9 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
 
               <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-[10px] font-bold leading-5 text-slate-500">
-                  עד 16 תאריכים ו־24 חיילים יותאמו לעמוד אחד. דוח גדול יותר
-                  יחולק לעמודים קריאים עם כותרות חוזרות.
+                  {attendancePdfSinglePage
+                    ? "כל החיילים והתאריכים יודפסו בעמוד אחד. בבחירה גדולה מאוד הטקסט יוקטן."
+                    : "עד 16 תאריכים ו־24 חיילים יותאמו לעמוד אחד. דוח גדול יותר יחולק לעמודים קריאים עם כותרות חוזרות."}
                 </p>
                 <div className="flex shrink-0 gap-2">
                   <button
