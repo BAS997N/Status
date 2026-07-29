@@ -683,6 +683,14 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   >([]);
   const [sharingAttendanceImageUserId, setSharingAttendanceImageUserId] =
     useState<string | null>(null);
+  const [attendanceStatDetails, setAttendanceStatDetails] = useState<{
+    title: string;
+    description: string;
+    items: Array<{
+      profile: UserProfile;
+      report?: AttendanceReport;
+    }>;
+  } | null>(null);
 
  const defaultShortUnits = ["תאג״ד"];
 
@@ -1011,6 +1019,56 @@ const exitHomeTodayCount = reportedTodayList.filter(
   (s) => s.latestTodayReport?.dayMarker === "exit_home"
 ).length;
 
+  const availableForActivityDetails = reportedTodayList.filter(
+    (item) => getChartCategory(item.latestTodayReport?.status) === "present"
+  );
+  const outsideUnitDetails = reportedTodayList.filter(
+    (item) => getChartCategory(item.latestTodayReport?.status) === "absent"
+  );
+  const notOnOrderDetails = reportedTodayList.filter(
+    (item) => item.latestTodayReport?.status === "not_on_order"
+  );
+  const cutOrderDetails = reportedTodayList.filter(
+    (item) => item.latestTodayReport?.status === "cut_order"
+  );
+  const returnToBaseDetails = reportedTodayList.filter(
+    (item) => item.latestTodayReport?.dayMarker === "return_to_base"
+  );
+  const exitHomeDetails = reportedTodayList.filter(
+    (item) => item.latestTodayReport?.dayMarker === "exit_home"
+  );
+  const unreportedDetails = statusList.filter(
+    (item) =>
+      item.profile.role !== "commander" &&
+      item.profile.role !== "adjutant_officer" &&
+      !item.latestTodayReport
+  );
+
+  const openAttendanceStatDetails = (
+    title: string,
+    description: string,
+    items: Array<{
+      profile: UserProfile;
+      latestTodayReport?: AttendanceReport;
+    }>
+  ) => {
+    setAttendanceStatDetails({
+      title,
+      description,
+      items: items
+        .map((item) => ({
+          profile: item.profile,
+          report: item.latestTodayReport,
+        }))
+        .sort((first, second) =>
+          (first.profile.fullName || "").localeCompare(
+            second.profile.fullName || "",
+            "he"
+          )
+        ),
+    });
+  };
+
   const statusStats = reportedTodayList.reduce<Record<string, number>>((acc, item) => {
     const statusId = item.latestTodayReport?.status;
     if (statusId) acc[statusId] = (acc[statusId] || 0) + 1;
@@ -1093,6 +1151,16 @@ const latestTodayReport = [...todayReports].sort(
 
   return "";
 };
+
+  const getReportTimeText = (report?: AttendanceReport) => {
+    if (!report) return "";
+    const time = getTimeMsFromTimestamp(report.updatedAt || report.timestamp);
+    if (!time) return "";
+    return new Intl.DateTimeFormat("he-IL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(time));
+  };
 
   // Recharts data sets for the visual distribution dashboards
   const presenceDistributionData = [
@@ -3378,7 +3446,17 @@ const dates = getDateRange(startDate, endDate);
         </div>
 
         {/* Present Status */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() =>
+            openAttendanceStatDetails(
+              "זמינים לפעילות",
+              "חיילים שדיווחו שהם בבסיס או בשטח וזמינים למשימות.",
+              availableForActivityDetails
+            )
+          }
+          className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
+        >
           <div>
             <span className="text-xs text-slate-400 font-bold block">זמינים לפעילות (בסיס/שטח)</span>
             <span className="text-2xl font-black text-emerald-600 tracking-tight mt-1 block">
@@ -3392,10 +3470,20 @@ const dates = getDateRange(startDate, endDate);
           <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
             <Activity className="w-5 h-5" />
           </div>
-        </div>
+        </button>
 
         {/* Absent Status */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() =>
+            openAttendanceStatDetails(
+              "מחוץ ליחידה",
+              "חיילים שדיווחו על סטטוס מחוץ ליחידה.",
+              outsideUnitDetails
+            )
+          }
+          className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-md"
+        >
           <div>
             <span className="text-xs text-slate-400 font-bold block">מחוץ ליחידה (בית/חולים/אחר)</span>
             <span className="text-2xl font-black text-cyan-600 tracking-tight mt-1 block">
@@ -3409,10 +3497,20 @@ const dates = getDateRange(startDate, endDate);
           <div className="p-3 bg-cyan-50 rounded-lg text-cyan-600">
             <RefreshCw className="w-5 h-5" />
           </div>
-        </div>
+        </button>
 
 {/* Not On Order Status */}
-<div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+<button
+  type="button"
+  onClick={() =>
+    openAttendanceStatDetails(
+      "לא בצו",
+      "חיילים שסומנו כמי שאינם נמצאים בצו כרגע.",
+      notOnOrderDetails
+    )
+  }
+  className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md"
+>
   <div>
     <span className="text-xs text-slate-400 font-bold block">
       לא בצו
@@ -3431,9 +3529,19 @@ const dates = getDateRange(startDate, endDate);
   <div className="p-3 bg-orange-50 rounded-lg text-orange-600">
     <FileX className="w-5 h-5" />
   </div>
-</div>
+</button>
               {/* Cut Order Status */}
-<div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+<button
+  type="button"
+  onClick={() =>
+    openAttendanceStatDetails(
+      "חיתוך צו / משוחרר זמנית",
+      "חיילים שאינם זמינים בסד״כ באופן זמני.",
+      cutOrderDetails
+    )
+  }
+  className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-red-300 hover:shadow-md"
+>
   <div>
     <span className="text-xs text-slate-400 font-bold block">
       חיתוך צו / משוחרר זמנית
@@ -3452,9 +3560,19 @@ const dates = getDateRange(startDate, endDate);
   <div className="p-3 bg-red-50 rounded-lg text-red-600">
     <Scissors className="w-5 h-5" />
   </div>
-</div>
+</button>
               {/* Return To Base Today */}
-<div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+<button
+  type="button"
+  onClick={() =>
+    openAttendanceStatDetails(
+      "חוזרים לבסיס היום",
+      "חיילים שסימנו חזרה לבסיס בתאריך שנבחר.",
+      returnToBaseDetails
+    )
+  }
+  className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
+>
   <div>
     <span className="text-xs text-slate-400 font-bold block">
       חוזרים לבסיס היום
@@ -3470,10 +3588,20 @@ const dates = getDateRange(startDate, endDate);
   <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
     <ArrowLeftCircle className="w-5 h-5" />
   </div>
-</div>
+</button>
 
 {/* Exit Home Today */}
-<div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+<button
+  type="button"
+  onClick={() =>
+    openAttendanceStatDetails(
+      "יוצאים לבית היום",
+      "חיילים שסימנו יציאה לבית בתאריך שנבחר.",
+      exitHomeDetails
+    )
+  }
+  className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-purple-300 hover:shadow-md"
+>
   <div>
     <span className="text-xs text-slate-400 font-bold block">
       יוצאים לבית היום
@@ -3489,10 +3617,20 @@ const dates = getDateRange(startDate, endDate);
   <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
    <House className="w-5 h-5" />
   </div>
-</div>
+</button>
               
         {/* Unreported Today */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() =>
+            openAttendanceStatDetails(
+              "טרם דיווחו היום",
+              "חיילים שעדיין לא שלחו דיווח נוכחות בתאריך שנבחר.",
+              unreportedDetails
+            )
+          }
+          className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-rose-300 hover:shadow-md"
+        >
           <div>
             <span className="text-xs text-slate-400 font-bold block">טרם דיווחו היום</span>
             <span className={`text-2xl font-black tracking-tight mt-1 block ${unreportedCount > 0 ? "text-rose-600" : "text-slate-700"}`}>
@@ -3503,7 +3641,7 @@ const dates = getDateRange(startDate, endDate);
           <div className="p-3 bg-rose-50 rounded-lg text-rose-600">
             <ShieldAlert className="w-5 h-5" />
           </div>
-        </div>
+        </button>
 
       </div>
     )}
@@ -6722,6 +6860,134 @@ await onAdminSaveReport(dataToSave);
     </motion.div>
   )}
 </AnimatePresence>
+      <AnimatePresence>
+        {attendanceStatDetails && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setAttendanceStatDetails(null)}
+            className="fixed inset-0 z-[12500] flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.96, y: 14 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.96, y: 14 }}
+              onClick={(event) => event.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[88vh] overflow-hidden text-right flex flex-col"
+              dir="rtl"
+            >
+              <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-emerald-300 shrink-0" />
+                    <h3 className="text-base font-black truncate">
+                      {attendanceStatDetails.title}
+                    </h3>
+                    <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-black shrink-0">
+                      {attendanceStatDetails.items.length}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-300 font-medium leading-relaxed">
+                    {attendanceStatDetails.description}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAttendanceStatDetails(null)}
+                  className="p-1.5 rounded-lg text-white/75 hover:text-white hover:bg-white/10 transition cursor-pointer shrink-0"
+                  aria-label="סגירת חלון הפרטים"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto p-3 sm:p-4 bg-slate-50">
+                {attendanceStatDetails.items.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <UserCheck className="w-9 h-9 mx-auto text-slate-300 mb-3" />
+                    <p className="text-sm font-black text-slate-600">
+                      אין חיילים בקטגוריה זו
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {attendanceStatDetails.items.map(({ profile, report }) => {
+                      const statusLabel = report
+                        ? statusLabels[report.status]?.label || report.status
+                        : "טרם דיווח";
+                      const dayMarkerText = getDayMarkerText({ report });
+                      const reportTime = getReportTimeText(report);
+
+                      return (
+                        <div
+                          key={`${profile.userId}-${report?.reportId || "unreported"}`}
+                          className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-black text-slate-800 truncate">
+                                {profile.fullName}
+                              </p>
+                              <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                                {[profile.medicalRole, profile.unit]
+                                  .filter(Boolean)
+                                  .join(" · ") || "ללא שיוך"}
+                              </p>
+                            </div>
+                            <span
+                              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${
+                                report
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-rose-50 text-rose-700"
+                              }`}
+                            >
+                              {statusLabel}
+                            </span>
+                          </div>
+
+                          {report && (
+                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-slate-500">
+                              {report.location && (
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="w-3.5 h-3.5 text-cyan-600" />
+                                  {report.location}
+                                </span>
+                              )}
+                              {dayMarkerText && (
+                                <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-indigo-700">
+                                  {dayMarkerText}
+                                </span>
+                              )}
+                              {reportTime && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                  {reportTime}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-200 bg-white p-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setAttendanceStatDetails(null)}
+                  className="rounded-lg bg-slate-900 px-5 py-2 text-xs font-black text-white hover:bg-slate-800 transition cursor-pointer"
+                >
+                  סגירה
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {isSheetsExportModalOpen && (
           <motion.div
