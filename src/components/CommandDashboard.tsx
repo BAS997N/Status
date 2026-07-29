@@ -31,7 +31,8 @@ import {
   FileX,
   Pin,
   PinOff,
-  BellRing
+  BellRing,
+  CalendarRange
 } from "lucide-react";
 import { 
   UserProfile,
@@ -97,6 +98,18 @@ interface CommandDashboardProps {
     note?: string;
     reportDate?: string;
   }) => Promise<void>;
+  onAdminBulkSaveReports?: (
+    entries: Array<{
+      reportId?: string;
+      userId: string;
+      userName: string;
+      unit: string;
+      status: AttendanceStatus;
+      location: string;
+      note?: string;
+      reportDate: string;
+    }>
+  ) => Promise<{ created: number; updated: number }>;
   onShowMessage?: (
   title: string,
   message: string,
@@ -160,6 +173,7 @@ export default function CommandDashboard({
   onShowMessage,
   onSyncOldReportsToSheets,
   onAdminSaveReport,
+  onAdminBulkSaveReports,
   medicalUnits = [],
   customRoles = [],
   onUpdateMedicalSettings,
@@ -617,6 +631,22 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
 } | null>(null);
 
   const [lastSavedReport, setLastSavedReport] = useState<AttendanceReport | null>(null);
+  const [isBulkAttendanceOpen, setIsBulkAttendanceOpen] = useState(false);
+  const [bulkSelectedUserIds, setBulkSelectedUserIds] = useState<string[]>([]);
+  const [bulkSoldierSearch, setBulkSoldierSearch] = useState("");
+  const [bulkStartDate, setBulkStartDate] = useState(
+    new Date().toLocaleDateString("en-CA")
+  );
+  const [bulkEndDate, setBulkEndDate] = useState(
+    new Date().toLocaleDateString("en-CA")
+  );
+  const [bulkStatus, setBulkStatus] = useState<AttendanceStatus>(
+    commanderStatusOptions[0]?.id as AttendanceStatus || "base"
+  );
+  const [bulkLocation, setBulkLocation] = useState("בסיס קבע");
+  const [bulkNote, setBulkNote] = useState("");
+  const [bulkOverwriteExisting, setBulkOverwriteExisting] = useState(false);
+  const [isBulkAttendanceSaving, setIsBulkAttendanceSaving] = useState(false);
 
  const defaultShortUnits = ["תאג״ד"];
 
@@ -1325,6 +1355,150 @@ const latestTodayReport = [...todayReports].sort(
 
     return matchesSearch && matchesUnit && matchesStatus;
   });
+
+  const bulkAttendanceSoldiers = statusList
+    .map(({ profile }) => profile)
+    .filter((profile) => {
+      const query = bulkSoldierSearch.trim().toLocaleLowerCase("he");
+      if (!query) return true;
+      return (
+        profile.fullName.toLocaleLowerCase("he").includes(query) ||
+        profile.personalId?.includes(query) ||
+        profile.medicalRole?.toLocaleLowerCase("he").includes(query)
+      );
+    })
+    .sort((first, second) => {
+      const roleComparison = compareMedicalRoles(
+        first.medicalRole,
+        second.medicalRole
+      );
+      return roleComparison !== 0
+        ? roleComparison
+        : first.fullName.localeCompare(second.fullName, "he");
+    });
+
+  const getBulkDateKeys = () => {
+    if (!bulkStartDate || !bulkEndDate) return [];
+    const start = new Date(`${bulkStartDate}T12:00:00`);
+    const end = new Date(`${bulkEndDate}T12:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+      return [];
+    }
+
+    const dates: string[] = [];
+    const current = new Date(start);
+    while (current <= end) {
+      dates.push(current.toLocaleDateString("en-CA"));
+      current.setDate(current.getDate() + 1);
+    }
+    return dates;
+  };
+
+  const bulkDateKeys = getBulkDateKeys();
+  const bulkPotentialReports = bulkSelectedUserIds.length * bulkDateKeys.length;
+
+  const handleBulkAttendanceSave = async () => {
+    if (
+      !onAdminBulkSaveReports ||
+      bulkSelectedUserIds.length === 0 ||
+      bulkDateKeys.length === 0
+    ) {
+      onShowMessage?.(
+        "חסרים נתונים",
+        "יש לבחור לפחות חייל אחד וטווח תאריכים תקין.",
+        "error"
+      );
+      return;
+    }
+
+    const selectedConfig = attendanceStatuses.find(
+      (status) => status.id === bulkStatus
+    );
+    if (selectedConfig?.requiresNote && !bulkNote.trim()) {
+      onShowMessage?.(
+        "חסרה הערה",
+        "הסטטוס שנבחר מחייב הזנת הערה.",
+        "error"
+      );
+      return;
+    }
+
+    const selectedProfiles = statusList
+      .map(({ profile }) => profile)
+      .filter((profile) => bulkSelectedUserIds.includes(profile.userId));
+
+    const entries: Array<{
+      reportId?: string;
+      userId: string;
+      userName: string;
+      unit: string;
+      status: AttendanceStatus;
+      location: string;
+      note?: string;
+      reportDate: string;
+    }> = [];
+
+    selectedProfiles.forEach((profile) => {
+      bulkDateKeys.forEach((reportDate) => {
+        const existingReport = reports
+          .filter(
+            (report) =>
+              !(report as any).isReset &&
+              report.userId === profile.userId &&
+              isReportForDate(report, reportDate)
+          )
+          .sort(
+            (first, second) =>
+              getTimeMsFromTimestamp(second.updatedAt || second.timestamp) -
+              getTimeMsFromTimestamp(first.updatedAt || first.timestamp)
+          )[0];
+
+        if (existingReport && !bulkOverwriteExisting) return;
+
+        entries.push({
+          reportId: existingReport?.reportId,
+          userId: profile.userId,
+          userName: profile.fullName,
+          unit: profile.unit,
+          status: bulkStatus,
+          location: bulkLocation.trim() || "לא צוין",
+          note: bulkNote.trim(),
+          reportDate,
+        });
+      });
+    });
+
+    if (entries.length === 0) {
+      onShowMessage?.(
+        "אין דיווחים לעדכון",
+        "בכל התאריכים שנבחרו כבר קיימים דיווחים. ניתן להפעיל דריסת דיווחים קיימים.",
+        "info"
+      );
+      return;
+    }
+
+    setIsBulkAttendanceSaving(true);
+    try {
+      const result = await onAdminBulkSaveReports(entries);
+      onShowMessage?.(
+        "העדכון המרוכז הושלם",
+        `נוצרו ${result.created} דיווחים ועודכנו ${result.updated} דיווחים קיימים.`,
+        "success"
+      );
+      setIsBulkAttendanceOpen(false);
+      setBulkSelectedUserIds([]);
+      setBulkNote("");
+    } catch (error) {
+      console.error("Bulk attendance save failed:", error);
+      onShowMessage?.(
+        "העדכון המרוכז נכשל",
+        error instanceof Error ? error.message : "לא ניתן היה לשמור את הדיווחים.",
+        "error"
+      );
+    } finally {
+      setIsBulkAttendanceSaving(false);
+    }
+  };
 
   const handleExportToCSV = (exportType: "filtered" | "all" | "military" = "filtered") => {
     // Determine which list to use
@@ -3406,6 +3580,20 @@ const dates = getDateRange(startDate, endDate);
               onChange={(e) => setSelectedDate(e.target.value)} 
               className="border border-slate-300 rounded-md p-1 text-xs" 
             />
+            {canManageReports && onAdminBulkSaveReports && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkStartDate(selectedDate);
+                  setBulkEndDate(selectedDate);
+                  setIsBulkAttendanceOpen(true);
+                }}
+                className="flex cursor-pointer items-center gap-1.5 rounded-lg border-none bg-blue-700 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800"
+              >
+                <CalendarRange className="h-3.5 w-3.5" />
+                <span>עדכון נוכחות מרוכז</span>
+              </button>
+            )}
             {canAddSoldier && (
               <button
                 onClick={() => {
@@ -4547,6 +4735,247 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                 </div>
 
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isBulkAttendanceOpen && canManageReports && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[12400] flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm"
+            dir="rtl"
+            onClick={() => !isBulkAttendanceSaving && setIsBulkAttendanceOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.96, y: 14 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.96, y: 14 }}
+              onClick={(event) => event.stopPropagation()}
+              className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-2xl"
+            >
+              <div className="flex items-center justify-between gap-3 bg-blue-800 px-5 py-4 text-white">
+                <div className="flex items-center gap-2">
+                  <CalendarRange className="h-5 w-5" />
+                  <div>
+                    <h3 className="text-base font-black">עדכון נוכחות מרוכז</h3>
+                    <p className="mt-0.5 text-[10px] font-bold text-blue-100">
+                      הזנת סטטוס למספר חיילים וימים בפעולה אחת
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsBulkAttendanceOpen(false)}
+                  disabled={isBulkAttendanceSaving}
+                  className="rounded-lg p-1 text-white/80 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-y-auto lg:grid-cols-[1.05fr_1fr] lg:overflow-hidden">
+                <div className="space-y-4 border-b border-slate-200 p-5 lg:overflow-y-auto lg:border-b-0 lg:border-l">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="space-y-1">
+                      <span className="block text-xs font-black text-slate-600">מתאריך</span>
+                      <input
+                        type="date"
+                        value={bulkStartDate}
+                        onChange={(event) => setBulkStartDate(event.target.value)}
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="block text-xs font-black text-slate-600">עד תאריך</span>
+                      <input
+                        type="date"
+                        value={bulkEndDate}
+                        min={bulkStartDate}
+                        onChange={(event) => setBulkEndDate(event.target.value)}
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </label>
+                  </div>
+
+                  <label className="block space-y-1">
+                    <span className="block text-xs font-black text-slate-600">סטטוס נוכחות</span>
+                    <select
+                      value={bulkStatus}
+                      onChange={(event) => {
+                        const status = event.target.value as AttendanceStatus;
+                        setBulkStatus(status);
+                        setBulkLocation(
+                          status === "base"
+                            ? "בסיס קבע"
+                            : status === "home"
+                            ? "בית"
+                            : status === "field"
+                            ? "שטח / אימון"
+                            : status === "sick"
+                            ? "בית - גימלים"
+                            : "לא צוין"
+                        );
+                      }}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                      {commanderStatusOptions.map((status) => (
+                        <option key={status.id} value={status.id}>
+                          {status.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block space-y-1">
+                    <span className="block text-xs font-black text-slate-600">מיקום</span>
+                    <input
+                      type="text"
+                      value={bulkLocation}
+                      onChange={(event) => setBulkLocation(event.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      placeholder="לדוגמה: בסיס קבע"
+                    />
+                  </label>
+
+                  <label className="block space-y-1">
+                    <span className="block text-xs font-black text-slate-600">הערה (לא חובה)</span>
+                    <textarea
+                      value={bulkNote}
+                      onChange={(event) => setBulkNote(event.target.value)}
+                      rows={3}
+                      className="w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      placeholder="הערה שתישמר בכל הדיווחים שנבחרו"
+                    />
+                  </label>
+
+                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <input
+                      type="checkbox"
+                      checked={bulkOverwriteExisting}
+                      onChange={(event) =>
+                        setBulkOverwriteExisting(event.target.checked)
+                      }
+                      className="mt-0.5 h-4 w-4 accent-amber-600"
+                    />
+                    <span>
+                      <span className="block text-xs font-black text-amber-900">
+                        דרוס דיווחים קיימים בטווח
+                      </span>
+                      <span className="mt-1 block text-[10px] font-semibold leading-5 text-amber-700">
+                        כבוי כברירת מחדל. כאשר כבוי, יתמלאו רק ימים שעדיין אין בהם דיווח.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+
+                <div className="flex min-h-[360px] flex-col p-5 lg:min-h-0 lg:overflow-hidden">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-sm font-black text-slate-800">בחירת חיילים</h4>
+                      <p className="text-[10px] font-bold text-slate-400">
+                        נבחרו {bulkSelectedUserIds.length} חיילים
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setBulkSelectedUserIds(
+                            bulkAttendanceSoldiers.map((profile) => profile.userId)
+                          )
+                        }
+                        className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[10px] font-black text-emerald-700 hover:bg-emerald-100"
+                      >
+                        בחר הכל
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBulkSelectedUserIds([])}
+                        className="rounded-lg bg-rose-50 px-2.5 py-1.5 text-[10px] font-black text-rose-700 hover:bg-rose-100"
+                      >
+                        נקה
+                      </button>
+                    </div>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={bulkSoldierSearch}
+                    onChange={(event) => setBulkSoldierSearch(event.target.value)}
+                    placeholder="חיפוש לפי שם, מספר אישי או תפקיד..."
+                    className="mb-3 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+
+                  <div className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
+                    {bulkAttendanceSoldiers.map((profile) => (
+                      <label
+                        key={profile.userId}
+                        className="flex cursor-pointer items-center gap-3 rounded-lg border border-transparent bg-white px-3 py-2 transition hover:border-blue-200 hover:bg-blue-50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={bulkSelectedUserIds.includes(profile.userId)}
+                          onChange={(event) =>
+                            setBulkSelectedUserIds((current) =>
+                              event.target.checked
+                                ? [...new Set([...current, profile.userId])]
+                                : current.filter((userId) => userId !== profile.userId)
+                            )
+                          }
+                          className="h-4 w-4 accent-blue-700"
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-black text-slate-800">
+                            {profile.fullName}
+                          </span>
+                          <span className="block truncate text-[10px] font-semibold text-slate-400">
+                            {profile.medicalRole || "ללא תפקיד"} · {profile.unit}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-[11px] font-bold text-slate-600">
+                  {bulkDateKeys.length === 0 ? (
+                    <span className="text-rose-700">טווח התאריכים אינו תקין</span>
+                  ) : (
+                    <span>
+                      {bulkSelectedUserIds.length} חיילים × {bulkDateKeys.length} ימים = עד{" "}
+                      <strong className="text-blue-800">{bulkPotentialReports}</strong> דיווחים
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkAttendanceOpen(false)}
+                    disabled={isBulkAttendanceSaving}
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    ביטול
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBulkAttendanceSave}
+                    disabled={
+                      isBulkAttendanceSaving ||
+                      bulkSelectedUserIds.length === 0 ||
+                      bulkDateKeys.length === 0
+                    }
+                    className="rounded-xl bg-blue-700 px-5 py-2 text-xs font-black text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isBulkAttendanceSaving ? "שומר..." : "שמור עדכון מרוכז"}
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}

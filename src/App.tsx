@@ -2023,6 +2023,64 @@ const handleAdminSaveReport = async (reportData: {
   await refreshNotifications();
 };
 
+const handleAdminBulkSaveReports = async (
+  entries: Array<{
+    reportId?: string;
+    userId: string;
+    userName: string;
+    unit: string;
+    status: AttendanceStatus;
+    location: string;
+    note?: string;
+    reportDate: string;
+  }>
+) => {
+  if (!userProfile || entries.length === 0) {
+    return { created: 0, updated: 0 };
+  }
+
+  const payloads = entries.map((entry) => ({
+    reportId: entry.reportId,
+    report: {
+      userId: entry.userId,
+      userName: entry.userName,
+      unit: entry.unit,
+      status: entry.status,
+      location: entry.location,
+      note: entry.note || "",
+      reportDate: entry.reportDate,
+      timestamp: new Date(`${entry.reportDate}T12:00:00`).toISOString(),
+      createdBy: userProfile.userId,
+      createdByName: userProfile.fullName,
+      createdByRole: userProfile.role,
+      updatedBy: userProfile.userId,
+      updatedByName: userProfile.fullName,
+      updatedByRole: userProfile.role,
+    } as Omit<AttendanceReport, "reportId">,
+  }));
+
+  const result = await dataService.saveBulkAttendanceReports(payloads);
+
+  const uniqueSoldiers = new Set(entries.map((entry) => entry.userId)).size;
+  const sortedDates = entries
+    .map((entry) => entry.reportDate)
+    .sort((first, second) => first.localeCompare(second));
+
+  await dataService.createSystemLog({
+    action: "bulk_attendance_update",
+    actorUserId: userProfile.userId,
+    actorName: userProfile.fullName,
+    targetUserId: "multiple",
+    targetName: `${uniqueSoldiers} חיילים`,
+    details: `עדכון נוכחות מרוכז: ${entries.length} דיווחים, מתאריך ${
+      sortedDates[0]
+    } עד ${sortedDates[sortedDates.length - 1]}`,
+  });
+
+  await refreshReports();
+  return result;
+};
+
   // IDF Military and National ID Sign-in Gateway screen
  if (!userProfile) {
   if (auth?.currentUser) {
@@ -2761,6 +2819,7 @@ const handleAdminSaveReport = async (reportData: {
                 onVerifyReport={handleVerifyReport}
                 onAdminUpdateSoldier={handleAdminUpdateSoldier}
                 onAdminSaveReport={handleAdminSaveReport}
+                onAdminBulkSaveReports={handleAdminBulkSaveReports}
                 onDeleteSoldier={handleDeleteSoldier}
                 onDeleteReport={handleDeleteReport}
                 onResetReport={handleResetReport}

@@ -4607,6 +4607,128 @@ await setDoc(notRef, {
     }
   },
 
+  async saveBulkAttendanceReports(
+    entries: Array<{
+      reportId?: string;
+      report: Omit<AttendanceReport, "reportId">;
+    }>
+  ): Promise<{ created: number; updated: number }> {
+    if (entries.length === 0) return { created: 0, updated: 0 };
+
+    const currentSystemSettings = await this.getSystemSettings();
+    if (currentSystemSettings.reportingEnabled === false) {
+      const actor = await getAuditActor();
+      const allowedRoles =
+        currentSystemSettings.reportingClosedAllowedRoles || [];
+
+      if (!allowedRoles.includes(actor.actorRole as SystemRole)) {
+        throw new Error(
+          currentSystemSettings.reportingClosedMessage ||
+            "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס."
+        );
+      }
+    }
+
+    const attendanceStatusConfigs = await this.getAttendanceStatusConfigs();
+    const statusById = new Map(
+      attendanceStatusConfigs.map((status) => [status.id, status])
+    );
+
+    if (!isFirebaseActive()) {
+      const localReports: AttendanceReport[] = JSON.parse(
+        localStorage.getItem("idf_reports") || "[]"
+      );
+      let created = 0;
+      let updated = 0;
+
+      entries.forEach(({ reportId, report }) => {
+        const resolvedReportId = reportId || `rep_${Date.now()}_${created}`;
+        const existingIndex = localReports.findIndex(
+          (item) => item.reportId === resolvedReportId
+        );
+        const statusConfig = statusById.get(report.status);
+        const nextReport: AttendanceReport = {
+          ...(existingIndex >= 0 ? localReports[existingIndex] : {}),
+          ...report,
+          reportId: resolvedReportId,
+          verifiedBy:
+            statusConfig?.requiresCommanderApproval === true
+              ? undefined
+              : report.verifiedBy || "SYSTEM_AUTO",
+          verifiedAt:
+            statusConfig?.requiresCommanderApproval === true
+              ? undefined
+              : report.verifiedAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isReset: false,
+        };
+
+        if (existingIndex >= 0) {
+          localReports[existingIndex] = nextReport;
+          updated += 1;
+        } else {
+          localReports.push(nextReport);
+          created += 1;
+        }
+      });
+
+      localStorage.setItem("idf_reports", JSON.stringify(localReports));
+      return { created, updated };
+    }
+
+    let created = 0;
+    let updated = 0;
+    const now = new Date().toISOString();
+
+    for (let offset = 0; offset < entries.length; offset += 400) {
+      const batch = writeBatch(db);
+      const chunk = entries.slice(offset, offset + 400);
+
+      chunk.forEach(({ reportId, report }) => {
+        const reportRef = reportId
+          ? doc(db, "attendance", reportId)
+          : doc(collection(db, "attendance"));
+        const statusConfig = statusById.get(report.status);
+        const requiresCommanderApproval =
+          statusConfig?.requiresCommanderApproval === true;
+        const payload: Record<string, unknown> = {
+          ...report,
+          reportId: reportRef.id,
+          reportDate:
+            report.reportDate ||
+            (typeof report.timestamp === "string"
+              ? report.timestamp.split("T")[0]
+              : now.split("T")[0]),
+          timestamp: report.timestamp || now,
+          verifiedBy: requiresCommanderApproval
+            ? null
+            : report.verifiedBy || "SYSTEM_AUTO",
+          verifiedAt: requiresCommanderApproval
+            ? null
+            : report.verifiedAt || now,
+          updatedAt: now,
+          isReset: false,
+          resetAt: null,
+          resetBy: null,
+          resetByName: null,
+        };
+
+        Object.keys(payload).forEach((key) => {
+          if (payload[key] === undefined) delete payload[key];
+        });
+
+        batch.set(reportRef, payload, { merge: true });
+        if (reportId) updated += 1;
+        else created += 1;
+      });
+
+      await batch.commit();
+    }
+
+    sessionStorage.removeItem(FIRESTORE_REPORTS_CACHE_KEY);
+    return { created, updated };
+  },
+
   async updateAttendanceReport(
   reportId: string,
   reportData: Partial<AttendanceReport>,
