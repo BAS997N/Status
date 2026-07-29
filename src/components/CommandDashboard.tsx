@@ -4898,7 +4898,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.96, y: 14 }}
               onClick={(event) => event.stopPropagation()}
-              className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-2xl"
+              className="flex h-[95vh] max-h-[95vh] w-[98vw] max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-2xl"
             >
               <div className="flex items-center justify-between gap-3 bg-blue-800 px-5 py-4 text-white">
                 <div className="flex items-center gap-2">
