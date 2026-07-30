@@ -269,7 +269,7 @@ export default function LinePlanning({
   const [search, setSearch] = useState("");
   const [hiddenPlanningRoles, setHiddenPlanningRoles] = useState<string[]>([]);
   const [planningViewMode, setPlanningViewMode] = useState<
-    "overview" | "my_constraints"
+    "overview" | "edit" | "my_constraints"
   >("overview");
   const [hidePastPlanningDates, setHidePastPlanningDates] = useState(
     () =>
@@ -1008,9 +1008,23 @@ export default function LinePlanning({
                 : "border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
             }`}
           >
-            <ClipboardList className="h-4 w-4" />
-            תכנון הקו המלא
+            <Eye className="h-4 w-4" />
+            תצוגת הסידור
           </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setPlanningViewMode("edit")}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition ${
+                planningViewMode === "edit"
+                  ? "bg-emerald-700 text-white shadow-sm"
+                  : "border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <Pencil className="h-4 w-4" />
+              עריכת התכנון
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setPlanningViewMode("my_constraints")}
@@ -1030,7 +1044,7 @@ export default function LinePlanning({
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm font-bold text-slate-400">
           {canManage ? "פתח קו חדש כדי להתחיל." : "אין כרגע קו פתוח."}
         </div>
-      ) : canManage && planningViewMode === "overview" ? (
+      ) : canManage && planningViewMode !== "my_constraints" ? (
         <div className="space-y-3">
           <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -1120,7 +1134,7 @@ export default function LinePlanning({
                   </div>
                 </div>
               </details>
-              {canEdit && (
+              {canEdit && planningViewMode === "edit" && (
                 <button
                   type="button"
                   onClick={savePlans}
@@ -1298,57 +1312,79 @@ export default function LinePlanning({
                               key={`${user.userId}_${date}`}
                               className="min-w-28 border-b border-l border-slate-200 p-1"
                             >
-                              <select
-                                disabled={!canEdit}
-                                value={planStatus || ""}
-                                onChange={(event) =>
-                                  setPlanCellStatus(
-                                    user.userId,
-                                    date,
-                                    event.target.value || undefined
-                                  )
-                                }
-                                title={
-                                  conflict
-                                    ? "שובץ לקו למרות אילוץ"
-                                    : isUnavailable
-                                    ? `${priorityLabel[constraintPriority]}${
-                                        constraintPeriod?.note
-                                          ? `: ${constraintPeriod.note}`
-                                          : ""
-                                      }`
-                                    : "לחיצה מחליפה: קו / בית / ריק"
-                                }
-                                className={`h-11 w-full cursor-pointer rounded-md border px-1.5 py-1 text-center text-xs font-black !text-slate-900 [&>option]:bg-white [&>option]:text-black disabled:cursor-default ${
-                                  conflict
-                                    ? "bg-orange-500 text-white ring-2 ring-orange-200"
-                                    : selectedStatus
-                                    ? `${selectedStatus.bg} ${selectedStatus.color} ${selectedStatus.border}`
-                                    : isUnavailable
-                                    ? priorityClasses[constraintPriority]
-                                    : "border-slate-200 bg-slate-100 text-slate-400 hover:bg-slate-200"
-                                }`}
-                              >
-                                <option value="">
+                              {planningViewMode === "edit" && canEdit ? (
+                                <select
+                                  value={planStatus || ""}
+                                  onChange={(event) =>
+                                    setPlanCellStatus(
+                                      user.userId,
+                                      date,
+                                      event.target.value || undefined
+                                    )
+                                  }
+                                  title={
+                                    conflict
+                                      ? "שובץ לקו למרות אילוץ"
+                                      : isUnavailable
+                                      ? `${priorityLabel[constraintPriority]}${
+                                          constraintPeriod?.note
+                                            ? `: ${constraintPeriod.note}`
+                                            : ""
+                                        }`
+                                      : "בחר סטטוס לתאריך"
+                                  }
+                                  className={`h-11 w-full cursor-pointer rounded-md border px-1.5 py-1 text-center text-xs font-black !text-slate-900 [&>option]:bg-white [&>option]:text-black ${
+                                    conflict
+                                      ? "bg-orange-500 ring-2 ring-orange-200"
+                                      : selectedStatus
+                                      ? `${selectedStatus.bg} ${selectedStatus.border}`
+                                      : isUnavailable
+                                      ? priorityClasses[constraintPriority]
+                                      : "border-slate-200 bg-slate-100"
+                                  }`}
+                                >
+                                  <option value="">—</option>
+                                  {planStatus === "line" && (
+                                    <option value="line">בקו</option>
+                                  )}
+                                  {planningStatusOptions.map((status) => (
+                                    <option key={status.id} value={status.id}>
+                                      {status.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <div
+                                  title={
+                                    conflict
+                                      ? "שובץ לקו למרות אילוץ"
+                                      : constraintPeriod?.note ||
+                                        (isUnavailable
+                                          ? priorityLabel[constraintPriority]
+                                          : "")
+                                  }
+                                  className={`flex h-11 w-full items-center justify-center rounded-md border px-1.5 py-1 text-center text-xs font-black !text-slate-900 ${
+                                    conflict
+                                      ? "bg-orange-500 ring-2 ring-orange-200"
+                                      : selectedStatus
+                                      ? `${selectedStatus.bg} ${selectedStatus.border}`
+                                      : isUnavailable
+                                      ? priorityClasses[constraintPriority]
+                                      : "border-slate-200 bg-slate-100"
+                                  }`}
+                                >
                                   {conflict
                                     ? "חריגה"
-                                    : planStatus === "line"
-                                    ? "בקו"
-                                    : planStatus === "home"
-                                    ? "בבית"
-                                    : isUnavailable
-                                    ? priorityLabel[constraintPriority]
-                                    : "—"}
-                                </option>
-                                {planStatus === "line" && (
-                                  <option value="line">בקו</option>
-                                )}
-                                {planningStatusOptions.map((status) => (
-                                  <option key={status.id} value={status.id}>
-                                    {status.label}
-                                  </option>
-                                ))}
-                              </select>
+                                    : selectedStatus?.label ||
+                                      (planStatus === "line"
+                                        ? "בקו"
+                                        : planStatus === "home"
+                                        ? "בבית"
+                                        : isUnavailable
+                                        ? priorityLabel[constraintPriority]
+                                        : "—")}
+                                </div>
+                              )}
                             </td>
                           );
                         })}
