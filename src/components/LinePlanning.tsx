@@ -34,6 +34,7 @@ interface LinePlanningProps {
   currentUser: UserProfile;
   allUsers: UserProfile[];
   canManage: boolean;
+  canEditPlan?: boolean;
   readOnly?: boolean;
   systemSettings?: SystemSettingsConfig | null;
   attendanceStatuses: AttendanceStatusConfig[];
@@ -239,12 +240,13 @@ export default function LinePlanning({
   currentUser,
   allUsers,
   canManage,
+  canEditPlan,
   readOnly = false,
   systemSettings,
   attendanceStatuses,
   onSystemSettingsChanged,
 }: LinePlanningProps) {
-  const canEdit = canManage && !readOnly;
+  const canEdit = (canEditPlan ?? canManage) && !readOnly;
   const matrixScrollRef = useRef<HTMLDivElement>(null);
   const matrixHeaderScrollRef = useRef<HTMLDivElement>(null);
   const today = getLocalDate();
@@ -266,6 +268,9 @@ export default function LinePlanning({
   const [editingCycleId, setEditingCycleId] = useState("");
   const [search, setSearch] = useState("");
   const [hiddenPlanningRoles, setHiddenPlanningRoles] = useState<string[]>([]);
+  const [planningViewMode, setPlanningViewMode] = useState<
+    "overview" | "my_constraints"
+  >("overview");
   const [hidePastPlanningDates, setHidePastPlanningDates] = useState(
     () =>
       localStorage.getItem("idf_line_planning_hide_past_dates") !== "false"
@@ -992,11 +997,40 @@ export default function LinePlanning({
         </div>
       </div>
 
+      {canManage && selectedCycle && (
+        <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setPlanningViewMode("overview")}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition ${
+              planningViewMode === "overview"
+                ? "bg-teal-700 text-white shadow-sm"
+                : "border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <ClipboardList className="h-4 w-4" />
+            תכנון הקו המלא
+          </button>
+          <button
+            type="button"
+            onClick={() => setPlanningViewMode("my_constraints")}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition ${
+              planningViewMode === "my_constraints"
+                ? "bg-indigo-700 text-white shadow-sm"
+                : "border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <CalendarDays className="h-4 w-4" />
+            האילוצים שלי
+          </button>
+        </div>
+      )}
+
       {!selectedCycle ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm font-bold text-slate-400">
           {canManage ? "פתח קו חדש כדי להתחיל." : "אין כרגע קו פתוח."}
         </div>
-      ) : canManage ? (
+      ) : canManage && planningViewMode === "overview" ? (
         <div className="space-y-3">
           <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div>

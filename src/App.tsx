@@ -2810,9 +2810,8 @@ const handleAdminBulkSaveReports = async (
                 currentUser={viewingProfile!}
                 allUsers={allUsers}
                 canManage={canViewFullLinePlanning}
-                readOnly={
-                  Boolean(previewUser) || !canManageLinePlanning
-                }
+                canEditPlan={canManageLinePlanning}
+                readOnly={Boolean(previewUser)}
                 systemSettings={systemSettings}
                 attendanceStatuses={attendanceStatuses}
                 onSystemSettingsChanged={handleSystemSettingsChanged}
