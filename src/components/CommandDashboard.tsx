@@ -5961,29 +5961,13 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                         onClick={() => sharePersonalAttendanceImage(profile)}
                         disabled={sharingAttendanceImageUserId !== null}
                         className="flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[9px] font-black text-emerald-700 hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-50"
-                        title="צור תמונת נוכחות ושתף דרך WhatsApp"
+                        title="שתף את תמונת הנוכחות יחד עם הודעה מוכנה לחייל"
                       >
                         <MessageCircle className="h-3.5 w-3.5" />
                         {sharingAttendanceImageUserId === profile.userId
                           ? "מכין..."
                           : "שתף תמונה"}
                       </button>
-                      {getAttendanceWhatsAppUrl(profile) && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            sharePersonalAttendanceImage(profile, true)
-                          }
-                          disabled={sharingAttendanceImageUserId !== null}
-                          className="flex shrink-0 items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2 py-1.5 text-[9px] font-black text-green-700 hover:bg-green-100 disabled:cursor-wait disabled:opacity-50"
-                          title="הכן תמונה ופתח שיתוף או צ׳אט WhatsApp עם החייל"
-                        >
-                          <MessageCircle className="h-3.5 w-3.5" />
-                          {sharingAttendanceImageUserId === profile.userId
-                            ? "מכין..."
-                            : "שלח לחייל"}
-                        </button>
-                      )}
                     </div>
                   ))}
                 </div>
