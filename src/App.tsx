@@ -380,10 +380,12 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const canViewShifts = hasPermission(permissions, "shifts.view");
   const canManageShifts = hasPermission(permissions, "shifts.manage");
   const canManageLinePlanning =
-    viewingProfile?.role === "commander" ||
     hasPermission(viewingPermissions, "line_planning.manage");
-  const canViewLinePlanning =
+  const canViewFullLinePlanning =
     canManageLinePlanning ||
+    hasPermission(viewingPermissions, "line_planning.overview");
+  const canViewLinePlanning =
+    canViewFullLinePlanning ||
     (viewingProfile?.role === "soldier"
       ? systemSettings?.linePlanningVisibleToSoldiers !== false
       : hasPermission(viewingPermissions, "line_planning.view"));
@@ -528,10 +530,12 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       "shifts.view"
     );
     const profileCanManageLinePlanning =
-      profile.role === "commander" ||
       hasPermission(profilePermissions, "line_planning.manage");
-    const profileCanViewLinePlanning =
+    const profileCanViewFullLinePlanning =
       profileCanManageLinePlanning ||
+      hasPermission(profilePermissions, "line_planning.overview");
+    const profileCanViewLinePlanning =
+      profileCanViewFullLinePlanning ||
       (profile.role === "soldier"
         ? systemSettings?.linePlanningVisibleToSoldiers !== false
         : hasPermission(profilePermissions, "line_planning.view"));
@@ -2805,8 +2809,10 @@ const handleAdminBulkSaveReports = async (
               <LinePlanning
                 currentUser={viewingProfile!}
                 allUsers={allUsers}
-                canManage={canManageLinePlanning}
-                readOnly={Boolean(previewUser)}
+                canManage={canViewFullLinePlanning}
+                readOnly={
+                  Boolean(previewUser) || !canManageLinePlanning
+                }
                 systemSettings={systemSettings}
                 attendanceStatuses={attendanceStatuses}
                 onSystemSettingsChanged={handleSystemSettingsChanged}

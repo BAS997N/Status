@@ -35,10 +35,14 @@ service cloud.firestore {
     function canManageLinePlanning() {
       return isSuperAdmin() || (
         hasUserDocument() &&
-        (
-          myUser().data.role == "commander" ||
-          hasPermission("line_planning.manage")
-        )
+        hasPermission("line_planning.manage")
+      );
+    }
+
+    function canViewFullLinePlanning() {
+      return canManageLinePlanning() || (
+        hasUserDocument() &&
+        hasPermission("line_planning.overview")
       );
     }
 
@@ -204,7 +208,7 @@ service cloud.firestore {
     }
 
     match /line_constraints/{constraintId} {
-      allow read: if canManageLinePlanning() || (
+      allow read: if canViewFullLinePlanning() || (
         signedIn() && resource.data.userId == request.auth.uid
       );
       allow create: if canManageLinePlanning() || (
@@ -224,7 +228,7 @@ service cloud.firestore {
     }
 
     match /line_presence_plans/{planId} {
-      allow read: if canManageLinePlanning() || (
+      allow read: if canViewFullLinePlanning() || (
         signedIn() && resource.data.userId == request.auth.uid
       );
       allow create, update, delete: if canManageLinePlanning();

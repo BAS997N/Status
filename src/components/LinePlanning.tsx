@@ -1248,7 +1248,7 @@ export default function LinePlanning({
                                       }`
                                     : "לחיצה מחליפה: קו / בית / ריק"
                                 }
-                                className={`h-11 w-full cursor-pointer rounded-md border px-1.5 py-1 text-center text-xs font-black disabled:cursor-default ${
+                                className={`h-11 w-full cursor-pointer rounded-md border px-1.5 py-1 text-center text-xs font-black !text-slate-900 [&>option]:bg-white [&>option]:text-black disabled:cursor-default ${
                                   conflict
                                     ? "bg-orange-500 text-white ring-2 ring-orange-200"
                                     : selectedStatus

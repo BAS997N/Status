@@ -25,6 +25,7 @@ export const PERMISSION_DEFINITIONS = [
   { id: "shifts.view", label: "צפייה במשמרות", category: "משמרות" },
   { id: "shifts.manage", label: "יצירה, עריכה ומחיקת משמרות", category: "משמרות" },
   { id: "line_planning.view", label: "צפייה והזנת אילוצים לקו", category: "תכנון קו" },
+  { id: "line_planning.overview", label: "צפייה בתכנון הקו המלא ללא עריכה", category: "תכנון קו" },
   { id: "line_planning.manage", label: "פתיחת קווים ותכנון נוכחות", category: "תכנון קו" },
   { id: "emergency.view", label: "צפייה במרכז חירום", category: "חירום" },
   { id: "emergency.manage", label: "הפעלה וניהול של מצב חירום", category: "חירום" },
@@ -92,6 +93,11 @@ export const getPermissionsForRole = (
   }
 
   if (configuredPermissions["line_planning.manage"] === true) {
+    configuredPermissions["line_planning.overview"] = true;
+    configuredPermissions["line_planning.view"] = true;
+  }
+
+  if (configuredPermissions["line_planning.overview"] === true) {
     configuredPermissions["line_planning.view"] = true;
   }
 

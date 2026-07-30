@@ -4551,7 +4551,7 @@ const dates = getDateRange(startDate, endDate);
               type="date" 
               value={selectedDate} 
               onChange={(e) => setSelectedDate(e.target.value)} 
-              className="min-w-0 flex-1 border border-slate-300 rounded-md p-1 text-xs sm:flex-none" 
+              className="w-40 min-w-40 flex-none border border-slate-300 rounded-md p-1 text-xs" 
             />
             <button
               type="button"
