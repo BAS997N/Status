@@ -4611,13 +4611,6 @@ const dates = getDateRange(startDate, endDate);
               </button>
             )}
             <button
-              onClick={handleExportToCSV}
-              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-3 rounded-lg border-none transition shadow-sm flex items-center gap-1.5 cursor-pointer"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>ייצוא ל-CSV</span>
-            </button>
-            <button
               type="button"
               onClick={() => {
                 setAttendancePdfStartDate(selectedDate);
@@ -4633,6 +4626,13 @@ const dates = getDateRange(startDate, endDate);
             >
               <Printer className="h-3.5 w-3.5" />
               <span>PDF נוכחות</span>
+            </button>
+            <button
+              onClick={handleExportToCSV}
+              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-3 rounded-lg border-none transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>ייצוא ל-CSV</span>
             </button>
             <button
               onClick={() => setIsAttendanceGridCollapsed(!isAttendanceGridCollapsed)}
