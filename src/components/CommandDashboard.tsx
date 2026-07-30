@@ -4279,22 +4279,22 @@ const dates = getDateRange(startDate, endDate);
           
 {/* ATTENDANCE REPORTS CENTRAL GRID */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-visible">
-        <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 flex-wrap gap-2 text-right" dir="rtl">
-          <div className="flex items-center gap-2">
+        <div className="px-3 sm:px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 flex-wrap gap-3 text-right" dir="rtl">
+          <div className="flex w-full items-center gap-2 xl:w-auto">
             <Users className="w-4 h-4 text-military-600" />
-            <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+            <h3 className="text-sm font-extrabold text-slate-800 flex flex-wrap items-center gap-2">
               <span>רשימת נוכחות תאג"ד</span>
               <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md text-[10px] font-black">({filteredSoldiersStatus.length} חיילים במצבה)</span>
             </h3>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex flex-wrap items-center gap-3 mr-3">
+          <div className="flex w-full max-w-full flex-wrap items-center gap-2 xl:w-auto">
+            <div className="flex w-full max-w-full flex-wrap items-center gap-2 xl:mr-3 xl:w-auto">
   <input
   type="text"
   placeholder="חיפוש לפי שם, מספר אישי או תפקיד..."
   value={attendanceSearchQuery}
   onChange={(e) => setAttendanceSearchQuery(e.target.value)}
-  className="border border-slate-300 rounded-md px-2 py-1 text-xs w-56"
+  className="min-w-0 flex-1 border border-slate-300 rounded-md px-2 py-1 text-xs basis-full sm:basis-auto sm:w-56 sm:flex-none"
 />
 
 <div className="relative" ref={roleFilterRef}>
@@ -4551,8 +4551,18 @@ const dates = getDateRange(startDate, endDate);
               type="date" 
               value={selectedDate} 
               onChange={(e) => setSelectedDate(e.target.value)} 
-              className="border border-slate-300 rounded-md p-1 text-xs" 
+              className="min-w-0 flex-1 border border-slate-300 rounded-md p-1 text-xs sm:flex-none" 
             />
+            <button
+              type="button"
+              onClick={() => setSelectedDate(getTodayLocalDate())}
+              disabled={selectedDate === getTodayLocalDate()}
+              className="flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-default disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+              title="חזרה לתאריך הנוכחי"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              היום
+            </button>
             {canManageReports && onAdminBulkSaveReports && (
               <button
                 type="button"
