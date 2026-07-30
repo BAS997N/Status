@@ -202,14 +202,36 @@ const normalizeRoleName = (value?: string) =>
     .toLocaleLowerCase("he");
 
 const getPlanningRoleRank = (user: UserProfile) => {
-  const role = normalizeRoleName(`${user.medicalRole || ""} ${user.unit || ""}`);
-  if (role.includes("מפרפואה")) return 0;
-  if (role.includes("סגל") && role.includes("פיקוד") && role.includes("רפוא")) return 1;
-  if (role.includes("רופא")) return 2;
-  if (role.includes("פראמדיק") || role.includes("פרמדיק")) return 3;
-  if (role.includes("מנהל") && role.includes("אירוע")) return 4;
-  if (role.includes("חייל") && role.includes("תאגד")) return 5;
-  if (role.includes("תאגד") && role.includes("מסופח")) return 6;
+  const medicalRole = normalizeRoleName(user.medicalRole);
+  const unit = normalizeRoleName(user.unit);
+  const combined = `${medicalRole}${unit}`;
+
+  if (medicalRole.includes("מפרפואה")) return 0;
+  if (
+    combined.includes("סגל") &&
+    combined.includes("פיקוד") &&
+    combined.includes("רפוא")
+  ) {
+    return 1;
+  }
+  if (medicalRole.includes("רופא")) return 2;
+  if (
+    medicalRole.includes("פראמדיק") ||
+    medicalRole.includes("פרמדיק")
+  ) {
+    return 3;
+  }
+  if (
+    medicalRole.includes("מנהל") &&
+    medicalRole.includes("אירוע")
+  ) {
+    return 4;
+  }
+  if (medicalRole.includes("חובש")) {
+    return unit.includes("מסופח") ? 6 : 5;
+  }
+  if (unit.includes("תאגד") && unit.includes("מסופח")) return 6;
+  if (unit.includes("תאגד")) return 5;
   return 99;
 };
 
@@ -330,6 +352,10 @@ export default function LinePlanning({
       });
 
     return Array.from(roleRanks.keys()).sort((first, second) => {
+      const firstIsMedic = normalizeRoleName(first).includes("חובש");
+      const secondIsMedic = normalizeRoleName(second).includes("חובש");
+      if (firstIsMedic !== secondIsMedic) return firstIsMedic ? 1 : -1;
+
       const rankDifference =
         (roleRanks.get(first) ?? 99) - (roleRanks.get(second) ?? 99);
       return rankDifference || first.localeCompare(second, "he");
