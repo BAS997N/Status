@@ -243,6 +243,7 @@ export default function LinePlanning({
   const [newDeadline, setNewDeadline] = useState(today);
   const [editingCycleId, setEditingCycleId] = useState("");
   const [search, setSearch] = useState("");
+  const [hiddenPlanningRoles, setHiddenPlanningRoles] = useState<string[]>([]);
   const [hidePastPlanningDates, setHidePastPlanningDates] = useState(
     () =>
       localStorage.getItem("idf_line_planning_hide_past_dates") !== "false"
@@ -312,14 +313,31 @@ export default function LinePlanning({
     return new Map([...entries, ["line", legacyLine] as const]);
   }, [planningStatusOptions]);
 
+  const planningRoleOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          allUsers
+            .filter((user) => !user.isDischarged)
+            .map((user) => user.medicalRole?.trim() || "ללא תפקיד")
+        )
+      ).sort((first, second) => first.localeCompare(second, "he")),
+    [allUsers]
+  );
 
   const planningUsers = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase("he");
     return allUsers
       .filter((user) => !user.isDischarged)
+      .filter(
+        (user) =>
+          !hiddenPlanningRoles.includes(
+            user.medicalRole?.trim() || "ללא תפקיד"
+          )
+      )
       .filter((user) =>
         normalizedSearch
-          ? [user.fullName, user.personalId, user.unit]
+          ? [user.fullName, user.personalId, user.unit, user.medicalRole]
               .filter(Boolean)
               .some((value) =>
                 String(value)
@@ -335,7 +353,7 @@ export default function LinePlanning({
           roleDifference || a.fullName.localeCompare(b.fullName, "he")
         );
       });
-  }, [allUsers, search]);
+  }, [allUsers, hiddenPlanningRoles, search]);
 
   const dischargedConstraintUsers = useMemo(
     () =>
@@ -982,6 +1000,55 @@ export default function LinePlanning({
                   className="input pr-9"
                 />
               </div>
+              <details className="group relative">
+                <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50">
+                  <EyeOff className="h-4 w-4" />
+                  הסתר תפקידים
+                  {hiddenPlanningRoles.length > 0 && (
+                    <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] text-rose-700">
+                      {hiddenPlanningRoles.length}
+                    </span>
+                  )}
+                </summary>
+                <div className="absolute left-0 z-[70] mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-2 text-right shadow-xl">
+                  <div className="flex items-center justify-between border-b border-slate-100 px-2 pb-2">
+                    <span className="text-[11px] font-black text-slate-700">
+                      סמן תפקידים להסתרה
+                    </span>
+                    {hiddenPlanningRoles.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setHiddenPlanningRoles([])}
+                        className="text-[10px] font-black text-rose-700 hover:text-rose-900"
+                      >
+                        הצג הכול
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-1 max-h-64 space-y-1 overflow-y-auto">
+                    {planningRoleOptions.map((role) => (
+                      <label
+                        key={role}
+                        className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={hiddenPlanningRoles.includes(role)}
+                          onChange={(event) =>
+                            setHiddenPlanningRoles((current) =>
+                              event.target.checked
+                                ? [...current, role]
+                                : current.filter((item) => item !== role)
+                            )
+                          }
+                          className="h-4 w-4 accent-rose-600"
+                        />
+                        <span>{role}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </details>
               {canEdit && (
                 <button
                   type="button"
@@ -1038,7 +1105,7 @@ export default function LinePlanning({
               <table className="w-max min-w-full border-collapse text-center text-[10px]">
                 <thead className="bg-slate-100">
                   <tr>
-                    <th className="sticky right-0 z-30 min-w-60 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 text-right text-xs">
+                    <th className="sticky right-0 z-30 w-40 min-w-40 border-b border-l border-slate-200 bg-slate-100 px-2 py-3 text-right text-xs sm:w-48 sm:min-w-48">
                       חייל
                     </th>
                     {managerCycleDates.map((date) => (
@@ -1094,17 +1161,27 @@ export default function LinePlanning({
                     );
                     return (
                       <tr key={user.userId} className="hover:bg-slate-50">
-                        <td className="sticky right-0 z-10 min-w-60 border-b border-l border-slate-200 bg-white px-3 py-2 text-right">
+                        <td className="sticky right-0 z-10 w-40 min-w-40 max-w-40 border-b border-l border-slate-200 bg-white px-2 py-2 text-right sm:w-48 sm:min-w-48 sm:max-w-48">
                           <div className="font-black text-slate-800">
                             {user.fullName}
                           </div>
-                          <div className="mt-0.5 text-[9px] font-bold text-slate-400">
-                            {user.unit}
-                            {constraint ? " · אילוצים הוזנו" : " · טרם הוזן"}
+                          <div className="mt-0.5 break-words text-[10px] font-bold leading-4 text-slate-500">
+                            {[user.unit, user.medicalRole || "ללא תפקיד"]
+                              .filter(Boolean)
+                              .join(" · ")}
+                            <span
+                              className={
+                                constraint
+                                  ? "text-emerald-700"
+                                  : "text-slate-400"
+                              }
+                            >
+                              {constraint ? " · אילוצים הוזנו" : " · טרם הוזן"}
+                            </span>
                           </div>
                           {constraint?.note && (
                             <div
-                              className="mt-1 max-w-44 truncate text-[9px] font-bold text-amber-700"
+                              className="mt-1 max-w-36 truncate text-[9px] font-bold text-amber-700 sm:max-w-44"
                               title={constraint.note}
                             >
                               {constraint.note}
@@ -1171,7 +1248,7 @@ export default function LinePlanning({
                                       }`
                                     : "לחיצה מחליפה: קו / בית / ריק"
                                 }
-                                className={`h-10 w-full cursor-pointer rounded-md border px-1 py-1 text-center text-[9px] font-black disabled:cursor-default ${
+                                className={`h-11 w-full cursor-pointer rounded-md border px-1.5 py-1 text-center text-xs font-black disabled:cursor-default ${
                                   conflict
                                     ? "bg-orange-500 text-white ring-2 ring-orange-200"
                                     : selectedStatus
