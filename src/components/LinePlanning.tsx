@@ -313,17 +313,28 @@ export default function LinePlanning({
     return new Map([...entries, ["line", legacyLine] as const]);
   }, [planningStatusOptions]);
 
-  const planningRoleOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          allUsers
-            .filter((user) => !user.isDischarged)
-            .map((user) => user.medicalRole?.trim() || "ללא תפקיד")
-        )
-      ).sort((first, second) => first.localeCompare(second, "he")),
-    [allUsers]
-  );
+  const planningRoleOptions = useMemo(() => {
+    const roleRanks = new Map<string, number>();
+
+    allUsers
+      .filter((user) => !user.isDischarged)
+      .forEach((user) => {
+        const role = user.medicalRole?.trim() || "ללא תפקיד";
+        roleRanks.set(
+          role,
+          Math.min(
+            roleRanks.get(role) ?? Number.MAX_SAFE_INTEGER,
+            getPlanningRoleRank(user)
+          )
+        );
+      });
+
+    return Array.from(roleRanks.keys()).sort((first, second) => {
+      const rankDifference =
+        (roleRanks.get(first) ?? 99) - (roleRanks.get(second) ?? 99);
+      return rankDifference || first.localeCompare(second, "he");
+    });
+  }, [allUsers]);
 
   const planningUsers = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase("he");
