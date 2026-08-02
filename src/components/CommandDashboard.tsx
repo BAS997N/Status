@@ -232,6 +232,14 @@ export default function CommandDashboard({
       .trim()
       .toLocaleLowerCase("he");
 
+  const isAttachedToTagad = (profile: UserProfile) => {
+    const normalizedUnit = (profile.unit || "")
+      .replace(/[״׳'"`]/g, "")
+      .replace(/\s+/g, "")
+      .toLocaleLowerCase("he");
+    return normalizedUnit.includes("מסופח") && normalizedUnit.includes("תאגד");
+  };
+
   const medicalRoleOrder = new Map(
     customRoles.map((roleName, index) => [
       normalizeMedicalRoleName(roleName),
@@ -1012,9 +1020,20 @@ const activeReports = reports.filter(
   const rosterDischargedSoldiers = allSoldiers.filter((s) => s.isDischarged);
 
   // Statistics Computations (Specifically for Today: June 10, 2026)
-  const totalSoldiersCount = allSoldiers.filter(s => s.role !== "commander" && s.role !== "adjutant_officer" && !s.isDischarged).length;
+  const totalSoldiersCount = allSoldiers.filter(
+    (soldier) =>
+      !soldier.isDischarged &&
+      (isAttachedToTagad(soldier) ||
+        (soldier.role !== "commander" && soldier.role !== "adjutant_officer"))
+  ).length;
   
-  const reportedTodayList = statusList.filter(s => s.latestTodayReport && s.profile.role !== "commander" && s.profile.role !== "adjutant_officer");
+  const reportedTodayList = statusList.filter(
+    (item) =>
+      item.latestTodayReport &&
+      (isAttachedToTagad(item.profile) ||
+        (item.profile.role !== "commander" &&
+          item.profile.role !== "adjutant_officer"))
+  );
   const reportedTodayCount = reportedTodayList.length;
   
   const unreportedCount = totalSoldiersCount - reportedTodayCount;
@@ -1080,8 +1099,9 @@ const exitHomeTodayCount = reportedTodayList.filter(
   );
   const unreportedDetails = statusList.filter(
     (item) =>
-      item.profile.role !== "commander" &&
-      item.profile.role !== "adjutant_officer" &&
+      (isAttachedToTagad(item.profile) ||
+        (item.profile.role !== "commander" &&
+          item.profile.role !== "adjutant_officer")) &&
       !item.latestTodayReport
   );
 
