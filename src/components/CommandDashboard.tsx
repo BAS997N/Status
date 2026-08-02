@@ -1034,26 +1034,6 @@ const exitHomeTodayCount = reportedTodayList.filter(
     availableForActivityDetails.filter(
       (item) => !item.latestTodayReport?.dayMarker
     );
-  const availableWithDayMarkerDetails =
-    availableForActivityDetails
-      .filter((item) => Boolean(item.latestTodayReport?.dayMarker))
-      .sort((first, second) => {
-        const markerOrder: Record<string, number> = {
-          exit_home: 0,
-          after_hours: 1,
-          return_to_base: 2,
-        };
-        const firstOrder =
-          markerOrder[first.latestTodayReport?.dayMarker || ""] ?? 99;
-        const secondOrder =
-          markerOrder[second.latestTodayReport?.dayMarker || ""] ?? 99;
-
-        if (firstOrder !== secondOrder) return firstOrder - secondOrder;
-        return (first.profile.fullName || "").localeCompare(
-          second.profile.fullName || "",
-          "he"
-        );
-      });
   const availableExitHomeDetails = availableForActivityDetails.filter(
     (item) => item.latestTodayReport?.dayMarker === "exit_home"
   );
@@ -1066,7 +1046,6 @@ const exitHomeTodayCount = reportedTodayList.filter(
   const getAvailableRoleSummary = (
     items: Array<{
       profile: UserProfile;
-      latestTodayReport?: AttendanceReport;
     }>
   ) =>
     items.reduce(
@@ -1084,12 +1063,6 @@ const exitHomeTodayCount = reportedTodayList.filter(
       },
       { medics: 0, doctors: 0, paramedics: 0, drivers: 0 }
     );
-  const availableWithoutMarkerRoleSummary = getAvailableRoleSummary(
-    availableWithoutDayMarkerDetails
-  );
-  const availableWithMarkerRoleSummary = getAvailableRoleSummary(
-    availableWithDayMarkerDetails
-  );
   const outsideUnitDetails = reportedTodayList.filter(
     (item) => getChartCategory(item.latestTodayReport?.status) === "absent"
   );
@@ -3617,7 +3590,7 @@ const dates = getDateRange(startDate, endDate);
         <button
           type="button"
           onClick={openAvailableActivityDetails}
-          className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-start justify-between gap-3 text-right transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md lg:col-span-2"
+          className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-3 text-right transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
         >
           <div className="min-w-0 flex-1">
             <span className="text-xs text-slate-400 font-bold block">
@@ -3631,33 +3604,6 @@ const dates = getDateRange(startDate, endDate);
               <span className="text-violet-700">יוצאים לבית: {availableExitHomeDetails.length}</span>
               <span className="text-blue-700">חוזרים לבסיס: {availableReturnToBaseDetails.length}</span>
               <span className="text-fuchsia-700">אפטר: {availableAfterHoursDetails.length}</span>
-            </div>
-            <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[9px] font-black sm:text-[10px]">
-              <div className="grid grid-cols-[minmax(78px,1.3fr)_repeat(4,minmax(38px,0.65fr))] items-center border-b border-slate-200 bg-slate-100 text-center text-slate-500">
-                <span className="px-1.5 py-1.5 text-right">סיכום תפקידים</span>
-                <span className="px-1 py-1.5">חובשים</span>
-                <span className="px-1 py-1.5">רופאים</span>
-                <span className="px-1 py-1.5">פראמדיקים</span>
-                <span className="px-1 py-1.5">נהגים</span>
-              </div>
-              <div className="grid grid-cols-[minmax(78px,1.3fr)_repeat(4,minmax(38px,0.65fr))] items-center border-b border-slate-200 text-center text-slate-700">
-                <span className="px-1.5 py-1.5 text-right text-emerald-700">
-                  ללא סימון ({availableWithoutDayMarkerDetails.length})
-                </span>
-                <span>{availableWithoutMarkerRoleSummary.medics}</span>
-                <span>{availableWithoutMarkerRoleSummary.doctors}</span>
-                <span>{availableWithoutMarkerRoleSummary.paramedics}</span>
-                <span>{availableWithoutMarkerRoleSummary.drivers}</span>
-              </div>
-              <div className="grid grid-cols-[minmax(78px,1.3fr)_repeat(4,minmax(38px,0.65fr))] items-center text-center text-slate-700">
-                <span className="px-1.5 py-1.5 text-right text-indigo-700">
-                  עם סימון ({availableWithDayMarkerDetails.length})
-                </span>
-                <span>{availableWithMarkerRoleSummary.medics}</span>
-                <span>{availableWithMarkerRoleSummary.doctors}</span>
-                <span>{availableWithMarkerRoleSummary.paramedics}</span>
-                <span>{availableWithMarkerRoleSummary.drivers}</span>
-              </div>
             </div>
           </div>
           <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600 shrink-0">
@@ -7110,14 +7056,25 @@ await onAdminSaveReport(dataToSave);
                         key={`${group.title || "details"}-${groupIndex}`}
                         className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
                       >
-                        {group.title && (
-                          <div className={`flex items-center justify-between gap-3 border-b px-3.5 py-2.5 ${group.accentClass}`}>
-                            <h4 className="text-xs font-black">{group.title}</h4>
-                            <span className="rounded-full bg-white/75 px-2 py-0.5 text-[11px] font-black">
-                              {group.items.length}
-                            </span>
-                          </div>
-                        )}
+                        {group.title && (() => {
+                          const roleSummary = getAvailableRoleSummary(group.items);
+                          return (
+                            <div className={`border-b px-3.5 py-2.5 ${group.accentClass}`}>
+                              <div className="flex items-center justify-between gap-3">
+                                <h4 className="text-xs font-black">{group.title}</h4>
+                                <span className="rounded-full bg-white/75 px-2 py-0.5 text-[11px] font-black">
+                                  {group.items.length}
+                                </span>
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-black">
+                                <span className="rounded-md bg-white/75 px-2 py-1">חובשים: {roleSummary.medics}</span>
+                                <span className="rounded-md bg-white/75 px-2 py-1">רופאים: {roleSummary.doctors}</span>
+                                <span className="rounded-md bg-white/75 px-2 py-1">פראמדיקים: {roleSummary.paramedics}</span>
+                                <span className="rounded-md bg-white/75 px-2 py-1">נהגים: {roleSummary.drivers}</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         {group.items.length === 0 ? (
                           <p className="px-4 py-5 text-center text-xs font-bold text-slate-400">
