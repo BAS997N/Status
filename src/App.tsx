@@ -1395,6 +1395,23 @@ const handleResetReport = async (reportId: string) => {
   };
 
   // ID-based Login and Registration controllers
+const beginFirstRegistration = () => {
+  const cleanId = personalIdInput.trim();
+  const cleanCode = personalCodeInput.trim();
+
+  if (!/^\d{5,10}$/.test(cleanId)) {
+    setLoginError("לרישום ראשוני יש להזין מספר אישי תקין בן 5 עד 10 ספרות.");
+    return;
+  }
+
+  setRegPersonalId(cleanId);
+  setRegPersonalCode(/^\d{6}$/.test(cleanCode) ? cleanCode : "");
+  setRegPersonalCodeConfirm("");
+  setRegRole("soldier");
+  setLoginError("");
+  setIsRegisteringId(true);
+};
+
 const handleIdLoginSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setLoginError("");
@@ -1441,11 +1458,14 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
       );
 
       if (!foundProfile) {
-        await signOut(auth);
-        setFirebaseUser(null);
+        setRegPersonalId(cleanId);
+        setRegPersonalCode(cleanCode);
+        setRegPersonalCodeConfirm("");
+        setRegRole("soldier");
         setLoginError(
-          "ההתחברות אומתה, אך לא נמצא פרופיל משתמש מתאים. יש לפנות למנהל המערכת."
+          "החשבון זוהה, אך הרישום לא הושלם. יש להשלים את הפרטים."
         );
+        setIsRegisteringId(true);
         return;
       }
 
@@ -1490,7 +1510,9 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
       error?.code === "auth/wrong-password" ||
       error?.code === "auth/user-not-found"
     ) {
-      setLoginError("מספר אישי או קוד אישי שגויים.");
+      setLoginError(
+        "מספר אישי או קוד אישי שגויים. אם זו הכניסה הראשונה שלך, לחץ על „הרשמה ראשונית” למטה."
+      );
     } else if (error?.code === "auth/user-disabled") {
       setLoginError("החשבון הושבת. יש לפנות למנהל המערכת.");
     } else if (error?.code === "auth/too-many-requests") {
@@ -1549,14 +1571,24 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
     try {
       if (isFirebaseActive() && auth) {
   const authEmail = buildAuthEmail(regPersonalId.trim());
+  const existingAuthenticatedUser = auth.currentUser;
 
-  const userCredential = await createUserWithEmailAndPassword(
-    auth,
-    authEmail,
-    cleanRegCode
-  );
-
-  newProfile.userId = userCredential.user.uid;
+  if (
+    existingAuthenticatedUser &&
+    existingAuthenticatedUser.email === authEmail
+  ) {
+    newProfile.userId = existingAuthenticatedUser.uid;
+  } else {
+    if (existingAuthenticatedUser) {
+      await signOut(auth);
+    }
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      authEmail,
+      cleanRegCode
+    );
+    newProfile.userId = userCredential.user.uid;
+  }
   newProfile.email = authEmail;
 }
      await dataService.saveUserProfile(newProfile);
@@ -2241,6 +2273,17 @@ const handleAdminBulkSaveReports = async (
                     </>
                   )}
                 </button>
+                <button
+                  type="button"
+                  onClick={beginFirstRegistration}
+                  disabled={loading}
+                  className="w-full rounded-xl border border-emerald-700/50 bg-slate-900 px-4 py-3 text-xs font-black text-emerald-300 transition hover:border-emerald-500 hover:bg-slate-800 disabled:opacity-50"
+                >
+                  הרשמה ראשונית לחייל חדש
+                </button>
+                <p className="text-center text-[10px] font-bold leading-4 text-slate-500">
+                  מיועד רק למי שעדיין לא יצר קוד אישי במערכת.
+                </p>
               </motion.form>
             ) : (
               <motion.form 
@@ -2291,7 +2334,7 @@ const handleAdminBulkSaveReports = async (
     <input
       type="password"
       required
-      placeholder="4-6 ספרות"
+      placeholder="6 ספרות"
       value={regPersonalCode}
       onChange={(e) => setRegPersonalCode(e.target.value)}
       className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2.5 focus:border-emerald-500 text-xs focus:ring-1 focus:ring-emerald-500 outline-none text-white font-medium text-center tracking-widest"
