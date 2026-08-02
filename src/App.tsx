@@ -57,6 +57,11 @@ import ShiftsView from "./components/ShiftsView";
 import LinePlanning from "./components/LinePlanning";
 import EmergencyCenter from "./components/EmergencyCenter";
 import CommanderMessageInbox from "./components/CommanderMessageInbox";
+import {
+  completePasswordReset,
+  requestPasswordReset,
+  verifyRecoveryEmail,
+} from "./services/accountRecoveryService";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   ShieldCheck, 
@@ -139,6 +144,34 @@ export default function App() {
   const [regPasscode, setRegPasscode] = useState("");
   const [regPersonalCode, setRegPersonalCode] = useState("");
 const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
+  const initialRecoveryParams = new URLSearchParams(window.location.search);
+  const [recoveryMode, setRecoveryMode] = useState<"none" | "request" | "verify" | "reset">(() => {
+    const action = initialRecoveryParams.get("recoveryAction");
+    return action === "verify" ? "verify" : action === "reset" ? "reset" : "none";
+  });
+  const [recoveryToken] = useState(() => initialRecoveryParams.get("token") || "");
+  const [recoveryPersonalId, setRecoveryPersonalId] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [recoveryCodeConfirm, setRecoveryCodeConfirm] = useState("");
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState("");
+  const [recoveryError, setRecoveryError] = useState("");
+  const recoveryVerifyStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (recoveryMode !== "verify" || !recoveryToken || recoveryVerifyStartedRef.current) return;
+    recoveryVerifyStartedRef.current = true;
+    setRecoveryBusy(true);
+    verifyRecoveryEmail(recoveryToken)
+      .then((result) => {
+        setRecoveryMessage(result.message || "המייל אומת בהצלחה. מעכשיו ניתן לאפס את הקוד באופן עצמאי.");
+        window.history.replaceState({}, "", window.location.pathname);
+      })
+      .catch((error) => {
+        setRecoveryError(error instanceof Error ? error.message : "אימות המייל נכשל.");
+      })
+      .finally(() => setRecoveryBusy(false));
+  }, [recoveryMode, recoveryToken]);
 
   // Notifications & Toast states
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -1417,6 +1450,66 @@ const beginFirstRegistration = () => {
   setIsRegisteringId(true);
 };
 
+const handleRecoveryRequest = async (event: React.FormEvent) => {
+  event.preventDefault();
+  const cleanId = recoveryPersonalId.trim();
+  setRecoveryError("");
+  setRecoveryMessage("");
+  if (!/^\d{5,10}$/.test(cleanId)) {
+    setRecoveryError("יש להזין מספר אישי תקין בן 5 עד 10 ספרות.");
+    return;
+  }
+  setRecoveryBusy(true);
+  try {
+    const result = await requestPasswordReset(cleanId);
+    setRecoveryMessage(
+      result.message ||
+        "אם קיים חשבון עם מייל מאומת, נשלח אליו קישור לאיפוס הקוד."
+    );
+  } catch (error) {
+    setRecoveryError(error instanceof Error ? error.message : "שליחת הקישור נכשלה.");
+  } finally {
+    setRecoveryBusy(false);
+  }
+};
+
+const handleRecoveryComplete = async (event: React.FormEvent) => {
+  event.preventDefault();
+  setRecoveryError("");
+  setRecoveryMessage("");
+  if (!recoveryToken) {
+    setRecoveryError("קישור האיפוס אינו תקין.");
+    return;
+  }
+  if (!/^\d{6}$/.test(recoveryCode)) {
+    setRecoveryError("הקוד החדש חייב להכיל 6 ספרות.");
+    return;
+  }
+  if (recoveryCode !== recoveryCodeConfirm) {
+    setRecoveryError("אימות הקוד החדש אינו תואם.");
+    return;
+  }
+  setRecoveryBusy(true);
+  try {
+    const result = await completePasswordReset(recoveryToken, recoveryCode);
+    setRecoveryMessage(result.message || "הקוד עודכן בהצלחה. ניתן לחזור למסך הכניסה.");
+    window.history.replaceState({}, "", window.location.pathname);
+  } catch (error) {
+    setRecoveryError(error instanceof Error ? error.message : "איפוס הקוד נכשל.");
+  } finally {
+    setRecoveryBusy(false);
+  }
+};
+
+const closeRecoveryScreen = () => {
+  window.history.replaceState({}, "", window.location.pathname);
+  setRecoveryMode("none");
+  setRecoveryError("");
+  setRecoveryMessage("");
+  setRecoveryCode("");
+  setRecoveryCodeConfirm("");
+};
+
 const handleIdLoginSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setLoginError("");
@@ -2188,6 +2281,86 @@ const handleAdminBulkSaveReports = async (
   };
 };
 
+  if (recoveryMode !== "none") {
+    const isRequest = recoveryMode === "request";
+    const isReset = recoveryMode === "reset";
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4 text-white" dir="rtl">
+        <div className="w-full max-w-md rounded-2xl border-2 border-emerald-800/40 bg-slate-950/90 p-7 shadow-2xl">
+          <div className="mb-5 text-center">
+            <ShieldCheck className="mx-auto h-12 w-12 text-emerald-400" />
+            <h1 className="mt-3 text-xl font-black">
+              {isRequest ? "שחזור קוד אישי" : isReset ? "בחירת קוד חדש" : "אימות מייל אישי"}
+            </h1>
+          </div>
+
+          {isRequest && !recoveryMessage && (
+            <form onSubmit={handleRecoveryRequest} className="space-y-4">
+              <p className="text-xs font-bold leading-5 text-slate-400">
+                הזן את המספר האישי. אם קיים בחשבון מייל אישי מאומת, יישלח אליו קישור חד־פעמי.
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={recoveryPersonalId}
+                onChange={(event) => setRecoveryPersonalId(event.target.value.replace(/\D/g, "").slice(0, 10))}
+                placeholder="מספר אישי"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-center text-sm font-black tracking-widest text-white outline-none focus:border-emerald-500"
+              />
+              <button disabled={recoveryBusy} className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black hover:bg-emerald-500 disabled:opacity-50">
+                {recoveryBusy ? "שולח..." : "שלח קישור איפוס"}
+              </button>
+            </form>
+          )}
+
+          {isReset && !recoveryMessage && (
+            <form onSubmit={handleRecoveryComplete} className="space-y-4">
+              <p className="text-xs font-bold leading-5 text-slate-400">בחר קוד אישי חדש בן 6 ספרות.</p>
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                value={recoveryCode}
+                onChange={(event) => setRecoveryCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="קוד חדש"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-center text-sm font-black tracking-widest text-white outline-none focus:border-emerald-500"
+              />
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                value={recoveryCodeConfirm}
+                onChange={(event) => setRecoveryCodeConfirm(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="אימות הקוד החדש"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-center text-sm font-black tracking-widest text-white outline-none focus:border-emerald-500"
+              />
+              <button disabled={recoveryBusy} className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black hover:bg-emerald-500 disabled:opacity-50">
+                {recoveryBusy ? "מעדכן..." : "עדכן קוד אישי"}
+              </button>
+            </form>
+          )}
+
+          {recoveryMode === "verify" && recoveryBusy && (
+            <p className="text-center text-sm font-bold text-slate-300">מאמת את כתובת המייל...</p>
+          )}
+          {recoveryMessage && (
+            <div className="rounded-xl border border-emerald-700/50 bg-emerald-950/50 p-4 text-xs font-bold leading-6 text-emerald-200">
+              {recoveryMessage}
+            </div>
+          )}
+          {recoveryError && (
+            <div className="mt-3 rounded-xl border border-rose-800/50 bg-rose-950/50 p-3 text-xs font-bold text-rose-200">
+              {recoveryError}
+            </div>
+          )}
+          <button type="button" onClick={closeRecoveryScreen} className="mt-5 w-full rounded-xl border border-slate-700 px-4 py-2.5 text-xs font-black text-slate-300 hover:bg-slate-900">
+            חזרה למסך הכניסה
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // IDF Military and National ID Sign-in Gateway screen
  if (!userProfile) {
   if (auth?.currentUser) {
@@ -2300,6 +2473,18 @@ const handleAdminBulkSaveReports = async (
                   className="w-full rounded-xl border border-emerald-700/50 bg-slate-900 px-4 py-3 text-xs font-black text-emerald-300 transition hover:border-emerald-500 hover:bg-slate-800 disabled:opacity-50"
                 >
                   הרשמה ראשונית לחייל חדש
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRecoveryMode("request");
+                    setRecoveryError("");
+                    setRecoveryMessage("");
+                  }}
+                  disabled={loading}
+                  className="w-full rounded-xl border border-slate-700 bg-transparent px-4 py-2.5 text-xs font-black text-slate-300 transition hover:border-emerald-700 hover:text-emerald-300 disabled:opacity-50"
+                >
+                  שכחתי את הקוד האישי
                 </button>
                 <p className="text-center text-[10px] font-bold leading-4 text-slate-500">
                   מיועד רק למי שעדיין לא יצר קוד אישי במערכת.

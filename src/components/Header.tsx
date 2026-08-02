@@ -4,6 +4,7 @@ import { UserProfile, AppNotification, ATTENDANCE_STATUS_LABELS, SystemSettingsC
 import { isFirebaseActive } from "../firebase";
 import { motion, AnimatePresence } from "motion/react";
 import PushNotificationButton from "./PushNotificationButton";
+import { requestRecoveryEmailVerification } from "../services/accountRecoveryService";
 
 interface HeaderProps {
   currentUser: UserProfile;
@@ -47,6 +48,8 @@ export default function Header({
     currentUser.recoveryEmail || ""
   );
   const [profileError, setProfileError] = useState("");
+  const [recoveryStatus, setRecoveryStatus] = useState("");
+  const [sendingRecoveryVerification, setSendingRecoveryVerification] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -90,6 +93,28 @@ export default function Header({
           : false,
     });
     setIsProfileOpen(false);
+  };
+
+  const handleSendRecoveryVerification = async () => {
+    setProfileError("");
+    setRecoveryStatus("");
+    if (!currentUser.recoveryEmail) {
+      setProfileError("יש לשמור תחילה כתובת מייל אישית.");
+      return;
+    }
+    if (editRecoveryEmail.trim().toLowerCase() !== currentUser.recoveryEmail.toLowerCase()) {
+      setProfileError("כתובת המייל השתנתה. שמור את הפרטים לפני שליחת האימות.");
+      return;
+    }
+    setSendingRecoveryVerification(true);
+    try {
+      const result = await requestRecoveryEmailVerification();
+      setRecoveryStatus(result.message || "קישור אימות נשלח למייל האישי.");
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "שליחת האימות נכשלה.");
+    } finally {
+      setSendingRecoveryVerification(false);
+    }
   };
 
   const configuredTimeZone = systemSettings?.timeZone || "Asia/Jerusalem";
@@ -367,7 +392,32 @@ export default function Header({
                     <p className="mt-1 text-[10px] font-bold text-military-400">
                       המייל נשמר בנפרד מהמספר האישי וישמש לשחזור הקוד.
                     </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-black ${
+                        currentUser.recoveryEmailVerified
+                          ? "bg-emerald-900/60 text-emerald-200"
+                          : "bg-amber-900/60 text-amber-200"
+                      }`}>
+                        {currentUser.recoveryEmailVerified ? "המייל מאומת" : "המייל עדיין לא אומת"}
+                      </span>
+                      {!currentUser.recoveryEmailVerified && (
+                        <button
+                          type="button"
+                          onClick={handleSendRecoveryVerification}
+                          disabled={sendingRecoveryVerification}
+                          className="rounded border border-emerald-600/60 bg-emerald-900/40 px-2.5 py-1 text-[10px] font-black text-emerald-200 hover:bg-emerald-800/50 disabled:opacity-50"
+                        >
+                          {sendingRecoveryVerification ? "שולח..." : "שלח קישור אימות"}
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {recoveryStatus && (
+                    <div className="rounded border border-emerald-700/50 bg-emerald-950/40 px-3 py-2 text-xs font-bold text-emerald-200">
+                      {recoveryStatus}
+                    </div>
+                  )}
 
                   {profileError && (
                     <div className="rounded border border-rose-700/50 bg-rose-950/40 px-3 py-2 text-xs font-bold text-rose-200">

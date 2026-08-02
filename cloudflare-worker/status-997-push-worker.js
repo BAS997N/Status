@@ -272,6 +272,290 @@ async function createAuditLog(projectId, accessToken, fields) {
   }
 }
 
+const RECOVERY_TOKEN_TTL_MS = 30 * 60 * 1000;
+const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+const RECOVERY_REQUEST_COOLDOWN_MS = 15 * 60 * 1000;
+
+function createSecureToken() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return base64UrlEncode(bytes);
+}
+
+async function hashActionToken(token) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(token)
+  );
+  return base64UrlEncode(new Uint8Array(digest));
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function recoveryAppUrl(env, origin, action, token) {
+  const configured = String(env.APP_URL || `${origin}/Status/`).trim();
+  const base = configured.endsWith("/") ? configured : `${configured}/`;
+  const url = new URL(base);
+  url.searchParams.set("recoveryAction", action);
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+async function sendRecoveryEmail(env, { to, name, subject, heading, message, link, button }) {
+  const html = `
+        <div dir="rtl" style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#0f172a">
+          <h2>${escapeHtml(heading)}</h2>
+          <p>שלום ${escapeHtml(name || "")},</p>
+          <p style="line-height:1.7">${escapeHtml(message)}</p>
+          <p style="margin:28px 0"><a href="${escapeHtml(link)}" style="background:#059669;color:white;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:bold">${escapeHtml(button)}</a></p>
+          <p style="font-size:12px;color:#64748b">אם לא ביקשת פעולה זו, אין ללחוץ על הקישור. אין להעביר את הקישור לאדם אחר.</p>
+        </div>`;
+
+  let response;
+  if (env.BREVO_API_KEY && env.BREVO_SENDER_EMAIL) {
+    response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": env.BREVO_API_KEY,
+        accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sender: {
+          email: env.BREVO_SENDER_EMAIL,
+          name: env.BREVO_SENDER_NAME || "מערכת נוכחות תאג״ד 997",
+        },
+        to: [{ email: to, name: name || undefined }],
+        subject,
+        htmlContent: html,
+      }),
+    });
+  } else if (env.RESEND_API_KEY && env.RESET_EMAIL_FROM) {
+    response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: env.RESET_EMAIL_FROM,
+        to: [to],
+        subject,
+        html,
+      }),
+    });
+  } else {
+    throw new Error("שירות שליחת המייל טרם הוגדר ב-Cloudflare");
+  }
+  if (!response.ok) {
+    throw new Error(`שליחת המייל נכשלה (${response.status}): ${await response.text()}`);
+  }
+}
+
+async function saveActionToken(projectId, accessToken, token, fields) {
+  const tokenHash = await hashActionToken(token);
+  await patchFirestoreDocument(
+    projectId,
+    accessToken,
+    `account_recovery_tokens/${tokenHash}`,
+    fields
+  );
+}
+
+async function readActionToken(projectId, accessToken, token) {
+  if (!token || token.length > 200) return null;
+  const tokenHash = await hashActionToken(token);
+  const record = await getOptionalFirestoreDocument(
+    projectId,
+    accessToken,
+    `account_recovery_tokens/${tokenHash}`
+  );
+  return record ? { ...record, tokenHash } : null;
+}
+
+function isUsableActionToken(record, purpose) {
+  return Boolean(
+    record &&
+      record.purpose === purpose &&
+      !record.usedAt &&
+      Date.parse(record.expiresAt || "") > Date.now()
+  );
+}
+
+async function getRecoveryAdminContext(env) {
+  if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    throw new Error("Worker secret is missing");
+  }
+  const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  return {
+    serviceAccount,
+    projectId: serviceAccount.project_id,
+    accessToken: await getGoogleAccessToken(serviceAccount),
+  };
+}
+
+async function handleRecoveryEmailVerificationRequest(request, env, origin) {
+  const { projectId, accessToken } = await getRecoveryAdminContext(env);
+  const authorization = request.headers.get("Authorization") || "";
+  if (!authorization.startsWith("Bearer ")) {
+    return jsonResponse({ error: "יש להתחבר מחדש" }, 401, origin);
+  }
+  const idToken = authorization.slice(7);
+  let claims;
+  try {
+    claims = await verifyFirebaseIdToken(idToken, projectId);
+  } catch {
+    return jsonResponse({ error: "ההתחברות פגה. יש להתחבר מחדש." }, 401, origin);
+  }
+  const profile = await getFirestoreDocument(projectId, accessToken, `users/${claims.sub}`);
+  const email = String(profile.recoveryEmail || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return jsonResponse({ error: "לא הוגדר מייל אישי תקין בפרופיל" }, 400, origin);
+  }
+  if (profile.recoveryEmailVerified === true) {
+    return jsonResponse({ ok: true, message: "המייל כבר מאומת." }, 200, origin);
+  }
+
+  const token = createSecureToken();
+  const now = new Date();
+  await saveActionToken(projectId, accessToken, token, {
+    purpose: "verify_recovery_email",
+    userId: claims.sub,
+    email,
+    createdAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + EMAIL_VERIFICATION_TTL_MS).toISOString(),
+    usedAt: "",
+  });
+  await sendRecoveryEmail(env, {
+    to: email,
+    name: profile.fullName,
+    subject: "אימות המייל האישי במערכת הנוכחות",
+    heading: "אימות מייל אישי",
+    message: "לחץ על הכפתור כדי לאמת את המייל ולאפשר שחזור עצמאי של הקוד האישי. הקישור תקף ל-24 שעות.",
+    link: recoveryAppUrl(env, origin, "verify", token),
+    button: "אימות המייל",
+  });
+  return jsonResponse({ ok: true, message: "קישור אימות נשלח למייל האישי." }, 200, origin);
+}
+
+async function handleRecoveryEmailVerify(request, env, origin) {
+  const { projectId, accessToken } = await getRecoveryAdminContext(env);
+  const input = await request.json();
+  const record = await readActionToken(projectId, accessToken, String(input.token || ""));
+  if (!isUsableActionToken(record, "verify_recovery_email")) {
+    return jsonResponse({ error: "קישור האימות אינו תקין או שפג תוקפו." }, 400, origin);
+  }
+  const profile = await getFirestoreDocument(projectId, accessToken, `users/${record.userId}`);
+  if (String(profile.recoveryEmail || "").trim().toLowerCase() !== record.email) {
+    return jsonResponse({ error: "כתובת המייל השתנתה. יש לשלוח קישור אימות חדש." }, 400, origin);
+  }
+  const now = new Date().toISOString();
+  await patchFirestoreDocument(projectId, accessToken, `users/${record.userId}`, {
+    recoveryEmailVerified: true,
+    recoveryEmailVerifiedAt: now,
+  });
+  await patchFirestoreDocument(projectId, accessToken, `account_recovery_tokens/${record.tokenHash}`, {
+    usedAt: now,
+  });
+  return jsonResponse({ ok: true, message: "המייל אומת בהצלחה. מעכשיו ניתן לאפס את הקוד באופן עצמאי." }, 200, origin);
+}
+
+async function handlePasswordResetRequest(request, env, origin) {
+  const genericMessage = "אם קיים חשבון עם מייל מאומת, נשלח אליו קישור לאיפוס הקוד.";
+  const { projectId, accessToken } = await getRecoveryAdminContext(env);
+  const input = await request.json();
+  const personalId = String(input.personalId || "").trim();
+  if (!/^\d{5,10}$/.test(personalId)) {
+    return jsonResponse({ ok: true, message: genericMessage }, 200, origin);
+  }
+  const matches = await findUsersByPersonalId(projectId, accessToken, personalId);
+  if (matches.length !== 1) return jsonResponse({ ok: true, message: genericMessage }, 200, origin);
+  const userId = matches[0];
+  const profile = await getFirestoreDocument(projectId, accessToken, `users/${userId}`);
+  const email = String(profile.recoveryEmail || "").trim().toLowerCase();
+  if (profile.recoveryEmailVerified !== true || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return jsonResponse({ ok: true, message: genericMessage }, 200, origin);
+  }
+
+  const rateRecord = await getOptionalFirestoreDocument(projectId, accessToken, `account_recovery_rate/${userId}`);
+  if (rateRecord?.lastSentAt && Date.now() - Date.parse(rateRecord.lastSentAt) < RECOVERY_REQUEST_COOLDOWN_MS) {
+    return jsonResponse({ ok: true, message: genericMessage }, 200, origin);
+  }
+
+  const token = createSecureToken();
+  const now = new Date();
+  await saveActionToken(projectId, accessToken, token, {
+    purpose: "password_reset",
+    userId,
+    email,
+    createdAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + RECOVERY_TOKEN_TTL_MS).toISOString(),
+    usedAt: "",
+  });
+  await sendRecoveryEmail(env, {
+    to: email,
+    name: profile.fullName,
+    subject: "איפוס הקוד האישי במערכת הנוכחות",
+    heading: "איפוס קוד אישי",
+    message: "התקבלה בקשה לאיפוס הקוד האישי. הקישור חד-פעמי ותקף ל-30 דקות.",
+    link: recoveryAppUrl(env, origin, "reset", token),
+    button: "בחירת קוד חדש",
+  });
+  await patchFirestoreDocument(projectId, accessToken, `account_recovery_rate/${userId}`, {
+    lastSentAt: now.toISOString(),
+  });
+  return jsonResponse({ ok: true, message: genericMessage }, 200, origin);
+}
+
+async function handlePasswordResetComplete(request, env, origin) {
+  const { projectId, accessToken } = await getRecoveryAdminContext(env);
+  const input = await request.json();
+  const newCode = String(input.newCode || "").trim();
+  if (!/^\d{6}$/.test(newCode)) {
+    return jsonResponse({ error: "הקוד החדש חייב להכיל 6 ספרות." }, 400, origin);
+  }
+  const record = await readActionToken(projectId, accessToken, String(input.token || ""));
+  if (!isUsableActionToken(record, "password_reset")) {
+    return jsonResponse({ error: "קישור האיפוס אינו תקין, כבר נוצל או שפג תוקפו." }, 400, origin);
+  }
+  const profile = await getFirestoreDocument(projectId, accessToken, `users/${record.userId}`);
+  if (
+    profile.recoveryEmailVerified !== true ||
+    String(profile.recoveryEmail || "").trim().toLowerCase() !== record.email
+  ) {
+    return jsonResponse({ error: "המייל בחשבון השתנה. יש להתחיל את האיפוס מחדש." }, 400, origin);
+  }
+  await updateFirebaseAuthUser(projectId, accessToken, {
+    localId: record.userId,
+    password: newCode,
+  });
+  const now = new Date().toISOString();
+  await patchFirestoreDocument(projectId, accessToken, `account_recovery_tokens/${record.tokenHash}`, {
+    usedAt: now,
+  });
+  await createAuditLog(projectId, accessToken, {
+    action: "reset",
+    module: "users",
+    actorId: record.userId,
+    actorName: profile.fullName || "משתמש",
+    actorRole: profile.systemRole || profile.role || "reporter",
+    targetId: record.userId,
+    targetLabel: profile.fullName || record.userId,
+    after: { selfServicePasswordReset: true },
+    createdAt: now,
+    timestamp: now,
+    logType: "audit",
+  });
+  return jsonResponse({ ok: true, message: "הקוד עודכן בהצלחה. ניתן להתחבר באמצעות הקוד החדש." }, 200, origin);
+}
+
 async function findUsersByPersonalId(projectId, accessToken, personalId) {
   const response = await fetch(
     `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`,
@@ -474,6 +758,7 @@ async function handleUserCredentials(request, env, origin) {
       ok: true,
       personalId: newPersonalId || currentPersonalId,
       codeReset: Boolean(newCode),
+      authEmailSynced: Boolean(newPersonalId),
     },
     200,
     origin
@@ -843,6 +1128,18 @@ export default {
 
     try {
       const path = new URL(request.url).pathname.replace(/\/+$/, "") || "/";
+      if (path === "/auth/recovery-email/request-verification") {
+        return await handleRecoveryEmailVerificationRequest(request, env, allowedOrigin);
+      }
+      if (path === "/auth/recovery-email/verify") {
+        return await handleRecoveryEmailVerify(request, env, allowedOrigin);
+      }
+      if (path === "/auth/password-reset/request") {
+        return await handlePasswordResetRequest(request, env, allowedOrigin);
+      }
+      if (path === "/auth/password-reset/complete") {
+        return await handlePasswordResetComplete(request, env, allowedOrigin);
+      }
       if (path === "/admin/users/credentials") {
         return await handleUserCredentials(request, env, allowedOrigin);
       }
