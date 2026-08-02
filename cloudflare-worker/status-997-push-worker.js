@@ -442,7 +442,15 @@ async function handleRecoveryEmailVerificationRequest(request, env, origin) {
     link: recoveryAppUrl(env, origin, "verify", token),
     button: "אימות המייל",
   });
-  return jsonResponse({ ok: true, message: "קישור אימות נשלח למייל האישי." }, 200, origin);
+  return jsonResponse(
+    {
+      ok: true,
+      message:
+        "קישור אימות נשלח למייל האישי. אם ההודעה אינה מופיעה, יש לבדוק גם בתיקיית הספאם.",
+    },
+    200,
+    origin
+  );
 }
 
 async function handleRecoveryEmailVerify(request, env, origin) {
@@ -468,7 +476,8 @@ async function handleRecoveryEmailVerify(request, env, origin) {
 }
 
 async function handlePasswordResetRequest(request, env, origin) {
-  const genericMessage = "אם קיים חשבון עם מייל מאומת, נשלח אליו קישור לאיפוס הקוד.";
+  const genericMessage =
+    "אם קיים חשבון עם מייל מאומת, נשלח אליו קישור לאיפוס הקוד. אם ההודעה אינה מופיעה, יש לבדוק גם בתיקיית הספאם.";
   const { projectId, accessToken } = await getRecoveryAdminContext(env);
   const input = await request.json();
   const personalId = String(input.personalId || "").trim();

@@ -331,6 +331,26 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       )
     : viewingPermissions;
 
+  // Data-loading authority must always come from the signed-in account. Using
+  // the previewed soldier's permissions here removes the previewed user from
+  // allUsers, which immediately cancels and recreates the preview in a loop.
+  const actualCanViewDashboard = hasPermission(
+    actualPermissions,
+    "dashboard.view"
+  );
+  const actualCanManageShifts = hasPermission(
+    actualPermissions,
+    "shifts.manage"
+  );
+  const actualCanManageEmergency = hasPermission(
+    actualPermissions,
+    "emergency.manage"
+  );
+  const actualCanViewNotifications = hasPermission(
+    actualPermissions,
+    "dashboard.notifications.view"
+  );
+
 
   const statusLabels = React.useMemo(
     () =>
@@ -915,7 +935,7 @@ useEffect(() => {
   const refreshReports = async () => {
   if ((isFirebaseActive() && !auth?.currentUser) || !userProfile) return;
 
-  const updatedReports = canViewDashboard
+  const updatedReports = actualCanViewDashboard || canPreviewUsers
     ? await dataService.fetchAllReports()
     : await dataService.fetchReportsByUser(userProfile.userId);
   setReports(updatedReports);
@@ -976,7 +996,7 @@ const loadSystemLogsOnDemand = async () => {
   if (!userProfile || !permissionsLoaded) return;
   refreshReports();
 
-  if (canViewNotifications) {
+  if (actualCanViewNotifications) {
     dataService
       .fetchNotifications()
       .then(setNotifications)
@@ -985,7 +1005,12 @@ const loadSystemLogsOnDemand = async () => {
     setNotifications([]);
   }
 
-  if (canViewDashboard || canManageShifts || canManageEmergency || isSuperAdmin) {
+  if (
+    actualCanViewDashboard ||
+    actualCanManageShifts ||
+    actualCanManageEmergency ||
+    canPreviewUsers
+  ) {
     dataService
       .getAllUsers()
       .then(setAllUsers)
@@ -1030,12 +1055,12 @@ const loadSystemLogsOnDemand = async () => {
   userProfile,
   permissionsLoaded,
   canViewReporter,
-  canViewDashboard,
+  actualCanViewDashboard,
   canViewShifts,
-  canManageShifts,
-  canManageEmergency,
-  canViewNotifications,
-  isSuperAdmin,
+  actualCanManageShifts,
+  actualCanManageEmergency,
+  actualCanViewNotifications,
+  canPreviewUsers,
 ]);
 
   // Notification actions
@@ -1464,7 +1489,7 @@ const handleRecoveryRequest = async (event: React.FormEvent) => {
     const result = await requestPasswordReset(cleanId);
     setRecoveryMessage(
       result.message ||
-        "אם קיים חשבון עם מייל מאומת, נשלח אליו קישור לאיפוס הקוד."
+        "אם קיים חשבון עם מייל מאומת, נשלח אליו קישור לאיפוס הקוד. ייתכן שההודעה תגיע לתיקיית הספאם."
     );
   } catch (error) {
     setRecoveryError(error instanceof Error ? error.message : "שליחת הקישור נכשלה.");
@@ -2297,7 +2322,7 @@ const handleAdminBulkSaveReports = async (
           {isRequest && !recoveryMessage && (
             <form onSubmit={handleRecoveryRequest} className="space-y-4">
               <p className="text-xs font-bold leading-5 text-slate-400">
-                הזן את המספר האישי. אם קיים בחשבון מייל אישי מאומת, יישלח אליו קישור חד־פעמי.
+                הזן את המספר האישי. אם קיים בחשבון מייל אישי מאומת, יישלח אליו קישור חד־פעמי. אם ההודעה אינה מופיעה, יש לבדוק גם בתיקיית הספאם.
               </p>
               <input
                 type="text"

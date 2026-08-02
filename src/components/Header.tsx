@@ -109,7 +109,10 @@ export default function Header({
     setSendingRecoveryVerification(true);
     try {
       const result = await requestRecoveryEmailVerification();
-      setRecoveryStatus(result.message || "קישור אימות נשלח למייל האישי.");
+      setRecoveryStatus(
+        result.message ||
+          "קישור אימות נשלח למייל האישי. אם ההודעה אינה מופיעה, יש לבדוק גם בתיקיית הספאם."
+      );
     } catch (error) {
       setProfileError(error instanceof Error ? error.message : "שליחת האימות נכשלה.");
     } finally {
@@ -319,6 +322,35 @@ export default function Header({
 
           </div>
         </div>
+
+        {(!currentUser.recoveryEmail || currentUser.recoveryEmailVerified !== true) && (
+          <div className="mt-3 flex flex-col gap-2 rounded-xl border border-amber-400/50 bg-amber-950/60 px-3 py-2.5 text-right sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+              <div>
+                <p className="text-xs font-black text-amber-100">
+                  {!currentUser.recoveryEmail
+                    ? "לא הוגדר מייל אישי לשחזור הקוד"
+                    : "המייל האישי שלך עדיין לא אומת"}
+                </p>
+                <p className="mt-0.5 text-[10px] font-bold leading-4 text-amber-200/80">
+                  ללא מייל מאומת לא ניתן להשתמש באפשרות „שכחתי קוד”. יש לעדכן ולאמת את המייל כעת.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setRecoveryStatus("");
+                setProfileError("");
+                setIsProfileOpen(true);
+              }}
+              className="shrink-0 rounded-lg bg-amber-400 px-3 py-2 text-[11px] font-black text-slate-950 transition hover:bg-amber-300"
+            >
+              עדכון ואימות מייל
+            </button>
+          </div>
+        )}
 
         {/* Edit Profile Settings Dialog */}
         <AnimatePresence>
