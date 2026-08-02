@@ -494,6 +494,8 @@ export interface UserProfile {
   role: UserRole;
   unit: string;
   email: string;
+  recoveryEmail?: string;
+  recoveryEmailVerified?: boolean;
   createdAt: string;
   personalId?: string;
   phoneNumber?: string;

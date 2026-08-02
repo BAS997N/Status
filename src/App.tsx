@@ -135,6 +135,7 @@ export default function App() {
   const [regUnit, setRegUnit] = useState(IDF_UNITS[0]);
   const [regRole, setRegRole] = useState<UserRole>("soldier");
   const [regPhoneNumber, setRegPhoneNumber] = useState("");
+  const [regRecoveryEmail, setRegRecoveryEmail] = useState("");
   const [regPasscode, setRegPasscode] = useState("");
   const [regPersonalCode, setRegPersonalCode] = useState("");
 const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
@@ -1358,11 +1359,14 @@ const handleResetReport = async (reportId: string) => {
   const handleUpdateProfile = async (updated: UserProfile) => {
     await dataService.saveUserProfile(updated);
     setUserProfile(updated);
-    // Reload all users list to propagate name changes
-    const users = await dataService.getAllUsers();
-    setAllUsers(users);
-    await refreshReports();
-    await refreshNotifications();
+    setAllUsers((current) => {
+      const exists = current.some((user) => user.userId === updated.userId);
+      return exists
+        ? current.map((user) =>
+            user.userId === updated.userId ? updated : user
+          )
+        : [...current, updated];
+    });
   };
 
   const handleResetData = () => {
@@ -1407,6 +1411,7 @@ const beginFirstRegistration = () => {
   setRegPersonalId(cleanId);
   setRegPersonalCode(/^\d{6}$/.test(cleanCode) ? cleanCode : "");
   setRegPersonalCodeConfirm("");
+  setRegRecoveryEmail("");
   setRegRole("soldier");
   setLoginError("");
   setIsRegisteringId(true);
@@ -1461,6 +1466,7 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
         setRegPersonalId(cleanId);
         setRegPersonalCode(cleanCode);
         setRegPersonalCodeConfirm("");
+        setRegRecoveryEmail("");
         setRegRole("soldier");
         setLoginError(
           "החשבון זוהה, אך הרישום לא הושלם. יש להשלים את הפרטים."
@@ -1533,8 +1539,20 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
   const handleIdRegistrationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
-    if (!regPersonalId.trim() || !regName.trim() || !regPhoneNumber.trim()) {
-      setLoginError("נא למלא את כל השדות החיוניים (כולל שם מלא ומספר טלפון)");
+    if (
+      !regPersonalId.trim() ||
+      !regName.trim() ||
+      !regPhoneNumber.trim() ||
+      !regRecoveryEmail.trim()
+    ) {
+      setLoginError(
+        "נא למלא את כל השדות החיוניים, כולל מייל אישי לשחזור."
+      );
+      return;
+    }
+    const cleanRecoveryEmail = regRecoveryEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanRecoveryEmail)) {
+      setLoginError("כתובת המייל האישי אינה תקינה.");
       return;
     }
    const cleanRegCode = regPersonalCode.trim();
@@ -1565,6 +1583,8 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
       createdAt: new Date().toISOString(),
       personalId: regPersonalId.trim(),
       phoneNumber: regPhoneNumber.trim(),
+      recoveryEmail: cleanRecoveryEmail,
+      recoveryEmailVerified: false,
       medicalRole: "טרם נקבע"
     };
 
@@ -2324,6 +2344,25 @@ const handleAdminBulkSaveReports = async (
                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2.5 focus:border-emerald-500 text-xs focus:ring-1 focus:ring-emerald-500 outline-none text-white font-medium text-left tracking-wider"
                     disabled={loading}
                   />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-200">
+                    מייל אישי לשחזור
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder="name@example.com"
+                    value={regRecoveryEmail}
+                    onChange={(e) => setRegRecoveryEmail(e.target.value)}
+                    className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5 text-left text-xs font-medium text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                    disabled={loading}
+                  />
+                  <p className="text-[10px] font-bold text-slate-500">
+                    ישמש בעתיד לאימות ולאיפוס הקוד האישי בלבד.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

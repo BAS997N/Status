@@ -43,6 +43,10 @@ export default function Header({
   const [editName, setEditName] = useState(currentUser.fullName);
   const [editUnit, setEditUnit] = useState(currentUser.unit);
   const [editRole, setEditRole] = useState(currentUser.role);
+  const [editRecoveryEmail, setEditRecoveryEmail] = useState(
+    currentUser.recoveryEmail || ""
+  );
+  const [profileError, setProfileError] = useState("");
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -61,14 +65,29 @@ export default function Header({
     setEditName(currentUser.fullName);
     setEditUnit(currentUser.unit);
     setEditRole(currentUser.role);
+    setEditRecoveryEmail(currentUser.recoveryEmail || "");
   }, [currentUser]);
 
   const handleSaveProfile = () => {
+    const cleanRecoveryEmail = editRecoveryEmail.trim().toLowerCase();
+    if (
+      cleanRecoveryEmail &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanRecoveryEmail)
+    ) {
+      setProfileError("כתובת המייל אינה תקינה.");
+      return;
+    }
+    setProfileError("");
     onUpdateProfile({
       ...currentUser,
-      fullName: editName,
-      unit: editUnit,
-      role: editRole,
+      fullName: canEdit ? editName : currentUser.fullName,
+      unit: canEdit ? editUnit : currentUser.unit,
+      role: canEdit ? editRole : currentUser.role,
+      recoveryEmail: cleanRecoveryEmail,
+      recoveryEmailVerified:
+        cleanRecoveryEmail === (currentUser.recoveryEmail || "").toLowerCase()
+          ? currentUser.recoveryEmailVerified
+          : false,
     });
     setIsProfileOpen(false);
   };
@@ -136,15 +155,13 @@ export default function Header({
 
             <PushNotificationButton currentUser={currentUser} />
 
-            {canEdit && currentUser.role !== "adjutant_officer" && (
-              <button
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="text-xs bg-military-700 hover:bg-military-600 text-white font-medium py-1.5 px-3 rounded-lg flex items-center gap-1.5 border border-military-600 cursor-pointer transition shadow-sm"
-              >
-                <User className="w-3.5 h-3.5 text-military-300" />
-                <span>הגדרות פרופיל ({currentUser.fullName})</span>
-              </button>
-            )}
+            <button
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className="text-xs bg-military-700 hover:bg-military-600 text-white font-medium py-1.5 px-3 rounded-lg flex items-center gap-1.5 border border-military-600 cursor-pointer transition shadow-sm"
+            >
+              <User className="w-3.5 h-3.5 text-military-300" />
+              <span>הגדרות פרופיל ({currentUser.fullName})</span>
+            </button>
 
             {/* Log Out Button */}
             <button
@@ -291,7 +308,7 @@ export default function Header({
                 <h3 className="text-sm font-bold text-white mb-3">עריכת פרטי משתמש פעיל</h3>
                 
                 <div className="space-y-3">
-                  <div>
+                  {canEdit && <div>
                     <label className="block text-xs text-military-300 mb-1">שם מלא</label>
                     <input 
                       type="text" 
@@ -299,9 +316,9 @@ export default function Header({
                       onChange={(e) => setEditName(e.target.value)}
                       className="w-full bg-military-800 text-white border border-military-600 rounded px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-military-400 outline-none"
                     />
-                  </div>
+                  </div>}
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {canEdit && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-military-300 mb-1">שיוך רפואי</label>
                       <select
@@ -333,7 +350,30 @@ export default function Header({
                         <option value="commander">מפקד (לוח בקרה ואישור)</option>
                       </select>
                     </div>
+                  </div>}
+
+                  <div>
+                    <label className="mb-1 block text-xs text-military-300">
+                      מייל אישי לשחזור
+                    </label>
+                    <input
+                      type="email"
+                      value={editRecoveryEmail}
+                      onChange={(e) => setEditRecoveryEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      autoComplete="email"
+                      className="w-full rounded border border-military-600 bg-military-800 px-2.5 py-1.5 text-left text-xs text-white outline-none focus:ring-1 focus:ring-military-400"
+                    />
+                    <p className="mt-1 text-[10px] font-bold text-military-400">
+                      המייל נשמר בנפרד מהמספר האישי וישמש לשחזור הקוד.
+                    </p>
                   </div>
+
+                  {profileError && (
+                    <div className="rounded border border-rose-700/50 bg-rose-950/40 px-3 py-2 text-xs font-bold text-rose-200">
+                      {profileError}
+                    </div>
+                  )}
 
                   <div className="flex justify-end gap-2 pt-2">
                     <button

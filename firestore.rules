@@ -78,7 +78,13 @@ service cloud.firestore {
         request.auth.uid == userId ||
         hasPermission("system_admin.users.manage")
       );
-      allow update, delete: if hasPermission("system_admin.users.manage");
+      allow update: if hasPermission("system_admin.users.manage") || (
+        signedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["recoveryEmail", "recoveryEmailVerified"])
+      );
+      allow delete: if hasPermission("system_admin.users.manage");
     }
 
     match /settings/{docId} {

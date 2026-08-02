@@ -1467,7 +1467,7 @@ const latestTodayReport = [...todayReports].sort(
     // Search query constraint: matches name, email, unit, and/or status label
     const matchesSearch = !query || 
                           profile.fullName.toLowerCase().includes(query) || 
-                          profile.email.toLowerCase().includes(query) ||
+                          profile.recoveryEmail?.toLowerCase().includes(query) ||
                           profile.unit.toLowerCase().includes(query) ||
                           statusLabelText.toLowerCase().includes(query);
     
@@ -2442,7 +2442,7 @@ const latestTodayReport = [...todayReports].sort(
       return [
         profile.fullName,
         profile.unit,
-        profile.email,
+        profile.recoveryEmail || "לא הוזן",
         statusInfo,
         location,
         timeStr,
@@ -4551,7 +4551,7 @@ const dates = getDateRange(startDate, endDate);
               type="date" 
               value={selectedDate} 
               onChange={(e) => setSelectedDate(e.target.value)} 
-              className="w-40 min-w-40 flex-none border border-slate-300 rounded-md p-1 text-xs" 
+              className="w-40 min-w-40 flex-none border border-slate-300 rounded-md p-1 text-xs"
             />
             <button
               type="button"
@@ -4749,7 +4749,7 @@ return (
                           </div>
                           <div>
                             <span className="block">{profile.fullName}</span>
-                            <span className="text-[9px] text-slate-400 font-mono font-medium block mt-0.5">{profile.email}</span>
+                            <span className="text-[9px] text-slate-400 font-mono font-medium block mt-0.5">{profile.recoveryEmail || "מייל אישי לא הוזן"}</span>
                           </div>
                         </div>
                       </td>
@@ -5103,7 +5103,7 @@ const matchesStatus =
                   s.role === "commander" ? "מפקד/ת" : "חייל/ת",
                   s.personalId || "—",
                   s.phoneNumber || "—",
-                  s.email || "—",
+                  s.recoveryEmail || "—",
                   s.isDischarged ? "נגרע" : "פעיל"
                 ]);
 
@@ -5369,6 +5369,7 @@ onChange={(e) =>
       s.fullName.toLowerCase().includes(query) ||
       (s.personalId && s.personalId.includes(directorySearchQuery)) ||
       (s.phoneNumber && s.phoneNumber.includes(directorySearchQuery)) ||
+      (s.recoveryEmail && s.recoveryEmail.toLowerCase().includes(query)) ||
       s.unit.toLowerCase().includes(query) ||
       (s.medicalRole && s.medicalRole.toLowerCase().includes(query));
 
@@ -5439,7 +5440,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                           </div>
                           <div className="min-w-0">
                             <span className="block truncate font-black text-slate-800 text-sm">{soldier.fullName}</span>
-                            <span className="block truncate text-[10px] text-slate-400 font-mono font-medium mt-0.5">{soldier.email}</span>
+                            <span className="block truncate text-[10px] text-slate-400 font-mono font-medium mt-0.5">{soldier.recoveryEmail || "מייל אישי לא הוזן"}</span>
                           </div>
                         </div>
                       </td>
