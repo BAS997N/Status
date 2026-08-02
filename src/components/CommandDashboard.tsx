@@ -1077,10 +1077,13 @@ const exitHomeTodayCount = reportedTodayList.filter(
           summary.paramedics += 1;
         }
         if (role.includes("נהג")) summary.drivers += 1;
+        if (role.includes("מנהל") && role.includes("אירוע")) {
+          summary.eventManagers += 1;
+        }
 
         return summary;
       },
-      { medics: 0, doctors: 0, paramedics: 0, drivers: 0 }
+      { medics: 0, doctors: 0, paramedics: 0, drivers: 0, eventManagers: 0 }
     );
   const outsideUnitDetails = reportedTodayList.filter(
     (item) => getChartCategory(item.latestTodayReport?.status) === "absent"
@@ -7091,6 +7094,7 @@ await onAdminSaveReport(dataToSave);
                                 <span className="rounded-md bg-white/75 px-2 py-1">רופאים: {roleSummary.doctors}</span>
                                 <span className="rounded-md bg-white/75 px-2 py-1">פראמדיקים: {roleSummary.paramedics}</span>
                                 <span className="rounded-md bg-white/75 px-2 py-1">נהגים: {roleSummary.drivers}</span>
+                                <span className="rounded-md bg-white/75 px-2 py-1">מנהלי אירוע: {roleSummary.eventManagers}</span>
                               </div>
                             </div>
                           );
