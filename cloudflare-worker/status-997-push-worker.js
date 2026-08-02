@@ -406,11 +406,9 @@ async function handleUserCredentials(request, env, origin) {
   const currentPersonalId = String(targetUser.personalId || "").trim();
   const personalIdChanged =
     Boolean(newPersonalId) && newPersonalId !== currentPersonalId;
-  if (!personalIdChanged && !newCode) {
-    return jsonResponse({ error: "לא בוצע שינוי בפרטי המשתמש" }, 400, origin);
-  }
-
-  if (personalIdChanged) {
+  // A supplied personal ID is also a repair/sync request. The Firestore profile
+  // may already contain the new ID while Firebase Auth still has the old email.
+  if (newPersonalId) {
     const matches = await findUsersByPersonalId(
       projectId,
       accessToken,
@@ -426,7 +424,7 @@ async function handleUserCredentials(request, env, origin) {
   }
 
   const authUpdate = { localId: targetUserId };
-  if (personalIdChanged) authUpdate.email = `${newPersonalId}@idf.local`;
+  if (newPersonalId) authUpdate.email = `${newPersonalId}@idf.local`;
   if (newCode) authUpdate.password = newCode;
   await updateFirebaseAuthUser(projectId, accessToken, authUpdate);
 
@@ -459,10 +457,13 @@ async function handleUserCredentials(request, env, origin) {
     targetLabel: targetUser.fullName || targetUserId,
     before: { personalId: currentPersonalId },
     after: {
-      personalId: personalIdChanged ? newPersonalId : currentPersonalId,
+      personalId: newPersonalId || currentPersonalId,
       codeReset: Boolean(newCode),
     },
-    metadata: { credentialManagement: true },
+    metadata: {
+      credentialManagement: true,
+      authEmailSynced: Boolean(newPersonalId),
+    },
     createdAt: now,
     timestamp: now,
     logType: "audit",
@@ -471,7 +472,7 @@ async function handleUserCredentials(request, env, origin) {
   return jsonResponse(
     {
       ok: true,
-      personalId: personalIdChanged ? newPersonalId : currentPersonalId,
+      personalId: newPersonalId || currentPersonalId,
       codeReset: Boolean(newCode),
     },
     200,

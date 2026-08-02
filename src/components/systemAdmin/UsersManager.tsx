@@ -181,13 +181,9 @@ export default function UsersManager({
       setMessage({ type: "error", text: "אימות הקוד החדש אינו תואם." });
       return;
     }
-    if (!personalIdChanged && !cleanCode) {
-      setMessage({ type: "error", text: "לא הוזן שינוי לביצוע." });
-      return;
-    }
-
     const changeDescription = [
       personalIdChanged ? `מספר אישי חדש: ${cleanPersonalId}` : "",
+      !personalIdChanged ? `סנכרון ההתחברות למספר ${cleanPersonalId}` : "",
       cleanCode ? "איפוס הקוד האישי" : "",
     ]
       .filter(Boolean)
@@ -205,7 +201,9 @@ export default function UsersManager({
     try {
       const result = await updateUserCredentials({
         targetUserId: credentialUser.userId,
-        newPersonalId: personalIdChanged ? cleanPersonalId : undefined,
+        // Always send the displayed personal ID. This also repairs accounts whose
+        // Firestore personalId was edited without updating the Firebase Auth email.
+        newPersonalId: cleanPersonalId,
         newCode: cleanCode || undefined,
       });
       onCredentialsUpdated?.(credentialUser.userId, result.personalId);
@@ -400,7 +398,7 @@ export default function UsersManager({
                   </h3>
                 </div>
                 <p className="mt-1 text-[11px] font-bold leading-5 text-slate-500">
-                  ניתן לתקן מספר אישי, לאפס קוד, או לבצע את שתי הפעולות יחד.
+                  ניתן לתקן מספר אישי, לאפס קוד, או לסנכרן מחדש חשבון שלא מצליח להתחבר.
                 </p>
               </div>
               <button
@@ -487,7 +485,7 @@ export default function UsersManager({
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white hover:bg-blue-700 disabled:opacity-60"
               >
                 <KeyRound className="h-4 w-4" />
-                {savingCredentials ? "מעדכן..." : "עדכן פרטי התחברות"}
+                {savingCredentials ? "מעדכן..." : "עדכן וסנכרן פרטי התחברות"}
               </button>
             </div>
           </div>
