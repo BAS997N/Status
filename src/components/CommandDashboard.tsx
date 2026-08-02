@@ -690,6 +690,14 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
       profile: UserProfile;
       report?: AttendanceReport;
     }>;
+    groups?: Array<{
+      title: string;
+      accentClass: string;
+      items: Array<{
+        profile: UserProfile;
+        report?: AttendanceReport;
+      }>;
+    }>;
   } | null>(null);
 
  const defaultShortUnits = ["תאג״ד"];
@@ -1046,6 +1054,15 @@ const exitHomeTodayCount = reportedTodayList.filter(
           "he"
         );
       });
+  const availableExitHomeDetails = availableForActivityDetails.filter(
+    (item) => item.latestTodayReport?.dayMarker === "exit_home"
+  );
+  const availableReturnToBaseDetails = availableForActivityDetails.filter(
+    (item) => item.latestTodayReport?.dayMarker === "return_to_base"
+  );
+  const availableAfterHoursDetails = availableForActivityDetails.filter(
+    (item) => item.latestTodayReport?.dayMarker === "after_hours"
+  );
   const outsideUnitDetails = reportedTodayList.filter(
     (item) => getChartCategory(item.latestTodayReport?.status) === "absent"
   );
@@ -1093,6 +1110,57 @@ const exitHomeTodayCount = reportedTodayList.filter(
               "he"
             )
           ),
+    });
+  };
+
+  const openAvailableActivityDetails = () => {
+    const mapItems = (
+      items: Array<{
+        profile: UserProfile;
+        latestTodayReport?: AttendanceReport;
+      }>
+    ) =>
+      items
+        .map((item) => ({
+          profile: item.profile,
+          report: item.latestTodayReport,
+        }))
+        .sort((first, second) =>
+          (first.profile.fullName || "").localeCompare(
+            second.profile.fullName || "",
+            "he"
+          )
+        );
+
+    const groups = [
+      {
+        title: "זמינים לפעילות ללא סימון יום",
+        accentClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
+        items: mapItems(availableWithoutDayMarkerDetails),
+      },
+      {
+        title: "זמינים לפעילות — יציאה לבית",
+        accentClass: "border-violet-200 bg-violet-50 text-violet-800",
+        items: mapItems(availableExitHomeDetails),
+      },
+      {
+        title: "זמינים לפעילות — חזרה לבסיס",
+        accentClass: "border-blue-200 bg-blue-50 text-blue-800",
+        items: mapItems(availableReturnToBaseDetails),
+      },
+      {
+        title: "זמינים לפעילות — אפטר",
+        accentClass: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800",
+        items: mapItems(availableAfterHoursDetails),
+      },
+    ];
+
+    setAttendanceStatDetails({
+      title: "זמינים לפעילות",
+      description:
+        "חלוקה לפי סימון היום של החיילים שדיווחו שהם בבסיס או בשטח וזמינים למשימות.",
+      items: groups.flatMap((group) => group.items),
+      groups,
     });
   };
 
@@ -3518,58 +3586,28 @@ const dates = getDateRange(startDate, endDate);
           </div>
         </div>
 
-        {/* Present Status */}
+        {/* Available for activity — combined card */}
         <button
           type="button"
-          onClick={() =>
-            openAttendanceStatDetails(
-              "זמינים לפעילות ללא סימון יום",
-              "חיילים שדיווחו שהם בבסיס או בשטח וזמינים למשימות, ללא סימון יום נוסף.",
-              availableWithoutDayMarkerDetails
-            )
-          }
-          className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
+          onClick={openAvailableActivityDetails}
+          className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-3 text-right transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
         >
-          <div>
-            <span className="text-xs text-slate-400 font-bold block">זמינים לפעילות ללא סימון יום</span>
+          <div className="min-w-0 flex-1">
+            <span className="text-xs text-slate-400 font-bold block">
+              זמינים לפעילות
+            </span>
             <span className="text-2xl font-black text-emerald-600 tracking-tight mt-1 block">
-              {availableWithoutDayMarkerDetails.length}
-              <span className="text-xs text-slate-400 font-normal pr-1.5">
-                ({totalSoldiersCount > 0 ? Math.round((availableWithoutDayMarkerDetails.length / totalSoldiersCount) * 100) : 0}%)
-              </span>
+              {availableForActivityDetails.length}
             </span>
-            <span className="text-[10px] text-slate-500 font-medium">כוח אדם זמין ללא יציאה, חזרה או אפטר</span>
+            <div className="mt-2 grid grid-cols-1 gap-0.5 text-[10px] font-bold leading-4 text-slate-600">
+              <span>ללא סימון יום: {availableWithoutDayMarkerDetails.length}</span>
+              <span className="text-violet-700">יוצאים לבית: {availableExitHomeDetails.length}</span>
+              <span className="text-blue-700">חוזרים לבסיס: {availableReturnToBaseDetails.length}</span>
+              <span className="text-fuchsia-700">אפטר: {availableAfterHoursDetails.length}</span>
+            </div>
           </div>
-          <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
+          <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600 shrink-0">
             <Activity className="w-5 h-5" />
-          </div>
-        </button>
-
-        {/* Present Status With Day Marker */}
-        <button
-          type="button"
-          onClick={() =>
-            openAttendanceStatDetails(
-              "זמינים לפעילות עם סימון יום",
-              "חיילים שדיווחו שהם בבסיס או בשטח ובחרו גם סימון יום.",
-              availableWithDayMarkerDetails,
-              true
-            )
-          }
-          className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md"
-        >
-          <div>
-            <span className="text-xs text-slate-400 font-bold block">זמינים לפעילות עם סימון יום</span>
-            <span className="text-2xl font-black text-teal-600 tracking-tight mt-1 block">
-              {availableWithDayMarkerDetails.length}
-              <span className="text-xs text-slate-400 font-normal pr-1.5">
-                ({totalSoldiersCount > 0 ? Math.round((availableWithDayMarkerDetails.length / totalSoldiersCount) * 100) : 0}%)
-              </span>
-            </span>
-            <span className="text-[10px] text-slate-500 font-medium">כולל יציאה, חזרה לבסיס או אפטר</span>
-          </div>
-          <div className="p-3 bg-teal-50 rounded-lg text-teal-600">
-            <FileCheck className="w-5 h-5" />
           </div>
         </button>
 
@@ -7006,65 +7044,95 @@ await onAdminSaveReport(dataToSave);
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {attendanceStatDetails.items.map(({ profile, report }) => {
-                      const statusLabel = report
-                        ? statusLabels[report.status]?.label || report.status
-                        : "טרם דיווח";
-                      const dayMarkerText = getDayMarkerText({ report });
-                      const reportTime = getReportTimeText(report);
-
-                      return (
-                        <div
-                          key={`${profile.userId}-${report?.reportId || "unreported"}`}
-                          className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 shadow-sm"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-sm font-black text-slate-800 truncate">
-                                {profile.fullName}
-                              </p>
-                              <p className="mt-0.5 text-[11px] font-medium text-slate-500">
-                                {[profile.medicalRole, profile.unit]
-                                  .filter(Boolean)
-                                  .join(" · ") || "ללא שיוך"}
-                              </p>
-                            </div>
-                            <span
-                              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${
-                                report
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-rose-50 text-rose-700"
-                              }`}
-                            >
-                              {statusLabel}
+                  <div className="space-y-4">
+                    {(attendanceStatDetails.groups || [
+                      {
+                        title: "",
+                        accentClass: "border-slate-200 bg-slate-100 text-slate-800",
+                        items: attendanceStatDetails.items,
+                      },
+                    ]).map((group, groupIndex) => (
+                      <section
+                        key={`${group.title || "details"}-${groupIndex}`}
+                        className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+                      >
+                        {group.title && (
+                          <div className={`flex items-center justify-between gap-3 border-b px-3.5 py-2.5 ${group.accentClass}`}>
+                            <h4 className="text-xs font-black">{group.title}</h4>
+                            <span className="rounded-full bg-white/75 px-2 py-0.5 text-[11px] font-black">
+                              {group.items.length}
                             </span>
                           </div>
+                        )}
 
-                          {report && (
-                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-slate-500">
-                              {report.location && (
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="w-3.5 h-3.5 text-cyan-600" />
-                                  {report.location}
-                                </span>
-                              )}
-                              {dayMarkerText && (
-                                <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-indigo-700">
-                                  {dayMarkerText}
-                                </span>
-                              )}
-                              {reportTime && (
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                  {reportTime}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                        {group.items.length === 0 ? (
+                          <p className="px-4 py-5 text-center text-xs font-bold text-slate-400">
+                            אין חיילים בקבוצה זו
+                          </p>
+                        ) : (
+                          <div className="divide-y divide-slate-100">
+                            {group.items.map(({ profile, report }) => {
+                              const statusLabel = report
+                                ? statusLabels[report.status]?.label || report.status
+                                : "טרם דיווח";
+                              const dayMarkerText = getDayMarkerText({ report });
+                              const reportTime = getReportTimeText(report);
+
+                              return (
+                                <div
+                                  key={`${groupIndex}-${profile.userId}-${report?.reportId || "unreported"}`}
+                                  className="px-3.5 py-3"
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-black text-slate-800">
+                                        {profile.fullName}
+                                      </p>
+                                      <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                                        {[profile.medicalRole, profile.unit]
+                                          .filter(Boolean)
+                                          .join(" · ") || "ללא שיוך"}
+                                      </p>
+                                    </div>
+                                    <span
+                                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${
+                                        report
+                                          ? "bg-emerald-50 text-emerald-700"
+                                          : "bg-rose-50 text-rose-700"
+                                      }`}
+                                    >
+                                      {statusLabel}
+                                    </span>
+                                  </div>
+
+                                  {report && (
+                                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-slate-500">
+                                      {report.location && (
+                                        <span className="flex items-center gap-1">
+                                          <MapPin className="h-3.5 w-3.5 text-cyan-600" />
+                                          {report.location}
+                                        </span>
+                                      )}
+                                      {dayMarkerText && (
+                                        <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-indigo-700">
+                                          {dayMarkerText}
+                                        </span>
+                                      )}
+                                      {reportTime && (
+                                        <span className="flex items-center gap-1">
+                                          <Clock className="h-3.5 w-3.5 text-slate-400" />
+                                          {reportTime}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </section>
+                    ))}
                   </div>
                 )}
               </div>
