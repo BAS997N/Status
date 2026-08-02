@@ -1063,6 +1063,33 @@ const exitHomeTodayCount = reportedTodayList.filter(
   const availableAfterHoursDetails = availableForActivityDetails.filter(
     (item) => item.latestTodayReport?.dayMarker === "after_hours"
   );
+  const getAvailableRoleSummary = (
+    items: Array<{
+      profile: UserProfile;
+      latestTodayReport?: AttendanceReport;
+    }>
+  ) =>
+    items.reduce(
+      (summary, item) => {
+        const role = normalizeMedicalRoleName(item.profile.medicalRole || "");
+
+        if (role.includes("חובש")) summary.medics += 1;
+        if (role.startsWith("רופא")) summary.doctors += 1;
+        if (role.includes("פרמדיק") || role.includes("פראמדיק")) {
+          summary.paramedics += 1;
+        }
+        if (role.includes("נהג")) summary.drivers += 1;
+
+        return summary;
+      },
+      { medics: 0, doctors: 0, paramedics: 0, drivers: 0 }
+    );
+  const availableWithoutMarkerRoleSummary = getAvailableRoleSummary(
+    availableWithoutDayMarkerDetails
+  );
+  const availableWithMarkerRoleSummary = getAvailableRoleSummary(
+    availableWithDayMarkerDetails
+  );
   const outsideUnitDetails = reportedTodayList.filter(
     (item) => getChartCategory(item.latestTodayReport?.status) === "absent"
   );
@@ -3590,7 +3617,7 @@ const dates = getDateRange(startDate, endDate);
         <button
           type="button"
           onClick={openAvailableActivityDetails}
-          className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-3 text-right transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
+          className="w-full cursor-pointer bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-start justify-between gap-3 text-right transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md lg:col-span-2"
         >
           <div className="min-w-0 flex-1">
             <span className="text-xs text-slate-400 font-bold block">
@@ -3604,6 +3631,33 @@ const dates = getDateRange(startDate, endDate);
               <span className="text-violet-700">יוצאים לבית: {availableExitHomeDetails.length}</span>
               <span className="text-blue-700">חוזרים לבסיס: {availableReturnToBaseDetails.length}</span>
               <span className="text-fuchsia-700">אפטר: {availableAfterHoursDetails.length}</span>
+            </div>
+            <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-[9px] font-black sm:text-[10px]">
+              <div className="grid grid-cols-[minmax(78px,1.3fr)_repeat(4,minmax(38px,0.65fr))] items-center border-b border-slate-200 bg-slate-100 text-center text-slate-500">
+                <span className="px-1.5 py-1.5 text-right">סיכום תפקידים</span>
+                <span className="px-1 py-1.5">חובשים</span>
+                <span className="px-1 py-1.5">רופאים</span>
+                <span className="px-1 py-1.5">פראמדיקים</span>
+                <span className="px-1 py-1.5">נהגים</span>
+              </div>
+              <div className="grid grid-cols-[minmax(78px,1.3fr)_repeat(4,minmax(38px,0.65fr))] items-center border-b border-slate-200 text-center text-slate-700">
+                <span className="px-1.5 py-1.5 text-right text-emerald-700">
+                  ללא סימון ({availableWithoutDayMarkerDetails.length})
+                </span>
+                <span>{availableWithoutMarkerRoleSummary.medics}</span>
+                <span>{availableWithoutMarkerRoleSummary.doctors}</span>
+                <span>{availableWithoutMarkerRoleSummary.paramedics}</span>
+                <span>{availableWithoutMarkerRoleSummary.drivers}</span>
+              </div>
+              <div className="grid grid-cols-[minmax(78px,1.3fr)_repeat(4,minmax(38px,0.65fr))] items-center text-center text-slate-700">
+                <span className="px-1.5 py-1.5 text-right text-indigo-700">
+                  עם סימון ({availableWithDayMarkerDetails.length})
+                </span>
+                <span>{availableWithMarkerRoleSummary.medics}</span>
+                <span>{availableWithMarkerRoleSummary.doctors}</span>
+                <span>{availableWithMarkerRoleSummary.paramedics}</span>
+                <span>{availableWithMarkerRoleSummary.drivers}</span>
+              </div>
             </div>
           </div>
           <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600 shrink-0">
