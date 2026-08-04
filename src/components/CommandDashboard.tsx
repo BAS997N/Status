@@ -48,6 +48,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { hasPermission, PermissionMap } from "../security/permissions";
 import { buildCsv } from "../utils/csvSecurity";
+import { getDisciplinaryRestrictionStatus } from "../utils/shiftRestriction";
 import {
   getPushAvailableUserIds,
   sendAutomaticPush,
@@ -800,6 +801,10 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   const [formRole, setFormRole] = useState<UserRole>("soldier");
   const [formMedicalRole, setFormMedicalRole] = useState("");
   const [formIsDischarged, setFormIsDischarged] = useState(false);
+  const [formRestrictionEnabled, setFormRestrictionEnabled] = useState(false);
+  const [formRestrictionStartDate, setFormRestrictionStartDate] = useState("");
+  const [formRestrictionDays, setFormRestrictionDays] = useState(21);
+  const [formRestrictionNote, setFormRestrictionNote] = useState("");
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
 
@@ -814,6 +819,16 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
     setFormRole(soldier.role);
     setFormMedicalRole(soldier.medicalRole || "");
     setFormIsDischarged(!!soldier.isDischarged);
+    setFormRestrictionEnabled(
+      soldier.disciplinaryRestriction?.enabled === true
+    );
+    setFormRestrictionStartDate(
+      soldier.disciplinaryRestriction?.startDate || ""
+    );
+    setFormRestrictionDays(
+      soldier.disciplinaryRestriction?.requiredDays || 21
+    );
+    setFormRestrictionNote(soldier.disciplinaryRestriction?.note || "");
     setFormError("");
     setFormSuccess("");
     setIsEditModalOpen(true);
@@ -831,6 +846,10 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
     setFormRole("soldier");
     setFormMedicalRole(customRoles.length > 0 ? customRoles[0] : "");
     setFormIsDischarged(false);
+    setFormRestrictionEnabled(false);
+    setFormRestrictionStartDate("");
+    setFormRestrictionDays(21);
+    setFormRestrictionNote("");
     setFormError("");
     setFormSuccess("");
     setIsEditModalOpen(true);
@@ -875,6 +894,14 @@ const handleFormSubmit = async (e: React.FormEvent) => {
     return;
   }
 
+  if (
+    formRestrictionEnabled &&
+    (!formRestrictionStartDate || formRestrictionDays < 1)
+  ) {
+    setFormError("יש להזין תאריך התחלה ומספר ימי עבודות רס״ר תקין.");
+    return;
+  }
+
   const baseEmail = `${formPersonalId.trim()}@idf.il`;
 
   const profileToSave = {
@@ -891,6 +918,22 @@ const handleFormSubmit = async (e: React.FormEvent) => {
     createdAt: editingSoldier ? editingSoldier.createdAt : new Date().toISOString(),
     personalCode: formPersonalCode.trim()
   } as UserProfile & { personalCode?: string };
+
+  if (formRestrictionEnabled) {
+    profileToSave.disciplinaryRestriction = {
+      type: "rasar_duty",
+      enabled: true,
+      startDate: formRestrictionStartDate,
+      requiredDays: Math.max(1, Number(formRestrictionDays) || 21),
+      note: formRestrictionNote.trim(),
+      createdAt:
+        editingSoldier?.disciplinaryRestriction?.createdAt ||
+        new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  } else {
+    delete profileToSave.disciplinaryRestriction;
+  }
 
   try {
     await onAdminUpdateSoldier(profileToSave);
@@ -1046,8 +1089,20 @@ const exitHomeTodayCount = reportedTodayList.filter(
   (s) => s.latestTodayReport?.dayMarker === "exit_home"
 ).length;
 
+  const disciplinaryRestrictionDetails = statusList.filter(
+    (item) =>
+      (isAttachedToTagad(item.profile) ||
+        (item.profile.role !== "commander" &&
+          item.profile.role !== "adjutant_officer")) &&
+      getDisciplinaryRestrictionStatus(item.profile, reports, selectedDate).active
+  );
+  const disciplinaryRestrictedUserIds = new Set(
+    disciplinaryRestrictionDetails.map((item) => item.profile.userId)
+  );
   const availableForActivityDetails = reportedTodayList.filter(
-    (item) => getChartCategory(item.latestTodayReport?.status) === "present"
+    (item) =>
+      getChartCategory(item.latestTodayReport?.status) === "present" &&
+      !disciplinaryRestrictedUserIds.has(item.profile.userId)
   );
   const availableWithoutDayMarkerDetails =
     availableForActivityDetails.filter(
@@ -3634,6 +3689,34 @@ const dates = getDateRange(startDate, endDate);
           </div>
         </button>
 
+        {/* Disciplinary restriction / Ras\"ar duties */}
+        <button
+          type="button"
+          onClick={() =>
+            openAttendanceStatDetails(
+              "בריתוק / עבודות רס״ר",
+              "חיילים המנועים משיבוץ למשמרות עד להשלמת מכסת ימי העונש. ימי חיתוך צו אינם נספרים.",
+              disciplinaryRestrictionDetails
+            )
+          }
+          className="w-full cursor-pointer bg-white p-4 rounded-xl border border-amber-200 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md"
+        >
+          <div>
+            <span className="text-xs text-amber-700 font-bold block">
+              בריתוק / עבודות רס״ר
+            </span>
+            <span className="text-2xl font-black text-amber-700 tracking-tight mt-1 block">
+              {disciplinaryRestrictionDetails.length}
+            </span>
+            <span className="text-[10px] text-amber-600 font-medium">
+              מנועים משיבוץ למשמרות
+            </span>
+          </div>
+          <div className="p-3 bg-amber-50 rounded-lg text-amber-700">
+            <ShieldAlert className="w-5 h-5" />
+          </div>
+        </button>
+
         {/* Absent Status */}
         <button
           type="button"
@@ -5658,7 +5741,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
               initial={{ scale: 0.95, y: 15 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 15 }}
-              className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full overflow-hidden text-right"
+              className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[92vh] overflow-y-auto text-right"
               dir="rtl"
             >
               {/* Header */}
@@ -5791,6 +5874,84 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                   <label htmlFor="is-discharged-checkbox" className="text-xs font-bold text-slate-700 select-none cursor-pointer">
                     חייל נגרע / משוחרר מהסגל (לא ייכלל במצבות נוכחות יומיות)
                   </label>
+                </div>
+
+                <div className={`rounded-xl border p-4 ${
+                  formRestrictionEnabled
+                    ? "border-amber-300 bg-amber-50"
+                    : "border-slate-200 bg-slate-50"
+                }`}>
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formRestrictionEnabled}
+                      onChange={(event) => {
+                        setFormRestrictionEnabled(event.target.checked);
+                        if (event.target.checked && !formRestrictionStartDate) {
+                          setFormRestrictionStartDate(
+                            new Date().toLocaleDateString("en-CA")
+                          );
+                        }
+                      }}
+                      className="mt-0.5 h-4 w-4 accent-amber-600"
+                    />
+                    <span>
+                      <span className="block text-xs font-black text-slate-800">
+                        מניעת שיבוץ — עבודות רס״ר
+                      </span>
+                      <span className="mt-1 block text-[10px] font-bold leading-5 text-slate-500">
+                        החייל לא יוצג לבחירה במשמרות ולא יוכל לשלוח בקשת שיבוץ.
+                        ימי חיתוך צו אינם נכללים במכסה.
+                      </span>
+                    </span>
+                  </label>
+
+                  {formRestrictionEnabled && (
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label className="space-y-1">
+                        <span className="block text-[11px] font-black text-amber-900">
+                          תאריך התחלה
+                        </span>
+                        <input
+                          type="date"
+                          value={formRestrictionStartDate}
+                          onChange={(event) =>
+                            setFormRestrictionStartDate(event.target.value)
+                          }
+                          className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-amber-200"
+                        />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block text-[11px] font-black text-amber-900">
+                          מספר ימי עונש
+                        </span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={365}
+                          value={formRestrictionDays}
+                          onChange={(event) =>
+                            setFormRestrictionDays(Number(event.target.value))
+                          }
+                          className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-amber-200"
+                        />
+                      </label>
+                      <label className="space-y-1 sm:col-span-2">
+                        <span className="block text-[11px] font-black text-amber-900">
+                          הערה פנימית (אופציונלי)
+                        </span>
+                        <input
+                          type="text"
+                          value={formRestrictionNote}
+                          onChange={(event) =>
+                            setFormRestrictionNote(event.target.value)
+                          }
+                          placeholder="לדוגמה: עבודות רס״ר למשך 21 ימים"
+                          className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-amber-200"
+                        />
+                      </label>
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer Buttons */}

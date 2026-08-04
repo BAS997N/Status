@@ -41,6 +41,7 @@ import battalionLogo from "../assets/battalion-logo.png";
 import { isPublishedShift } from "./shifts/shiftViewUtils";
 import { sendAutomaticPush } from "../services/pushService";
 import { buildCsv } from "../utils/csvSecurity";
+import { getDisciplinaryRestrictionStatus } from "../utils/shiftRestriction";
 
 interface ShiftsViewProps {
   currentUser: UserProfile;
@@ -344,6 +345,9 @@ export default function ShiftsView({
     };
   };
 
+  const getShiftRestriction = (user: UserProfile, shiftDate = startDate) =>
+    getDisciplinaryRestrictionStatus(user, reports, shiftDate);
+
   const getOverlappingShift = (userId: string) => {
     if (!startDate || !startTime || !endDate || !endTime) return null;
 
@@ -528,10 +532,15 @@ export default function ShiftsView({
             !shift.assignments.some(
               (assignment) => assignment.userId === currentUser.userId
             ) &&
+            !getDisciplinaryRestrictionStatus(
+              currentUser,
+              reports,
+              toLocalParts(shift.startAt).date
+            ).active &&
             new Date(shift.endAt).getTime() >= Date.now()
         )
         .sort((a, b) => a.startAt.localeCompare(b.startAt)),
-    [shifts, currentUser.userId]
+    [shifts, currentUser, reports]
   );
 
   const printRangeShifts = useMemo(
@@ -713,6 +722,22 @@ export default function ShiftsView({
       setMessage({
         type: "error",
         text: "שעת הסיום חייבת להיות מאוחרת משעת ההתחלה.",
+      });
+      return;
+    }
+
+    const restrictedSelection = (Object.values(slotAssignments) as string[])
+      .filter((value) => value.startsWith("user:"))
+      .map((value) => value.replace("user:", ""))
+      .map((userId) => selectableUsers.find((user) => user.userId === userId))
+      .find(
+        (user): user is UserProfile =>
+          Boolean(user && getShiftRestriction(user, startDate).active)
+      );
+    if (restrictedSelection) {
+      setMessage({
+        type: "error",
+        text: `${restrictedSelection.fullName} נמצא/ת בתקופת עבודות רס״ר ומנוע/ה משיבוץ למשמרת בתאריך זה.`,
       });
       return;
     }
@@ -944,6 +969,14 @@ export default function ShiftsView({
   };
 
   const requestShiftSignup = async (shift: ShiftRecord) => {
+    const shiftDate = toLocalParts(shift.startAt).date;
+    if (getShiftRestriction(currentUser, shiftDate).active) {
+      setMessage({
+        type: "error",
+        text: "לא ניתן לשלוח בקשת שיבוץ במהלך תקופת עבודות רס״ר.",
+      });
+      return;
+    }
     setSignupRequestSavingId(shift.shiftId);
     setMessage(null);
     try {
@@ -3345,8 +3378,8 @@ export default function ShiftsView({
                 </div>
                 <div className="mt-1 text-[10px] font-bold leading-5 text-slate-500">
                   ליד כל חייל מוצגים סטטוס הנוכחות וסימון היום לתאריך
-                  המשמרת. חיילים בבסיס מוצגים ראשונים. סימון חפיפה הוא
-                  מידע בלבד ואינו חוסם את השיבוץ.
+                  המשמרת. חיילים בבסיס מוצגים ראשונים. חיילים בתקופת עבודות
+                  רס״ר מוסתרים ואינם ניתנים לשיבוץ. סימון חפיפה הוא מידע בלבד.
                 </div>
               </div>
               {expandedSlots.map((slot) => {
@@ -3356,7 +3389,8 @@ export default function ShiftsView({
                         (user) =>
                           (slot.allowDischargedUsers ||
                             !user.isDischarged) &&
-                          isAllowedForSlot(user, slot)
+                          isAllowedForSlot(user, slot) &&
+                          !getShiftRestriction(user, startDate).active
                       )
                       .map((user) => ({
                         user,

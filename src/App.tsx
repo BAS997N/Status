@@ -1972,6 +1972,17 @@ changes.push(
   }`
 );
   }
+
+  if (
+    JSON.stringify(oldSoldier.disciplinaryRestriction || null) !==
+    JSON.stringify(profileToSave.disciplinaryRestriction || null)
+  ) {
+    changes.push(
+      profileToSave.disciplinaryRestriction?.enabled
+        ? `הוגדרה מניעת שיבוץ לעבודות רס״ר מ-${profileToSave.disciplinaryRestriction.startDate} למשך ${profileToSave.disciplinaryRestriction.requiredDays} ימים`
+        : "בוטלה מניעת השיבוץ לעבודות רס״ר"
+    );
+  }
 }
 
     if (isNewSoldier && isFirebaseActive() && secondaryAuth) {

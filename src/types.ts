@@ -504,6 +504,15 @@ export interface UserProfile {
   medicalRole?: string;
   systemRole?: SystemRole;
   systemRoleAccessLevel?: SystemRoleAccessLevel;
+  disciplinaryRestriction?: {
+    type: "rasar_duty";
+    enabled: boolean;
+    startDate: string;
+    requiredDays: number;
+    note?: string;
+    createdAt?: string;
+    updatedAt?: string;
+  };
 }
 
 /*
