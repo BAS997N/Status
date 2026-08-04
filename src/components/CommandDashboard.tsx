@@ -1297,6 +1297,46 @@ const exitHomeTodayCount = reportedTodayList.filter(
     });
   };
 
+  const handleRemoveDisciplinaryRestriction = async (profile: UserProfile) => {
+    if (!canEditSoldier || !profile.disciplinaryRestriction?.enabled) return;
+    if (
+      !window.confirm(
+        `להסיר את מניעת השיבוץ לעבודות רס״ר עבור ${profile.fullName}?`
+      )
+    ) {
+      return;
+    }
+
+    const updatedProfile: UserProfile = { ...profile };
+    delete updatedProfile.disciplinaryRestriction;
+
+    try {
+      await onAdminUpdateSoldier(updatedProfile);
+      setAttendanceStatDetails((current) =>
+        current
+          ? {
+              ...current,
+              items: current.items.filter(
+                (item) => item.profile.userId !== profile.userId
+              ),
+            }
+          : null
+      );
+      onShowMessage?.(
+        "מניעת השיבוץ הוסרה",
+        `${profile.fullName} יכול/ה כעת להשתבץ למשמרות.`,
+        "success"
+      );
+    } catch (error) {
+      console.error("Failed removing disciplinary restriction:", error);
+      onShowMessage?.(
+        "הפעולה נכשלה",
+        "לא ניתן היה להסיר את מניעת השיבוץ.",
+        "error"
+      );
+    }
+  };
+
   const statusStats = reportedTodayList.reduce<Record<string, number>>((acc, item) => {
     const statusId = item.latestTodayReport?.status;
     if (statusId) acc[statusId] = (acc[statusId] || 0) + 1;
@@ -7368,9 +7408,23 @@ await onAdminSaveReport(dataToSave);
                                   </div>
 
                                   {detailText && (
-                                    <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] font-black leading-5 text-amber-800">
-                                      {detailText}
-                                    </p>
+                                    <div className="mt-2 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between">
+                                      <p className="text-[11px] font-black leading-5 text-amber-800">
+                                        {detailText}
+                                      </p>
+                                      {canEditSoldier &&
+                                        profile.disciplinaryRestriction?.enabled && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleRemoveDisciplinaryRestriction(profile)
+                                            }
+                                            className="shrink-0 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-[10px] font-black text-rose-700 transition hover:bg-rose-50"
+                                          >
+                                            הסר מניעת שיבוץ
+                                          </button>
+                                        )}
+                                    </div>
                                   )}
 
                                   {report && (
