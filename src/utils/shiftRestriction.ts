@@ -8,6 +8,7 @@ export interface DisciplinaryRestrictionStatus {
   completedDays: number;
   remainingDays: number;
   skippedCutOrderDays: number;
+  cappedByLineEnd: boolean;
 }
 
 const getReportDate = (report: AttendanceReport) => {
@@ -55,6 +56,7 @@ export const getDisciplinaryRestrictionStatus = (
     completedDays: 0,
     remainingDays: requiredDays,
     skippedCutOrderDays: 0,
+    cappedByLineEnd: false,
   };
 
   if (!restriction?.enabled || !restriction.startDate || !targetDate) {
@@ -89,27 +91,48 @@ export const getDisciplinaryRestrictionStatus = (
     });
 
   let cursor = start;
-  let completedDays = 0;
-  let skippedCutOrderDays = 0;
-  let expectedEndDate = "";
-  let completedThroughTarget = 0;
+  let countedDays = 0;
+  let naturalEndDate = "";
 
   for (let guard = 0; guard < 3660; guard += 1) {
     const dateKey = toDateKey(cursor);
     const isCutOrder = latestReportByDate.get(dateKey)?.status === "cut_order";
 
-    if (isCutOrder) skippedCutOrderDays += 1;
-    else completedDays += 1;
-
-    if (cursor.getTime() <= target.getTime()) {
-      completedThroughTarget = completedDays;
-    }
-
-    if (completedDays >= requiredDays) {
-      expectedEndDate = dateKey;
+    if (!isCutOrder) countedDays += 1;
+    if (countedDays >= requiredDays) {
+      naturalEndDate = dateKey;
       break;
     }
 
+    cursor = addOneDay(cursor);
+  }
+
+  const configuredLineEnd = restriction.endDate || "";
+  const cappedByLineEnd = Boolean(
+    configuredLineEnd &&
+      configuredLineEnd >= restriction.startDate &&
+      (!naturalEndDate || configuredLineEnd < naturalEndDate)
+  );
+  const expectedEndDate = cappedByLineEnd
+    ? configuredLineEnd
+    : naturalEndDate || configuredLineEnd;
+
+  let completedDays = 0;
+  let totalDaysInRestriction = 0;
+  let skippedCutOrderDays = 0;
+  cursor = start;
+  const actualEnd = expectedEndDate
+    ? new Date(`${expectedEndDate}T12:00:00`)
+    : start;
+
+  for (let guard = 0; guard < 3660 && cursor <= actualEnd; guard += 1) {
+    const dateKey = toDateKey(cursor);
+    const isCutOrder = latestReportByDate.get(dateKey)?.status === "cut_order";
+    if (isCutOrder) skippedCutOrderDays += 1;
+    else {
+      totalDaysInRestriction += 1;
+      if (cursor <= target) completedDays += 1;
+    }
     cursor = addOneDay(cursor);
   }
 
@@ -122,8 +145,11 @@ export const getDisciplinaryRestrictionStatus = (
     startDate: restriction.startDate,
     expectedEndDate,
     requiredDays,
-    completedDays: Math.min(completedThroughTarget, requiredDays),
-    remainingDays: Math.max(0, requiredDays - completedThroughTarget),
+    completedDays: Math.min(completedDays, requiredDays),
+    remainingDays: active
+      ? Math.max(0, totalDaysInRestriction - completedDays)
+      : 0,
     skippedCutOrderDays,
+    cappedByLineEnd,
   };
 };

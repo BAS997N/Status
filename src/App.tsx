@@ -1979,7 +1979,7 @@ changes.push(
   ) {
     changes.push(
       profileToSave.disciplinaryRestriction?.enabled
-        ? `הוגדרה מניעת שיבוץ לעבודות רס״ר מ-${profileToSave.disciplinaryRestriction.startDate} למשך ${profileToSave.disciplinaryRestriction.requiredDays} ימים`
+        ? `הוגדרה מניעת שיבוץ לעבודות רס״ר מ-${profileToSave.disciplinaryRestriction.startDate} עד ${profileToSave.disciplinaryRestriction.endDate || "סיום המכסה"}, עד ${profileToSave.disciplinaryRestriction.requiredDays} ימים`
         : "בוטלה מניעת השיבוץ לעבודות רס״ר"
     );
   }
@@ -3171,6 +3171,7 @@ const handleAdminBulkSaveReports = async (
                 permissions={permissions}
                 attendanceStatuses={attendanceStatuses}
                 reports={reports}
+                systemSettings={systemSettings}
                 attendanceLogs={attendanceLogs}
                 systemLogs={systemLogs}
                 notifications={notifications}

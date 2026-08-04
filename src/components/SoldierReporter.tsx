@@ -13,7 +13,8 @@ import {
   ChevronDown,
   ChevronUp,
   Bell,
-  CheckCheck
+  CheckCheck,
+  ShieldAlert
 } from "lucide-react";
 import { 
   UserProfile, 
@@ -27,6 +28,7 @@ import {
 } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { dataService } from "../services/dataService";
+import { getDisciplinaryRestrictionStatus } from "../utils/shiftRestriction";
 
 interface SoldierReporterProps {
   currentUser: UserProfile;
@@ -359,6 +361,11 @@ useEffect(() => {
     });
 
   const todayDate = getTodayLocalDate();
+  const disciplinaryRestrictionStatus = getDisciplinaryRestrictionStatus(
+    currentUser,
+    reports,
+    todayDate
+  );
   const orderEvents = [...(systemSettings.orderEvents || [])].sort((a, b) =>
     a.startDate.localeCompare(b.startDate)
   );
@@ -733,6 +740,69 @@ dayMarker || undefined
           })()}
         </div>
       </div>
+
+      {disciplinaryRestrictionStatus.active && (
+        <section
+          dir="rtl"
+          className="rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-sm sm:p-5"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm font-black text-amber-950">
+                    עבודות רס״ר — מניעת שיבוץ פעילה
+                  </h3>
+                  <span className="rounded-full bg-amber-600 px-2 py-0.5 text-[9px] font-black text-white">
+                    פעיל
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] font-bold leading-5 text-amber-800">
+                  בתקופה זו לא ניתן להשתבץ או לשלוח בקשת שיבוץ למשמרות.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+              <div className="rounded-lg border border-amber-200 bg-white/80 px-3 py-2">
+                <span className="block text-[9px] font-bold text-slate-500">הושלמו</span>
+                <strong className="text-base text-amber-800">
+                  {disciplinaryRestrictionStatus.completedDays}/{disciplinaryRestrictionStatus.requiredDays}
+                </strong>
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-white/80 px-3 py-2">
+                <span className="block text-[9px] font-bold text-slate-500">נותרו</span>
+                <strong className="text-base text-amber-800">
+                  {disciplinaryRestrictionStatus.remainingDays}
+                </strong>
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-white/80 px-3 py-2">
+                <span className="block text-[9px] font-bold text-slate-500">חיתוך צו</span>
+                <strong className="text-base text-amber-800">
+                  {disciplinaryRestrictionStatus.skippedCutOrderDays}
+                </strong>
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-white/80 px-3 py-2">
+                <span className="block text-[9px] font-bold text-slate-500">
+                  {disciplinaryRestrictionStatus.cappedByLineEnd
+                    ? "סיום הקו"
+                    : "סיום משוער"}
+                </span>
+                <strong className="text-xs text-amber-900">
+                  {disciplinaryRestrictionStatus.expectedEndDate
+                    ? new Date(
+                        `${disciplinaryRestrictionStatus.expectedEndDate}T12:00:00`
+                      ).toLocaleDateString("he-IL")
+                    : "לא חושב"}
+                </strong>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {commanderMessages.length > 0 && (
         <section className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm" dir="rtl">

@@ -42,6 +42,7 @@ import {
   AttendanceStatus, 
   AppNotification,
   AttendanceStatusConfig,
+  SystemSettingsConfig,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   IDF_UNITS 
 } from "../types";
@@ -78,6 +79,7 @@ interface CommandDashboardProps {
   permissions: PermissionMap;
   attendanceStatuses?: AttendanceStatusConfig[];
   reports: AttendanceReport[];
+  systemSettings: SystemSettingsConfig | null;
   allSoldiers: UserProfile[];
   systemLogs: any[];
   notifications: AppNotification[];
@@ -186,6 +188,7 @@ export default function CommandDashboard({
   permissions,
   attendanceStatuses = DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   reports, 
+  systemSettings,
   attendanceLogs,
   systemLogs,
   notifications,
@@ -698,6 +701,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
     items: Array<{
       profile: UserProfile;
       report?: AttendanceReport;
+      detailText?: string;
     }>;
     groups?: Array<{
       title: string;
@@ -705,6 +709,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
       items: Array<{
         profile: UserProfile;
         report?: AttendanceReport;
+        detailText?: string;
       }>;
     }>;
   } | null>(null);
@@ -803,8 +808,18 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   const [formIsDischarged, setFormIsDischarged] = useState(false);
   const [formRestrictionEnabled, setFormRestrictionEnabled] = useState(false);
   const [formRestrictionStartDate, setFormRestrictionStartDate] = useState("");
+  const [formRestrictionEndDate, setFormRestrictionEndDate] = useState("");
   const [formRestrictionDays, setFormRestrictionDays] = useState(21);
   const [formRestrictionNote, setFormRestrictionNote] = useState("");
+
+  const getLineEndDateFor = (dateKey: string) => {
+    if (!dateKey) return "";
+    const matchingOrder = (systemSettings?.orderEvents || []).find((order) => {
+      const lineEnd = order.lineEndDate || order.endDate;
+      return order.startDate <= dateKey && lineEnd >= dateKey;
+    });
+    return matchingOrder?.lineEndDate || matchingOrder?.endDate || "";
+  };
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
 
@@ -824,6 +839,10 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
     );
     setFormRestrictionStartDate(
       soldier.disciplinaryRestriction?.startDate || ""
+    );
+    setFormRestrictionEndDate(
+      soldier.disciplinaryRestriction?.endDate ||
+        getLineEndDateFor(soldier.disciplinaryRestriction?.startDate || "")
     );
     setFormRestrictionDays(
       soldier.disciplinaryRestriction?.requiredDays || 21
@@ -848,6 +867,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
     setFormIsDischarged(false);
     setFormRestrictionEnabled(false);
     setFormRestrictionStartDate("");
+    setFormRestrictionEndDate("");
     setFormRestrictionDays(21);
     setFormRestrictionNote("");
     setFormError("");
@@ -896,9 +916,14 @@ const handleFormSubmit = async (e: React.FormEvent) => {
 
   if (
     formRestrictionEnabled &&
-    (!formRestrictionStartDate || formRestrictionDays < 1)
+    (!formRestrictionStartDate ||
+      !formRestrictionEndDate ||
+      formRestrictionEndDate < formRestrictionStartDate ||
+      formRestrictionDays < 1)
   ) {
-    setFormError("יש להזין תאריך התחלה ומספר ימי עבודות רס״ר תקין.");
+    setFormError(
+      "יש להזין תאריך התחלה, תאריך סיום קו ומספר ימי עבודות רס״ר תקין."
+    );
     return;
   }
 
@@ -924,6 +949,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
       type: "rasar_duty",
       enabled: true,
       startDate: formRestrictionStartDate,
+      endDate: formRestrictionEndDate,
       requiredDays: Math.max(1, Number(formRestrictionDays) || 21),
       note: formRestrictionNote.trim(),
       createdAt:
@@ -1239,6 +1265,35 @@ const exitHomeTodayCount = reportedTodayList.filter(
         "חלוקה לפי סימון היום של החיילים שדיווחו שהם בבסיס או בשטח וזמינים למשימות.",
       items: groups.flatMap((group) => group.items),
       groups,
+    });
+  };
+
+  const openDisciplinaryRestrictionDetails = () => {
+    setAttendanceStatDetails({
+      title: "בריתוק / עבודות רס״ר",
+      description:
+        "חיילים המנועים משיבוץ למשמרות. ימי חיתוך צו אינם נכללים במכסת ימי העונש.",
+      items: disciplinaryRestrictionDetails
+        .map((item) => {
+          const restriction = getDisciplinaryRestrictionStatus(
+            item.profile,
+            reports,
+            selectedDate
+          );
+          const endDate = restriction.expectedEndDate
+            ? new Date(`${restriction.expectedEndDate}T12:00:00`).toLocaleDateString(
+                "he-IL"
+              )
+            : "לא חושב";
+          return {
+            profile: item.profile,
+            report: item.latestTodayReport,
+            detailText: `הושלמו ${restriction.completedDays} מתוך עד ${restriction.requiredDays} ימים · נותרו ${restriction.remainingDays} · חיתוך צו: ${restriction.skippedCutOrderDays} · סיום: ${endDate}${restriction.cappedByLineEnd ? " (סיום הקו)" : ""}`,
+          };
+        })
+        .sort((first, second) =>
+          first.profile.fullName.localeCompare(second.profile.fullName, "he")
+        ),
     });
   };
 
@@ -3692,13 +3747,7 @@ const dates = getDateRange(startDate, endDate);
         {/* Disciplinary restriction / Ras\"ar duties */}
         <button
           type="button"
-          onClick={() =>
-            openAttendanceStatDetails(
-              "בריתוק / עבודות רס״ר",
-              "חיילים המנועים משיבוץ למשמרות עד להשלמת מכסת ימי העונש. ימי חיתוך צו אינם נספרים.",
-              disciplinaryRestrictionDetails
-            )
-          }
+          onClick={openDisciplinaryRestrictionDetails}
           className="w-full cursor-pointer bg-white p-4 rounded-xl border border-amber-200 shadow-sm flex items-center justify-between text-right transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md"
         >
           <div>
@@ -5888,9 +5937,9 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                       onChange={(event) => {
                         setFormRestrictionEnabled(event.target.checked);
                         if (event.target.checked && !formRestrictionStartDate) {
-                          setFormRestrictionStartDate(
-                            new Date().toLocaleDateString("en-CA")
-                          );
+                          const today = new Date().toLocaleDateString("en-CA");
+                          setFormRestrictionStartDate(today);
+                          setFormRestrictionEndDate(getLineEndDateFor(today));
                         }
                       }}
                       className="mt-0.5 h-4 w-4 accent-amber-600"
@@ -5915,8 +5964,25 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                         <input
                           type="date"
                           value={formRestrictionStartDate}
+                          onChange={(event) => {
+                            const nextStartDate = event.target.value;
+                            setFormRestrictionStartDate(nextStartDate);
+                            const lineEndDate = getLineEndDateFor(nextStartDate);
+                            if (lineEndDate) setFormRestrictionEndDate(lineEndDate);
+                          }}
+                          className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-amber-200"
+                        />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block text-[11px] font-black text-amber-900">
+                          תאריך סיום הקו
+                        </span>
+                        <input
+                          type="date"
+                          min={formRestrictionStartDate || undefined}
+                          value={formRestrictionEndDate}
                           onChange={(event) =>
-                            setFormRestrictionStartDate(event.target.value)
+                            setFormRestrictionEndDate(event.target.value)
                           }
                           className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-amber-200"
                         />
@@ -7267,7 +7333,7 @@ await onAdminSaveReport(dataToSave);
                           </p>
                         ) : (
                           <div className="divide-y divide-slate-100">
-                            {group.items.map(({ profile, report }) => {
+                            {group.items.map(({ profile, report, detailText }) => {
                               const statusLabel = report
                                 ? statusLabels[report.status]?.label || report.status
                                 : "טרם דיווח";
@@ -7300,6 +7366,12 @@ await onAdminSaveReport(dataToSave);
                                       {statusLabel}
                                     </span>
                                   </div>
+
+                                  {detailText && (
+                                    <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] font-black leading-5 text-amber-800">
+                                      {detailText}
+                                    </p>
+                                  )}
 
                                   {report && (
                                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-slate-500">

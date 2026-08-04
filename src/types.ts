@@ -508,6 +508,7 @@ export interface UserProfile {
     type: "rasar_duty";
     enabled: boolean;
     startDate: string;
+    endDate?: string;
     requiredDays: number;
     note?: string;
     createdAt?: string;
