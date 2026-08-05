@@ -615,6 +615,7 @@ export interface AttendanceStatusConfig {
   description?: string;
   customColor?: string;
   chartCategory?: AttendanceChartCategory;
+  numericRosterCode?: string;
   exportToSheets?: boolean;
   requiresGps?: boolean;
   requiresDateRange?: boolean;
@@ -723,6 +724,7 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
     id: "base",
     icon: "🟢",
     chartCategory: "present",
+    numericRosterCode: "1",
     exportToSheets: true,
     label: "בבסיס",
     enabled: true,
@@ -742,6 +744,7 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
     id: "home",
     icon: "🏠",
     chartCategory: "absent",
+    numericRosterCode: "0",
     exportToSheets: true,
     label: "בבית / אפטר",
     enabled: true,
@@ -761,6 +764,7 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
     id: "field",
     icon: "🌲",
     chartCategory: "present",
+    numericRosterCode: "1",
     exportToSheets: true,
     label: "פעילות שטח / אימון",
     enabled: true,
@@ -780,6 +784,7 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
     id: "sick",
     icon: "🚑",
     chartCategory: "medical",
+    numericRosterCode: "2",
     exportToSheets: true,
     label: "גימלים / חולים",
     enabled: true,
@@ -799,6 +804,7 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
     id: "course",
     icon: "📚",
     chartCategory: "present",
+    numericRosterCode: "3",
     exportToSheets: true,
     label: "קורס / הכשרה",
     enabled: true,
@@ -818,6 +824,7 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
     id: "cut_order",
     icon: "✂️",
     chartCategory: "administrative",
+    numericRosterCode: "100",
     exportToSheets: true,
     label: "חיתוך צו",
     enabled: true,
@@ -834,6 +841,7 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
     id: "not_on_order",
     icon: "⛔",
     chartCategory: "not_on_order",
+    numericRosterCode: "4",
     exportToSheets: true,
     label: "לא בצו",
     enabled: true,
@@ -850,6 +858,7 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
     id: "processing_days",
     icon: "📅",
     chartCategory: "administrative",
+    numericRosterCode: "5",
     exportToSheets: true,
     label: "ימי עיבוד",
     enabled: true,
@@ -869,6 +878,7 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
     id: "refresh_days",
     icon: "☕",
     chartCategory: "administrative",
+    numericRosterCode: "6",
     exportToSheets: true,
     label: "ימי התרעננות",
     enabled: true,
@@ -888,6 +898,7 @@ export const DEFAULT_ATTENDANCE_STATUS_CONFIGS:
     id: "other",
     icon: "📌",
     chartCategory: "neutral",
+    numericRosterCode: "9",
     exportToSheets: true,
     label: "אחר (ראה הערה)",
     enabled: true,

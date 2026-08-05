@@ -2919,20 +2919,21 @@ const dates = getDateRange(startDate, endDate);
       return;
     }
 
+    const numericCodeByStatus = new Map(
+      attendanceStatuses.map((status) => [
+        status.id,
+        (status.numericRosterCode || "").trim().replace(",", "."),
+      ])
+    );
     const getNumericValue = (report?: AttendanceReport): string => {
       if (!report) return "";
-      if (report.status === "cut_order") return "100";
       if (
         report.dayMarker === "exit_home" ||
         report.dayMarker === "return_to_base"
       ) {
         return "0.5";
       }
-
-      const category = getChartCategory(report.status);
-      if (category === "present") return "1";
-      if (category === "absent") return "0";
-      return "";
+      return numericCodeByStatus.get(report.status) || "";
     };
 
     const headers = [
@@ -2993,7 +2994,24 @@ const dates = getDateRange(startDate, endDate);
         ];
       });
 
-    const csvContent = buildCsv([headers, dayHeaders, ...rows]);
+    const legendRows = attendanceStatuses
+      .filter((status) => (status.numericRosterCode || "").trim())
+      .sort((first, second) => first.sortOrder - second.sortOrder)
+      .map((status) => [
+        "",
+        `מקרא: ${status.label}`,
+        (status.numericRosterCode || "").trim().replace(",", "."),
+      ]);
+    legendRows.push(["", "מקרא: יציאה לבית / חזרה לבסיס", "0.5"]);
+
+    const csvContent = buildCsv([
+      headers,
+      dayHeaders,
+      ...rows,
+      [],
+      ["", "מקרא קודים", ""],
+      ...legendRows,
+    ]);
     const blob = new Blob(["\uFEFF" + csvContent], {
       type: "text/csv;charset=utf-8;",
     });

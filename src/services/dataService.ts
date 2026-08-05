@@ -739,6 +739,12 @@ const normalizeAttendanceStatusConfigs = (
       color: status.color || "text-slate-700",
       bg: status.bg || "bg-slate-50",
       border: status.border || "border-slate-200",
+      numericRosterCode:
+        typeof status.numericRosterCode === "string"
+          ? status.numericRosterCode.trim().replace(",", ".")
+          : DEFAULT_ATTENDANCE_STATUS_CONFIGS.find(
+              (defaultStatus) => defaultStatus.id === status.id.trim()
+            )?.numericRosterCode || "",
     }))
     .filter((status) => status.id.length > 0 && status.label.length > 0)
     .sort((a, b) => a.sortOrder - b.sortOrder);
