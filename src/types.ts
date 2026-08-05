@@ -510,6 +510,7 @@ export interface UserProfile {
     startDate: string;
     endDate?: string;
     requiredDays: number;
+    allowManagerShiftAssignment?: boolean;
     note?: string;
     createdAt?: string;
     updatedAt?: string;

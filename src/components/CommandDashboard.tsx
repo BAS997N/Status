@@ -951,6 +951,9 @@ const handleFormSubmit = async (e: React.FormEvent) => {
       startDate: formRestrictionStartDate,
       endDate: formRestrictionEndDate,
       requiredDays: Math.max(1, Number(formRestrictionDays) || 21),
+      allowManagerShiftAssignment:
+        editingSoldier?.disciplinaryRestriction
+          ?.allowManagerShiftAssignment === true,
       note: formRestrictionNote.trim(),
       createdAt:
         editingSoldier?.disciplinaryRestriction?.createdAt ||
@@ -1297,18 +1300,28 @@ const exitHomeTodayCount = reportedTodayList.filter(
     });
   };
 
-  const handleRemoveDisciplinaryRestriction = async (profile: UserProfile) => {
+  const handleToggleManagerRestrictionOverride = async (profile: UserProfile) => {
     if (!canEditSoldier || !profile.disciplinaryRestriction?.enabled) return;
+    const currentlyAllowed =
+      profile.disciplinaryRestriction.allowManagerShiftAssignment === true;
     if (
       !window.confirm(
-        `להסיר את מניעת השיבוץ לעבודות רס״ר עבור ${profile.fullName}?`
+        currentlyAllowed
+          ? `לחסום שוב שיבוץ של ${profile.fullName} למשמרות בתקופת עבודות הרס״ר?`
+          : `לאפשר למנהל לשבץ את ${profile.fullName} למשמרת, בלי לבטל את תקופת עבודות הרס״ר?`
       )
     ) {
       return;
     }
 
-    const updatedProfile: UserProfile = { ...profile };
-    delete updatedProfile.disciplinaryRestriction;
+    const updatedProfile: UserProfile = {
+      ...profile,
+      disciplinaryRestriction: {
+        ...profile.disciplinaryRestriction,
+        allowManagerShiftAssignment: !currentlyAllowed,
+        updatedAt: new Date().toISOString(),
+      },
+    };
 
     try {
       await onAdminUpdateSoldier(updatedProfile);
@@ -1316,22 +1329,26 @@ const exitHomeTodayCount = reportedTodayList.filter(
         current
           ? {
               ...current,
-              items: current.items.filter(
-                (item) => item.profile.userId !== profile.userId
+              items: current.items.map((item) =>
+                item.profile.userId === profile.userId
+                  ? { ...item, profile: updatedProfile }
+                  : item
               ),
             }
           : null
       );
       onShowMessage?.(
-        "מניעת השיבוץ הוסרה",
-        `${profile.fullName} יכול/ה כעת להשתבץ למשמרות.`,
+        currentlyAllowed ? "מניעת השיבוץ הופעלה" : "שיבוץ מנהל הותר",
+        currentlyAllowed
+          ? `${profile.fullName} חסום/ה שוב משיבוץ בתקופת עבודות הרס״ר.`
+          : `מנהל יכול כעת לשבץ את ${profile.fullName}; תקופת עבודות הרס״ר נשארה פעילה.`,
         "success"
       );
     } catch (error) {
-      console.error("Failed removing disciplinary restriction:", error);
+      console.error("Failed toggling disciplinary restriction override:", error);
       onShowMessage?.(
         "הפעולה נכשלה",
-        "לא ניתן היה להסיר את מניעת השיבוץ.",
+        "לא ניתן היה לעדכן את הרשאת השיבוץ למנהל.",
         "error"
       );
     }
@@ -2878,6 +2895,118 @@ const dates = getDateRange(startDate, endDate);
     return Array.from(latestReportByDate.values());
   };
 
+  const handleExportNumericAttendanceCSV = () => {
+    const allReportDates = activeReports
+      .map(
+        (report) =>
+          (report as AttendanceReport & { reportDate?: string }).reportDate ||
+          getDateOnlyFromTimestamp(report.timestamp)
+      )
+      .filter(Boolean)
+      .sort();
+    const today = getTodayLocalDate();
+    const startDate = summaryStartDate || allReportDates[0] || today;
+    const endDate =
+      summaryEndDate || allReportDates[allReportDates.length - 1] || today;
+    const dates = getDateRangeKeys(startDate, endDate);
+
+    if (dates.length === 0) {
+      onShowMessage?.(
+        "לא ניתן לייצא",
+        "יש לבחור טווח תאריכים תקין.",
+        "error"
+      );
+      return;
+    }
+
+    const getNumericValue = (report?: AttendanceReport): string => {
+      if (!report) return "";
+      if (report.status === "cut_order") return "100";
+      if (
+        report.dayMarker === "exit_home" ||
+        report.dayMarker === "return_to_base"
+      ) {
+        return "0.5";
+      }
+
+      const category = getChartCategory(report.status);
+      if (category === "present") return "1";
+      if (category === "absent") return "0";
+      return "";
+    };
+
+    const headers = [
+      "מספר אישי",
+      "שם",
+      "תפקיד",
+      "יחידה",
+      ...dates.map((date) =>
+        new Date(`${date}T12:00:00`).toLocaleDateString("he-IL")
+      ),
+      "סה״כ",
+    ];
+    const dayHeaders = [
+      "",
+      "",
+      "",
+      "",
+      ...dates.map((date) =>
+        new Date(`${date}T12:00:00`).toLocaleDateString("he-IL", {
+          weekday: "short",
+        })
+      ),
+      "",
+    ];
+
+    const rows = allSoldiers
+      .filter((soldier) => !soldier.isDischarged)
+      .sort((first, second) => {
+        const roleComparison = compareMedicalRoles(
+          first.medicalRole,
+          second.medicalRole
+        );
+        return roleComparison || first.fullName.localeCompare(second.fullName, "he");
+      })
+      .map((soldier) => {
+        const reportByDate = new Map(
+          getSummaryReportsForSoldier(soldier).map((report) => [
+            (report as AttendanceReport & { reportDate?: string }).reportDate ||
+              getDateOnlyFromTimestamp(report.timestamp),
+            report,
+          ])
+        );
+        const numericCells = dates.map((date) =>
+          getNumericValue(reportByDate.get(date))
+        );
+        const total = numericCells.reduce(
+          (sum, value) => sum + (value ? Number(value) : 0),
+          0
+        );
+
+        return [
+          soldier.personalId || "",
+          soldier.fullName,
+          soldier.medicalRole || "",
+          soldier.unit || "",
+          ...numericCells,
+          String(total),
+        ];
+      });
+
+    const csvContent = buildCsv([headers, dayHeaders, ...rows]);
+    const blob = new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `סידור_יציאות_מספרי_${startDate}_עד_${endDate}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const summaryRows = allSoldiers.map((soldier) => {
     const soldierReports = getSummaryReportsForSoldier(soldier);
     const counts = {
@@ -3627,6 +3756,14 @@ const dates = getDateRange(startDate, endDate);
         className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition cursor-pointer"
       >
         ייצוא לאקסל
+      </button>
+
+      <button
+        onClick={handleExportNumericAttendanceCSV}
+        className="bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-bold px-4 py-2 rounded-lg transition cursor-pointer"
+        title="1 בבסיס · 0 בבית · 0.5 יציאה או חזרה · 100 חיתוך צו"
+      >
+        ייצוא סידור מספרי
       </button>
     </div>
 
@@ -7417,12 +7554,20 @@ await onAdminSaveReport(dataToSave);
                                           <button
                                             type="button"
                                             onClick={() =>
-                                              handleRemoveDisciplinaryRestriction(profile)
-                                            }
-                                            className="shrink-0 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-[10px] font-black text-rose-700 transition hover:bg-rose-50"
-                                          >
-                                            הסר מניעת שיבוץ
-                                          </button>
+                                               handleToggleManagerRestrictionOverride(profile)
+                                             }
+                                             className={`shrink-0 rounded-lg border bg-white px-3 py-1.5 text-[10px] font-black transition ${
+                                               profile.disciplinaryRestriction
+                                                 ?.allowManagerShiftAssignment
+                                                 ? "border-rose-200 text-rose-700 hover:bg-rose-50"
+                                                 : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                             }`}
+                                           >
+                                             {profile.disciplinaryRestriction
+                                               ?.allowManagerShiftAssignment
+                                               ? "חסום שוב שיבוץ מנהל"
+                                               : "אפשר שיבוץ על ידי מנהל"}
+                                           </button>
                                         )}
                                     </div>
                                   )}

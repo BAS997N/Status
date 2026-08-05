@@ -732,7 +732,11 @@ export default function ShiftsView({
       .map((userId) => selectableUsers.find((user) => user.userId === userId))
       .find(
         (user): user is UserProfile =>
-          Boolean(user && getShiftRestriction(user, startDate).active)
+          Boolean(
+            user &&
+              getShiftRestriction(user, startDate).active &&
+              user.disciplinaryRestriction?.allowManagerShiftAssignment !== true
+          )
       );
     if (restrictedSelection) {
       setMessage({
@@ -3379,7 +3383,8 @@ export default function ShiftsView({
                 <div className="mt-1 text-[10px] font-bold leading-5 text-slate-500">
                   ליד כל חייל מוצגים סטטוס הנוכחות וסימון היום לתאריך
                   המשמרת. חיילים בבסיס מוצגים ראשונים. חיילים בתקופת עבודות
-                  רס״ר מוסתרים ואינם ניתנים לשיבוץ. סימון חפיפה הוא מידע בלבד.
+                  רס״ר מוסתרים, אלא אם מנהל התיר עבורם שיבוץ. סימון חפיפה הוא
+                  מידע בלבד.
                 </div>
               </div>
               {expandedSlots.map((slot) => {
@@ -3390,7 +3395,9 @@ export default function ShiftsView({
                           (slot.allowDischargedUsers ||
                             !user.isDischarged) &&
                           isAllowedForSlot(user, slot) &&
-                          !getShiftRestriction(user, startDate).active
+                          (!getShiftRestriction(user, startDate).active ||
+                            user.disciplinaryRestriction
+                              ?.allowManagerShiftAssignment === true)
                       )
                       .map((user) => ({
                         user,
