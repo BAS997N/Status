@@ -14,7 +14,8 @@ import {
   serverTimestamp,
   writeBatch,
   onSnapshot,
-  limit
+  limit,
+  deleteField
 } from "firebase/firestore";
 import { db, auth, isFirebaseActive } from "../firebase";
 import { sanitizeSpreadsheetCell } from "../utils/csvSecurity";
@@ -4708,6 +4709,13 @@ await setDoc(notRef, {
           isReset: false,
         };
 
+        if (!report.dayMarker) {
+          delete nextReport.dayMarker;
+          delete nextReport.afterHours;
+        } else if (report.dayMarker !== "after_hours") {
+          delete nextReport.afterHours;
+        }
+
         if (existingIndex >= 0) {
           localReports[existingIndex] = nextReport;
           updated += 1;
@@ -4757,6 +4765,15 @@ await setDoc(notRef, {
           resetBy: null,
           resetByName: null,
         };
+
+        if (reportId) {
+          if (!report.dayMarker) {
+            payload.dayMarker = deleteField();
+            payload.afterHours = deleteField();
+          } else if (report.dayMarker !== "after_hours") {
+            payload.afterHours = deleteField();
+          }
+        }
 
         Object.keys(payload).forEach((key) => {
           if (payload[key] === undefined) delete payload[key];
