@@ -11,6 +11,7 @@ import {
   Pencil,
   Lock,
   Plus,
+  RefreshCw,
   Save,
   Search,
   Trash2,
@@ -846,6 +847,132 @@ export default function LinePlanning({
     }
   };
 
+  const syncPlanFromAttendanceReports = async () => {
+    if (!selectedCycle || !canEdit) return;
+
+    const userById = new Map(allUsers.map((user) => [user.userId, user]));
+    const userByPersonalId = new Map(
+      allUsers
+        .filter((user) => Boolean(user.personalId))
+        .map((user) => [String(user.personalId), user])
+    );
+    const latestByUserAndDate = new Map<string, AttendanceReport>();
+
+    reports
+      .filter((report) => report.isReset !== true)
+      .forEach((report) => {
+        const reportDate =
+          report.reportDate ||
+          (typeof report.timestamp === "string"
+            ? report.timestamp.slice(0, 10)
+            : "");
+        if (
+          !reportDate ||
+          reportDate < selectedCycle.startDate ||
+          reportDate > selectedCycle.endDate
+        ) {
+          return;
+        }
+
+        const user =
+          userById.get(report.userId) ||
+          userByPersonalId.get(String(report.personalId || ""));
+        if (!user || user.isDischarged) return;
+
+        const key = `${user.userId}_${reportDate}`;
+        const previous = latestByUserAndDate.get(key);
+        const currentTime = new Date(
+          report.updatedAt || report.timestamp || 0
+        ).getTime();
+        const previousTime = previous
+          ? new Date(previous.updatedAt || previous.timestamp || 0).getTime()
+          : 0;
+        if (!previous || currentTime >= previousTime) {
+          latestByUserAndDate.set(key, report);
+        }
+      });
+
+    if (latestByUserAndDate.size === 0) {
+      setMessage({
+        type: "error",
+        text: "לא נמצאו דיווחי נוכחות בטווח התאריכים של הקו הנבחר.",
+      });
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `לעדכן את תכנון הקו לפי ${latestByUserAndDate.size} דיווחי נוכחות קיימים? רק תאריכים שבהם קיים דיווח יעודכנו.`
+      )
+    ) {
+      return;
+    }
+
+    const nextDraftPlans: Record<
+      string,
+      Record<string, LinePresenceStatus>
+    > = { ...draftPlans };
+    const affectedUserIds = new Set<string>();
+
+    latestByUserAndDate.forEach((report, key) => {
+      const separatorIndex = key.lastIndexOf("_");
+      const userId = key.slice(0, separatorIndex);
+      const reportDate = key.slice(separatorIndex + 1);
+      nextDraftPlans[userId] = {
+        ...(nextDraftPlans[userId] || {}),
+        [reportDate]: report.status,
+      };
+      affectedUserIds.add(userId);
+    });
+
+    const now = new Date().toISOString();
+    setSaving(true);
+    setMessage(null);
+    try {
+      const affectedIds = Array.from(affectedUserIds);
+      const nextPlans = await Promise.all(
+        affectedIds.map((userId) => {
+          const user = userById.get(userId);
+          if (!user) throw new Error("User not found");
+          return dataService.saveLinePresencePlan({
+            planId: `${selectedCycle.cycleId}_${user.userId}`,
+            cycleId: selectedCycle.cycleId,
+            userId: user.userId,
+            userName: user.fullName,
+            unit: user.unit,
+            dates: nextDraftPlans[user.userId] || {},
+            updatedAt: now,
+            updatedBy: currentUser.userId,
+            updatedByName: currentUser.fullName,
+          });
+        })
+      );
+
+      setDraftPlans(nextDraftPlans);
+      setPlans((current) => {
+        const updatedIds = new Set(nextPlans.map((item) => item.userId));
+        return [
+          ...current.filter((item) => !updatedIds.has(item.userId)),
+          ...nextPlans,
+        ];
+      });
+      setDirtyPlanUserIds((current) =>
+        current.filter((userId) => !affectedUserIds.has(userId))
+      );
+      setMessage({
+        type: "success",
+        text: `תכנון הקו עודכן לפי ${latestByUserAndDate.size} דיווחים של ${affectedUserIds.size} חיילים. תאריכים ללא דיווח לא שונו.`,
+      });
+    } catch {
+      setMessage({
+        type: "error",
+        text: "עדכון תכנון הקו מדיווחי הנוכחות נכשל.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading && cycles.length === 0) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm font-bold text-slate-500">
@@ -1195,15 +1322,26 @@ export default function LinePlanning({
                 </div>
               </details>
               {canEdit && planningViewMode === "edit" && (
-                <button
-                  type="button"
-                  onClick={savePlans}
-                  disabled={saving || dirtyPlanUserIds.length === 0}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-40"
-                >
-                  <Save className="h-4 w-4" />
-                  שמור תכנון
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={syncPlanFromAttendanceReports}
+                    disabled={saving}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs font-black text-blue-700 disabled:opacity-40"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    עדכן מדיווחי נוכחות
+                  </button>
+                  <button
+                    type="button"
+                    onClick={savePlans}
+                    disabled={saving || dirtyPlanUserIds.length === 0}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-40"
+                  >
+                    <Save className="h-4 w-4" />
+                    שמור תכנון
+                  </button>
+                </>
               )}
             </div>
           </div>
