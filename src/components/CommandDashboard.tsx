@@ -246,18 +246,25 @@ export default function CommandDashboard({
 
   const getRosterGroupOrder = (profile: UserProfile) => {
     const role = normalizeMedicalRoleName(profile.medicalRole || "").replace(
-      /\s+/g,
+      /[^א-תa-z0-9]/gi,
       ""
     );
     const unit = normalizeMedicalRoleName(profile.unit || "").replace(
-      /\s+/g,
+      /[^א-תa-z0-9]/gi,
       ""
     );
     if (role.includes("מפרפואה")) return 0;
-    if (unit.includes("סגלופיקודרפואי") || role.includes("מפקדתאגד")) return 1;
-    if (role.includes("רופא") && !role.includes("פרמדיק")) return 2;
-    if (role.includes("פרמדיק")) return 3;
-    if (role.includes("מנהלאירוע")) return 4;
+    if (
+      unit.includes("סגלופיקודרפואי") ||
+      (role.includes("מפקד") && role.includes("תאגד"))
+    ) return 1;
+    if (
+      role.includes("רופא") &&
+      !role.includes("פרמדיק") &&
+      !role.includes("פראמדיק")
+    ) return 2;
+    if (role.includes("פרמדיק") || role.includes("פראמדיק")) return 3;
+    if (role.includes("מנהל") && role.includes("אירוע")) return 4;
     if (isAttachedToTagad(profile)) return 6;
     if (unit.includes("תאגד") || role.includes("חובש")) return 5;
     return 7;

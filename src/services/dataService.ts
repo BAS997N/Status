@@ -1727,8 +1727,7 @@ const getSheetsPersonalId = (...values: any[]): string => {
 
 const normalizeRosterGroupText = (value?: string) =>
   String(value || "")
-    .replace(/[״׳'"`]/g, "")
-    .replace(/\s+/g, "")
+    .replace(/[^א-תa-z0-9]/gi, "")
     .toLocaleLowerCase("he");
 
 const getRosterGroupOrder = (user: UserProfile) => {
@@ -1737,10 +1736,17 @@ const getRosterGroupOrder = (user: UserProfile) => {
   const isAttached = unit.includes("מסופח") && unit.includes("תאגד");
 
   if (role.includes("מפרפואה")) return 0;
-  if (unit.includes("סגלופיקודרפואי") || role.includes("מפקדתאגד")) return 1;
-  if (role.includes("רופא") && !role.includes("פרמדיק")) return 2;
-  if (role.includes("פרמדיק")) return 3;
-  if (role.includes("מנהלאירוע")) return 4;
+  if (
+    unit.includes("סגלופיקודרפואי") ||
+    (role.includes("מפקד") && role.includes("תאגד"))
+  ) return 1;
+  if (
+    role.includes("רופא") &&
+    !role.includes("פרמדיק") &&
+    !role.includes("פראמדיק")
+  ) return 2;
+  if (role.includes("פרמדיק") || role.includes("פראמדיק")) return 3;
+  if (role.includes("מנהל") && role.includes("אירוע")) return 4;
   if (isAttached) return 6;
   if (unit.includes("תאגד") || role.includes("חובש")) return 5;
   return 7;
