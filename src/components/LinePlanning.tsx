@@ -15,8 +15,10 @@ import {
   Search,
   Trash2,
   Unlock,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
+  AttendanceReport,
   AttendanceStatusConfig,
   LineConstraint,
   LineConstraintPeriod,
@@ -33,6 +35,7 @@ import { dataService } from "../services/dataService";
 interface LinePlanningProps {
   currentUser: UserProfile;
   allUsers: UserProfile[];
+  reports: AttendanceReport[];
   canManage: boolean;
   canEditPlan?: boolean;
   readOnly?: boolean;
@@ -239,6 +242,7 @@ const getPlanningRoleRank = (user: UserProfile) => {
 export default function LinePlanning({
   currentUser,
   allUsers,
+  reports,
   canManage,
   canEditPlan,
   readOnly = false,
@@ -265,6 +269,7 @@ export default function LinePlanning({
   const [newStartDate, setNewStartDate] = useState(today);
   const [newEndDate, setNewEndDate] = useState(addDays(today, 27));
   const [newDeadline, setNewDeadline] = useState(today);
+  const [newGoogleSheetTabName, setNewGoogleSheetTabName] = useState("");
   const [editingCycleId, setEditingCycleId] = useState("");
   const [search, setSearch] = useState("");
   const [hiddenPlanningRoles, setHiddenPlanningRoles] = useState<string[]>([]);
@@ -547,6 +552,8 @@ export default function LinePlanning({
       startDate: newStartDate,
       endDate: newEndDate,
       ...(newDeadline ? { submissionDeadline: newDeadline } : {}),
+      googleSheetTabName:
+        newGoogleSheetTabName.trim() || newTitle.trim(),
       updatedAt: now,
       updatedBy: currentUser.userId,
     };
@@ -563,6 +570,7 @@ export default function LinePlanning({
       );
       setSelectedCycleId(cycle.cycleId);
       setNewTitle("");
+      setNewGoogleSheetTabName("");
       setEditingCycleId("");
       setMessage({
         type: "success",
@@ -584,6 +592,9 @@ export default function LinePlanning({
     setNewStartDate(selectedCycle.startDate);
     setNewEndDate(selectedCycle.endDate);
     setNewDeadline(selectedCycle.submissionDeadline || "");
+    setNewGoogleSheetTabName(
+      selectedCycle.googleSheetTabName || selectedCycle.title
+    );
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -593,6 +604,7 @@ export default function LinePlanning({
     setNewStartDate(today);
     setNewEndDate(addDays(today, 27));
     setNewDeadline(today);
+    setNewGoogleSheetTabName("");
   };
 
   const toggleSoldierVisibility = async () => {
@@ -652,6 +664,34 @@ export default function LinePlanning({
       });
     } catch {
       setMessage({ type: "error", text: "עדכון מצב הקו נכשל." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const syncSelectedCycleToGoogleSheets = async () => {
+    if (!selectedCycle || !canEdit) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const result = await dataService.syncLineNumericRosterToGoogleSheets(
+        selectedCycle,
+        allUsers,
+        reports,
+        attendanceStatuses
+      );
+      setMessage({
+        type: "success",
+        text: `הסידור המספרי נשלח ללשונית „${result.sheetName}” (${result.soldierCount} חיילים, ${result.dateCount} ימים).`,
+      });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "שליחת הסידור ל-Google Sheets נכשלה.",
+      });
     } finally {
       setSaving(false);
     }
@@ -870,7 +910,7 @@ export default function LinePlanning({
           <div className="mb-3 text-sm font-black text-slate-900">
             {editingCycleId ? "עריכת קו קיים" : "פתיחת קו חדש"}
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <label className="text-xs font-black text-slate-700">
               שם הקו
               <input
@@ -905,6 +945,17 @@ export default function LinePlanning({
                 type="date"
                 value={newDeadline}
                 onChange={(event) => setNewDeadline(event.target.value)}
+                className="input mt-1"
+              />
+            </label>
+            <label className="text-xs font-black text-slate-700">
+              שם לשונית Google Sheets
+              <input
+                value={newGoogleSheetTabName}
+                onChange={(event) =>
+                  setNewGoogleSheetTabName(event.target.value)
+                }
+                placeholder={newTitle.trim() || "לדוגמה: קו אוגוסט 2026"}
                 className="input mt-1"
               />
             </label>
@@ -954,6 +1005,15 @@ export default function LinePlanning({
           </label>
           {selectedCycle && canEdit && (
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={syncSelectedCycleToGoogleSheets}
+                disabled={saving}
+                className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 disabled:opacity-50"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                צור/עדכן לשונית Sheets
+              </button>
               <button
                 type="button"
                 onClick={startEditingCycle}

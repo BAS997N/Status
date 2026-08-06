@@ -156,6 +156,7 @@ export interface LineCycle {
   startDate: string;
   endDate: string;
   submissionDeadline?: string;
+  googleSheetTabName?: string;
   status: LineCycleStatus;
   createdAt: string;
   createdBy: string;

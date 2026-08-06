@@ -5288,6 +5288,160 @@ const formattedDate =
     }
   },
 
+  async syncLineNumericRosterToGoogleSheets(
+    cycle: LineCycle,
+    users: UserProfile[],
+    reports: AttendanceReport[],
+    attendanceStatuses: AttendanceStatusConfig[]
+  ): Promise<{ sheetName: string; soldierCount: number; dateCount: number }> {
+    const googleSheetsConfig = await this.getGoogleSheetsConfig(true);
+    if (!googleSheetsConfig.enabled || !googleSheetsConfig.webAppUrl) {
+      throw new Error(
+        "החיבור ל־Google Sheets כבוי או שלא הוגדרה כתובת Web App."
+      );
+    }
+
+    const sanitizeSheetName = (value: string) =>
+      value
+        .replace(/[\\/?:*\[\]]/g, "-")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 90) || `קו ${cycle.startDate}`;
+    const sheetName = sanitizeSheetName(
+      cycle.googleSheetTabName || cycle.title
+    );
+    const dates: string[] = [];
+    let cursor = cycle.startDate;
+    while (cursor && cursor <= cycle.endDate && dates.length < 370) {
+      dates.push(cursor);
+      const next = new Date(`${cursor}T12:00:00`);
+      next.setDate(next.getDate() + 1);
+      cursor = next.toISOString().slice(0, 10);
+    }
+
+    const latestReportByUserAndDate = new Map<string, AttendanceReport>();
+    const userByPersonalId = new Map(
+      users
+        .filter((user) => Boolean(user.personalId))
+        .map((user) => [String(user.personalId), user])
+    );
+    reports
+      .filter((report) => report.isReset !== true)
+      .forEach((report) => {
+        const date =
+          report.reportDate ||
+          (typeof report.timestamp === "string"
+            ? report.timestamp.slice(0, 10)
+            : "");
+        if (!date || date < cycle.startDate || date > cycle.endDate) return;
+        const matchedUser =
+          users.find((user) => user.userId === report.userId) ||
+          userByPersonalId.get(
+            String(
+              (report as AttendanceReport & { personalId?: string }).personalId ||
+                ""
+            )
+          );
+        if (!matchedUser) return;
+        const key = `${matchedUser.userId}_${date}`;
+        const previous = latestReportByUserAndDate.get(key);
+        const reportTime = new Date(
+          report.updatedAt || report.timestamp || 0
+        ).getTime();
+        const previousTime = previous
+          ? new Date(previous.updatedAt || previous.timestamp || 0).getTime()
+          : 0;
+        if (!previous || reportTime >= previousTime) {
+          latestReportByUserAndDate.set(key, report);
+        }
+      });
+
+    const codeByStatus = new Map(
+      attendanceStatuses.map((status) => [
+        status.id,
+        (status.numericRosterCode || "").trim().replace(",", "."),
+      ])
+    );
+    const activeUsers = users
+      .filter((user) => !user.isDischarged)
+      .sort((first, second) =>
+        (first.medicalRole || "").localeCompare(
+          second.medicalRole || "",
+          "he"
+        ) || first.fullName.localeCompare(second.fullName, "he")
+      );
+    const rows = activeUsers.map((user) => ({
+      personalId: sanitizeSpreadsheetCell(user.personalId || ""),
+      fullName: sanitizeSpreadsheetCell(user.fullName),
+      medicalRole: sanitizeSpreadsheetCell(user.medicalRole || ""),
+      unit: sanitizeSpreadsheetCell(user.unit || ""),
+      values: dates.map((date) => {
+        const report = latestReportByUserAndDate.get(`${user.userId}_${date}`);
+        if (!report) return null;
+        if (
+          report.dayMarker === "exit_home" ||
+          report.dayMarker === "return_to_base"
+        ) {
+          return 0.5;
+        }
+        const rawCode = codeByStatus.get(report.status) || "";
+        const code = Number(rawCode);
+        return rawCode && Number.isFinite(code) ? code : null;
+      }),
+    }));
+    const legend = attendanceStatuses
+      .filter((status) => (status.numericRosterCode || "").trim())
+      .sort((first, second) => first.sortOrder - second.sortOrder)
+      .map((status) => ({
+        code: Number((status.numericRosterCode || "").replace(",", ".")),
+        label: sanitizeSpreadsheetCell(status.label),
+        color: status.customColor || "",
+      }));
+    legend.push({
+      code: 0.5,
+      label: "יציאה לבית / חזרה לבסיס",
+      color: "#FEF08A",
+    });
+
+    await fetch(googleSheetsConfig.webAppUrl, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        action: "syncLineNumericRoster",
+        sheetName,
+        cycleId: cycle.cycleId,
+        cycleTitle: sanitizeSpreadsheetCell(cycle.title),
+        startDate: cycle.startDate,
+        endDate: cycle.endDate,
+        dates,
+        rows,
+        legend,
+      }),
+    });
+
+    await writeAuditLog({
+      action: "sync",
+      module: "google_sheets",
+      targetId: cycle.cycleId,
+      targetLabel: `לשונית ${sheetName}`,
+      after: {
+        cycleId: cycle.cycleId,
+        sheetName,
+        startDate: cycle.startDate,
+        endDate: cycle.endDate,
+        soldierCount: rows.length,
+        dateCount: dates.length,
+      },
+    });
+
+    return {
+      sheetName,
+      soldierCount: rows.length,
+      dateCount: dates.length,
+    };
+  },
+
   async saveLineCycle(cycle: LineCycle): Promise<LineCycle> {
     if (!isFirebaseActive()) {
       const cycles: LineCycle[] = JSON.parse(

@@ -3056,6 +3056,7 @@ const handleAdminBulkSaveReports = async (
               <EmergencyCenter
                 currentUser={viewingProfile!}
                 allUsers={allUsers}
+                reports={reports}
                 canManage={!previewUser && canManageEmergency}
                 settings={systemSettings!}
                 onSettingsChanged={handleSystemSettingsChanged}
@@ -3112,6 +3113,7 @@ const handleAdminBulkSaveReports = async (
               <LinePlanning
                 currentUser={viewingProfile!}
                 allUsers={allUsers}
+                reports={reports}
                 canManage={canViewFullLinePlanning}
                 canEditPlan={canManageLinePlanning}
                 readOnly={Boolean(previewUser)}
