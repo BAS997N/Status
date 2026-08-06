@@ -244,6 +244,29 @@ export default function CommandDashboard({
     return normalizedUnit.includes("מסופח") && normalizedUnit.includes("תאגד");
   };
 
+  const getRosterGroupOrder = (profile: UserProfile) => {
+    const role = normalizeMedicalRoleName(profile.medicalRole || "").replace(
+      /\s+/g,
+      ""
+    );
+    const unit = normalizeMedicalRoleName(profile.unit || "").replace(
+      /\s+/g,
+      ""
+    );
+    if (role.includes("מפרפואה")) return 0;
+    if (unit.includes("סגלופיקודרפואי") || role.includes("מפקדתאגד")) return 1;
+    if (role.includes("רופא") && !role.includes("פרמדיק")) return 2;
+    if (role.includes("פרמדיק")) return 3;
+    if (role.includes("מנהלאירוע")) return 4;
+    if (isAttachedToTagad(profile)) return 6;
+    if (unit.includes("תאגד") || role.includes("חובש")) return 5;
+    return 7;
+  };
+
+  const compareRosterUsers = (first: UserProfile, second: UserProfile) =>
+    getRosterGroupOrder(first) - getRosterGroupOrder(second) ||
+    first.fullName.localeCompare(second.fullName, "he");
+
   const medicalRoleOrder = new Map(
     customRoles.map((roleName, index) => [
       normalizeMedicalRoleName(roleName),
@@ -2956,13 +2979,7 @@ const dates = getDateRange(startDate, endDate);
 
     const rowDetails = allSoldiers
       .filter((soldier) => !soldier.isDischarged)
-      .sort((first, second) => {
-        const roleComparison = compareMedicalRoles(
-          first.medicalRole,
-          second.medicalRole
-        );
-        return roleComparison || first.fullName.localeCompare(second.fullName, "he");
-      })
+      .sort(compareRosterUsers)
       .map((soldier) => {
         const reportByDate = new Map(
           getSummaryReportsForSoldier(soldier).map((report) => [

@@ -1725,6 +1725,31 @@ const getSheetsPersonalId = (...values: any[]): string => {
   return "";
 };
 
+const normalizeRosterGroupText = (value?: string) =>
+  String(value || "")
+    .replace(/[״׳'"`]/g, "")
+    .replace(/\s+/g, "")
+    .toLocaleLowerCase("he");
+
+const getRosterGroupOrder = (user: UserProfile) => {
+  const role = normalizeRosterGroupText(user.medicalRole);
+  const unit = normalizeRosterGroupText(user.unit);
+  const isAttached = unit.includes("מסופח") && unit.includes("תאגד");
+
+  if (role.includes("מפרפואה")) return 0;
+  if (unit.includes("סגלופיקודרפואי") || role.includes("מפקדתאגד")) return 1;
+  if (role.includes("רופא") && !role.includes("פרמדיק")) return 2;
+  if (role.includes("פרמדיק")) return 3;
+  if (role.includes("מנהלאירוע")) return 4;
+  if (isAttached) return 6;
+  if (unit.includes("תאגד") || role.includes("חובש")) return 5;
+  return 7;
+};
+
+const compareRosterUsers = (first: UserProfile, second: UserProfile) =>
+  getRosterGroupOrder(first) - getRosterGroupOrder(second) ||
+  first.fullName.localeCompare(second.fullName, "he");
+
 
 const BACKUP_SECTIONS: BackupSection[] = [
   "users",
@@ -5367,12 +5392,7 @@ const formattedDate =
     );
     const activeUsers = users
       .filter((user) => !user.isDischarged)
-      .sort((first, second) =>
-        (first.medicalRole || "").localeCompare(
-          second.medicalRole || "",
-          "he"
-        ) || first.fullName.localeCompare(second.fullName, "he")
-      );
+      .sort(compareRosterUsers);
     const rows = activeUsers.map((user) => ({
       personalId: sanitizeSpreadsheetCell(user.personalId || ""),
       fullName: sanitizeSpreadsheetCell(user.fullName),
