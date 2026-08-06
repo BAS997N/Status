@@ -2948,7 +2948,9 @@ const dates = getDateRange(startDate, endDate);
         (status.numericRosterCode || "").trim().replace(",", "."),
       ])
     );
-    const getNumericValue = (report?: AttendanceReport): number | null => {
+    const getNumericValue = (
+      report?: AttendanceReport
+    ): number | string | null => {
       if (!report) return null;
       if (
         report.dayMarker === "exit_home" ||
@@ -2958,9 +2960,8 @@ const dates = getDateRange(startDate, endDate);
       }
       const configuredCode = numericCodeByStatus.get(report.status) || "";
       const numericCode = Number(configuredCode);
-      return configuredCode && Number.isFinite(numericCode)
-        ? numericCode
-        : null;
+      if (!configuredCode || !Number.isFinite(numericCode)) return null;
+      return /^0\d+$/.test(configuredCode) ? configuredCode : numericCode;
     };
 
     const headers = [
@@ -2992,7 +2993,8 @@ const dates = getDateRange(startDate, endDate);
           getNumericValue(reportByDate.get(date))
         );
         const total = numericCells.reduce<number>(
-          (sum, value) => sum + (value ?? 0),
+          (sum, value) =>
+            sum + (value === 100 ? 0 : Number(value ?? 0)),
           0
         );
 
@@ -3010,6 +3012,79 @@ const dates = getDateRange(startDate, endDate);
         };
       });
 
+    type NumericExportRow =
+      | { kind: "soldier"; row: (typeof rowDetails)[number] }
+      | { kind: "subtotal"; label: string; values: Array<string | number> };
+
+    const createSubtotalRow = (
+      label: string,
+      sourceRows: typeof rowDetails
+    ): NumericExportRow => {
+      const dayTotals = dates.map((_, dateIndex) =>
+        sourceRows.reduce<number>(
+          (sum, row) => {
+            const value = row.values[dateIndex + 4];
+            return sum + (value === 100 ? 0 : Number(value || 0));
+          },
+          0
+        )
+      );
+      return {
+        kind: "subtotal",
+        label,
+        values: [
+          "",
+          label,
+          "",
+          "",
+          ...dayTotals,
+          dayTotals.reduce((sum, value) => sum + value, 0),
+        ],
+      };
+    };
+
+    const medicalSubtotalRows = rowDetails.filter((row) => {
+      const order = getRosterGroupOrder(row.soldier);
+      return order === 2 || order === 3;
+    });
+    const eventAndMedicSubtotalRows = rowDetails.filter((row) => {
+      const order = getRosterGroupOrder(row.soldier);
+      return order === 4 || order === 5 || order === 6;
+    });
+    const lastMedicalIndex = rowDetails.reduce(
+      (last, row, index) =>
+        [2, 3].includes(getRosterGroupOrder(row.soldier)) ? index : last,
+      -1
+    );
+    const lastEventAndMedicIndex = rowDetails.reduce(
+      (last, row, index) =>
+        [4, 5, 6].includes(getRosterGroupOrder(row.soldier)) ? index : last,
+      -1
+    );
+    const exportRows: NumericExportRow[] = [];
+    rowDetails.forEach((row, index) => {
+      exportRows.push({ kind: "soldier", row });
+      if (index === lastMedicalIndex && medicalSubtotalRows.length > 0) {
+        exportRows.push(
+          createSubtotalRow(
+            "סיכום ביניים רופאים ופראמדיקים",
+            medicalSubtotalRows
+          )
+        );
+      }
+      if (
+        index === lastEventAndMedicIndex &&
+        eventAndMedicSubtotalRows.length > 0
+      ) {
+        exportRows.push(
+          createSubtotalRow(
+            "סיכום ביניים מנהלי אירוע וחובשים",
+            eventAndMedicSubtotalRows
+          )
+        );
+      }
+    });
+
     const legendStatuses = attendanceStatuses
       .filter((status) => (status.numericRosterCode || "").trim())
       .sort((first, second) => first.sortOrder - second.sortOrder);
@@ -3019,10 +3094,12 @@ const dates = getDateRange(startDate, endDate);
       const workbook = XLSX.utils.book_new();
       const sheet = XLSX.utils.aoa_to_sheet([
         headers,
-        ...rowDetails.map((row) => row.values),
+        ...exportRows.map((entry) =>
+          entry.kind === "soldier" ? entry.row.values : entry.values
+        ),
       ]);
       const lastColumnIndex = headers.length - 1;
-      const lastRowIndex = rowDetails.length;
+      const lastRowIndex = exportRows.length;
       const range = XLSX.utils.decode_range(sheet["!ref"] || "A1:A1");
       const thinBorder = {
         top: { style: "thin", color: { rgb: "CBD5E1" } },
@@ -3083,8 +3160,24 @@ const dates = getDateRange(startDate, endDate);
         });
       }
 
-      rowDetails.forEach((row, rowIndex) => {
+      exportRows.forEach((entry, rowIndex) => {
         const sheetRow = rowIndex + 1;
+        if (entry.kind === "subtotal") {
+          for (let column = 0; column <= lastColumnIndex; column += 1) {
+            styleCell(sheetRow, column, {
+              fill: { fgColor: { rgb: "BFDBFE" } },
+              font: { bold: true, color: { rgb: "1E3A8A" } },
+              alignment: {
+                horizontal: column === 1 ? "right" : "center",
+                vertical: "center",
+              },
+              border: thinBorder,
+              numFmt: column >= 4 ? "0.##" : undefined,
+            });
+          }
+          return;
+        }
+        const row = entry.row;
         for (let column = 0; column < 4; column += 1) {
           styleCell(sheetRow, column, {
             fill: {
@@ -3144,7 +3237,7 @@ const dates = getDateRange(startDate, endDate);
           r: sheetRow,
           c: Math.max(4, lastColumnIndex - 1),
         });
-        sheet[totalAddress].f = `SUM(${firstDateAddress}:${lastDateAddress})`;
+        sheet[totalAddress].f = `SUMIF(${firstDateAddress}:${lastDateAddress},"<>100",${firstDateAddress}:${lastDateAddress})`;
         styleCell(sheetRow, lastColumnIndex, {
           fill: { fgColor: { rgb: "DBEAFE" } },
           font: { bold: true, color: { rgb: "1E3A8A" } },
@@ -3164,7 +3257,7 @@ const dates = getDateRange(startDate, endDate);
       ];
       sheet["!rows"] = [
         { hpt: 34 },
-        ...rowDetails.map(() => ({ hpt: 24 })),
+        ...exportRows.map((entry) => ({ hpt: entry.kind === "subtotal" ? 27 : 24 })),
       ];
       sheet["!autofilter"] = {
         ref: XLSX.utils.encode_range({
@@ -3192,7 +3285,10 @@ const dates = getDateRange(startDate, endDate);
       const legendRows: Array<Array<string | number>> = [
         ["קוד", "מצב נוכחות", "הסבר"],
         ...legendStatuses.map((status) => [
-          Number((status.numericRosterCode || "").replace(",", ".")),
+          (() => {
+            const code = (status.numericRosterCode || "").replace(",", ".");
+            return /^0\d+$/.test(code) ? code : Number(code);
+          })(),
           status.label,
           status.description || "",
         ]),

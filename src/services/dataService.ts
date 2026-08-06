@@ -5409,7 +5409,8 @@ const formattedDate =
         }
         const rawCode = codeByStatus.get(report.status) || "";
         const code = Number(rawCode);
-        return rawCode && Number.isFinite(code) ? code : null;
+        if (!rawCode || !Number.isFinite(code)) return null;
+        return /^0\d+$/.test(rawCode) ? rawCode : code;
       }),
       labels: dates.map((date) => {
         const report = latestReportByUserAndDate.get(`${user.userId}_${date}`);
@@ -5435,7 +5436,10 @@ const formattedDate =
       .filter((status) => (status.numericRosterCode || "").trim())
       .sort((first, second) => first.sortOrder - second.sortOrder)
       .map((status) => ({
-        code: Number((status.numericRosterCode || "").replace(",", ".")),
+        code: (() => {
+          const rawCode = (status.numericRosterCode || "").replace(",", ".");
+          return /^0\d+$/.test(rawCode) ? rawCode : Number(rawCode);
+        })(),
         label: sanitizeSpreadsheetCell(status.label),
         color: status.customColor || "",
       }));
