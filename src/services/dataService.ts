@@ -5362,6 +5362,9 @@ const formattedDate =
         (status.numericRosterCode || "").trim().replace(",", "."),
       ])
     );
+    const labelByStatus = new Map(
+      attendanceStatuses.map((status) => [status.id, status.label])
+    );
     const activeUsers = users
       .filter((user) => !user.isDischarged)
       .sort((first, second) =>
@@ -5387,6 +5390,25 @@ const formattedDate =
         const rawCode = codeByStatus.get(report.status) || "";
         const code = Number(rawCode);
         return rawCode && Number.isFinite(code) ? code : null;
+      }),
+      labels: dates.map((date) => {
+        const report = latestReportByUserAndDate.get(`${user.userId}_${date}`);
+        if (!report) return "";
+        const statusLabel =
+          labelByStatus.get(report.status) ||
+          ATTENDANCE_STATUS_LABELS[report.status]?.label ||
+          report.status;
+        const markerLabel =
+          report.dayMarker === "return_to_base"
+            ? "חזרה לבסיס"
+            : report.dayMarker === "exit_home"
+            ? "יציאה לבית"
+            : report.dayMarker === "after_hours"
+            ? `אפטר ${report.afterHours || ""} שעות`.trim()
+            : "";
+        return sanitizeSpreadsheetCell(
+          markerLabel ? `${statusLabel} · ${markerLabel}` : statusLabel
+        );
       }),
     }));
     const legend = attendanceStatuses

@@ -682,7 +682,7 @@ export default function LinePlanning({
       );
       setMessage({
         type: "success",
-        text: `הסידור המספרי נשלח ללשונית „${result.sheetName}” (${result.soldierCount} חיילים, ${result.dateCount} ימים).`,
+        text: `הסידור נשלח ללשוניות „${result.sheetName} – שמי” ו„${result.sheetName} – מספרי” (${result.soldierCount} חיילים, ${result.dateCount} ימים).`,
       });
     } catch (error) {
       setMessage({
@@ -1012,7 +1012,7 @@ export default function LinePlanning({
                 className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 disabled:opacity-50"
               >
                 <FileSpreadsheet className="h-4 w-4" />
-                צור/עדכן לשונית Sheets
+                צור/עדכן לשוניות Sheets
               </button>
               <button
                 type="button"

@@ -32,11 +32,12 @@ function handleLineNumericRoster_(payload) {
   }
 
   var requestedName = String(payload.sheetName || payload.cycleTitle || 'סידור קו');
-  var sheetName = requestedName
+  var baseSheetName = requestedName
     .replace(/[\\/?*\[\]:]/g, '-')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 90) || 'סידור קו';
+    .slice(0, 78) || 'סידור קו';
+  var sheetName = baseSheetName + ' – מספרי';
   var sheet = spreadsheet.getSheetByName(sheetName);
   if (!sheet) sheet = spreadsheet.insertSheet(sheetName);
 
@@ -152,14 +153,83 @@ function handleLineNumericRoster_(payload) {
     'עודכן: ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd.MM.yyyy HH:mm:ss')
   );
 
+  writeNamedRosterSheet_(spreadsheet, baseSheetName + ' – שמי', payload, dates);
+
   SpreadsheetApp.flush();
   return {
     ok: true,
     action: 'syncLineNumericRoster',
-    sheetName: sheetName,
+    sheetName: baseSheetName,
     soldierCount: dataRows.length,
     dateCount: dates.length
   };
+}
+
+function writeNamedRosterSheet_(spreadsheet, sheetName, payload, dates) {
+  var sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) sheet = spreadsheet.insertSheet(sheetName);
+  sheet.clear();
+  sheet.setRightToLeft(true);
+
+  var headers = ['מספר אישי', 'שם מלא', 'תפקיד', 'יחידה']
+    .concat(dates.map(formatRosterDate_));
+  var rows = payload.rows.map(function (row) {
+    var labels = Array.isArray(row.labels) ? row.labels.slice(0, dates.length) : [];
+    while (labels.length < dates.length) labels.push('');
+    return [row.personalId || '', row.fullName || '', row.medicalRole || '', row.unit || '']
+      .concat(labels);
+  });
+  sheet.getRange(1, 1, rows.length + 1, headers.length)
+    .setValues([headers].concat(rows));
+
+  sheet.getRange(1, 1, 1, headers.length)
+    .setBackground('#1E3A5F')
+    .setFontColor('#FFFFFF')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  sheet.setRowHeight(1, 42);
+  sheet.setFrozenRows(1);
+  sheet.setFrozenColumns(4);
+
+  if (rows.length) {
+    sheet.getRange(2, 1, rows.length, headers.length)
+      .setBorder(true, true, true, true, true, true, '#CBD5E1', SpreadsheetApp.BorderStyle.SOLID)
+      .setVerticalAlignment('middle');
+    sheet.getRange(2, 1, rows.length, 4)
+      .setBackground('#F8FAFC')
+      .setFontWeight('bold');
+    sheet.getRange(2, 5, rows.length, dates.length)
+      .setHorizontalAlignment('center')
+      .setWrap(true);
+
+    var colorByCode = {};
+    (payload.legend || []).forEach(function (item) {
+      colorByCode[String(item.code)] = item.color || defaultRosterColor_(Number(item.code));
+    });
+    var backgrounds = payload.rows.map(function (row) {
+      var values = Array.isArray(row.values) ? row.values.slice(0, dates.length) : [];
+      while (values.length < dates.length) values.push('');
+      return values.map(function (value) {
+        if (value === '' || value === null || typeof value === 'undefined') return '#FFFFFF';
+        return colorByCode[String(value)] || defaultRosterColor_(Number(value));
+      });
+    });
+    sheet.getRange(2, 5, rows.length, dates.length).setBackgrounds(backgrounds);
+    if (sheet.getFilter()) sheet.getFilter().remove();
+    sheet.getRange(1, 1, rows.length + 1, headers.length).createFilter();
+  }
+
+  sheet.setColumnWidth(1, 105);
+  sheet.setColumnWidth(2, 180);
+  sheet.setColumnWidth(3, 165);
+  sheet.setColumnWidth(4, 135);
+  dates.forEach(function (_, index) { sheet.setColumnWidth(index + 5, 115); });
+  sheet.getRange('A1').setNote(
+    'קו: ' + String(payload.cycleTitle || '') + '\n' +
+    'תקופה: ' + String(payload.startDate || '') + ' עד ' + String(payload.endDate || '') + '\n' +
+    'עודכן: ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd.MM.yyyy HH:mm:ss')
+  );
 }
 
 function formatRosterDate_(isoDate) {
