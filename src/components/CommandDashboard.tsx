@@ -2895,7 +2895,7 @@ const dates = getDateRange(startDate, endDate);
     return Array.from(latestReportByDate.values());
   };
 
-  const handleExportNumericAttendanceCSV = () => {
+  const handleExportNumericAttendanceXlsx = async () => {
     const allReportDates = activeReports
       .map(
         (report) =>
@@ -2925,15 +2925,19 @@ const dates = getDateRange(startDate, endDate);
         (status.numericRosterCode || "").trim().replace(",", "."),
       ])
     );
-    const getNumericValue = (report?: AttendanceReport): string => {
-      if (!report) return "";
+    const getNumericValue = (report?: AttendanceReport): number | null => {
+      if (!report) return null;
       if (
         report.dayMarker === "exit_home" ||
         report.dayMarker === "return_to_base"
       ) {
-        return "0.5";
+        return 0.5;
       }
-      return numericCodeByStatus.get(report.status) || "";
+      const configuredCode = numericCodeByStatus.get(report.status) || "";
+      const numericCode = Number(configuredCode);
+      return configuredCode && Number.isFinite(numericCode)
+        ? numericCode
+        : null;
     };
 
     const headers = [
@@ -2941,25 +2945,16 @@ const dates = getDateRange(startDate, endDate);
       "שם",
       "תפקיד",
       "יחידה",
-      ...dates.map((date) =>
-        new Date(`${date}T12:00:00`).toLocaleDateString("he-IL")
-      ),
+      ...dates.map((date) => {
+        const parsedDate = new Date(`${date}T12:00:00`);
+        return `${parsedDate.toLocaleDateString("he-IL", {
+          weekday: "short",
+        })}\n${parsedDate.toLocaleDateString("he-IL")}`;
+      }),
       "סה״כ",
     ];
-    const dayHeaders = [
-      "",
-      "",
-      "",
-      "",
-      ...dates.map((date) =>
-        new Date(`${date}T12:00:00`).toLocaleDateString("he-IL", {
-          weekday: "short",
-        })
-      ),
-      "",
-    ];
 
-    const rows = allSoldiers
+    const rowDetails = allSoldiers
       .filter((soldier) => !soldier.isDischarged)
       .sort((first, second) => {
         const roleComparison = compareMedicalRoles(
@@ -2979,50 +2974,253 @@ const dates = getDateRange(startDate, endDate);
         const numericCells = dates.map((date) =>
           getNumericValue(reportByDate.get(date))
         );
-        const total = numericCells.reduce(
-          (sum, value) => sum + (value ? Number(value) : 0),
+        const total = numericCells.reduce<number>(
+          (sum, value) => sum + (value ?? 0),
           0
         );
 
-        return [
-          soldier.personalId || "",
-          soldier.fullName,
-          soldier.medicalRole || "",
-          soldier.unit || "",
-          ...numericCells,
-          String(total),
-        ];
+        return {
+          soldier,
+          reportByDate,
+          values: [
+            soldier.personalId || "",
+            soldier.fullName,
+            soldier.medicalRole || "",
+            soldier.unit || "",
+            ...numericCells,
+            total,
+          ],
+        };
       });
 
-    const legendRows = attendanceStatuses
+    const legendStatuses = attendanceStatuses
       .filter((status) => (status.numericRosterCode || "").trim())
-      .sort((first, second) => first.sortOrder - second.sortOrder)
-      .map((status) => [
-        "",
-        `מקרא: ${status.label}`,
-        (status.numericRosterCode || "").trim().replace(",", "."),
-      ]);
-    legendRows.push(["", "מקרא: יציאה לבית / חזרה לבסיס", "0.5"]);
+      .sort((first, second) => first.sortOrder - second.sortOrder);
 
-    const csvContent = buildCsv([
-      headers,
-      dayHeaders,
-      ...rows,
-      [],
-      ["", "מקרא קודים", ""],
-      ...legendRows,
-    ]);
-    const blob = new Blob(["\uFEFF" + csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `סידור_יציאות_מספרי_${startDate}_עד_${endDate}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    try {
+      const XLSX = await import("xlsx-js-style");
+      const workbook = XLSX.utils.book_new();
+      const sheet = XLSX.utils.aoa_to_sheet([
+        headers,
+        ...rowDetails.map((row) => row.values),
+      ]);
+      const lastColumnIndex = headers.length - 1;
+      const lastRowIndex = rowDetails.length;
+      const range = XLSX.utils.decode_range(sheet["!ref"] || "A1:A1");
+      const thinBorder = {
+        top: { style: "thin", color: { rgb: "CBD5E1" } },
+        bottom: { style: "thin", color: { rgb: "CBD5E1" } },
+        left: { style: "thin", color: { rgb: "CBD5E1" } },
+        right: { style: "thin", color: { rgb: "CBD5E1" } },
+      };
+      const styleCell = (
+        row: number,
+        column: number,
+        style: Record<string, unknown>
+      ) => {
+        const address = XLSX.utils.encode_cell({ r: row, c: column });
+        if (!sheet[address]) sheet[address] = { t: "s", v: "" };
+        sheet[address].s = style;
+      };
+      const blendWithWhite = (hexValue: string, ratio = 0.78) => {
+        const clean = hexValue.replace("#", "");
+        if (!/^[0-9a-fA-F]{6}$/.test(clean)) return "E2E8F0";
+        const channels = [0, 2, 4].map((offset) =>
+          parseInt(clean.slice(offset, offset + 2), 16)
+        );
+        return channels
+          .map((channel) =>
+            Math.round(channel + (255 - channel) * ratio)
+              .toString(16)
+              .padStart(2, "0")
+          )
+          .join("")
+          .toUpperCase();
+      };
+      const defaultStatusColors: Record<string, string> = {
+        base: "22C55E",
+        home: "64748B",
+        field: "84CC16",
+        sick: "F43F5E",
+        course: "06B6D4",
+        cut_order: "991B1B",
+        not_on_order: "F97316",
+        processing_days: "8B5CF6",
+        refresh_days: "0EA5E9",
+        other: "64748B",
+      };
+      const statusConfigById = new Map(
+        attendanceStatuses.map((status) => [status.id, status])
+      );
+
+      for (let column = range.s.c; column <= range.e.c; column += 1) {
+        styleCell(0, column, {
+          fill: { fgColor: { rgb: "1E3A5F" } },
+          font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+          alignment: {
+            horizontal: "center",
+            vertical: "center",
+            wrapText: true,
+          },
+          border: thinBorder,
+        });
+      }
+
+      rowDetails.forEach((row, rowIndex) => {
+        const sheetRow = rowIndex + 1;
+        for (let column = 0; column < 4; column += 1) {
+          styleCell(sheetRow, column, {
+            fill: {
+              fgColor: { rgb: rowIndex % 2 === 0 ? "F8FAFC" : "EEF2F7" },
+            },
+            font: {
+              bold: column === 1,
+              color: { rgb: column === 1 ? "0F172A" : "475569" },
+            },
+            alignment: {
+              horizontal: column === 1 ? "right" : "center",
+              vertical: "center",
+            },
+            border: thinBorder,
+          });
+        }
+
+        dates.forEach((date, dateIndex) => {
+          const column = dateIndex + 4;
+          const report = row.reportByDate.get(date);
+          const isDayMarker =
+            report?.dayMarker === "exit_home" ||
+            report?.dayMarker === "return_to_base";
+          const statusConfig = report
+            ? statusConfigById.get(report.status)
+            : undefined;
+          const baseHex =
+            statusConfig?.customColor?.replace("#", "") ||
+            (report ? defaultStatusColors[report.status] : "") ||
+            "CBD5E1";
+          const isCutOrder = report?.status === "cut_order";
+          const fillColor = isDayMarker
+            ? "FEF08A"
+            : isCutOrder
+            ? "991B1B"
+            : report
+            ? blendWithWhite(baseHex)
+            : "FFFFFF";
+          styleCell(sheetRow, column, {
+            fill: { fgColor: { rgb: fillColor } },
+            font: {
+              bold: Boolean(report),
+              color: { rgb: isCutOrder ? "FFFFFF" : "0F172A" },
+            },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: thinBorder,
+            numFmt: "0.##",
+          });
+        });
+
+        const totalAddress = XLSX.utils.encode_cell({
+          r: sheetRow,
+          c: lastColumnIndex,
+        });
+        const firstDateAddress = XLSX.utils.encode_cell({ r: sheetRow, c: 4 });
+        const lastDateAddress = XLSX.utils.encode_cell({
+          r: sheetRow,
+          c: Math.max(4, lastColumnIndex - 1),
+        });
+        sheet[totalAddress].f = `SUM(${firstDateAddress}:${lastDateAddress})`;
+        styleCell(sheetRow, lastColumnIndex, {
+          fill: { fgColor: { rgb: "DBEAFE" } },
+          font: { bold: true, color: { rgb: "1E3A8A" } },
+          alignment: { horizontal: "center", vertical: "center" },
+          border: thinBorder,
+          numFmt: "0.##",
+        });
+      });
+
+      sheet["!cols"] = [
+        { wch: 15 },
+        { wch: 24 },
+        { wch: 22 },
+        { wch: 18 },
+        ...dates.map(() => ({ wch: 10 })),
+        { wch: 11 },
+      ];
+      sheet["!rows"] = [
+        { hpt: 34 },
+        ...rowDetails.map(() => ({ hpt: 24 })),
+      ];
+      sheet["!autofilter"] = {
+        ref: XLSX.utils.encode_range({
+          s: { r: 0, c: 0 },
+          e: { r: lastRowIndex, c: lastColumnIndex },
+        }),
+      };
+      (sheet as any)["!freeze"] = {
+        xSplit: 4,
+        ySplit: 1,
+        topLeftCell: "E2",
+        activePane: "bottomRight",
+        state: "frozen",
+      };
+      sheet["!margins"] = {
+        left: 0.25,
+        right: 0.25,
+        top: 0.5,
+        bottom: 0.5,
+        header: 0.2,
+        footer: 0.2,
+      };
+      XLSX.utils.book_append_sheet(workbook, sheet, "סידור יציאות");
+
+      const legendRows: Array<Array<string | number>> = [
+        ["קוד", "מצב נוכחות", "הסבר"],
+        ...legendStatuses.map((status) => [
+          Number((status.numericRosterCode || "").replace(",", ".")),
+          status.label,
+          status.description || "",
+        ]),
+        [0.5, "יציאה לבית / חזרה לבסיס", "נקבע לפי סימון היום בפועל"],
+      ];
+      const legendSheet = XLSX.utils.aoa_to_sheet(legendRows);
+      const legendRange = XLSX.utils.decode_range(legendSheet["!ref"] || "A1:C1");
+      for (let row = 0; row <= legendRange.e.r; row += 1) {
+        for (let column = 0; column <= legendRange.e.c; column += 1) {
+          const address = XLSX.utils.encode_cell({ r: row, c: column });
+          if (!legendSheet[address]) continue;
+          legendSheet[address].s = {
+            fill: {
+              fgColor: { rgb: row === 0 ? "1E3A5F" : row % 2 ? "F8FAFC" : "EEF2F7" },
+            },
+            font: {
+              bold: row === 0,
+              color: { rgb: row === 0 ? "FFFFFF" : "0F172A" },
+            },
+            alignment: { horizontal: "right", vertical: "center" },
+            border: thinBorder,
+          };
+        }
+      }
+      legendSheet["!cols"] = [{ wch: 10 }, { wch: 28 }, { wch: 50 }];
+      legendSheet["!autofilter"] = { ref: `A1:C${legendRows.length}` };
+      XLSX.utils.book_append_sheet(workbook, legendSheet, "מקרא");
+      (workbook as any).Workbook = {
+        ...((workbook as any).Workbook || {}),
+        Views: [{ RTL: true }],
+      };
+
+      XLSX.writeFile(
+        workbook,
+        `סידור_יציאות_מספרי_${startDate}_עד_${endDate}.xlsx`,
+        { compression: true }
+      );
+    } catch (error) {
+      console.error("Numeric attendance XLSX export failed:", error);
+      onShowMessage?.(
+        "הייצוא נכשל",
+        "לא ניתן היה ליצור את קובץ ה־Excel המעוצב.",
+        "error"
+      );
+    }
   };
 
   const summaryRows = allSoldiers.map((soldier) => {
@@ -3777,11 +3975,11 @@ const dates = getDateRange(startDate, endDate);
       </button>
 
       <button
-        onClick={handleExportNumericAttendanceCSV}
+        onClick={handleExportNumericAttendanceXlsx}
         className="bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-bold px-4 py-2 rounded-lg transition cursor-pointer"
         title="1 בבסיס · 0 בבית · 0.5 יציאה או חזרה · 100 חיתוך צו"
       >
-        ייצוא סידור מספרי
+        ייצוא Excel מספרי
       </button>
     </div>
 
