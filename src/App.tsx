@@ -1307,10 +1307,15 @@ const handleResetReport = async (reportId: string) => {
               if (systemSettings?.notificationsEnabled !== false && systemSettings?.toastNotificationsEnabled !== false && prev.length > 0 && !prevIds.has(not.notificationId) && !not.isRead) {
                 // Pop a gorgeous live floating banner
                 const labelObj = statusLabels[not.status] || { label: not.status };
+                const targetReportDate = not.reportDate
+                  ? new Date(`${not.reportDate}T12:00:00`).toLocaleDateString(
+                      "he-IL"
+                    )
+                  : "לא ידוע";
                 const newToast: ToastMessage = {
                   id: `toast_${Date.now()}_${not.notificationId}`,
                   title: `חייל/ת מחוץ לבסיס: ${not.soldierName}`,
-                  message: `דווח על סטטוס '${labelObj.label}' במיקום: ${not.location}`,
+                  message: `דווח עבור ${targetReportDate} על סטטוס '${labelObj.label}' במיקום: ${not.location}`,
                   status: not.status
                 };
                 setToasts(current => [newToast, ...current]);

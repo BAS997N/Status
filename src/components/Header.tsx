@@ -265,6 +265,19 @@ export default function Header({
                             const date = new Date(not.timestamp);
                             const timeStr = date.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
                             const dateStr = date.toLocaleDateString("he-IL", { month: "2-digit", day: "2-digit" });
+                            const reportDateValue = not.reportDate || "";
+                            const reportDate = /^\d{4}-\d{2}-\d{2}$/.test(
+                              reportDateValue
+                            )
+                              ? new Date(`${reportDateValue}T12:00:00`)
+                              : null;
+                            const reportDateStr = reportDate
+                              ? reportDate.toLocaleDateString("he-IL", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                })
+                              : "לא ידוע";
                             const labelObj = ATTENDANCE_STATUS_LABELS[not.status] || { label: not.status, color: "text-slate-600", bg: "bg-slate-50", border: "border-slate-200" };
 
                             return (
@@ -281,12 +294,16 @@ export default function Header({
                                     {not.soldierName}
                                   </span>
                                   <span className="text-[10px] text-slate-400 font-mono">
-                                    {dateStr} | {timeStr}
+                                    בוצע: {dateStr} | {timeStr}
                                   </span>
                                 </div>
 
                                 <div className="text-slate-600 p-0 text-right">
                                   {not.message}
+                                </div>
+
+                                <div className="inline-flex w-fit items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-800">
+                                  תאריך הדיווח: {reportDateStr}
                                 </div>
 
                                 <div className="flex items-center justify-between mt-1 pt-1 border-t border-dashed border-slate-100">

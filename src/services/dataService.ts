@@ -4510,6 +4510,12 @@ Object.keys(reportPayload).forEach((key) => {
           status: reportPayload.status,
           location: reportPayload.location,
           timestamp: reportPayload.timestamp,
+          reportTimestamp: reportPayload.timestamp,
+          reportDate:
+            reportPayload.reportDate ||
+            (typeof reportPayload.timestamp === "string"
+              ? reportPayload.timestamp.split("T")[0]
+              : undefined),
           isRead: false,
           message: notificationMsg
         };
@@ -4668,7 +4674,7 @@ if (
   location: reportPayload.location,
   timestamp: new Date().toISOString(),
   reportTimestamp: reportPayload.timestamp,
-  reportDate: reportPayload.reportDate,
+  reportDate: reportDateForLookup,
   isRead: false,
   message: notificationMsg
         };
