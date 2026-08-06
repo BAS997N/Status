@@ -2080,6 +2080,20 @@ const latestTodayReport = [...todayReports].sort(
         : first.fullName.localeCompare(second.fullName, "he");
     });
 
+  const applyAttendancePdfRoleFilters = (nextRoles: string[]) => {
+    setAttendancePdfRoleFilters(nextRoles);
+    setAttendancePdfSelectedUserIds(
+      statusList
+        .map(({ profile }) => profile)
+        .filter(
+          (profile) =>
+            nextRoles.length === 0 ||
+            nextRoles.includes(profile.medicalRole || "")
+        )
+        .map((profile) => profile.userId)
+    );
+  };
+
   const printAttendancePdf = (
     targetUserIds: string[] = attendancePdfSelectedUserIds,
     closeSelectionWindow = true
@@ -6692,7 +6706,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                     {attendancePdfRoleFilters.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => setAttendancePdfRoleFilters([])}
+                        onClick={() => applyAttendancePdfRoleFilters([])}
                         className="text-[10px] font-black text-rose-700 hover:text-rose-900"
                       >
                         נקה סינון
@@ -6706,13 +6720,14 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                         <button
                           key={role}
                           type="button"
-                          onClick={() =>
-                            setAttendancePdfRoleFilters((current) =>
-                              selected
-                                ? current.filter((item) => item !== role)
-                                : [...current, role]
-                            )
-                          }
+                          onClick={() => {
+                            const nextRoles = selected
+                              ? attendancePdfRoleFilters.filter(
+                                  (item) => item !== role
+                                )
+                              : [...attendancePdfRoleFilters, role];
+                            applyAttendancePdfRoleFilters(nextRoles);
+                          }}
                           className={`rounded-full border px-2.5 py-1 text-[10px] font-black transition ${
                             selected
                               ? "border-rose-700 bg-rose-700 text-white"
