@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { db, auth, isFirebaseActive } from "../firebase";
 import { sanitizeSpreadsheetCell } from "../utils/csvSecurity";
+import { getPermissionsForUser } from "../security/permissions";
 import {
   UserProfile,
   AttendanceReport,
@@ -500,8 +501,9 @@ const getSystemSettingsFromCache = (): SystemSettingsConfig | null => {
 
 const DEFAULT_GOOGLE_SHEETS_CONFIG: GoogleSheetsConfig = {
   enabled: true,
-  webAppUrl:
-    "https://script.google.com/macros/s/AKfycbzoMH-OzKtGCCWW0rdqaf8TPwlEXoPPSTV3tqjaC4DtFe5o4hVutyzK_FB5HeJRDj_VeQ/exec",
+  // The Apps Script URL is intentionally not shipped to browsers. All writes
+  // are relayed by the authenticated Cloudflare Worker.
+  webAppUrl: "",
   spreadsheetName: "",
   lastTestStatus: "idle",
   lastSyncStatus: "idle",
@@ -512,6 +514,51 @@ const GOOGLE_SHEETS_CONFIG_CACHE_KEY = "idf_google_sheets_config";
 const GOOGLE_SHEETS_CONFIG_CACHE_TIME_KEY =
   "idf_google_sheets_config_cached_at";
 const GOOGLE_SHEETS_CONFIG_CACHE_TTL_MS = 30 * 60 * 1000;
+const GOOGLE_SHEETS_WORKER_URL =
+  "https://status-997-push.avielias0.workers.dev/sheets/sync";
+
+const postGoogleSheetsPayload = async (
+  payload: Record<string, unknown>
+): Promise<Record<string, unknown>> => {
+  if (!auth?.currentUser) {
+    throw new Error("Authentication is required for Google Sheets sync.");
+  }
+  const idToken = await auth.currentUser.getIdToken();
+  const response = await fetch(GOOGLE_SHEETS_WORKER_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  const result = (await response.json().catch(() => ({}))) as Record<
+    string,
+    unknown
+  >;
+  if (!response.ok) {
+    throw new Error(
+      typeof result.error === "string"
+        ? result.error
+        : `Google Sheets sync failed (${response.status}).`
+    );
+  }
+  return result;
+};
+
+const postGoogleSheetsAttendanceBatch = async (
+  entries: Record<string, unknown>[]
+): Promise<{ sent: number; failed: number }> => {
+  if (entries.length === 0) return { sent: 0, failed: 0 };
+  const result = await postGoogleSheetsPayload({
+    action: "attendance_batch",
+    entries,
+  });
+  return {
+    sent: Number(result.sent || 0),
+    failed: Number(result.failed || 0),
+  };
+};
 
 const normalizeGoogleSheetsConfig = (
   value: unknown
@@ -3133,7 +3180,7 @@ export const dataService = {
     );
     const testedAt = new Date().toISOString();
 
-    if (!effectiveConfig.webAppUrl) {
+    if (false && !effectiveConfig.webAppUrl) {
       return {
         success: false,
         message: "לא הוגדרה כתובת Web App.",
@@ -3142,17 +3189,10 @@ export const dataService = {
     }
 
     try {
-      await fetch(effectiveConfig.webAppUrl, {
-        method: "POST",
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8",
-        },
-        body: JSON.stringify({
-          action: "connection_test",
-          source: "attendance_system",
-          timestamp: testedAt,
-        }),
+      await postGoogleSheetsPayload({
+        action: "connection_test",
+        source: "attendance_system",
+        timestamp: testedAt,
       });
 
       return {
@@ -4200,7 +4240,7 @@ async createSystemLog(logData: {
       return persistResult(buildResult("error", 0, 0, "הסנכרון ל־Google Sheets כבוי."));
     }
 
-    if (!googleSheetsConfig.webAppUrl) {
+    if (false && !googleSheetsConfig.webAppUrl) {
       return persistResult(buildResult("error", 0, 0, "לא הוגדרה כתובת Google Sheets Web App."));
     }
 
@@ -4344,6 +4384,8 @@ async createSystemLog(logData: {
           : reportDate;
 
         return {
+          action: "attendance",
+          targetUserId: report.userId,
           personalId: stablePersonalId,
           fullName: sanitizeSpreadsheetCell(soldier?.fullName || report.userName || ""),
           medicalRole: sanitizeSpreadsheetCell(soldier?.medicalRole || ""),
@@ -4357,39 +4399,23 @@ async createSystemLog(logData: {
         };
       };
 
-      const fetchWithTimeout = async (payload: Record<string, unknown>) => {
-        const controller = new AbortController();
-        const timeoutId = window.setTimeout(() => controller.abort(), 12000);
-        try {
-          await fetch(googleSheetsConfig.webAppUrl, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(payload),
-            signal: controller.signal,
-          });
-          return true;
-        } catch (error) {
-          console.warn("Google Sheets historical sync failed:", error);
-          return false;
-        } finally {
-          window.clearTimeout(timeoutId);
-        }
-      };
-
       let sentCount = 0;
       let failedCount = 0;
-      const batchSize = 5;
+      const batchSize = 100;
       for (let index = 0; index < reportsToSync.length; index += batchSize) {
         const batch = reportsToSync.slice(index, index + batchSize);
-        const results = await Promise.all(
-          batch.map(async (report) => {
-            const payload = createPayload(report);
-            return payload ? fetchWithTimeout(payload) : false;
-          })
-        );
-        sentCount += results.filter(Boolean).length;
-        failedCount += results.filter((success) => !success).length;
+        const payloads = batch
+          .map((report) => createPayload(report))
+          .filter(Boolean) as Record<string, unknown>[];
+        failedCount += batch.length - payloads.length;
+        try {
+          const result = await postGoogleSheetsAttendanceBatch(payloads);
+          sentCount += result.sent;
+          failedCount += result.failed;
+        } catch (error) {
+          console.warn("Google Sheets historical sync failed:", error);
+          failedCount += payloads.length;
+        }
       }
 
       const status = failedCount === 0 ? "success" : sentCount > 0 ? "partial" : "error";
@@ -4628,27 +4654,22 @@ const googleSheetsConfig = await this.getGoogleSheetsConfig();
 
 if (
   googleSheetsConfig.enabled &&
-  !!googleSheetsConfig.webAppUrl &&
   selectedStatusConfig?.exportToSheets !== false &&
   personalIdForSheets
 ) {
   try {
-    await fetch(googleSheetsConfig.webAppUrl, {
-      method: "POST",
-      mode: "no-cors",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8",
-      },
-      body: JSON.stringify({
-        personalId: personalIdForSheets,
-        fullName: sanitizeSpreadsheetCell(soldier?.fullName || reportPayload.userName),
-        role: sanitizeSpreadsheetCell(soldier?.medicalRole || ""),
-        phone: sanitizeSpreadsheetCell(soldier?.phoneNumber || ""),
-        date: formattedDate,
-        cellValue: sanitizeSpreadsheetCell(
-          markerText ? `${statusText}/${markerText}` : statusText
-        ),
-      }),
+    await postGoogleSheetsPayload({
+      action: "attendance",
+      targetUserId: reportPayload.userId,
+      reportId: docRef.id,
+      personalId: personalIdForSheets,
+      fullName: sanitizeSpreadsheetCell(soldier?.fullName || reportPayload.userName),
+      role: sanitizeSpreadsheetCell(soldier?.medicalRole || ""),
+      phone: sanitizeSpreadsheetCell(soldier?.phoneNumber || ""),
+      date: formattedDate,
+      cellValue: sanitizeSpreadsheetCell(
+        markerText ? `${statusText}/${markerText}` : statusText
+      ),
     });
   } catch (err) {
     console.warn("Google Sheets sync failed:", err);
@@ -4836,6 +4857,7 @@ await setDoc(notRef, {
 
   async syncAttendanceEntriesToGoogleSheets(
     entries: Array<{
+      userId?: string;
       personalId?: string;
       fullName: string;
       medicalRole?: string;
@@ -4856,7 +4878,7 @@ await setDoc(notRef, {
     }
 
     const googleSheetsConfig = await this.getGoogleSheetsConfig();
-    if (!googleSheetsConfig.enabled || !googleSheetsConfig.webAppUrl) {
+    if (!googleSheetsConfig.enabled) {
       return {
         enabled: false,
         sent: 0,
@@ -4895,6 +4917,8 @@ await setDoc(notRef, {
       const [year, month, day] = entry.reportDate.split("-");
 
       payloads.push({
+        action: "attendance",
+        targetUserId: entry.userId || "",
         personalId,
         fullName: sanitizeSpreadsheetCell(entry.fullName),
         medicalRole: sanitizeSpreadsheetCell(entry.medicalRole || ""),
@@ -4912,25 +4936,13 @@ await setDoc(notRef, {
 
     let sent = 0;
     let failed = 0;
-    for (let offset = 0; offset < payloads.length; offset += 5) {
-      const results = await Promise.all(
-        payloads.slice(offset, offset + 5).map(async (payload) => {
-          try {
-            await fetch(googleSheetsConfig.webAppUrl, {
-              method: "POST",
-              mode: "no-cors",
-              headers: { "Content-Type": "text/plain;charset=utf-8" },
-              body: JSON.stringify(payload),
-            });
-            return true;
-          } catch (error) {
-            console.warn("Bulk attendance Google Sheets sync failed:", error);
-            return false;
-          }
-        })
-      );
-      sent += results.filter(Boolean).length;
-      failed += results.filter((success) => !success).length;
+    try {
+      const result = await postGoogleSheetsAttendanceBatch(payloads);
+      sent = result.sent;
+      failed = result.failed;
+    } catch (error) {
+      console.warn("Bulk attendance Google Sheets sync failed:", error);
+      failed = payloads.length;
     }
 
     return { enabled: true, sent, failed, skipped };
@@ -5002,13 +5014,7 @@ const finalReportData = {
       (status) => status.id === updatedReport.status
     );
 
-    const users = await this.getAllUsers();
-
-    const soldier = users.find(
-      (u) =>
-        u.userId === updatedReport.userId ||
-        u.personalId === (updatedReport as any).personalId
-    );
+    const soldier = await this.getCurrentUserProfile(updatedReport.userId);
 
     const markerText =
       updatedReport.dayMarker === "return_to_base"
@@ -5061,27 +5067,22 @@ const formattedDate =
 
     if (
       googleSheetsConfig.enabled &&
-      !!googleSheetsConfig.webAppUrl &&
       selectedStatusConfig?.exportToSheets !== false &&
       personalIdForSheets
     ) {
       try {
-        await fetch(googleSheetsConfig.webAppUrl, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "text/plain;charset=utf-8",
-          },
-          body: JSON.stringify({
-            personalId: personalIdForSheets,
-            fullName: sanitizeSpreadsheetCell(soldier?.fullName || updatedReport.userName),
-            role: sanitizeSpreadsheetCell(soldier?.medicalRole || ""),
-            phone: sanitizeSpreadsheetCell(soldier?.phoneNumber || ""),
-            date: formattedDate,
-            cellValue: sanitizeSpreadsheetCell(
-              markerText ? `${statusText}/${markerText}` : statusText
-            ),
-          }),
+        await postGoogleSheetsPayload({
+          action: "attendance",
+          targetUserId: updatedReport.userId,
+          reportId,
+          personalId: personalIdForSheets,
+          fullName: sanitizeSpreadsheetCell(soldier?.fullName || updatedReport.userName),
+          role: sanitizeSpreadsheetCell(soldier?.medicalRole || ""),
+          phone: sanitizeSpreadsheetCell(soldier?.phoneNumber || ""),
+          date: formattedDate,
+          cellValue: sanitizeSpreadsheetCell(
+            markerText ? `${statusText}/${markerText}` : statusText
+          ),
         });
       } catch (err) {
         console.warn("Google Sheets update sync failed:", err);
@@ -5332,7 +5333,7 @@ const formattedDate =
     attendanceStatuses: AttendanceStatusConfig[]
   ): Promise<{ sheetName: string; soldierCount: number; dateCount: number }> {
     const googleSheetsConfig = await this.getGoogleSheetsConfig(true);
-    if (!googleSheetsConfig.enabled || !googleSheetsConfig.webAppUrl) {
+    if (!googleSheetsConfig.enabled) {
       throw new Error(
         "החיבור ל־Google Sheets כבוי או שלא הוגדרה כתובת Web App."
       );
@@ -5461,21 +5462,16 @@ const formattedDate =
       color: "#FEF08A",
     });
 
-    await fetch(googleSheetsConfig.webAppUrl, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        action: "syncLineNumericRoster",
-        sheetName,
-        cycleId: cycle.cycleId,
-        cycleTitle: sanitizeSpreadsheetCell(cycle.title),
-        startDate: cycle.startDate,
-        endDate: cycle.endDate,
-        dates,
-        rows,
-        legend,
-      }),
+    await postGoogleSheetsPayload({
+      action: "syncLineNumericRoster",
+      sheetName,
+      cycleId: cycle.cycleId,
+      cycleTitle: sanitizeSpreadsheetCell(cycle.title),
+      startDate: cycle.startDate,
+      endDate: cycle.endDate,
+      dates,
+      rows,
+      legend,
     });
 
     await writeAuditLog({
@@ -5677,14 +5673,58 @@ const formattedDate =
 
     const path = "commander_messages";
     try {
-      const snapshot = await getDocs(
-        query(
-          collection(db, "commander_messages"),
-          orderBy("createdAt", "desc"),
-          limit(100)
-        )
+      const currentUserId = auth?.currentUser?.uid || "";
+      const currentProfile = currentUserId
+        ? await this.getCurrentUserProfile(currentUserId)
+        : null;
+      const rolePermissions = await this.getRolePermissionConfigs();
+      const permissions = getPermissionsForUser(currentProfile, rolePermissions);
+      const canManageMessages =
+        permissions["dashboard.notifications.view"] === true;
+      const snapshots = canManageMessages
+        ? [
+            await getDocs(
+              query(
+                collection(db, "commander_messages"),
+                orderBy("createdAt", "desc"),
+                limit(100)
+              )
+            ),
+          ]
+        : await Promise.all([
+            getDocs(
+              query(
+                collection(db, "commander_messages"),
+                where("targetType", "==", "all"),
+                limit(100)
+              )
+            ),
+            getDocs(
+              query(
+                collection(db, "commander_messages"),
+                where("targetUserId", "==", currentUserId),
+                limit(100)
+              )
+            ),
+            getDocs(
+              query(
+                collection(db, "commander_messages"),
+                where("targetUnit", "==", currentProfile?.unit || "__none__"),
+                limit(100)
+              )
+            ),
+            getDocs(
+              query(
+                collection(db, "commander_messages"),
+                where("targetRole", "==", currentProfile?.role || "__none__"),
+                limit(100)
+              )
+            ),
+          ]);
+      const uniqueDocuments = new Map(
+        snapshots.flatMap((snapshot) => snapshot.docs).map((item) => [item.id, item])
       );
-      return snapshot.docs
+      return Array.from(uniqueDocuments.values())
         .map(
           (item) =>
             ({

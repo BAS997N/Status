@@ -350,6 +350,16 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     actualPermissions,
     "dashboard.notifications.view"
   );
+  const actualCanReadAllAttendance = [
+    "dashboard.attendance.view",
+    "dashboard.summary.view",
+    "dashboard.history.view",
+    "reports.manage",
+    "reports.verify",
+    "reports.reset",
+    "line_planning.overview",
+    "line_planning.manage",
+  ].some((permissionId) => hasPermission(actualPermissions, permissionId));
 
 
   const statusLabels = React.useMemo(
@@ -935,7 +945,7 @@ useEffect(() => {
   const refreshReports = async () => {
   if ((isFirebaseActive() && !auth?.currentUser) || !userProfile) return;
 
-  const updatedReports = actualCanViewDashboard || canPreviewUsers
+  const updatedReports = actualCanReadAllAttendance || canPreviewUsers
     ? await dataService.fetchAllReports()
     : await dataService.fetchReportsByUser(userProfile.userId);
   setReports(updatedReports);
@@ -943,7 +953,7 @@ useEffect(() => {
   const refreshReportsOnly = async () => {
   if ((isFirebaseActive() && !auth?.currentUser) || !userProfile) return;
 
-  const updatedReports = canViewDashboard
+  const updatedReports = actualCanReadAllAttendance
     ? await dataService.fetchAllReports()
     : await dataService.fetchReportsByUser(userProfile.userId);
   setReports(updatedReports);
@@ -1056,6 +1066,7 @@ const loadSystemLogsOnDemand = async () => {
   permissionsLoaded,
   canViewReporter,
   actualCanViewDashboard,
+  actualCanReadAllAttendance,
   canViewShifts,
   actualCanManageShifts,
   actualCanManageEmergency,
@@ -2257,6 +2268,7 @@ const handleAdminBulkSaveReports = async (
   const sheetsEntries = entries.map((entry) => {
     const profile = userById.get(entry.userId);
     return {
+      userId: entry.userId,
       personalId: profile?.personalId,
       fullName: profile?.fullName || entry.userName,
       medicalRole: profile?.medicalRole,

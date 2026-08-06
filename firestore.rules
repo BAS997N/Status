@@ -46,6 +46,36 @@ service cloud.firestore {
       );
     }
 
+    function canReadAllUsers() {
+      return isSuperAdmin() ||
+        hasPermission("dashboard.view") ||
+        hasPermission("dashboard.attendance.view") ||
+        hasPermission("dashboard.directory.view") ||
+        hasPermission("dashboard.summary.view") ||
+        hasPermission("dashboard.history.view") ||
+        hasPermission("dashboard.notifications.view") ||
+        hasPermission("reports.manage") ||
+        hasPermission("soldiers.manage") ||
+        hasPermission("shifts.manage") ||
+        hasPermission("emergency.manage") ||
+        hasPermission("line_planning.overview") ||
+        hasPermission("line_planning.manage") ||
+        hasPermission("system_admin.users.manage");
+    }
+
+    function canReadAllAttendance() {
+      return isSuperAdmin() ||
+        hasPermission("dashboard.view") ||
+        hasPermission("dashboard.attendance.view") ||
+        hasPermission("dashboard.summary.view") ||
+        hasPermission("dashboard.history.view") ||
+        hasPermission("reports.manage") ||
+        hasPermission("reports.verify") ||
+        hasPermission("reports.reset") ||
+        hasPermission("line_planning.overview") ||
+        hasPermission("line_planning.manage");
+    }
+
     function permissionSettingsExist() {
       return exists(/databases/$(database)/documents/settings/role_permissions);
     }
@@ -73,7 +103,9 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (
+        request.auth.uid == userId || canReadAllUsers()
+      );
       allow create: if signedIn() && (
         request.auth.uid == userId ||
         hasPermission("system_admin.users.manage")
@@ -113,37 +145,59 @@ service cloud.firestore {
     }
 
     match /attendance/{reportId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (
+        resource.data.userId == request.auth.uid || canReadAllAttendance()
+      );
       allow create: if signedIn() && (
-        request.resource.data.userId == request.auth.uid ||
+        (
+          request.resource.data.userId == request.auth.uid &&
+          request.resource.data.createdBy == request.auth.uid
+        ) ||
         hasPermission("reports.manage")
       );
       allow update: if hasPermission("reports.manage") || (
         signedIn() &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.userId == resource.data.userId &&
-        request.resource.data.createdBy == resource.data.createdBy
+        request.resource.data.createdBy == resource.data.createdBy &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          "verified", "verifiedAt", "verifiedBy", "verifiedByName"
+        ])
       );
       allow delete: if hasPermission("reports.delete");
     }
 
     match /attendance_logs/{logId} {
-      allow read: if signedIn();
-      allow create: if signedIn();
+      allow read: if hasPermission("dashboard.history.view") ||
+        hasPermission("reports.manage");
+      allow create: if signedIn() && (
+        request.resource.data.updatedBy == request.auth.uid ||
+        hasPermission("reports.manage")
+      );
       allow update, delete: if hasPermission("reports.manage");
     }
 
     match /reports/{reportId} {
-      allow read: if signedIn();
-      allow create: if signedIn();
+      allow read: if signedIn() && (
+        resource.data.userId == request.auth.uid || canReadAllAttendance()
+      );
+      allow create: if signedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        hasPermission("reports.manage")
+      );
       allow update: if hasPermission("reports.manage");
       allow delete: if hasPermission("reports.delete");
     }
 
     match /notifications/{notificationId} {
-      allow read: if signedIn();
-      allow create: if signedIn();
-      allow update: if signedIn();
+      allow read: if hasPermission("dashboard.notifications.view");
+      allow create: if signedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        hasPermission("reports.manage")
+      );
+      allow update: if hasPermission("dashboard.notifications.view") &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["isRead"]);
       allow delete: if hasPermission("dashboard.notifications.view");
     }
 
@@ -178,18 +232,38 @@ service cloud.firestore {
     }
 
     match /commander_messages/{messageId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (
+        hasPermission("dashboard.notifications.view") ||
+        resource.data.targetType == "all" ||
+        resource.data.targetUserId == request.auth.uid ||
+        resource.data.targetUnit == myUser().data.unit ||
+        resource.data.targetRole == myUser().data.role
+      );
       allow create, delete: if hasPermission("dashboard.notifications.view");
       allow update: if isSuperAdmin() || (
         signedIn() &&
+        (
+          resource.data.targetType == "all" ||
+          resource.data.targetUserId == request.auth.uid ||
+          resource.data.targetUnit == myUser().data.unit ||
+          resource.data.targetRole == myUser().data.role
+        ) &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(["acknowledgements"])
+          .hasOnly(["acknowledgements"]) &&
+        request.resource.data.acknowledgements
+          .diff(resource.data.acknowledgements)
+          .affectedKeys().hasOnly([request.auth.uid]) &&
+        request.resource.data.acknowledgements
+          .get(request.auth.uid, {}).get("userId", "") == request.auth.uid
       );
     }
 
     match /system_logs/{logId} {
       allow read: if hasPermission("dashboard.system_logs.view") || hasPermission("system_admin.audit.view");
-      allow create: if signedIn();
+      allow create: if signedIn() && (
+        request.resource.data.actorUserId == request.auth.uid ||
+        request.resource.data.actorId == request.auth.uid
+      );
       allow update, delete: if isSuperAdmin();
     }
 

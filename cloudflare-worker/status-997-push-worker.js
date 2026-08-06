@@ -655,6 +655,156 @@ async function authorizeAdminRequest(request, serviceAccount, requiredPermission
   return { claims, user, effectiveRole, idToken };
 }
 
+function roleHasAnyPermission(permissionSettings, effectiveRole, permissions) {
+  if (effectiveRole === "super_admin") return true;
+  const rolePermissions = permissionSettings.roleMap?.[effectiveRole] || {};
+  return permissions.some((permission) => rolePermissions[permission] === true);
+}
+
+async function forwardGoogleSheetsPayload(env, payload) {
+  const webAppUrl = String(env.GOOGLE_SHEETS_WEB_APP_URL || "").trim();
+  const sharedSecret = String(env.GOOGLE_SHEETS_SHARED_SECRET || "").trim();
+  if (!webAppUrl || !sharedSecret) {
+    throw Object.assign(
+      new Error("Google Sheets server configuration is missing"),
+      { status: 500 }
+    );
+  }
+  const response = await fetch(webAppUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ ...payload, sharedSecret }),
+  });
+  const text = await response.text();
+  if (!response.ok || /^ERROR:/i.test(text.trim())) {
+    throw Object.assign(
+      new Error(text.trim() || `Google Sheets request failed (${response.status})`),
+      { status: 502 }
+    );
+  }
+  return text;
+}
+
+async function handleGoogleSheetsSync(request, env, origin) {
+  if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    return jsonResponse({ error: "Worker secret is missing" }, 500, origin);
+  }
+
+  const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  const projectId = serviceAccount.project_id;
+  const authorization = request.headers.get("Authorization") || "";
+  if (!authorization.startsWith("Bearer ")) {
+    return jsonResponse({ error: "Authentication required" }, 401, origin);
+  }
+  const idToken = authorization.slice(7);
+  let claims;
+  try {
+    claims = await verifyFirebaseIdToken(idToken, projectId);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 401, origin);
+  }
+
+  let input;
+  try {
+    input = await request.json();
+  } catch {
+    return jsonResponse({ error: "Invalid request body" }, 400, origin);
+  }
+  if (!input || typeof input !== "object") {
+    return jsonResponse({ error: "Invalid request body" }, 400, origin);
+  }
+
+  const [user, permissionSettings] = await Promise.all([
+    getFirestoreDocument(projectId, idToken, `users/${claims.sub}`),
+    getFirestoreDocument(projectId, idToken, "settings/role_permissions"),
+  ]);
+  const effectiveRole =
+    user.systemRole ||
+    (user.role === "commander"
+      ? "admin"
+      : user.role === "adjutant_officer"
+      ? "viewer"
+      : "reporter");
+  const canManageAttendanceExport = roleHasAnyPermission(
+    permissionSettings,
+    effectiveRole,
+    ["reports.manage", "sheets.export", "system_admin.sheets.manage"]
+  );
+
+  const authorizeAttendanceEntry = (entry) => {
+    if (canManageAttendanceExport) return true;
+    return (
+      String(entry.targetUserId || "") === claims.sub &&
+      String(entry.personalId || "") === String(user.personalId || "")
+    );
+  };
+
+  try {
+    if (input.action === "connection_test") {
+      if (
+        !roleHasAnyPermission(permissionSettings, effectiveRole, [
+          "system_admin.sheets.manage",
+        ])
+      ) {
+        return jsonResponse({ error: "Permission denied" }, 403, origin);
+      }
+      await forwardGoogleSheetsPayload(env, input);
+      return jsonResponse({ ok: true }, 200, origin);
+    }
+
+    if (input.action === "syncLineNumericRoster") {
+      if (
+        !roleHasAnyPermission(permissionSettings, effectiveRole, [
+          "line_planning.manage",
+          "system_admin.sheets.manage",
+        ])
+      ) {
+        return jsonResponse({ error: "Permission denied" }, 403, origin);
+      }
+      if (!Array.isArray(input.rows) || input.rows.length > 500) {
+        return jsonResponse({ error: "Invalid roster payload" }, 400, origin);
+      }
+      await forwardGoogleSheetsPayload(env, input);
+      return jsonResponse({ ok: true, sent: 1, failed: 0 }, 200, origin);
+    }
+
+    const entries =
+      input.action === "attendance_batch"
+        ? input.entries
+        : input.action === "attendance"
+        ? [input]
+        : null;
+    if (!Array.isArray(entries) || entries.length === 0 || entries.length > 100) {
+      return jsonResponse({ error: "Invalid attendance payload" }, 400, origin);
+    }
+    if (!entries.every(authorizeAttendanceEntry)) {
+      return jsonResponse({ error: "Permission denied" }, 403, origin);
+    }
+
+    let sent = 0;
+    let failed = 0;
+    for (let offset = 0; offset < entries.length; offset += 5) {
+      const results = await Promise.allSettled(
+        entries.slice(offset, offset + 5).map((entry) =>
+          forwardGoogleSheetsPayload(env, {
+            ...entry,
+            action: "attendance",
+          })
+        )
+      );
+      sent += results.filter((result) => result.status === "fulfilled").length;
+      failed += results.filter((result) => result.status === "rejected").length;
+    }
+    return jsonResponse(
+      { ok: failed === 0, sent, failed },
+      failed === entries.length ? 502 : 200,
+      origin
+    );
+  } catch (error) {
+    return jsonResponse({ error: error.message }, error.status || 500, origin);
+  }
+}
+
 async function handleUserCredentials(request, env, origin) {
   if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) {
     return jsonResponse({ error: "Worker secret is missing" }, 500, origin);
@@ -1151,6 +1301,9 @@ export default {
       }
       if (path === "/admin/users/credentials") {
         return await handleUserCredentials(request, env, allowedOrigin);
+      }
+      if (path === "/sheets/sync") {
+        return await handleGoogleSheetsSync(request, env, allowedOrigin);
       }
       if (path === "/push/availability") {
         return await handlePushAvailability(request, env, allowedOrigin);
