@@ -6576,7 +6576,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[12450] flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm"
+            className="fixed inset-0 z-[12450] flex items-center justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:p-3"
             dir="rtl"
             onClick={() => setIsAttendancePdfOpen(false)}
           >
@@ -6585,9 +6585,9 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.96, y: 14 }}
               onClick={(event) => event.stopPropagation()}
-              className="flex h-[96vh] w-[98vw] max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-2xl"
+              className="flex h-[100dvh] max-h-[100dvh] w-full max-w-6xl flex-col overflow-hidden bg-white text-right shadow-2xl sm:h-[96vh] sm:max-h-[96vh] sm:w-[98vw] sm:rounded-2xl sm:border sm:border-slate-200"
             >
-              <div className="flex items-center justify-between bg-rose-800 px-5 py-4 text-white">
+              <div className="flex shrink-0 items-center justify-between bg-rose-800 px-5 py-4 text-white">
                 <div className="flex items-center gap-2">
                   <Printer className="h-5 w-5" />
                   <div>
@@ -6606,6 +6606,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                 </button>
               </div>
 
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <div className="grid grid-cols-1 gap-3 border-b border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
                 <label className="space-y-1">
                   <span className="block text-xs font-black text-slate-600">
@@ -6654,7 +6655,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                 </label>
               </div>
 
-              <div className="flex min-h-[360px] flex-1 flex-col p-4">
+              <div className="flex flex-col p-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h4 className="text-sm font-black text-slate-800">
@@ -6741,7 +6742,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                   </div>
                 </div>
 
-                <div className="grid min-h-[280px] flex-1 grid-cols-1 content-start gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 content-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-3">
                   {attendancePdfSoldiers.map((profile) => (
                     <div
                       key={profile.userId}
@@ -6789,18 +6790,19 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                   ))}
                 </div>
               </div>
+              </div>
 
-              <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-[10px] font-bold leading-5 text-slate-500">
+              <div className="flex shrink-0 flex-col gap-3 border-t border-slate-200 bg-slate-50 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
+                <p className="hidden text-[10px] font-bold leading-5 text-slate-500 sm:block">
                   {attendancePdfSinglePage
                     ? "התאריכים יחולקו למקטעים שיופיעו אחד מתחת לשני באותו עמוד, בלי לכווץ את כולם לשורה אחת."
                     : "עד 16 תאריכים ו־24 חיילים יותאמו לעמוד אחד. דוח גדול יותר יחולק לעמודים קריאים עם כותרות חוזרות."}
                 </p>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex w-full shrink-0 gap-2 sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setIsAttendancePdfOpen(false)}
-                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-100"
+                    className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-600 hover:bg-slate-100 sm:flex-none sm:py-2"
                   >
                     ביטול
                   </button>
@@ -6808,7 +6810,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                     type="button"
                     onClick={() => printAttendancePdf()}
                     disabled={attendancePdfSelectedUserIds.length === 0}
-                    className="flex items-center gap-2 rounded-xl bg-rose-700 px-5 py-2 text-xs font-black text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-rose-700 px-5 py-2.5 text-xs font-black text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none sm:py-2"
                   >
                     <Printer className="h-4 w-4" />
                     הפק PDF
