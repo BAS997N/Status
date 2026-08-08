@@ -44,6 +44,18 @@ function doPost(e) {
       );
     }
 
+    if (
+      data.action === "attendance_batch" ||
+      data.action === "attendance"
+    ) {
+      const entries = data.action === "attendance_batch"
+        ? data.entries
+        : [data];
+      return createResponse(
+        JSON.stringify(syncAttendanceBatch(sheet, entries))
+      );
+    }
+
     const personalId = normalizePersonalId(data.personalId);
     const fullName = String(data.fullName || "").trim();
     const role = String(data.role || "").trim();
@@ -212,6 +224,114 @@ function doPost(e) {
       // אין צורך בפעולה
     }
   }
+}
+
+function syncAttendanceBatch(sheet, entries) {
+  if (!Array.isArray(entries) || !entries.length || entries.length > 100) {
+    throw new Error("invalid attendance batch");
+  }
+
+  const lastRow = Math.max(sheet.getLastRow(), 2);
+  const rowByPersonalId = {};
+  if (lastRow >= 3) {
+    const personalIds = sheet
+      .getRange(3, 1, lastRow - 2, 1)
+      .getDisplayValues();
+    personalIds.forEach(function (row, index) {
+      const personalId = normalizePersonalId(row[0]);
+      if (personalId) rowByPersonalId[personalId] = index + 3;
+    });
+  }
+
+  const dateColumnByDate = {};
+  const lastColumn = Math.max(sheet.getLastColumn(), 4);
+  if (lastColumn >= 5) {
+    const dateHeaders = sheet
+      .getRange(2, 5, 1, lastColumn - 4)
+      .getDisplayValues()[0];
+    dateHeaders.forEach(function (header, index) {
+      const date = normalizeDateText(header);
+      if (date) dateColumnByDate[date] = index + 5;
+    });
+  }
+
+  let nextRow = Math.max(sheet.getLastRow() + 1, 3);
+  let nextColumn = Math.max(sheet.getLastColumn() + 1, 5);
+  let sent = 0;
+  let failed = 0;
+  const errors = [];
+
+  entries.forEach(function (entry, entryIndex) {
+    try {
+      const personalId = normalizePersonalId(entry.personalId);
+      const date = normalizeDateText(entry.date);
+      if (!personalId || !date) {
+        throw new Error("missing personalId/date");
+      }
+
+      const fullName = String(entry.fullName || "").trim();
+      const role = String(entry.role || entry.medicalRole || "").trim();
+      const phone = String(entry.phone || "").trim();
+      const cellValue = String(
+        entry.cellValue || entry.status || ""
+      ).trim();
+
+      let soldierRow = rowByPersonalId[personalId];
+      if (!soldierRow) {
+        soldierRow = nextRow++;
+        rowByPersonalId[personalId] = soldierRow;
+        sheet.getRange(soldierRow, 1, 1, 4).setValues([[
+          personalId,
+          fullName,
+          role,
+          phone,
+        ]]);
+      } else {
+        sheet.getRange(soldierRow, 2, 1, 3).setValues([[
+          fullName,
+          role,
+          phone,
+        ]]);
+      }
+
+      let dateColumn = dateColumnByDate[date];
+      if (!dateColumn) {
+        dateColumn = nextColumn++;
+        dateColumnByDate[date] = dateColumn;
+        sheet
+          .getRange(2, dateColumn)
+          .setNumberFormat("@")
+          .setValue(date)
+          .setFontWeight("bold");
+        sheet
+          .getRange(1, dateColumn)
+          .setValue(getHebrewDayName(date))
+          .setFontWeight("bold");
+      }
+
+      applyStatusStyle(
+        sheet.getRange(soldierRow, dateColumn),
+        cellValue || "-"
+      );
+      sent++;
+    } catch (error) {
+      failed++;
+      if (errors.length < 10) {
+        errors.push({
+          index: entryIndex,
+          error: error && error.message ? error.message : String(error),
+        });
+      }
+    }
+  });
+
+  SpreadsheetApp.flush();
+  return {
+    success: failed === 0,
+    sent: sent,
+    failed: failed,
+    errors: errors,
+  };
 }
 
 function normalizePersonalId(value) {

@@ -781,22 +781,22 @@ async function handleGoogleSheetsSync(request, env, origin) {
       return jsonResponse({ error: "Permission denied" }, 403, origin);
     }
 
-    let sent = 0;
-    let failed = 0;
-    for (let offset = 0; offset < entries.length; offset += 5) {
-      const results = await Promise.allSettled(
-        entries.slice(offset, offset + 5).map((entry) =>
-          forwardGoogleSheetsPayload(env, {
-            ...entry,
-            action: "attendance",
-          })
-        )
-      );
-      sent += results.filter((result) => result.status === "fulfilled").length;
-      failed += results.filter((result) => result.status === "rejected").length;
+    const responseText = await forwardGoogleSheetsPayload(
+      env,
+      input.action === "attendance_batch"
+        ? { action: "attendance_batch", entries }
+        : { ...entries[0], action: "attendance" }
+    );
+    let sheetResult = {};
+    try {
+      sheetResult = JSON.parse(responseText);
+    } catch {
+      sheetResult = { sent: entries.length, failed: 0 };
     }
+    const sent = Number(sheetResult.sent || 0);
+    const failed = Number(sheetResult.failed || 0);
     return jsonResponse(
-      { ok: failed === 0, sent, failed },
+      { ok: failed === 0, sent, failed, errors: sheetResult.errors || [] },
       failed === entries.length ? 502 : 200,
       origin
     );

@@ -550,14 +550,18 @@ const postGoogleSheetsAttendanceBatch = async (
   entries: Record<string, unknown>[]
 ): Promise<{ sent: number; failed: number }> => {
   if (entries.length === 0) return { sent: 0, failed: 0 };
-  const result = await postGoogleSheetsPayload({
-    action: "attendance_batch",
-    entries,
-  });
-  return {
-    sent: Number(result.sent || 0),
-    failed: Number(result.failed || 0),
-  };
+  let sent = 0;
+  let failed = 0;
+  for (let offset = 0; offset < entries.length; offset += 100) {
+    const chunk = entries.slice(offset, offset + 100);
+    const result = await postGoogleSheetsPayload({
+      action: "attendance_batch",
+      entries: chunk,
+    });
+    sent += Number(result.sent || 0);
+    failed += Number(result.failed || 0);
+  }
+  return { sent, failed };
 };
 
 const normalizeGoogleSheetsConfig = (
@@ -3770,15 +3774,20 @@ export const dataService = {
       const currentUser = auth.currentUser;
       if (!currentUser) return null;
 
-      const path = `users/${currentUser.uid}`;
-      const docSnap = await getDoc(doc(db, "users", currentUser.uid));
+      const requestedUserId = testUserId || currentUser.uid;
+      const path = `users/${requestedUserId}`;
+      const docSnap = await getDoc(doc(db, "users", requestedUserId));
       
       if (docSnap.exists()) {
         return docSnap.data() as UserProfile;
       }
       return null;
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `users/${auth?.currentUser?.uid}`);
+      handleFirestoreError(
+        error,
+        OperationType.GET,
+        `users/${testUserId || auth?.currentUser?.uid}`
+      );
       return null;
     }
   },
