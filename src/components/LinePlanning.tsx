@@ -1457,7 +1457,7 @@ export default function LinePlanning({
             </div>
           </div>
 
-          <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm [--planning-name-column:10rem] sm:[--planning-name-column:12rem]">
             <div className="sticky top-0 z-50 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2">
               <span className="text-[10px] font-black text-slate-600">
@@ -1496,7 +1496,20 @@ export default function LinePlanning({
               ref={matrixHeaderScrollRef}
               className="overflow-hidden"
             >
-              <table className="w-max min-w-full border-collapse text-center text-[10px]">
+              <table
+                className="table-fixed border-collapse text-center text-[10px]"
+                style={{
+                  width: `calc(var(--planning-name-column) + ${
+                    managerCycleDates.length * 7
+                  }rem)`,
+                }}
+              >
+                <colgroup>
+                  <col style={{ width: "var(--planning-name-column)" }} />
+                  {managerCycleDates.map((date) => (
+                    <col key={`header_col_${date}`} style={{ width: "7rem" }} />
+                  ))}
+                </colgroup>
                 <thead className="bg-slate-100">
                   <tr>
                     <th className="sticky right-0 z-30 w-40 min-w-40 border-b border-l border-slate-200 bg-slate-100 px-2 py-3 text-right text-xs sm:w-48 sm:min-w-48">
@@ -1510,7 +1523,7 @@ export default function LinePlanning({
                         ).toLocaleDateString("he-IL", {
                           weekday: "long",
                         })}, ${formatDate(date, true)}`}
-                        className="min-w-28 border-b border-l border-slate-200 px-2 py-2 text-[10px]"
+                        className="w-28 min-w-28 max-w-28 border-b border-l border-slate-200 px-2 py-2 text-[10px]"
                       >
                         <span className="block font-black text-slate-800">
                           {new Date(`${date}T12:00:00`).toLocaleDateString(
@@ -1538,7 +1551,20 @@ export default function LinePlanning({
               }}
               className="overflow-x-auto scroll-smooth"
             >
-              <table className="w-max min-w-full border-collapse text-center text-[10px]">
+              <table
+                className="table-fixed border-collapse text-center text-[10px]"
+                style={{
+                  width: `calc(var(--planning-name-column) + ${
+                    managerCycleDates.length * 7
+                  }rem)`,
+                }}
+              >
+                <colgroup>
+                  <col style={{ width: "var(--planning-name-column)" }} />
+                  {managerCycleDates.map((date) => (
+                    <col key={`body_col_${date}`} style={{ width: "7rem" }} />
+                  ))}
+                </colgroup>
                 <tbody>
                   {planningUsers.map((user) => {
                     const constraint = constraintByUser.get(user.userId);
@@ -1623,7 +1649,7 @@ export default function LinePlanning({
                           return (
                             <td
                               key={`${user.userId}_${date}`}
-                              className="min-w-28 border-b border-l border-slate-200 p-1"
+                              className="w-28 min-w-28 max-w-28 border-b border-l border-slate-200 p-1"
                             >
                               <div className="space-y-1">
                               {planningViewMode === "edit" && canEdit ? (
