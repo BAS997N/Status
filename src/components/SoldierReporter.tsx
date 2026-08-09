@@ -77,6 +77,48 @@ const getLinePlanDates = (startDate: string, endDate: string) => {
   return dates;
 };
 
+const PERSONAL_PLANNING_DAY_MARKERS: AttendanceStatusConfig[] = [
+  {
+    id: "exit_home",
+    label: "יציאה לבית",
+    enabled: true,
+    visibleToSoldiers: true,
+    visibleToCommanders: true,
+    sortOrder: 1001,
+    systemStatus: false,
+    chartCategory: "absent",
+    color: "text-purple-800",
+    bg: "bg-purple-100",
+    border: "border-purple-300",
+  },
+  {
+    id: "return_to_base",
+    label: "חזרה לבסיס",
+    enabled: true,
+    visibleToSoldiers: true,
+    visibleToCommanders: true,
+    sortOrder: 1002,
+    systemStatus: false,
+    chartCategory: "present",
+    color: "text-blue-800",
+    bg: "bg-blue-100",
+    border: "border-blue-300",
+  },
+  {
+    id: "after_hours",
+    label: "אפטר",
+    enabled: true,
+    visibleToSoldiers: true,
+    visibleToCommanders: true,
+    sortOrder: 1003,
+    systemStatus: false,
+    chartCategory: "absent",
+    color: "text-fuchsia-800",
+    bg: "bg-fuchsia-100",
+    border: "border-fuchsia-300",
+  },
+];
+
 export default function SoldierReporter({ 
   currentUser, 
   reports,
@@ -766,7 +808,10 @@ dayMarker || undefined
     ? getLinePlanDates(myLineCycle.startDate, myLineCycle.endDate)
     : [];
   const linePlanStatusById = new Map(
-    attendanceStatuses.map((item) => [item.id, item])
+    [...attendanceStatuses, ...PERSONAL_PLANNING_DAY_MARKERS].map((item) => [
+      item.id,
+      item,
+    ])
   );
   const basePlanningStatus =
     linePlanStatusById.get("base") || DEFAULT_ATTENDANCE_STATUS_CONFIGS[0];
@@ -886,7 +931,7 @@ dayMarker || undefined
             }`}
           >
             <CalendarDays className="h-4 w-4 shrink-0" />
-            <span>תכנון</span>
+            <span>לוח יציאות</span>
           </button>
         )}
         <button
@@ -1004,7 +1049,7 @@ dayMarker || undefined
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900">
-                    תכנון הנוכחות שלי
+                    לוח היציאות שלי
                   </h3>
                   {myLineCycle && (
                     <p className="mt-1 text-xs font-bold text-slate-500">

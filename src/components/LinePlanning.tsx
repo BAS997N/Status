@@ -187,12 +187,25 @@ const PLANNING_ONLY_STATUSES: AttendanceStatusConfig[] = [
     border: "border-blue-300",
   },
   {
+    id: "after_hours",
+    label: "אפטר",
+    enabled: true,
+    visibleToSoldiers: false,
+    visibleToCommanders: true,
+    sortOrder: 1003,
+    systemStatus: false,
+    chartCategory: "absent",
+    color: "text-fuchsia-800",
+    bg: "bg-fuchsia-100",
+    border: "border-fuchsia-300",
+  },
+  {
     id: "recall_base",
     label: "הקפצה (בסיס)",
     enabled: true,
     visibleToSoldiers: false,
     visibleToCommanders: true,
-    sortOrder: 1003,
+    sortOrder: 1004,
     systemStatus: false,
     chartCategory: "present",
     color: "text-red-800",
@@ -924,7 +937,7 @@ export default function LinePlanning({
       const reportDate = key.slice(separatorIndex + 1);
       nextDraftPlans[userId] = {
         ...(nextDraftPlans[userId] || {}),
-        [reportDate]: report.status,
+        [reportDate]: report.dayMarker || report.status,
       };
       affectedUserIds.add(userId);
     });
@@ -1928,7 +1941,7 @@ export default function LinePlanning({
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-center gap-2 text-sm font-black text-slate-900">
                 <CalendarDays className="h-4 w-4 text-indigo-600" />
-                תכנון הנוכחות שלי
+                לוח היציאות שלי
               </div>
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-7 lg:grid-cols-10">
                 {cycleDates.map((date) => {
