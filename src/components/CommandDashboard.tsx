@@ -2969,6 +2969,13 @@ const dates = getDateRange(startDate, endDate);
         (status.numericRosterCode || "").trim().replace(",", "."),
       ])
     );
+    const nonCountedNumericRosterStatuses = new Set([
+      "sick",
+      "course",
+      "processing_days",
+      "refresh_days",
+      "other",
+    ]);
     const getNumericValue = (
       report?: AttendanceReport
     ): number | string | null => {
@@ -2982,6 +2989,9 @@ const dates = getDateRange(startDate, endDate);
       const configuredCode = numericCodeByStatus.get(report.status) || "";
       const numericCode = Number(configuredCode);
       if (!configuredCode || !Number.isFinite(numericCode)) return null;
+      if (nonCountedNumericRosterStatuses.has(report.status)) {
+        return configuredCode;
+      }
       return /^0\d+$/.test(configuredCode) ? configuredCode : numericCode;
     };
 
@@ -3015,7 +3025,10 @@ const dates = getDateRange(startDate, endDate);
         );
         const total = numericCells.reduce<number>(
           (sum, value) =>
-            sum + (value === 100 ? 0 : Number(value ?? 0)),
+            sum +
+            (value === 100 || typeof value === "string"
+              ? 0
+              : Number(value ?? 0)),
           0
         );
 
@@ -3045,7 +3058,12 @@ const dates = getDateRange(startDate, endDate);
         sourceRows.reduce<number>(
           (sum, row) => {
             const value = row.values[dateIndex + 4];
-            return sum + (value === 100 ? 0 : Number(value || 0));
+            return (
+              sum +
+              (value === 100 || typeof value === "string"
+                ? 0
+                : Number(value || 0))
+            );
           },
           0
         )
@@ -3230,6 +3248,9 @@ const dates = getDateRange(startDate, endDate);
             (report ? defaultStatusColors[report.status] : "") ||
             "CBD5E1";
           const isCutOrder = report?.status === "cut_order";
+          const isNonCountedStatus = Boolean(
+            report && nonCountedNumericRosterStatuses.has(report.status)
+          );
           const fillColor = isDayMarker
             ? "FEF08A"
             : isCutOrder
@@ -3245,7 +3266,12 @@ const dates = getDateRange(startDate, endDate);
             },
             alignment: { horizontal: "center", vertical: "center" },
             border: thinBorder,
-            numFmt: "0.##",
+            numFmt:
+              isNonCountedStatus ||
+              (typeof row.values[column] === "string" &&
+                /^0\d+$/.test(String(row.values[column])))
+                ? "@"
+                : "0.##",
           });
         });
 

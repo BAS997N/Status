@@ -5412,6 +5412,13 @@ const formattedDate =
     const labelByStatus = new Map(
       attendanceStatuses.map((status) => [status.id, status.label])
     );
+    const nonCountedNumericRosterStatuses = new Set([
+      "sick",
+      "course",
+      "processing_days",
+      "refresh_days",
+      "other",
+    ]);
     const activeUsers = users
       .filter((user) => !user.isDischarged)
       .sort(compareRosterUsers);
@@ -5432,6 +5439,9 @@ const formattedDate =
         const rawCode = codeByStatus.get(report.status) || "";
         const code = Number(rawCode);
         if (!rawCode || !Number.isFinite(code)) return null;
+        if (nonCountedNumericRosterStatuses.has(report.status)) {
+          return rawCode;
+        }
         return /^0\d+$/.test(rawCode) ? rawCode : code;
       }),
       labels: dates.map((date) => {

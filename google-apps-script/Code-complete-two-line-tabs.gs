@@ -806,6 +806,26 @@ function writeLineRosterTab(
     .getRange(1, 1, table.length, lastColumn)
     .setValues(table);
 
+  /*
+   * Codes intentionally sent as strings are display-only statuses. Keeping
+   * those cells as plain text preserves codes such as 00 and prevents sick,
+   * course, processing/refresh and other statuses from entering totals.
+   */
+  if (isNumeric && tableRows.length && dates.length) {
+    tableRows.forEach(function (row, rowIndex) {
+      const values = Array.isArray(data.rows[rowIndex].values)
+        ? data.rows[rowIndex].values.slice(0, dates.length)
+        : [];
+      values.forEach(function (value, dateIndex) {
+        if (typeof value !== "string" || value === "") return;
+        sheet
+          .getRange(rowIndex + 2, dateIndex + 5)
+          .setNumberFormat("@")
+          .setValue(value);
+      });
+    });
+  }
+
   if (isNumeric && tableRows.length && dates.length) {
     const firstDateColumn = 5;
     const lastDateColumn = firstDateColumn + dates.length - 1;
