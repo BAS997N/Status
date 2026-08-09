@@ -33,7 +33,9 @@ import {
   PinOff,
   BellRing,
   CalendarRange,
-  Printer
+  Printer,
+  Share2,
+  Copy
 } from "lucide-react";
 import { 
   UserProfile,
@@ -495,6 +497,66 @@ export default function CommandDashboard({
       const saved = localStorage.getItem("idf_directory_table_freeze");
       return saved === null ? true : saved === "true";
     });
+  const [directoryShareSoldier, setDirectoryShareSoldier] =
+    useState<UserProfile | null>(null);
+  const [directoryShareIncludesRole, setDirectoryShareIncludesRole] =
+    useState(false);
+  const [directoryShareFeedback, setDirectoryShareFeedback] = useState("");
+
+  const getDirectoryShareText = (soldier: UserProfile) => {
+    const lines = [
+      `שם ושם משפחה: ${soldier.fullName || "לא צוין"}`,
+      `טלפון: ${soldier.phoneNumber || "לא צוין"}`,
+      `מספר אישי: ${soldier.personalId || "לא צוין"}`,
+    ];
+
+    if (directoryShareIncludesRole) {
+      const roleLabel =
+        soldier.medicalRole ||
+        (soldier.role === "commander"
+          ? "מפקד/ת / מנהל/ת"
+          : soldier.role === "adjutant_officer"
+            ? "שליש/ה"
+            : "חייל/ת");
+      lines.push(`תפקיד: ${roleLabel}`);
+    }
+
+    return lines.join("\n");
+  };
+
+  const copyDirectoryShareText = async () => {
+    if (!directoryShareSoldier) return;
+    try {
+      await navigator.clipboard.writeText(
+        getDirectoryShareText(directoryShareSoldier)
+      );
+      setDirectoryShareFeedback("הפרטים הועתקו ללוח.");
+    } catch (error) {
+      console.error("Failed copying directory details:", error);
+      setDirectoryShareFeedback("העתקת הפרטים נכשלה.");
+    }
+  };
+
+  const shareDirectorySoldier = async () => {
+    if (!directoryShareSoldier) return;
+    const shareText = getDirectoryShareText(directoryShareSoldier);
+
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({
+          title: `פרטי ${directoryShareSoldier.fullName}`,
+          text: shareText,
+        });
+        setDirectoryShareFeedback("הפרטים שותפו בהצלחה.");
+        return;
+      } catch (error) {
+        if ((error as Error)?.name === "AbortError") return;
+        console.error("Failed sharing directory details:", error);
+      }
+    }
+
+    await copyDirectoryShareText();
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -6137,7 +6199,7 @@ onChange={(e) =>
 
         <div className="custom-scrollbar max-w-full overflow-x-auto overscroll-x-contain">
           <table
-            className="w-full min-w-[1080px] table-fixed text-right border-collapse"
+            className="w-full min-w-[1270px] table-fixed text-right border-collapse"
             dir="rtl"
           >
             <thead
@@ -6191,7 +6253,7 @@ onChange={(e) =>
     {directorySortField === "role" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
   </span>
 </th>
-                <th className="w-[205px] min-w-[205px] px-5 py-3.5 text-left pl-6 whitespace-nowrap">
+                <th className="w-[255px] min-w-[255px] px-5 py-3.5 text-left pl-6 whitespace-nowrap">
                   פעולה / יצירת קשר מהירה
                 </th>
               </tr>
@@ -6331,8 +6393,21 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                       </td>
 
                       {/* Quick Communication Actions Column */}
-                      <td className="w-[205px] min-w-[205px] px-5 py-4 text-left pl-6 whitespace-nowrap">
-                        <div className="inline-flex min-w-[164px] items-center justify-end gap-2">
+                      <td className="w-[255px] min-w-[255px] px-5 py-4 text-left pl-6 whitespace-nowrap">
+                        <div className="inline-flex min-w-[214px] items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDirectoryShareSoldier(soldier);
+                              setDirectoryShareIncludesRole(false);
+                              setDirectoryShareFeedback("");
+                            }}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 shadow-xs transition hover:border-sky-600 hover:bg-sky-600 hover:text-white cursor-pointer"
+                            title={`שתף את הפרטים של ${soldier.fullName}`}
+                            aria-label={`שתף את הפרטים של ${soldier.fullName}`}
+                          >
+                            <Share2 className="h-4 w-4" />
+                          </button>
                           {canEditSoldier && (
                             <button
                               onClick={() => handleOpenEdit(soldier)}
@@ -8174,6 +8249,100 @@ await onAdminSaveReport(dataToSave);
                   className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-lg border-none transition cursor-pointer shadow-sm disabled:opacity-60 disabled:cursor-wait"
                 >
                   {isSheetsExporting ? "מייצא..." : "ייצוא הטווח"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {directoryShareSoldier && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[11000] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+            onClick={() => setDirectoryShareSoldier(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-xl"
+              dir="rtl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between bg-slate-900 p-4 text-white">
+                <div className="flex items-center gap-2">
+                  <Share2 className="h-5 w-5 text-sky-300" />
+                  <h3 className="text-sm font-black">שיתוף פרטי חייל</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDirectoryShareSoldier(null)}
+                  className="cursor-pointer text-white opacity-80 transition hover:opacity-100"
+                  aria-label="סגור"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 p-5">
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div>
+                    <span className="block text-sm font-black text-slate-800">
+                      כלול תפקיד בשיתוף
+                    </span>
+                    <span className="block text-[11px] font-medium text-slate-500">
+                      ניתן לשתף את הפרטים עם התפקיד או בלעדיו.
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={directoryShareIncludesRole}
+                    onChange={(event) => {
+                      setDirectoryShareIncludesRole(event.target.checked);
+                      setDirectoryShareFeedback("");
+                    }}
+                    className="h-5 w-5 accent-sky-600"
+                  />
+                </label>
+
+                <div className="whitespace-pre-line rounded-xl border border-sky-100 bg-sky-50/70 p-4 text-sm font-bold leading-7 text-slate-700">
+                  {getDirectoryShareText(directoryShareSoldier)}
+                </div>
+
+                {directoryShareFeedback && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
+                    {directoryShareFeedback}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 border-t border-slate-100 bg-slate-50 p-4 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDirectoryShareSoldier(null)}
+                  className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100"
+                >
+                  ביטול
+                </button>
+                <button
+                  type="button"
+                  onClick={copyDirectoryShareText}
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100"
+                >
+                  <Copy className="h-4 w-4" />
+                  העתק פרטים
+                </button>
+                <button
+                  type="button"
+                  onClick={shareDirectorySoldier}
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-sky-600 bg-sky-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-sky-700"
+                >
+                  <Share2 className="h-4 w-4" />
+                  שתף פרטים
                 </button>
               </div>
             </motion.div>
