@@ -442,6 +442,34 @@ export default function LinePlanning({
     () => plans.find((plan) => plan.userId === currentUser.userId),
     [plans, currentUser.userId]
   );
+  const ownLatestDayMarkerByDate = useMemo(() => {
+    const latest = new Map<string, AttendanceReport>();
+    const currentPersonalId = String(currentUser.personalId || "").trim();
+    reports.forEach((report) => {
+      const reportPersonalId = String(report.personalId || "").trim();
+      const belongsToCurrentUser =
+        report.userId === currentUser.userId ||
+        (Boolean(currentPersonalId) &&
+          Boolean(reportPersonalId) &&
+          currentPersonalId === reportPersonalId);
+      if (!belongsToCurrentUser || report.isReset || !report.dayMarker) return;
+      const reportDate =
+        report.reportDate ||
+        (typeof report.timestamp === "string"
+          ? report.timestamp.slice(0, 10)
+          : "");
+      if (!reportDate) return;
+      const previous = latest.get(reportDate);
+      if (
+        !previous ||
+        new Date(report.updatedAt || report.timestamp || 0).getTime() >=
+          new Date(previous.updatedAt || previous.timestamp || 0).getTime()
+      ) {
+        latest.set(reportDate, report);
+      }
+    });
+    return latest;
+  }, [reports, currentUser.userId, currentUser.personalId]);
   const constraintDetailsUser = allUsers.find(
     (user) => user.userId === constraintDetailsUserId
   );
@@ -1945,7 +1973,9 @@ export default function LinePlanning({
               </div>
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-7 lg:grid-cols-10">
                 {cycleDates.map((date) => {
-                  const value = ownPresencePlan.dates[date];
+                  const value =
+                    ownLatestDayMarkerByDate.get(date)?.dayMarker ||
+                    ownPresencePlan.dates[date];
                   const selectedStatus = value
                     ? planningStatusById.get(value)
                     : undefined;

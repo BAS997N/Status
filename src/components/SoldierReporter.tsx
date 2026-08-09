@@ -807,6 +807,27 @@ dayMarker || undefined
   const myLinePlanDates = myLineCycle
     ? getLinePlanDates(myLineCycle.startDate, myLineCycle.endDate)
     : [];
+  const myLatestDayMarkerByDate = new Map<string, AttendanceReport>();
+  const currentPersonalId = String(currentUser.personalId || "").trim();
+  reports.forEach((report) => {
+    const reportPersonalId = String(report.personalId || "").trim();
+    const belongsToCurrentUser =
+      report.userId === currentUser.userId ||
+      (Boolean(currentPersonalId) &&
+        Boolean(reportPersonalId) &&
+        currentPersonalId === reportPersonalId);
+    if (!belongsToCurrentUser || report.isReset || !report.dayMarker) return;
+    const reportDate = report.reportDate || report.timestamp?.slice(0, 10);
+    if (!reportDate) return;
+    const previous = myLatestDayMarkerByDate.get(reportDate);
+    if (
+      !previous ||
+      new Date(report.updatedAt || report.timestamp || 0).getTime() >=
+        new Date(previous.updatedAt || previous.timestamp || 0).getTime()
+    ) {
+      myLatestDayMarkerByDate.set(reportDate, report);
+    }
+  });
   const linePlanStatusById = new Map(
     [...attendanceStatuses, ...PERSONAL_PLANNING_DAY_MARKERS].map((item) => [
       item.id,
@@ -1097,7 +1118,9 @@ dayMarker || undefined
             ) : (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
                 {myLinePlanDates.map((date) => {
-                  const plannedValue = myLinePlan.dates?.[date];
+                  const plannedValue =
+                    myLatestDayMarkerByDate.get(date)?.dayMarker ||
+                    myLinePlan.dates?.[date];
                   const plannedStatus =
                     plannedValue === "line"
                       ? basePlanningStatus
