@@ -647,7 +647,9 @@ const dayMarkerFilterRef = useRef<HTMLDivElement>(null);
   "fullName" | "unit" | "medicalRole" | "role" | "personalId"
 >("fullName");
   const [directorySortDirection, setDirectorySortDirection] = useState<"asc" | "desc">("asc");
-  const [summarySortField, setSummarySortField] = useState<"fullName" | "medicalRole">("fullName");
+  const [summarySortField, setSummarySortField] = useState<
+    "roster" | "fullName" | "medicalRole"
+  >("roster");
 const [summarySortDirection, setSummarySortDirection] = useState<"asc" | "desc">("asc");
 
 const handleSummarySort = (field: "fullName" | "medicalRole") => {
@@ -2909,9 +2911,15 @@ const dates = getDateRange(startDate, endDate);
     const latestReportByDate = new Map<string, AttendanceReport>();
 
     activeReports.forEach((report) => {
+      const reportPersonalId = String(
+        (report as AttendanceReport & { personalId?: string }).personalId || ""
+      ).trim();
+      const soldierPersonalId = String(soldier.personalId || "").trim();
       const sameSoldier =
         report.userId === soldier.userId ||
-        (report as any).personalId === soldier.personalId;
+        (Boolean(reportPersonalId) &&
+          Boolean(soldierPersonalId) &&
+          reportPersonalId === soldierPersonalId);
 
       if (!sameSoldier) return;
 
@@ -4144,7 +4152,7 @@ const dates = getDateRange(startDate, endDate);
     </div>
 
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
-      <table className="w-full text-right border-collapse text-xs">
+      <table className="w-full border-collapse border border-slate-300 text-right text-xs [&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-300">
         <thead className="bg-slate-50 text-slate-600 font-black">
           <tr>
             <th
@@ -4180,6 +4188,10 @@ const dates = getDateRange(startDate, endDate);
         <tbody className="divide-y divide-slate-100">
           {[...summaryRows]
   .sort((a, b) => {
+  if (summarySortField === "roster") {
+    return compareRosterUsers(a.soldier, b.soldier);
+  }
+
   if (summarySortField === "medicalRole") {
     const byRole = compareMedicalRoles(
       a.soldier.medicalRole,
