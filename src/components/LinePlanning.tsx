@@ -425,6 +425,10 @@ export default function LinePlanning({
     () => new Map(constraints.map((item) => [item.userId, item])),
     [constraints]
   );
+  const ownPresencePlan = useMemo(
+    () => plans.find((plan) => plan.userId === currentUser.userId),
+    [plans, currentUser.userId]
+  );
   const constraintDetailsUser = allUsers.find(
     (user) => user.userId === constraintDetailsUserId
   );
@@ -1920,7 +1924,7 @@ export default function LinePlanning({
             </button>
           </div>
 
-          {plans[0] && (
+          {ownPresencePlan && (
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-center gap-2 text-sm font-black text-slate-900">
                 <CalendarDays className="h-4 w-4 text-indigo-600" />
@@ -1928,7 +1932,7 @@ export default function LinePlanning({
               </div>
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-7 lg:grid-cols-10">
                 {cycleDates.map((date) => {
-                  const value = plans[0].dates[date];
+                  const value = ownPresencePlan.dates[date];
                   const selectedStatus = value
                     ? planningStatusById.get(value)
                     : undefined;
