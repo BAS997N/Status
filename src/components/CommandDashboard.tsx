@@ -3456,7 +3456,51 @@ const dates = getDateRange(startDate, endDate);
   if (typeof timestamp === "string") return timestamp;
   if (typeof timestamp.toDate === "function") return timestamp.toDate().toISOString();
   return "";
-};
+  };
+
+  const getSystemLogTarget = (log: any) => {
+    const explicitTarget = String(
+      log.targetName || log.targetLabel || ""
+    ).trim();
+    if (explicitTarget && !["-", "–", "—"].includes(explicitTarget)) {
+      return explicitTarget;
+    }
+    if (log.module === "google_sheets") return "Google Sheets";
+    return log.targetId || "—";
+  };
+
+  const getSystemLogDetails = (log: any) => {
+    if (log.details) return log.details;
+
+    const result = log.after || log.metadata;
+    if (log.module === "google_sheets" && result) {
+      if (
+        typeof result.soldierCount === "number" ||
+        typeof result.dateCount === "number"
+      ) {
+        return `סנכרון לשונית ${result.sheetName || "Google Sheets"} · ${
+          result.soldierCount || 0
+        } חיילים · ${result.dateCount || 0} תאריכים`;
+      }
+
+      const sent = Number(result.sentCount || 0);
+      const failed = Number(result.failedCount || 0);
+      const skipped = Number(result.skippedCount || 0);
+      const found = Number(result.foundCount || sent + failed + skipped);
+      const status =
+        result.status === "success"
+          ? "הושלם"
+          : result.status === "partial"
+          ? "הושלם חלקית"
+          : result.status === "error"
+          ? "נכשל"
+          : "בוצע";
+      return `${status} · נמצאו ${found} · נשלחו ${sent} · נכשלו ${failed} · דולגו ${skipped}`;
+    }
+
+    if (log.module) return `מודול: ${log.module}`;
+    return "—";
+  };
   
   const filteredSystemLogs = [...systemLogs]
   .sort((a, b) => {
@@ -3989,6 +4033,10 @@ const dates = getDateRange(startDate, endDate);
       <option value="edit_report">עריכת דיווח</option>
       <option value="delete_report">מחיקת דיווח</option>
       <option value="reset_report">איפוס דיווח</option>
+      <option value="sync">סנכרון</option>
+      <option value="create">יצירה</option>
+      <option value="update">עדכון</option>
+      <option value="delete">מחיקה</option>
     </select>
 
     <button
@@ -4041,11 +4089,15 @@ const dates = getDateRange(startDate, endDate);
     create_report: "יצירת דיווח",
     edit_report: "עריכת דיווח",
     delete_report: "מחיקת דיווח",
-    reset_report: "איפוס דיווח"
+    reset_report: "איפוס דיווח",
+    sync: "סנכרון",
+    create: "יצירה",
+    update: "עדכון",
+    delete: "מחיקה"
   }[log.action] || log.action}
 </td>
-                <td className="px-4 py-3">{log.targetName || "—"}</td>
-                <td className="px-4 py-3 text-slate-500">{log.details || "—"}</td>
+                <td className="px-4 py-3">{getSystemLogTarget(log)}</td>
+                <td className="px-4 py-3 text-slate-500">{getSystemLogDetails(log)}</td>
               </tr>
             ))
           )}
