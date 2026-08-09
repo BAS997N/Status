@@ -49,6 +49,8 @@ interface SoldierReporterProps {
 ) => Promise<void>;
 }
 
+type SoldierPageSection = "report" | "shifts" | "order" | "messages";
+
 const readStoredCollapsedState = (key: string, fallback: boolean) => {
   if (typeof window === "undefined") return fallback;
   const stored = window.localStorage.getItem(key);
@@ -111,6 +113,8 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
     );
   const [collapseHelp, setCollapseHelp] = useState<"order" | "shifts" | null>(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
+  const [activeSection, setActiveSection] =
+    useState<SoldierPageSection>("report");
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
@@ -741,6 +745,76 @@ dayMarker || undefined
         </div>
       </div>
 
+      <nav
+        dir="rtl"
+        aria-label="ניווט בעמוד האישי"
+        className="sticky top-2 z-30 grid grid-cols-4 gap-1 rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-md backdrop-blur-sm sm:gap-2 sm:p-2"
+      >
+        <button
+          type="button"
+          onClick={() => setActiveSection("report")}
+          aria-current={activeSection === "report" ? "page" : undefined}
+          className={`flex min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-[11px] font-black transition sm:text-xs ${
+            activeSection === "report"
+              ? "bg-military-700 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Activity className="h-4 w-4 shrink-0" />
+          <span>דיווח</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection("shifts")}
+          aria-current={activeSection === "shifts" ? "page" : undefined}
+          className={`flex min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-[11px] font-black transition sm:text-xs ${
+            activeSection === "shifts"
+              ? "bg-military-700 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <CalendarDays className="h-4 w-4 shrink-0" />
+          <span>משמרות</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection("order")}
+          aria-current={activeSection === "order" ? "page" : undefined}
+          className={`flex min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-[11px] font-black transition sm:text-xs ${
+            activeSection === "order"
+              ? "bg-military-700 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <FileText className="h-4 w-4 shrink-0" />
+          <span>הצו שלי</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection("messages")}
+          aria-current={activeSection === "messages" ? "page" : undefined}
+          className={`relative flex min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-2.5 text-[11px] font-black transition sm:text-xs ${
+            activeSection === "messages"
+              ? "bg-military-700 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Bell className="h-4 w-4 shrink-0" />
+          <span>הודעות</span>
+          {commanderMessages.length > 0 && (
+            <span
+              className={`absolute -left-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[9px] font-black ${
+                activeSection === "messages"
+                  ? "bg-white text-military-800"
+                  : "bg-rose-600 text-white"
+              }`}
+            >
+              {commanderMessages.length}
+            </span>
+          )}
+        </button>
+      </nav>
+
       {disciplinaryRestrictionStatus.active && (
         <section
           dir="rtl"
@@ -804,7 +878,7 @@ dayMarker || undefined
         </section>
       )}
 
-      {commanderMessages.length > 0 && (
+      {activeSection === "messages" && commanderMessages.length > 0 && (
         <section className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm" dir="rtl">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -876,6 +950,20 @@ dayMarker || undefined
         </section>
       )}
 
+      {activeSection === "messages" && commanderMessages.length === 0 && (
+        <section
+          dir="rtl"
+          className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm"
+        >
+          <Bell className="mx-auto mb-3 h-7 w-7 text-slate-300" />
+          <h3 className="text-sm font-black text-slate-700">אין הודעות חדשות</h3>
+          <p className="mt-1 text-xs font-bold text-slate-400">
+            הודעות שאושרו מוסרות מהעמוד באופן אוטומטי.
+          </p>
+        </section>
+      )}
+
+      {activeSection === "order" && (
       <section
         dir="rtl"
         className={`rounded-xl border px-4 py-3 shadow-sm sm:px-5 ${
@@ -1101,7 +1189,9 @@ dayMarker || undefined
           )}
         </div>
       </section>
+      )}
 
+      {activeSection === "shifts" && (
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2" dir="rtl">
         <div className="flex items-center justify-end gap-2 lg:col-span-2">
           <button
@@ -1256,7 +1346,9 @@ dayMarker || undefined
           ))}
         </div>
       </section>
+      )}
 
+      {activeSection === "report" && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* REPORT FORM */}
@@ -1761,6 +1853,7 @@ const reportTimeText = new Date(r.timestamp).toLocaleTimeString("he-IL", {
           </div>
 
       </div>
+      )}
 <AnimatePresence>
   {isHelpOpen && (
     <motion.div
