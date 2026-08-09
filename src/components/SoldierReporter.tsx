@@ -24,6 +24,8 @@ import {
   ShiftRecord,
   SystemSettingsConfig,
   CommanderMessage,
+  LineCycle,
+  LinePresencePlan,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "../types";
 import { motion, AnimatePresence } from "motion/react";
@@ -49,12 +51,30 @@ interface SoldierReporterProps {
 ) => Promise<void>;
 }
 
-type SoldierPageSection = "report" | "shifts" | "order" | "messages";
+type SoldierPageSection =
+  | "report"
+  | "shifts"
+  | "planning"
+  | "order"
+  | "messages";
 
 const readStoredCollapsedState = (key: string, fallback: boolean) => {
   if (typeof window === "undefined") return fallback;
   const stored = window.localStorage.getItem(key);
   return stored === null ? fallback : stored === "true";
+};
+
+const getLinePlanDates = (startDate: string, endDate: string) => {
+  if (!startDate || !endDate || endDate < startDate) return [];
+  const dates: string[] = [];
+  let cursor = startDate;
+  while (cursor <= endDate && dates.length < 370) {
+    dates.push(cursor);
+    const next = new Date(`${cursor}T12:00:00`);
+    next.setDate(next.getDate() + 1);
+    cursor = next.toISOString().slice(0, 10);
+  }
+  return dates;
 };
 
 export default function SoldierReporter({ 
@@ -115,6 +135,71 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [activeSection, setActiveSection] =
     useState<SoldierPageSection>("report");
+  const [myLineCycle, setMyLineCycle] = useState<LineCycle | null>(null);
+  const [myLinePlan, setMyLinePlan] = useState<LinePresencePlan | null>(null);
+  const [isMyLinePlanLoading, setIsMyLinePlanLoading] = useState(false);
+  const [myLinePlanError, setMyLinePlanError] = useState("");
+  const [myLinePlanLoaded, setMyLinePlanLoaded] = useState(false);
+
+  const loadMyLinePlan = async () => {
+    if (systemSettings.linePlanningVisibleToSoldiers === false) return;
+    setIsMyLinePlanLoading(true);
+    setMyLinePlanError("");
+    try {
+      const cycles = await dataService.getLineCycles();
+      const selectedCycle =
+        cycles.find((cycle) => cycle.status === "open") || cycles[0] || null;
+      setMyLineCycle(selectedCycle);
+      if (!selectedCycle) {
+        setMyLinePlan(null);
+        return;
+      }
+      const plans = await dataService.getLinePresencePlans(
+        selectedCycle.cycleId,
+        currentUser.userId
+      );
+      setMyLinePlan(
+        plans.find((plan) => plan.userId === currentUser.userId) || null
+      );
+    } catch (error) {
+      console.error("Failed loading soldier line plan:", error);
+      setMyLinePlanError("טעינת תכנון הנוכחות נכשלה. נסה שוב.");
+    } finally {
+      setIsMyLinePlanLoading(false);
+      setMyLinePlanLoaded(true);
+    }
+  };
+
+  useEffect(() => {
+    if (
+      activeSection === "planning" &&
+      !myLinePlanLoaded &&
+      systemSettings.linePlanningVisibleToSoldiers !== false
+    ) {
+      void loadMyLinePlan();
+    }
+  }, [
+    activeSection,
+    currentUser.userId,
+    myLinePlanLoaded,
+    systemSettings.linePlanningVisibleToSoldiers,
+  ]);
+
+  useEffect(() => {
+    setMyLineCycle(null);
+    setMyLinePlan(null);
+    setMyLinePlanError("");
+    setMyLinePlanLoaded(false);
+  }, [currentUser.userId]);
+
+  useEffect(() => {
+    if (
+      systemSettings.linePlanningVisibleToSoldiers === false &&
+      activeSection === "planning"
+    ) {
+      setActiveSection("report");
+    }
+  }, [activeSection, systemSettings.linePlanningVisibleToSoldiers]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
@@ -677,6 +762,15 @@ dayMarker || undefined
     }
   };
 
+  const myLinePlanDates = myLineCycle
+    ? getLinePlanDates(myLineCycle.startDate, myLineCycle.endDate)
+    : [];
+  const linePlanStatusById = new Map(
+    attendanceStatuses.map((item) => [item.id, item])
+  );
+  const basePlanningStatus =
+    linePlanStatusById.get("base") || DEFAULT_ATTENDANCE_STATUS_CONFIGS[0];
+
   return (
     <div id="soldier-reporter-section" className="min-w-0 space-y-6">
       
@@ -748,7 +842,11 @@ dayMarker || undefined
       <nav
         dir="rtl"
         aria-label="ניווט בעמוד האישי"
-        className="sticky top-2 z-30 grid grid-cols-4 gap-1 rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-md backdrop-blur-sm sm:gap-2 sm:p-2"
+        className={`sticky top-2 z-30 grid gap-1 rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-md backdrop-blur-sm sm:gap-2 sm:p-2 ${
+          systemSettings.linePlanningVisibleToSoldiers === false
+            ? "grid-cols-4"
+            : "grid-cols-5"
+        }`}
       >
         <button
           type="button"
@@ -776,6 +874,21 @@ dayMarker || undefined
           <CalendarDays className="h-4 w-4 shrink-0" />
           <span>משמרות</span>
         </button>
+        {systemSettings.linePlanningVisibleToSoldiers !== false && (
+          <button
+            type="button"
+            onClick={() => setActiveSection("planning")}
+            aria-current={activeSection === "planning" ? "page" : undefined}
+            className={`flex min-w-0 items-center justify-center gap-1 rounded-lg px-1 py-2.5 text-[10px] font-black transition sm:px-2 sm:text-xs ${
+              activeSection === "planning"
+                ? "bg-military-700 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <CalendarDays className="h-4 w-4 shrink-0" />
+            <span>תכנון</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setActiveSection("order")}
@@ -877,6 +990,122 @@ dayMarker || undefined
           </div>
         </section>
       )}
+
+      {activeSection === "planning" &&
+        systemSettings.linePlanningVisibleToSoldiers !== false && (
+          <section
+            dir="rtl"
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+          >
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600">
+                  <CalendarDays className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    תכנון הנוכחות שלי
+                  </h3>
+                  {myLineCycle && (
+                    <p className="mt-1 text-xs font-bold text-slate-500">
+                      {myLineCycle.title} · {new Date(
+                        `${myLineCycle.startDate}T12:00:00`
+                      ).toLocaleDateString("he-IL")}–{new Date(
+                        `${myLineCycle.endDate}T12:00:00`
+                      ).toLocaleDateString("he-IL")}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isMyLinePlanLoading}
+                onClick={() => void loadMyLinePlan()}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                {isMyLinePlanLoading ? "טוען..." : "רענן תכנון"}
+              </button>
+            </div>
+
+            {isMyLinePlanLoading && !myLinePlanLoaded ? (
+              <div className="rounded-xl bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">
+                טוען את תכנון הנוכחות שלך...
+              </div>
+            ) : myLinePlanError ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-center">
+                <AlertCircle className="mx-auto mb-2 h-6 w-6 text-rose-500" />
+                <p className="text-sm font-black text-rose-700">
+                  {myLinePlanError}
+                </p>
+              </div>
+            ) : !myLineCycle ? (
+              <div className="rounded-xl bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">
+                אין כרגע תכנון קו פעיל.
+              </div>
+            ) : !myLinePlan ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-8 text-center">
+                <CalendarDays className="mx-auto mb-2 h-7 w-7 text-amber-500" />
+                <p className="text-sm font-black text-amber-800">
+                  טרם נקבע עבורך תכנון נוכחות בתקופה זו.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                {myLinePlanDates.map((date) => {
+                  const plannedValue = myLinePlan.dates?.[date];
+                  const plannedStatus =
+                    plannedValue === "line"
+                      ? basePlanningStatus
+                      : plannedValue
+                      ? linePlanStatusById.get(plannedValue)
+                      : undefined;
+                  const isToday = date === getTodayLocalDate();
+                  return (
+                    <article
+                      key={date}
+                      className={`min-h-24 rounded-xl border p-3 text-center ${
+                        plannedStatus
+                          ? `${plannedStatus.bg} ${plannedStatus.border}`
+                          : "border-slate-200 bg-slate-50"
+                      } ${isToday ? "ring-2 ring-blue-400 ring-offset-1" : ""}`}
+                    >
+                      <p className="text-[10px] font-black text-slate-500">
+                        {new Date(`${date}T12:00:00`).toLocaleDateString(
+                          "he-IL",
+                          { weekday: "short" }
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-xs font-black text-slate-800">
+                        {new Date(`${date}T12:00:00`).toLocaleDateString(
+                          "he-IL",
+                          { day: "2-digit", month: "2-digit" }
+                        )}
+                      </p>
+                      <div
+                        className={`mt-2 text-xs font-black ${
+                          plannedStatus?.color || "text-slate-400"
+                        }`}
+                      >
+                        {plannedStatus ? (
+                          <>
+                            {plannedStatus.icon && (
+                              <span className="mb-1 block text-base" aria-hidden="true">
+                                {plannedStatus.icon}
+                              </span>
+                            )}
+                            {plannedStatus.label}
+                          </>
+                        ) : (
+                          "טרם נקבע"
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
 
       {activeSection === "messages" && commanderMessages.length > 0 && (
         <section className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm" dir="rtl">
