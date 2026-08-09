@@ -1142,6 +1142,17 @@ const activeReports = reports.filter(
   
   const unreportedCount = totalSoldiersCount - reportedTodayCount;
 
+  const todayDateKey = getTodayLocalDate();
+  const hasActiveOrder = (systemSettings?.orderEvents || []).some(
+    (order) => order.startDate <= todayDateKey && order.endDate >= todayDateKey
+  );
+  const hasActiveEmergency =
+    systemSettings?.systemMode === "emergency" &&
+    systemSettings?.emergencyEvent?.active === true;
+  const hideEmptyOperationalCards = hasActiveOrder || hasActiveEmergency;
+  const shouldShowSummaryCard = (count: number) =>
+    !hideEmptyOperationalCards || count > 0;
+
   const returnToBaseTodayCount = reportedTodayList.filter(
   (s) => s.latestTodayReport?.dayMarker === "return_to_base"
 ).length;
@@ -4336,6 +4347,7 @@ const dates = getDateRange(startDate, endDate);
           </div>
         </div>
 
+        {shouldShowSummaryCard(availableForActivityDetails.length) && (<>
         {/* Available for activity — combined card */}
         <button
           type="button"
@@ -4360,7 +4372,9 @@ const dates = getDateRange(startDate, endDate);
             <Activity className="w-5 h-5" />
           </div>
         </button>
+        </>)}
 
+        {shouldShowSummaryCard(disciplinaryRestrictionDetails.length) && (<>
         {/* Disciplinary restriction / Ras\"ar duties */}
         <button
           type="button"
@@ -4382,7 +4396,9 @@ const dates = getDateRange(startDate, endDate);
             <ShieldAlert className="w-5 h-5" />
           </div>
         </button>
+        </>)}
 
+        {shouldShowSummaryCard(absentCount) && (<>
         {/* Absent Status */}
         <button
           type="button"
@@ -4409,7 +4425,9 @@ const dates = getDateRange(startDate, endDate);
             <RefreshCw className="w-5 h-5" />
           </div>
         </button>
+        </>)}
 
+{shouldShowSummaryCard(statusStats.not_on_order || 0) && (<>
 {/* Not On Order Status */}
 <button
   type="button"
@@ -4441,6 +4459,8 @@ const dates = getDateRange(startDate, endDate);
     <FileX className="w-5 h-5" />
   </div>
 </button>
+</>)}
+              {shouldShowSummaryCard(statusStats.cut_order || 0) && (<>
               {/* Cut Order Status */}
 <button
   type="button"
@@ -4472,6 +4492,8 @@ const dates = getDateRange(startDate, endDate);
     <Scissors className="w-5 h-5" />
   </div>
 </button>
+</>)}
+              {shouldShowSummaryCard(returnToBaseTodayCount) && (<>
               {/* Return To Base Today */}
 <button
   type="button"
@@ -4500,7 +4522,9 @@ const dates = getDateRange(startDate, endDate);
     <ArrowLeftCircle className="w-5 h-5" />
   </div>
 </button>
+</>)}
 
+{shouldShowSummaryCard(exitHomeTodayCount) && (<>
 {/* Exit Home Today */}
 <button
   type="button"
@@ -4529,7 +4553,9 @@ const dates = getDateRange(startDate, endDate);
    <House className="w-5 h-5" />
   </div>
 </button>
+</>)}
               
+        {shouldShowSummaryCard(unreportedCount) && (<>
         {/* Unreported Today */}
         <button
           type="button"
@@ -4553,6 +4579,7 @@ const dates = getDateRange(startDate, endDate);
             <ShieldAlert className="w-5 h-5" />
           </div>
         </button>
+        </>)}
 
       </div>
     )}
