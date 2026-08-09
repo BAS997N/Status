@@ -706,8 +706,8 @@ const dayMarkerFilterRef = useRef<HTMLDivElement>(null);
       )}`
     : "";
   const [directorySortField, setDirectorySortField] = useState<
-  "fullName" | "unit" | "medicalRole" | "role" | "personalId"
->("fullName");
+  "roster" | "fullName" | "unit" | "medicalRole" | "role" | "personalId"
+>("roster");
   const [directorySortDirection, setDirectorySortDirection] = useState<"asc" | "desc">("asc");
   const [summarySortField, setSummarySortField] = useState<
     "roster" | "fullName" | "medicalRole"
@@ -6147,11 +6147,12 @@ onChange={(e) =>
     value={directorySortField}
     onChange={(e) =>
       setDirectorySortField(
-        e.target.value as "fullName" | "unit" | "medicalRole" | "role" | "personalId"
+        e.target.value as "roster" | "fullName" | "unit" | "medicalRole" | "role" | "personalId"
       )
     }
     className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold"
   >
+    <option value="roster">סדר תפקידים קבוע</option>
     <option value="fullName">מיון לפי שם</option>
     <option value="unit">מיון לפי פלוגה / מחלקה</option>
     <option value="personalId">מיון לפי מספר אישי</option>
@@ -6253,7 +6254,7 @@ onChange={(e) =>
     {directorySortField === "role" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
   </span>
 </th>
-                <th className="w-[220px] min-w-[220px] px-2 py-3.5 text-center whitespace-nowrap">
+                <th className="sticky left-0 z-40 w-[220px] min-w-[220px] bg-slate-50 px-2 py-3.5 text-center whitespace-nowrap shadow-[1px_0_0_0_#e2e8f0]">
                   פעולה / יצירת קשר מהירה
                 </th>
               </tr>
@@ -6283,6 +6284,13 @@ const matchesSoldierStatus =
 return matchesSearch && matchesUnit && matchesSoldierStatus;
   })
   .sort((a, b) => {
+    if (directorySortField === "roster") {
+      const rosterComparison = compareRosterUsers(a, b);
+      return directorySortDirection === "asc"
+        ? rosterComparison
+        : -rosterComparison;
+    }
+
     if (directorySortField === "medicalRole") {
       const byRole = compareMedicalRoles(
         a.medicalRole,
@@ -6393,7 +6401,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                       </td>
 
                       {/* Quick Communication Actions Column */}
-                      <td className="w-[220px] min-w-[220px] px-2 py-4 text-center whitespace-nowrap">
+                      <td className="sticky left-0 z-20 w-[220px] min-w-[220px] bg-white px-2 py-4 text-center whitespace-nowrap shadow-[1px_0_0_0_#e2e8f0] group-hover:bg-slate-50">
                         <div className="inline-flex w-full items-center justify-center gap-1">
                           <button
                             type="button"
