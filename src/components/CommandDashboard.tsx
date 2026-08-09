@@ -6253,7 +6253,7 @@ onChange={(e) =>
     {directorySortField === "role" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
   </span>
 </th>
-                <th className="w-[255px] min-w-[255px] px-5 py-3.5 text-left pl-6 whitespace-nowrap">
+                <th className="w-[220px] min-w-[220px] px-2 py-3.5 text-center whitespace-nowrap">
                   פעולה / יצירת קשר מהירה
                 </th>
               </tr>
@@ -6393,8 +6393,8 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                       </td>
 
                       {/* Quick Communication Actions Column */}
-                      <td className="w-[255px] min-w-[255px] px-5 py-4 text-left pl-6 whitespace-nowrap">
-                        <div className="inline-flex min-w-[214px] items-center justify-end gap-2">
+                      <td className="w-[220px] min-w-[220px] px-2 py-4 text-center whitespace-nowrap">
+                        <div className="inline-flex w-full items-center justify-center gap-1">
                           <button
                             type="button"
                             onClick={() => {
@@ -6402,7 +6402,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                               setDirectoryShareIncludesRole(false);
                               setDirectoryShareFeedback("");
                             }}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 shadow-xs transition hover:border-sky-600 hover:bg-sky-600 hover:text-white cursor-pointer"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 shadow-xs transition hover:border-sky-600 hover:bg-sky-600 hover:text-white cursor-pointer"
                             title={`שתף את הפרטים של ${soldier.fullName}`}
                             aria-label={`שתף את הפרטים של ${soldier.fullName}`}
                           >
@@ -6411,7 +6411,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                           {canEditSoldier && (
                             <button
                               onClick={() => handleOpenEdit(soldier)}
-                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-600 shadow-xs transition hover:border-indigo-600 hover:bg-indigo-600 hover:text-white cursor-pointer"
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-600 shadow-xs transition hover:border-indigo-600 hover:bg-indigo-600 hover:text-white cursor-pointer"
                               title={`ערוך פרטי חייל: ${soldier.fullName}`}
                             >
                               <Edit2 className="h-4 w-4" />
@@ -6423,7 +6423,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                               onClick={() => {
                                 setSoldierToDelete(soldier);
                               }}
-                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 shadow-xs transition hover:border-rose-600 hover:bg-rose-600 hover:text-white cursor-pointer"
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 shadow-xs transition hover:border-rose-600 hover:bg-rose-600 hover:text-white cursor-pointer"
                               title="הסר רשומת חייל מהרשימה"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -6437,7 +6437,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                                 href={`https://wa.me/972${cleanPhone?.replace(/^0/, "")}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-600 shadow-xs transition hover:border-emerald-600 hover:bg-emerald-600 hover:text-white cursor-pointer"
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-600 shadow-xs transition hover:border-emerald-600 hover:bg-emerald-600 hover:text-white cursor-pointer"
                                 title={`פתח שיחת וואטסאפ עם ${soldier.fullName}`}
                               >
                                 <MessageCircle className="h-4 w-4" />
@@ -6446,7 +6446,7 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                               {/* Direct Dial Link */}
                               <a
                                 href={`tel:${cleanPhone}`}
-                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 shadow-xs transition hover:border-slate-700 hover:bg-slate-700 hover:text-white cursor-pointer"
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 shadow-xs transition hover:border-slate-700 hover:bg-slate-700 hover:text-white cursor-pointer"
                                 title={`חייג אל ${soldier.fullName}`}
                               >
                                 <Phone className="h-4 w-4" />
