@@ -28,6 +28,7 @@ import {
   LineCycleStatus,
   LinePresencePlan,
   LinePresenceStatus,
+  LinePlanCommanderNotes,
   SystemSettingsConfig,
   UserProfile,
 } from "../types";
@@ -272,6 +273,15 @@ export default function LinePlanning({
   const [selectedCycleId, setSelectedCycleId] = useState("");
   const [constraints, setConstraints] = useState<LineConstraint[]>([]);
   const [plans, setPlans] = useState<LinePresencePlan[]>([]);
+  const [commanderNotes, setCommanderNotes] = useState<
+    LinePlanCommanderNotes[]
+  >([]);
+  const [editingCommanderNote, setEditingCommanderNote] = useState<{
+    userId: string;
+    userName: string;
+    date: string;
+  } | null>(null);
+  const [commanderNoteValue, setCommanderNoteValue] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{
@@ -470,6 +480,57 @@ export default function LinePlanning({
     });
     return latest;
   }, [reports, currentUser.userId, currentUser.personalId]);
+  const commanderNotesByUser = useMemo(
+    () => new Map(commanderNotes.map((item) => [item.userId, item])),
+    [commanderNotes]
+  );
+
+  const openCommanderNote = (user: UserProfile, date: string) => {
+    setEditingCommanderNote({
+      userId: user.userId,
+      userName: user.fullName,
+      date,
+    });
+    setCommanderNoteValue(
+      commanderNotesByUser.get(user.userId)?.notesByDate?.[date] || ""
+    );
+  };
+
+  const saveCommanderNote = async () => {
+    if (!selectedCycle || !editingCommanderNote || !canEdit) return;
+    const existing = commanderNotesByUser.get(editingCommanderNote.userId);
+    const notesByDate = { ...(existing?.notesByDate || {}) };
+    const trimmedNote = commanderNoteValue.trim();
+    if (trimmedNote) notesByDate[editingCommanderNote.date] = trimmedNote;
+    else delete notesByDate[editingCommanderNote.date];
+
+    const payload: LinePlanCommanderNotes = {
+      noteId: `${selectedCycle.cycleId}_${editingCommanderNote.userId}`,
+      cycleId: selectedCycle.cycleId,
+      userId: editingCommanderNote.userId,
+      userName: editingCommanderNote.userName,
+      notesByDate,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser.userId,
+      updatedByName: currentUser.fullName,
+    };
+
+    setSaving(true);
+    try {
+      await dataService.saveLinePlanCommanderNotes(payload);
+      setCommanderNotes((current) => [
+        ...current.filter((item) => item.userId !== payload.userId),
+        payload,
+      ]);
+      setEditingCommanderNote(null);
+      setCommanderNoteValue("");
+      setMessage({ type: "success", text: "הערת המפקד נשמרה." });
+    } catch {
+      setMessage({ type: "error", text: "שמירת הערת המפקד נכשלה." });
+    } finally {
+      setSaving(false);
+    }
+  };
   const constraintDetailsUser = allUsers.find(
     (user) => user.userId === constraintDetailsUserId
   );
@@ -515,6 +576,7 @@ export default function LinePlanning({
     if (!selectedCycleId) {
       setConstraints([]);
       setPlans([]);
+      setCommanderNotes([]);
       return;
     }
 
@@ -523,14 +585,18 @@ export default function LinePlanning({
       setLoading(true);
       try {
         const ownUserId = canManage ? undefined : currentUser.userId;
-        const [nextConstraints, nextPlans] = await Promise.all([
+        const [nextConstraints, nextPlans, nextCommanderNotes] = await Promise.all([
           dataService.getLineConstraints(selectedCycleId, ownUserId),
           dataService.getLinePresencePlans(selectedCycleId, ownUserId),
+          canManage
+            ? dataService.getLinePlanCommanderNotes(selectedCycleId)
+            : Promise.resolve([]),
         ]);
         if (cancelled) return;
 
         setConstraints(nextConstraints);
         setPlans(nextPlans);
+        setCommanderNotes(nextCommanderNotes);
         setDraftPlans(
           Object.fromEntries(
             nextPlans.map((plan) => [plan.userId, { ...plan.dates }])
@@ -1550,11 +1616,16 @@ export default function LinePlanning({
                           const conflict =
                             isUnavailable &&
                             selectedStatus?.chartCategory === "present";
+                          const commanderNote =
+                            commanderNotesByUser.get(user.userId)?.notesByDate?.[
+                              date
+                            ] || "";
                           return (
                             <td
                               key={`${user.userId}_${date}`}
                               className="min-w-28 border-b border-l border-slate-200 p-1"
                             >
+                              <div className="space-y-1">
                               {planningViewMode === "edit" && canEdit ? (
                                 <select
                                   value={planStatus || ""}
@@ -1628,6 +1699,21 @@ export default function LinePlanning({
                                         : "—")}
                                 </div>
                               )}
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  onClick={() => openCommanderNote(user, date)}
+                                  title={commanderNote || "הוסף הערה פנימית למפקדים"}
+                                  className={`w-full rounded-md border px-1.5 py-1 text-[9px] font-black transition ${
+                                    commanderNote
+                                      ? "border-amber-300 bg-amber-100 text-amber-800"
+                                      : "border-dashed border-slate-300 bg-white text-slate-500 hover:border-amber-300 hover:text-amber-700"
+                                  }`}
+                                >
+                                  {commanderNote ? "הערת מפקד" : "+ הערה"}
+                                </button>
+                              )}
+                              </div>
                             </td>
                           );
                         })}
@@ -1973,11 +2059,24 @@ export default function LinePlanning({
               </div>
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-7 lg:grid-cols-10">
                 {cycleDates.map((date) => {
-                  const value =
-                    ownLatestDayMarkerByDate.get(date)?.dayMarker ||
-                    ownPresencePlan.dates[date];
-                  const selectedStatus = value
-                    ? planningStatusById.get(value)
+                  const actualReport = ownLatestDayMarkerByDate.get(date);
+                  const storedValue = ownPresencePlan.dates[date];
+                  const storedIsDayMarker = [
+                    "exit_home",
+                    "return_to_base",
+                    "after_hours",
+                  ].includes(storedValue || "");
+                  const markerValue =
+                    actualReport?.dayMarker ||
+                    (storedIsDayMarker ? storedValue : undefined);
+                  const presenceValue =
+                    actualReport?.status ||
+                    (storedIsDayMarker ? "base" : storedValue);
+                  const selectedStatus = presenceValue
+                    ? planningStatusById.get(presenceValue)
+                    : undefined;
+                  const markerStatus = markerValue
+                    ? planningStatusById.get(markerValue)
                     : undefined;
                   return (
                     <div
@@ -1990,19 +2089,75 @@ export default function LinePlanning({
                     >
                       <span className="block">{formatDate(date)}</span>
                       <span>{selectedStatus?.label || "טרם נקבע"}</span>
-                      <span className="hidden">
-                        {value === "line"
-                          ? "בקו"
-                          : value === "home"
-                          ? "בבית"
-                          : "טרם נקבע"}
-                      </span>
+                      {markerStatus && (
+                        <span
+                          className={`mt-1 block rounded border px-1 py-0.5 ${markerStatus.bg} ${markerStatus.color} ${markerStatus.border}`}
+                        >
+                          {markerStatus.label}
+                          {markerValue === "after_hours" &&
+                          actualReport?.afterHours
+                            ? ` · ${actualReport.afterHours} שעות`
+                            : ""}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {editingCommanderNote && canManage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4"
+          onClick={() => setEditingCommanderNote(null)}
+        >
+          <div
+            dir="rtl"
+            className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="text-base font-black text-slate-900">
+              הערת מפקד פנימית
+            </h3>
+            <p className="mt-1 text-xs font-bold text-slate-500">
+              {editingCommanderNote.userName} · {formatDate(
+                editingCommanderNote.date,
+                true
+              )}
+            </p>
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800">
+              ההערה זמינה רק למפקדים בעלי הרשאת צפייה בתכנון הקו ואינה נשלחת לחייל.
+            </div>
+            <textarea
+              value={commanderNoteValue}
+              disabled={!canEdit}
+              onChange={(event) => setCommanderNoteValue(event.target.value)}
+              placeholder="לדוגמה: החלפה מתוכננת, בקשה מיוחדת או הערה לשיבוץ..."
+              className="mt-4 min-h-32 w-full resize-y rounded-xl border border-slate-300 bg-white p-3 text-sm font-bold text-slate-800 outline-none focus:border-indigo-500 disabled:bg-slate-50"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingCommanderNote(null)}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-700"
+              >
+                סגור
+              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void saveCommanderNote()}
+                  className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50"
+                >
+                  {saving ? "שומר..." : "שמור הערה"}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </section>

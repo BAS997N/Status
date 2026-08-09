@@ -208,6 +208,17 @@ export interface LinePresencePlan {
   updatedByName: string;
 }
 
+export interface LinePlanCommanderNotes {
+  noteId: string;
+  cycleId: string;
+  userId: string;
+  userName: string;
+  notesByDate: Record<string, string>;
+  updatedAt: string;
+  updatedBy: string;
+  updatedByName: string;
+}
+
 export interface SystemSettingsConfig {
   systemName: string;
   unitName: string;

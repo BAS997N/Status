@@ -1118,22 +1118,35 @@ dayMarker || undefined
             ) : (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
                 {myLinePlanDates.map((date) => {
-                  const plannedValue =
-                    myLatestDayMarkerByDate.get(date)?.dayMarker ||
-                    myLinePlan.dates?.[date];
-                  const plannedStatus =
-                    plannedValue === "line"
+                  const actualReport = myLatestDayMarkerByDate.get(date);
+                  const storedValue = myLinePlan.dates?.[date];
+                  const storedIsDayMarker = [
+                    "exit_home",
+                    "return_to_base",
+                    "after_hours",
+                  ].includes(storedValue || "");
+                  const dayMarkerValue =
+                    actualReport?.dayMarker ||
+                    (storedIsDayMarker ? storedValue : undefined);
+                  const presenceValue =
+                    actualReport?.status ||
+                    (storedIsDayMarker ? "base" : storedValue);
+                  const presenceStatus =
+                    presenceValue === "line"
                       ? basePlanningStatus
-                      : plannedValue
-                      ? linePlanStatusById.get(plannedValue)
+                      : presenceValue
+                      ? linePlanStatusById.get(presenceValue)
                       : undefined;
+                  const dayMarkerStatus = dayMarkerValue
+                    ? linePlanStatusById.get(dayMarkerValue)
+                    : undefined;
                   const isToday = date === getTodayLocalDate();
                   return (
                     <article
                       key={date}
                       className={`min-h-24 rounded-xl border p-3 text-center ${
-                        plannedStatus
-                          ? `${plannedStatus.bg} ${plannedStatus.border}`
+                        presenceStatus
+                          ? `${presenceStatus.bg} ${presenceStatus.border}`
                           : "border-slate-200 bg-slate-50"
                       } ${isToday ? "ring-2 ring-blue-400 ring-offset-1" : ""}`}
                     >
@@ -1151,22 +1164,33 @@ dayMarker || undefined
                       </p>
                       <div
                         className={`mt-2 text-xs font-black ${
-                          plannedStatus?.color || "text-slate-400"
+                          presenceStatus?.color || "text-slate-400"
                         }`}
                       >
-                        {plannedStatus ? (
+                        {presenceStatus ? (
                           <>
-                            {plannedStatus.icon && (
+                            {presenceStatus.icon && (
                               <span className="mb-1 block text-base" aria-hidden="true">
-                                {plannedStatus.icon}
+                                {presenceStatus.icon}
                               </span>
                             )}
-                            {plannedStatus.label}
+                            {presenceStatus.label}
                           </>
                         ) : (
                           "טרם נקבע"
                         )}
                       </div>
+                      {dayMarkerStatus && (
+                        <div
+                          className={`mt-1 rounded-md border px-1.5 py-1 text-[10px] font-black ${dayMarkerStatus.bg} ${dayMarkerStatus.color} ${dayMarkerStatus.border}`}
+                        >
+                          {dayMarkerStatus.label}
+                          {dayMarkerValue === "after_hours" &&
+                          actualReport?.afterHours
+                            ? ` · ${actualReport.afterHours} שעות`
+                            : ""}
+                        </div>
+                      )}
                     </article>
                   );
                 })}

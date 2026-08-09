@@ -61,6 +61,7 @@ import {
   LineCycle,
   LineConstraint,
   LinePresencePlan,
+  LinePlanCommanderNotes,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -5676,6 +5677,65 @@ const formattedDate =
         plan
       );
       return plan;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+      throw error;
+    }
+  },
+
+  async getLinePlanCommanderNotes(
+    cycleId: string
+  ): Promise<LinePlanCommanderNotes[]> {
+    if (!isFirebaseActive()) {
+      const items: LinePlanCommanderNotes[] = JSON.parse(
+        localStorage.getItem("idf_line_plan_commander_notes") || "[]"
+      );
+      return items.filter((item) => item.cycleId === cycleId);
+    }
+
+    const path = "line_plan_commander_notes";
+    try {
+      const snapshot = await getDocs(
+        query(collection(db, path), where("cycleId", "==", cycleId))
+      );
+      return snapshot.docs.map(
+        (item) =>
+          ({ noteId: item.id, ...item.data() } as LinePlanCommanderNotes)
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
+  async saveLinePlanCommanderNotes(
+    notes: LinePlanCommanderNotes
+  ): Promise<LinePlanCommanderNotes> {
+    if (!isFirebaseActive()) {
+      const items: LinePlanCommanderNotes[] = JSON.parse(
+        localStorage.getItem("idf_line_plan_commander_notes") || "[]"
+      );
+      const next = items.filter((item) => item.noteId !== notes.noteId);
+      next.push(notes);
+      localStorage.setItem(
+        "idf_line_plan_commander_notes",
+        JSON.stringify(next)
+      );
+      return notes;
+    }
+
+    const path = `line_plan_commander_notes/${notes.noteId}`;
+    try {
+      await setDoc(doc(db, "line_plan_commander_notes", notes.noteId), notes);
+      await writeAuditLog({
+        action: "update",
+        module: "line_planning",
+        targetId: notes.noteId,
+        targetLabel: `${notes.userName} · הערות מפקד`,
+        after: notes,
+        metadata: { cycleId: notes.cycleId, userId: notes.userId },
+      });
+      return notes;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
       throw error;
