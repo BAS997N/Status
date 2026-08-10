@@ -120,6 +120,20 @@ const PERSONAL_PLANNING_DAY_MARKERS: AttendanceStatusConfig[] = [
   },
 ];
 
+const FAMILY_BENEFIT_STATUS: AttendanceStatusConfig = {
+  id: "family_days",
+  label: "ימי משפחות",
+  enabled: true,
+  visibleToSoldiers: true,
+  visibleToCommanders: true,
+  sortOrder: 1004,
+  systemStatus: false,
+  chartCategory: "administrative",
+  color: "text-amber-800",
+  bg: "bg-amber-100",
+  border: "border-amber-300",
+};
+
 export default function SoldierReporter({ 
   currentUser, 
   reports,
@@ -720,6 +734,23 @@ useEffect(() => {
   const personalEntitlementEndDate = refreshmentStartDate
     ? calculateBenefitEndDate(refreshmentStartDate, refreshmentDays, true)
     : "";
+  const personalSeparateProcessingEndDate =
+    personalSeparateBenefits?.processingDate &&
+    personalSeparateBenefits.processingDays
+      ? calculateBenefitEndDate(
+          personalSeparateBenefits.processingDate,
+          personalSeparateBenefits.processingDays,
+          true
+        )
+      : "";
+  const personalSeparateFamilyEndDate =
+    personalSeparateBenefits?.familyDate && personalSeparateBenefits.familyDays
+      ? calculateBenefitEndDate(
+          personalSeparateBenefits.familyDate,
+          personalSeparateBenefits.familyDays,
+          true
+        )
+      : "";
   const processingCalendarDays =
     processingDays > 0 && processingStartDate && processingEndDate
       ? getInclusiveDayCount(processingStartDate, processingEndDate)
@@ -844,8 +875,19 @@ dayMarker || undefined
     }
   };
 
+  const myLinePlanDisplayEndDate = myLineCycle
+    ? [
+        myLineCycle.endDate,
+        personalEntitlementEndDate,
+        personalSeparateProcessingEndDate,
+        personalSeparateFamilyEndDate,
+      ]
+        .filter(Boolean)
+        .sort()
+        .at(-1) || myLineCycle.endDate
+    : "";
   const myLinePlanDates = myLineCycle
-    ? getLinePlanDates(myLineCycle.startDate, myLineCycle.endDate)
+    ? getLinePlanDates(myLineCycle.startDate, myLinePlanDisplayEndDate)
     : [];
   const myLatestDayMarkerByDate = new Map<string, AttendanceReport>();
   const currentPersonalId = String(currentUser.personalId || "").trim();
@@ -856,7 +898,7 @@ dayMarker || undefined
       (Boolean(currentPersonalId) &&
         Boolean(reportPersonalId) &&
         currentPersonalId === reportPersonalId);
-    if (!belongsToCurrentUser || report.isReset || !report.dayMarker) return;
+    if (!belongsToCurrentUser || report.isReset) return;
     const reportDate = report.reportDate || report.timestamp?.slice(0, 10);
     if (!reportDate) return;
     const previous = myLatestDayMarkerByDate.get(reportDate);
@@ -869,13 +911,52 @@ dayMarker || undefined
     }
   });
   const linePlanStatusById = new Map(
-    [...attendanceStatuses, ...PERSONAL_PLANNING_DAY_MARKERS].map((item) => [
-      item.id,
-      item,
-    ])
+    [
+      ...attendanceStatuses,
+      ...PERSONAL_PLANNING_DAY_MARKERS,
+      FAMILY_BENEFIT_STATUS,
+    ].map((item) => [item.id, item])
   );
   const basePlanningStatus =
     linePlanStatusById.get("base") || DEFAULT_ATTENDANCE_STATUS_CONFIGS[0];
+  const getAutomaticBenefitStatus = (date: string) => {
+    if (
+      personalSeparateBenefits?.processingDate &&
+      personalSeparateProcessingEndDate &&
+      date >= personalSeparateBenefits.processingDate &&
+      date <= personalSeparateProcessingEndDate
+    ) {
+      return "processing_days";
+    }
+    if (
+      personalSeparateBenefits?.familyDate &&
+      personalSeparateFamilyEndDate &&
+      date >= personalSeparateBenefits.familyDate &&
+      date <= personalSeparateFamilyEndDate
+    ) {
+      return "family_days";
+    }
+    if (
+      processingDays > 0 &&
+      processingStartDate &&
+      processingEndDate &&
+      date >= processingStartDate &&
+      date <= processingEndDate
+    ) {
+      return processingDayType === "family"
+        ? "family_days"
+        : "processing_days";
+    }
+    if (
+      refreshmentStartDate &&
+      personalEntitlementEndDate &&
+      date >= refreshmentStartDate &&
+      date <= personalEntitlementEndDate
+    ) {
+      return "refresh_days";
+    }
+    return undefined;
+  };
 
   return (
     <div id="soldier-reporter-section" className="min-w-0 space-y-6">
@@ -1160,6 +1241,8 @@ dayMarker || undefined
                 {myLinePlanDates.map((date) => {
                   const actualReport = myLatestDayMarkerByDate.get(date);
                   const storedValue = myLinePlan.dates?.[date];
+                  const automaticBenefitStatus =
+                    getAutomaticBenefitStatus(date);
                   const storedIsDayMarker = [
                     "exit_home",
                     "return_to_base",
@@ -1170,6 +1253,7 @@ dayMarker || undefined
                     (storedIsDayMarker ? storedValue : undefined);
                   const presenceValue =
                     actualReport?.status ||
+                    automaticBenefitStatus ||
                     (storedIsDayMarker ? "base" : storedValue);
                   const presenceStatus =
                     presenceValue === "line"
