@@ -4338,6 +4338,7 @@ async createSystemLog(logData: {
       const reports = await this.fetchAllReports(true);
       const users = await this.getAllUsers();
       const attendanceStatusConfigs = await this.getAttendanceStatusConfigs();
+      const systemSettings = await this.getSystemSettings();
       const attendanceStatusById = new Map(
         attendanceStatusConfigs.map((status) => [status.id, status])
       );
@@ -4428,6 +4429,204 @@ async createSystemLog(logData: {
         }
       });
 
+      const manualReportKeys = new Set(latestReportBySoldierAndDate.keys());
+      const addCalendarDays = (dateValue: string, amount: number) => {
+        const date = new Date(`${dateValue}T12:00:00`);
+        date.setDate(date.getDate() + amount);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      };
+      const getInclusiveDayCount = (from: string, to: string) => {
+        if (!from || !to || to < from) return 0;
+        return (
+          Math.floor(
+            (new Date(`${to}T12:00:00`).getTime() -
+              new Date(`${from}T12:00:00`).getTime()) /
+              86_400_000
+          ) + 1
+        );
+      };
+      const calculateBenefitEndDate = (
+        firstDate: string,
+        benefitDays: number
+      ) => {
+        if (benefitDays <= 0) return addCalendarDays(firstDate, -1);
+        let current = new Date(`${firstDate}T12:00:00`);
+        let remaining = benefitDays;
+        while (remaining > 0) {
+          const dayOfWeek = current.getDay();
+          remaining -= 1;
+          if (dayOfWeek === 5) current.setDate(current.getDate() + 1);
+          if (remaining > 0) current.setDate(current.getDate() + 1);
+        }
+        const year = current.getFullYear();
+        const month = String(current.getMonth() + 1).padStart(2, "0");
+        const day = String(current.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      };
+      const getRefreshmentDays = (serviceDays: number) => {
+        if (serviceDays >= 57) return 9;
+        if (serviceDays >= 43) return 7;
+        if (serviceDays >= 29) return 5;
+        if (serviceDays >= 15) return 3;
+        if (serviceDays >= 10) return 2;
+        return 0;
+      };
+      let computedReportCount = 0;
+      const addComputedRange = (
+        user: UserProfile,
+        rangeStart: string,
+        rangeEnd: string,
+        status: AttendanceStatus,
+        statusText: string
+      ) => {
+        const stablePersonalId = getSheetsPersonalId(user.personalId);
+        if (!stablePersonalId || !rangeStart || !rangeEnd || rangeEnd < rangeStart)
+          return;
+        const statusConfig = attendanceStatusById.get(status);
+        if (statusConfig?.exportToSheets === false) return;
+        let date = rangeStart;
+        let safety = 0;
+        while (date <= rangeEnd && safety < 400) {
+          safety += 1;
+          if ((!startDate || date >= startDate) && (!endDate || date <= endDate)) {
+            const key = `${stablePersonalId}_${date}`;
+            if (!manualReportKeys.has(key)) {
+              if (!latestReportBySoldierAndDate.has(key)) computedReportCount += 1;
+              latestReportBySoldierAndDate.set(key, {
+                reportId: `computed_order_${user.userId}_${date}_${status}`,
+                userId: user.userId,
+                personalId: stablePersonalId,
+                userName: user.fullName,
+                unit: user.unit,
+                status,
+                location: "",
+                note: "computed_order_benefit",
+                reportDate: date,
+                timestamp: `${date}T00:00:00.000Z`,
+                updatedAt: `${date}T00:00:00.000Z`,
+                ...({ computedStatusText: statusText } as Record<string, unknown>),
+              } as AttendanceReport);
+            }
+          }
+          date = addCalendarDays(date, 1);
+        }
+      };
+
+      (systemSettings.orderEvents || []).forEach((order) => {
+        users.forEach((user) => {
+          const stablePersonalId = getSheetsPersonalId(user.personalId);
+          if (!stablePersonalId) return;
+          const personalStart =
+            order.personalStartDates?.[user.userId] || order.startDate;
+          const personalEnd =
+            order.personalEndDates?.[user.userId] || order.endDate;
+          if (!personalStart || !personalEnd || personalEnd < personalStart) return;
+
+          const excludedDates = new Set<string>();
+          let serviceDate = personalStart;
+          let safety = 0;
+          while (serviceDate <= personalEnd && safety < 400) {
+            safety += 1;
+            const report = latestReportBySoldierAndDate.get(
+              `${stablePersonalId}_${serviceDate}`
+            );
+            if (
+              report &&
+              ["not_on_order", "cut_order"].includes(String(report.status))
+            ) {
+              excludedDates.add(serviceDate);
+            }
+            serviceDate = addCalendarDays(serviceDate, 1);
+          }
+
+          const effectiveServiceDays = Math.max(
+            0,
+            getInclusiveDayCount(personalStart, personalEnd) -
+              excludedDates.size
+          );
+          let lastServiceDate = personalEnd;
+          while (
+            lastServiceDate >= personalStart &&
+            excludedDates.has(lastServiceDate)
+          ) {
+            lastServiceDate = addCalendarDays(lastServiceDate, -1);
+          }
+          if (lastServiceDate < personalStart) return;
+
+          const endsEarly = personalEnd < order.endDate;
+          const explicitlyExcluded =
+            order.processingExcludedUserIds?.includes(user.userId) === true;
+          const processingDays =
+            endsEarly || explicitlyExcluded ? 0 : order.processingDays ?? 3;
+          const processingStart = addCalendarDays(lastServiceDate, 1);
+          const processingEnd = calculateBenefitEndDate(
+            processingStart,
+            processingDays
+          );
+          const refreshmentStart = addCalendarDays(processingEnd, 1);
+          const refreshmentDays = getRefreshmentDays(
+            effectiveServiceDays + processingDays
+          );
+          const refreshmentEnd = calculateBenefitEndDate(
+            refreshmentStart,
+            refreshmentDays
+          );
+
+          if (processingDays > 0) {
+            const isFamily = order.processingDayType === "family";
+            addComputedRange(
+              user,
+              processingStart,
+              processingEnd,
+              isFamily ? "family_days" : "processing_days",
+              isFamily ? "ימי משפחות" : "ימי עיבוד"
+            );
+          }
+          if (refreshmentDays > 0) {
+            addComputedRange(
+              user,
+              refreshmentStart,
+              refreshmentEnd,
+              "refresh_days",
+              "ימי התרעננות"
+            );
+          }
+
+          const personalBenefits =
+            order.personalProcessingBenefits?.[user.userId];
+          if (
+            personalBenefits?.processingDate &&
+            personalBenefits.processingDays
+          ) {
+            addComputedRange(
+              user,
+              personalBenefits.processingDate,
+              calculateBenefitEndDate(
+                personalBenefits.processingDate,
+                personalBenefits.processingDays
+              ),
+              "processing_days",
+              "ימי עיבוד"
+            );
+          }
+          if (personalBenefits?.familyDate && personalBenefits.familyDays) {
+            addComputedRange(
+              user,
+              personalBenefits.familyDate,
+              calculateBenefitEndDate(
+                personalBenefits.familyDate,
+                personalBenefits.familyDays
+              ),
+              "family_days",
+              "ימי משפחות"
+            );
+          }
+        });
+      });
+
       const reportsToSync = Array.from(latestReportBySoldierAndDate.values());
       if (reportsToSync.length === 0) {
         return persistResult(
@@ -4466,7 +4665,9 @@ async createSystemLog(logData: {
           : report.dayMarker === "after_hours"
           ? `אפטר ${report.afterHours || ""} שעות`
           : "";
-        const statusText = attendanceStatusById.get(report.status)?.label ||
+        const statusText = (report as AttendanceReport & {
+          computedStatusText?: string;
+        }).computedStatusText || attendanceStatusById.get(report.status)?.label ||
           ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status;
         const [year, month, day] = reportDate.split("-");
         const formattedDate = year && month && day
@@ -4515,7 +4716,7 @@ async createSystemLog(logData: {
         sentCount,
         failedCount,
         status === "error" ? "כל הדיווחים נכשלו בשליחה." : undefined,
-        reportsInSelectedRange.length,
+        reportsInSelectedRange.length + computedReportCount,
         skippedCount,
         skippedReasons
       ));
