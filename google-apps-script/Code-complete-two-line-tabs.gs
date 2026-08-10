@@ -424,9 +424,25 @@ function normalizeStatusColor(value) {
   return /^#[0-9a-f]{6}$/i.test(color) ? color : "";
 }
 
+function softenStatusColor(value) {
+  const color = normalizeStatusColor(value);
+  if (!color) return "";
+
+  const whiteRatio = 0.82;
+  const channels = [1, 3, 5].map(function (start) {
+    const original = parseInt(color.slice(start, start + 2), 16);
+    const softened = Math.round(
+      original * (1 - whiteRatio) + 255 * whiteRatio
+    );
+    return softened.toString(16).padStart(2, "0");
+  });
+
+  return "#" + channels.join("");
+}
+
 function applyStatusStyle(cell, value, configuredColor) {
   const cleanValue = String(value || "").trim();
-  const statusColor = normalizeStatusColor(configuredColor);
+  const statusColor = softenStatusColor(configuredColor);
 
   cell
     .setValue(cleanValue)
