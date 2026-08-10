@@ -4570,8 +4570,19 @@ async createSystemLog(logData: {
           const endsEarly = personalEnd < order.endDate;
           const explicitlyExcluded =
             order.processingExcludedUserIds?.includes(user.userId) === true;
+          const normalizedUnit = String(user.unit || "")
+            .replace(/[״׳'"`]/g, "")
+            .replace(/\s+/g, "")
+            .toLowerCase();
+          const isAttachedToTagad =
+            normalizedUnit.includes("מסופח") &&
+            normalizedUnit.includes("תאגד");
+          const excludedAttachedFromFamilyDays =
+            order.processingDayType === "family" && isAttachedToTagad;
           const processingDays =
-            endsEarly || explicitlyExcluded ? 0 : order.processingDays ?? 3;
+            endsEarly || explicitlyExcluded || excludedAttachedFromFamilyDays
+              ? 0
+              : order.processingDays ?? 3;
           const processingStart = addCalendarDays(lastServiceDate, 1);
           const processingEnd = calculateBenefitEndDate(
             processingStart,
