@@ -957,7 +957,8 @@ export default function SystemSettingsManager({
                   </div>
                   <p className="mt-0.5 text-[10px] font-bold leading-5 text-slate-500">
                     לחייל שמשתחרר לפני סיום הצו הגדודי ניתן להזין תאריך
-                    סיום אישי. תקופת העיבוד וההתרעננות שלו תתחיל ביום הבא.
+                    סיום אישי. ימי ההתרעננות שלו יתחילו ביום הבא, ללא ימי
+                    העיבוד הגדודיים. ימי עיבוד אישיים ינוהלו בנפרד.
                   </p>
                 </div>
                 {Object.values(newOrderPersonalEndDates).filter(Boolean)

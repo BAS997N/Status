@@ -668,10 +668,17 @@ useEffect(() => {
   };
 
   const configuredProcessingDays = displayedOrderEvent?.processingDays ?? 3;
-  const isExcludedFromProcessing =
+  const hasPersonalEarlyEnd = Boolean(
+    personalOrderEndDate &&
+      globalOrderEndDate &&
+      personalOrderEndDate < globalOrderEndDate
+  );
+  const isExplicitlyExcludedFromProcessing =
     displayedOrderEvent?.processingExcludedUserIds?.includes(
       currentUser.userId
     ) ?? false;
+  const isExcludedFromProcessing =
+    isExplicitlyExcludedFromProcessing || hasPersonalEarlyEnd;
   const processingDays = isExcludedFromProcessing
     ? 0
     : configuredProcessingDays;
