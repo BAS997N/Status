@@ -183,6 +183,7 @@ const adminGroups: Array<{
   description: string;
   icon: typeof ShieldCheck;
   sections: AdminSection[];
+  overviewLabels?: string[];
 }> = [
   {
     id: "users_access",
@@ -208,9 +209,17 @@ const adminGroups: Array<{
   {
     id: "connections",
     title: "חיבורים והגדרות",
-    description: "Google Sheets, WhatsApp, Push והגדרות המערכת.",
+    description:
+      "הגדרות כלליות והתראות, מצבי עבודה, ניהול צווים, קבוצות WhatsApp וחיבור Google Sheets.",
     icon: Settings,
     sections: ["settings", "sheets"],
+    overviewLabels: [
+      "הגדרות כלליות",
+      "מצבי מערכת",
+      "ניהול צווים",
+      "קבוצות WhatsApp",
+      "Google Sheets",
+    ],
   },
   {
     id: "maintenance",
@@ -356,12 +365,15 @@ export default function SystemAdminPanel({
                   {group.description}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-1.5">
-                  {group.visibleSections.map((section) => (
+                  {(
+                    group.overviewLabels ||
+                    group.visibleSections.map((section) => section.title)
+                  ).map((label) => (
                     <span
-                      key={section.id}
+                      key={label}
                       className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600"
                     >
-                      {section.title}
+                      {label}
                     </span>
                   ))}
                 </div>
