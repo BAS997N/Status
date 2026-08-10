@@ -4449,16 +4449,6 @@ async createSystemLog(logData: {
         const day = String(date.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
       };
-      const getInclusiveDayCount = (from: string, to: string) => {
-        if (!from || !to || to < from) return 0;
-        return (
-          Math.floor(
-            (new Date(`${to}T12:00:00`).getTime() -
-              new Date(`${from}T12:00:00`).getTime()) /
-              86_400_000
-          ) + 1
-        );
-      };
       const calculateBenefitEndDate = (
         firstDate: string,
         benefitDays: number
@@ -4476,14 +4466,6 @@ async createSystemLog(logData: {
         const month = String(current.getMonth() + 1).padStart(2, "0");
         const day = String(current.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
-      };
-      const getRefreshmentDays = (serviceDays: number) => {
-        if (serviceDays >= 57) return 9;
-        if (serviceDays >= 43) return 7;
-        if (serviceDays >= 29) return 5;
-        if (serviceDays >= 15) return 3;
-        if (serviceDays >= 10) return 2;
-        return 0;
       };
       let computedReportCount = 0;
       const addComputedRange = (
@@ -4556,11 +4538,6 @@ async createSystemLog(logData: {
             serviceDate = addCalendarDays(serviceDate, 1);
           }
 
-          const effectiveServiceDays = Math.max(
-            0,
-            getInclusiveDayCount(personalStart, personalEnd) -
-              excludedDates.size
-          );
           let lastServiceDate = personalEnd;
           while (
             lastServiceDate >= personalStart &&
@@ -4591,32 +4568,13 @@ async createSystemLog(logData: {
             processingStart,
             processingDays
           );
-          const refreshmentStart = addCalendarDays(processingEnd, 1);
-          const refreshmentDays = getRefreshmentDays(
-            effectiveServiceDays + processingDays
-          );
-          const refreshmentEnd = calculateBenefitEndDate(
-            refreshmentStart,
-            refreshmentDays
-          );
-
-          if (processingDays > 0) {
-            const isFamily = order.processingDayType === "family";
+          if (processingDays > 0 && order.processingDayType !== "family") {
             addComputedRange(
               user,
               processingStart,
               processingEnd,
-              isFamily ? "family_days" : "processing_days",
-              isFamily ? "ימי משפחות" : "ימי עיבוד"
-            );
-          }
-          if (refreshmentDays > 0) {
-            addComputedRange(
-              user,
-              refreshmentStart,
-              refreshmentEnd,
-              "refresh_days",
-              "ימי התרעננות"
+              "processing_days",
+              "ימי עיבוד"
             );
           }
 

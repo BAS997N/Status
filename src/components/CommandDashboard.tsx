@@ -771,7 +771,7 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
     new Date().toLocaleDateString("en-CA")
   );
   const [bulkPeriods, setBulkPeriods] = useState<BulkAttendancePeriod[]>([]);
-  const [bulkOverwriteExisting, setBulkOverwriteExisting] = useState(false);
+  const [bulkOverwriteExisting, setBulkOverwriteExisting] = useState(true);
   const [isBulkAttendanceSaving, setIsBulkAttendanceSaving] = useState(false);
   const [isAttendancePdfOpen, setIsAttendancePdfOpen] = useState(false);
   const [attendancePdfStartDate, setAttendancePdfStartDate] = useState(
@@ -1313,13 +1313,6 @@ const exitHomeTodayCount = reportedTodayList.filter(
     return toOrderBenefitDateKey(date);
   };
 
-  const getOrderBenefitInclusiveDays = (start: string, end: string) => {
-    if (!start || !end || end < start) return 0;
-    const startDate = new Date(`${start}T12:00:00`);
-    const endDate = new Date(`${end}T12:00:00`);
-    return Math.floor((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
-  };
-
   const getOrderBenefitEndDate = (start: string, benefitDays: number) => {
     if (!start || benefitDays <= 0) return addOrderBenefitDays(start, -1);
     const current = new Date(`${start}T12:00:00`);
@@ -1333,15 +1326,6 @@ const exitHomeTodayCount = reportedTodayList.filter(
     }
 
     return toOrderBenefitDateKey(current);
-  };
-
-  const getOrderRefreshmentDays = (serviceDays: number) => {
-    if (serviceDays >= 57) return 9;
-    if (serviceDays >= 43) return 7;
-    if (serviceDays >= 29) return 5;
-    if (serviceDays >= 15) return 3;
-    if (serviceDays >= 10) return 2;
-    return 0;
   };
 
   const getComputedOrderBenefitStatus = (
@@ -1411,11 +1395,6 @@ const exitHomeTodayCount = reportedTodayList.filter(
         serviceDate = addOrderBenefitDays(serviceDate, 1);
       }
 
-      const effectiveServiceDays = Math.max(
-        0,
-        getOrderBenefitInclusiveDays(personalStart, personalEnd) -
-          excludedDates.size
-      );
       let lastServiceDate = personalEnd;
       while (
         lastServiceDate >= personalStart &&
@@ -1448,29 +1427,12 @@ const exitHomeTodayCount = reportedTodayList.filter(
         processingDays
       );
       if (
+        processingType !== "family" &&
         processingDays > 0 &&
         date >= processingStart &&
         date <= processingEnd
       ) {
-        return processingType === "family"
-          ? "family_days"
-          : "processing_days";
-      }
-
-      const refreshmentDays = getOrderRefreshmentDays(
-        effectiveServiceDays + processingDays
-      );
-      const refreshmentStart = addOrderBenefitDays(processingEnd, 1);
-      const refreshmentEnd = getOrderBenefitEndDate(
-        refreshmentStart,
-        refreshmentDays
-      );
-      if (
-        refreshmentDays > 0 &&
-        date >= refreshmentStart &&
-        date <= refreshmentEnd
-      ) {
-        return "refresh_days";
+        return "processing_days";
       }
     }
 
@@ -2282,7 +2244,10 @@ const latestTodayReport = [...todayReports].sort(
             .filter(
               (report) =>
                 !(report as any).isReset &&
-                report.userId === profile.userId &&
+                (report.userId === profile.userId ||
+                  (!!profile.personalId &&
+                    String((report as any).personalId || "") ===
+                      String(profile.personalId))) &&
                 isReportForDate(report, reportDate)
             )
             .sort(

@@ -946,23 +946,14 @@ dayMarker || undefined
       return "family_days";
     }
     if (
+      processingDayType !== "family" &&
       processingDays > 0 &&
       processingStartDate &&
       processingEndDate &&
       date >= processingStartDate &&
       date <= processingEndDate
     ) {
-      return processingDayType === "family"
-        ? "family_days"
-        : "processing_days";
-    }
-    if (
-      refreshmentStartDate &&
-      personalEntitlementEndDate &&
-      date >= refreshmentStartDate &&
-      date <= personalEntitlementEndDate
-    ) {
-      return "refresh_days";
+      return "processing_days";
     }
     return undefined;
   };
