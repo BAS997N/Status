@@ -452,6 +452,12 @@ function applyStatusStyle(cell, value, configuredColor) {
 
   if (statusColor) {
     cell.setBackground(statusColor);
+  } else if (cleanValue.includes("ימי התרעננות")) {
+    cell.setBackground("#99f6e4");
+  } else if (cleanValue.includes("ימי משפחות")) {
+    cell.setBackground("#fce7f3");
+  } else if (cleanValue.includes("ימי עיבוד")) {
+    cell.setBackground("#ede9fe");
   } else if (cleanValue.includes("בבסיס")) {
     cell.setBackground("#d9ead3");
   } else if (

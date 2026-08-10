@@ -4528,6 +4528,9 @@ async createSystemLog(logData: {
 
       (systemSettings.orderEvents || []).forEach((order) => {
         users.forEach((user) => {
+          // חייל שנגרע אינו מקבל הטבות צו מחושבות אוטומטית.
+          // דיווחים היסטוריים אמיתיים שלו נשארים ומסתנכרנים כרגיל.
+          if (user.isDischarged) return;
           const stablePersonalId = getSheetsPersonalId(user.personalId);
           if (!stablePersonalId) return;
           const personalStart =
@@ -5148,13 +5151,12 @@ await setDoc(notRef, {
           resetByName: null,
         };
 
-        if (reportId) {
-          if (!report.dayMarker) {
-            payload.dayMarker = deleteField();
-            payload.afterHours = deleteField();
-          } else if (report.dayMarker !== "after_hours") {
-            payload.afterHours = deleteField();
-          }
+        if (!report.dayMarker) {
+          // ערך null מפורש מונע מ־merge להשאיר סימון יום ישן.
+          payload.dayMarker = null;
+          payload.afterHours = null;
+        } else if (report.dayMarker !== "after_hours") {
+          payload.afterHours = null;
         }
 
         Object.keys(payload).forEach((key) => {
