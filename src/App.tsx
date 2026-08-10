@@ -471,8 +471,15 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     systemSettings.emergencyEvent?.active === true;
   const todayDateKey = getIsraelDateString(new Date());
   const hasActiveOrder = (systemSettings?.orderEvents || []).some(
-    (order) =>
-      order.startDate <= todayDateKey && order.endDate >= todayDateKey
+    (order) => {
+      const personalEndDate = viewingProfile?.userId
+        ? order.personalEndDates?.[viewingProfile.userId]
+        : "";
+      const effectiveEndDate = personalEndDate || order.endDate;
+      return (
+        order.startDate <= todayDateKey && effectiveEndDate >= todayDateKey
+      );
+    }
   );
   const hasOpenLineCycle = lineCycles.some(
     (cycle) => cycle.status === "open"

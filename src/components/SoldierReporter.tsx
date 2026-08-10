@@ -500,21 +500,36 @@ useEffect(() => {
   const orderEvents = [...(systemSettings.orderEvents || [])].sort((a, b) =>
     a.startDate.localeCompare(b.startDate)
   );
+  const getPersonalOrderEndDate = (order: (typeof orderEvents)[number]) =>
+    order.personalEndDates?.[currentUser.userId] || order.endDate;
   const activeOrderEvent = orderEvents.find(
-    (order) => order.startDate <= todayDate && order.endDate >= todayDate
+    (order) =>
+      order.startDate <= todayDate &&
+      getPersonalOrderEndDate(order) >= todayDate
   );
   const futureOrderEvent = orderEvents.find(
     (order) => order.startDate > todayDate
   );
   const latestPastOrderEvent = [...orderEvents]
     .reverse()
-    .find((order) => order.endDate < todayDate);
+    .find((order) => getPersonalOrderEndDate(order) < todayDate);
   const displayedOrderEvent =
     activeOrderEvent || futureOrderEvent || latestPastOrderEvent;
   const hasOrderPeriod = Boolean(displayedOrderEvent);
   const orderStartDate = displayedOrderEvent?.startDate || "";
-  const orderEndDate = displayedOrderEvent?.endDate || "";
-  const remainingOrderEndDate = displayedOrderEvent?.lineEndDate || orderEndDate;
+  const globalOrderEndDate = displayedOrderEvent?.endDate || "";
+  const personalOrderEndDate = displayedOrderEvent
+    ? getPersonalOrderEndDate(displayedOrderEvent)
+    : "";
+  const orderEndDate = personalOrderEndDate || globalOrderEndDate;
+  const configuredLineEndDate =
+    displayedOrderEvent?.lineEndDate || globalOrderEndDate;
+  const remainingOrderEndDate =
+    orderEndDate && configuredLineEndDate
+      ? orderEndDate < configuredLineEndDate
+        ? orderEndDate
+        : configuredLineEndDate
+      : orderEndDate || configuredLineEndDate;
   const latestTodayReport = userReports.find((report) => {
     if (report.isReset) return false;
     const reportDay = report.reportDate || report.timestamp?.split("T")[0];
@@ -1385,6 +1400,12 @@ dayMarker || undefined
                     ["תאריך עלייה לקו", displayedOrderEvent?.lineStartDate],
                     ["תאריך סיום הקו", displayedOrderEvent?.lineEndDate],
                     [
+                      "תאריך סיום אישי",
+                      personalOrderEndDate !== globalOrderEndDate
+                        ? personalOrderEndDate
+                        : "",
+                    ],
+                    [
                       processingDayLabel,
                       isExcludedFromProcessing
                         ? ""
@@ -1396,6 +1417,12 @@ dayMarker || undefined
                         ["תאריך עלייה לאימון", displayedOrderEvent?.trainingStartDate],
                         ["תאריך עלייה לקו", displayedOrderEvent?.lineStartDate],
                         ["תאריך סיום הקו", displayedOrderEvent?.lineEndDate],
+                        [
+                          "תאריך סיום אישי",
+                          personalOrderEndDate !== globalOrderEndDate
+                            ? personalOrderEndDate
+                            : "",
+                        ],
                         [
                           processingDayLabel,
                           isExcludedFromProcessing

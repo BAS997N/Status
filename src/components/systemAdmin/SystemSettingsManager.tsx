@@ -128,6 +128,10 @@ export default function SystemSettingsManager({
   ] = useState<string[]>([]);
   const [processingExclusionSearch, setProcessingExclusionSearch] =
     useState("");
+  const [newOrderPersonalEndDates, setNewOrderPersonalEndDates] = useState<
+    Record<string, string>
+  >({});
+  const [personalEndDateSearch, setPersonalEndDateSearch] = useState("");
   const [newOrderNote, setNewOrderNote] = useState("");
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [message, setMessage] = useState<{
@@ -147,6 +151,19 @@ export default function SystemSettingsManager({
     .filter((user) => !user.isDischarged)
     .filter((user) => {
       const search = processingExclusionSearch.trim().toLocaleLowerCase("he");
+      if (!search) return true;
+      return [user.fullName, user.personalId, user.unit]
+        .filter(Boolean)
+        .some((value) =>
+          String(value).toLocaleLowerCase("he").includes(search)
+        );
+    })
+    .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"));
+
+  const personalEndDateUsers = users
+    .filter((user) => !user.isDischarged)
+    .filter((user) => {
+      const search = personalEndDateSearch.trim().toLocaleLowerCase("he");
       if (!search) return true;
       return [user.fullName, user.personalId, user.unit]
         .filter(Boolean)
@@ -312,6 +329,8 @@ export default function SystemSettingsManager({
     setNewOrderProcessingDate("");
     setNewOrderProcessingExcludedUserIds([]);
     setProcessingExclusionSearch("");
+    setNewOrderPersonalEndDates({});
+    setPersonalEndDateSearch("");
     setNewOrderNote("");
   };
 
@@ -347,6 +366,21 @@ export default function SystemSettingsManager({
       return;
     }
 
+    const invalidPersonalEndDate = Object.values(
+      newOrderPersonalEndDates
+    ).find(
+      (dateValue) =>
+        Boolean(dateValue) &&
+        (dateValue < newOrderStartDate || dateValue > newOrderEndDate)
+    );
+    if (invalidPersonalEndDate) {
+      setMessage({
+        type: "error",
+        text: "תאריך סיום אישי חייב להיות בתוך תקופת הצו.",
+      });
+      return;
+    }
+
     if (editingOrderId) {
       update(
         "orderEvents",
@@ -366,6 +400,7 @@ export default function SystemSettingsManager({
                 processingDate: newOrderProcessingDate,
                 processingExcludedUserIds:
                   newOrderProcessingExcludedUserIds,
+                personalEndDates: newOrderPersonalEndDates,
                 note: newOrderNote.trim(),
               }
             : order
@@ -385,6 +420,7 @@ export default function SystemSettingsManager({
         lineEndDate: newOrderLineEndDate,
         processingDate: newOrderProcessingDate,
         processingExcludedUserIds: newOrderProcessingExcludedUserIds,
+        personalEndDates: newOrderPersonalEndDates,
         note: newOrderNote.trim(),
         createdAt: new Date().toISOString(),
         createdBy: currentUser.userId,
@@ -417,6 +453,8 @@ export default function SystemSettingsManager({
       order.processingExcludedUserIds || []
     );
     setProcessingExclusionSearch("");
+    setNewOrderPersonalEndDates(order.personalEndDates || {});
+    setPersonalEndDateSearch("");
     setNewOrderNote(order.note || "");
     setMessage(null);
   };
@@ -911,6 +949,82 @@ export default function SystemSettingsManager({
                 )}
               </div>
             </div>
+            <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/60 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-xs font-black text-slate-800">
+                    תאריכי סיום אישיים
+                  </div>
+                  <p className="mt-0.5 text-[10px] font-bold leading-5 text-slate-500">
+                    לחייל שמשתחרר לפני סיום הצו הגדודי ניתן להזין תאריך
+                    סיום אישי. תקופת העיבוד וההתרעננות שלו תתחיל ביום הבא.
+                  </p>
+                </div>
+                {Object.values(newOrderPersonalEndDates).filter(Boolean)
+                  .length > 0 && (
+                  <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] font-black text-blue-800">
+                    {
+                      Object.values(newOrderPersonalEndDates).filter(Boolean)
+                        .length
+                    }{" "}
+                    סיומים אישיים
+                  </span>
+                )}
+              </div>
+              <input
+                type="search"
+                value={personalEndDateSearch}
+                onChange={(event) =>
+                  setPersonalEndDateSearch(event.target.value)
+                }
+                placeholder="חיפוש לפי שם, מספר אישי או יחידה..."
+                className="input mt-3"
+              />
+              <div className="mt-2 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
+                {personalEndDateUsers.length === 0 ? (
+                  <div className="py-3 text-center text-[11px] font-bold text-slate-400">
+                    לא נמצאו חיילים
+                  </div>
+                ) : (
+                  personalEndDateUsers.map((user) => (
+                    <div
+                      key={user.userId}
+                      className="grid grid-cols-1 gap-2 rounded-lg px-2 py-2 hover:bg-slate-50 sm:grid-cols-[1fr_170px] sm:items-center"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-xs font-black text-slate-700">
+                          {user.fullName}
+                        </div>
+                        <div className="truncate text-[10px] font-bold text-slate-400">
+                          {[user.personalId, user.unit]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      </div>
+                      <input
+                        type="date"
+                        min={newOrderStartDate || undefined}
+                        max={newOrderEndDate || undefined}
+                        value={newOrderPersonalEndDates[user.userId] || ""}
+                        onChange={(event) => {
+                          const dateValue = event.target.value;
+                          setNewOrderPersonalEndDates((current) => {
+                            if (!dateValue) {
+                              const next = { ...current };
+                              delete next[user.userId];
+                              return next;
+                            }
+                            return { ...current, [user.userId]: dateValue };
+                          });
+                        }}
+                        className="input"
+                        aria-label={`תאריך סיום אישי עבור ${user.fullName}`}
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
             <p className="mt-2 text-[11px] font-bold text-slate-500">
               את מספר ימי העיבוד מזינים בנפרד לכל צו. ימי ההתרעננות מחושבים אוטומטית לפי ימי השירות בפועל: 10–14: 2,
               15–28: 3, 29–42: 5, 43–56: 7, 57 ומעלה: 9. שישי ושבת
@@ -999,6 +1113,11 @@ export default function SystemSettingsManager({
                                 ? "משפחות"
                                 : "עיבוד"}
                               : {order.processingExcludedUserIds?.length}
+                            </div>
+                          )}
+                          {Object.keys(order.personalEndDates || {}).length > 0 && (
+                            <div className="mt-1 text-[11px] font-bold text-blue-700">
+                              תאריכי סיום אישיים: {Object.keys(order.personalEndDates || {}).length}
                             </div>
                           )}
                         </div>

@@ -404,6 +404,19 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
               )
             )
           : [],
+        personalEndDates:
+          item.personalEndDates &&
+          typeof item.personalEndDates === "object" &&
+          !Array.isArray(item.personalEndDates)
+            ? Object.fromEntries(
+                Object.entries(item.personalEndDates).filter(
+                  ([userId, dateValue]) =>
+                    Boolean(userId) &&
+                    typeof dateValue === "string" &&
+                    /^\d{4}-\d{2}-\d{2}$/.test(dateValue)
+                )
+              )
+            : {},
         note: typeof item.note === "string" ? item.note.trim() : "",
         createdAt:
           typeof item.createdAt === "string"
