@@ -838,6 +838,36 @@ const ATTENDANCE_STATUS_CACHE_TIME_KEY =
   "idf_attendance_status_configs_cached_at";
 const ATTENDANCE_STATUS_CACHE_TTL_MS = 30 * 60 * 1000;
 
+const SHEETS_STATUS_COLOR_HEX: Record<string, string> = {
+  emerald: "#10b981",
+  green: "#16a34a",
+  lime: "#84cc16",
+  teal: "#14b8a6",
+  cyan: "#06b6d4",
+  sky: "#0ea5e9",
+  blue: "#3b82f6",
+  indigo: "#6366f1",
+  violet: "#8b5cf6",
+  purple: "#a855f7",
+  fuchsia: "#d946ef",
+  pink: "#ec4899",
+  rose: "#f43f5e",
+  red: "#ef4444",
+  orange: "#f97316",
+  amber: "#f59e0b",
+  yellow: "#eab308",
+  stone: "#78716c",
+  slate: "#64748b",
+};
+
+const getSheetsStatusColor = (
+  status?: AttendanceStatusConfig
+): string => {
+  const customColor = String(status?.customColor || "").trim();
+  if (/^#[0-9a-f]{6}$/i.test(customColor)) return customColor;
+  return status?.colorKey ? SHEETS_STATUS_COLOR_HEX[status.colorKey] || "" : "";
+};
+
 const cloneDefaultAttendanceStatuses = (): AttendanceStatusConfig[] =>
   DEFAULT_ATTENDANCE_STATUS_CONFIGS.map((status) => ({ ...status }));
 
@@ -4669,6 +4699,9 @@ async createSystemLog(logData: {
           computedStatusText?: string;
         }).computedStatusText || attendanceStatusById.get(report.status)?.label ||
           ATTENDANCE_STATUS_LABELS[report.status]?.label || report.status;
+        const statusColor = getSheetsStatusColor(
+          attendanceStatusById.get(report.status)
+        );
         const [year, month, day] = reportDate.split("-");
         const formattedDate = year && month && day
           ? `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`
@@ -4686,6 +4719,7 @@ async createSystemLog(logData: {
           cellValue: sanitizeSpreadsheetCell(
             markerText ? `${statusText}/${markerText}` : statusText
           ),
+          statusColor,
           reportId: report.reportId,
         };
       };
@@ -4961,6 +4995,7 @@ if (
       cellValue: sanitizeSpreadsheetCell(
         markerText ? `${statusText}/${markerText}` : statusText
       ),
+      statusColor: getSheetsStatusColor(selectedStatusConfig),
     });
   } catch (err) {
     console.warn("Google Sheets sync failed:", err);
@@ -5222,6 +5257,7 @@ await setDoc(notRef, {
         cellValue: sanitizeSpreadsheetCell(
           markerText ? `${statusText}/${markerText}` : statusText
         ),
+        statusColor: getSheetsStatusColor(statusConfig),
       });
     });
 
@@ -5374,6 +5410,7 @@ const formattedDate =
           cellValue: sanitizeSpreadsheetCell(
             markerText ? `${statusText}/${markerText}` : statusText
           ),
+          statusColor: getSheetsStatusColor(selectedStatusConfig),
         });
       } catch (err) {
         console.warn("Google Sheets update sync failed:", err);

@@ -198,7 +198,8 @@ function doPost(e) {
 
     applyStatusStyle(
       targetCell,
-      cellValue || "—"
+      cellValue || "—",
+      data.statusColor
     );
 
     return createResponse(
@@ -311,7 +312,8 @@ function syncAttendanceBatch(sheet, entries) {
 
       applyStatusStyle(
         sheet.getRange(soldierRow, dateColumn),
-        cellValue || "-"
+        cellValue || "-",
+        entry.statusColor
       );
       sent++;
     } catch (error) {
@@ -417,8 +419,14 @@ function createResponse(value) {
     .setMimeType(ContentService.MimeType.TEXT);
 }
 
-function applyStatusStyle(cell, value) {
+function normalizeStatusColor(value) {
+  const color = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(color) ? color : "";
+}
+
+function applyStatusStyle(cell, value, configuredColor) {
   const cleanValue = String(value || "").trim();
+  const statusColor = normalizeStatusColor(configuredColor);
 
   cell
     .setValue(cleanValue)
@@ -426,7 +434,9 @@ function applyStatusStyle(cell, value) {
     .setHorizontalAlignment("center")
     .setVerticalAlignment("middle");
 
-  if (cleanValue.includes("בבסיס")) {
+  if (statusColor) {
+    cell.setBackground(statusColor);
+  } else if (cleanValue.includes("בבסיס")) {
     cell.setBackground("#d9ead3");
   } else if (
     cleanValue.includes("בית") ||
