@@ -128,6 +128,9 @@ export default function SystemSettingsManager({
   ] = useState<string[]>([]);
   const [processingExclusionSearch, setProcessingExclusionSearch] =
     useState("");
+  const [newOrderPersonalStartDates, setNewOrderPersonalStartDates] = useState<
+    Record<string, string>
+  >({});
   const [newOrderPersonalEndDates, setNewOrderPersonalEndDates] = useState<
     Record<string, string>
   >({});
@@ -341,6 +344,7 @@ export default function SystemSettingsManager({
     setNewOrderProcessingDate("");
     setNewOrderProcessingExcludedUserIds([]);
     setProcessingExclusionSearch("");
+    setNewOrderPersonalStartDates({});
     setNewOrderPersonalEndDates({});
     setNewOrderPersonalProcessingBenefits({});
     setPersonalEndDateSearch("");
@@ -379,6 +383,21 @@ export default function SystemSettingsManager({
       return;
     }
 
+    const invalidPersonalStartDate = Object.values(
+      newOrderPersonalStartDates
+    ).find(
+      (dateValue) =>
+        Boolean(dateValue) &&
+        (dateValue < newOrderStartDate || dateValue > newOrderEndDate)
+    );
+    if (invalidPersonalStartDate) {
+      setMessage({
+        type: "error",
+        text: "תאריך תחילת צו אישי חייב להיות בתוך תקופת הצו.",
+      });
+      return;
+    }
+
     const invalidPersonalEndDate = Object.values(
       newOrderPersonalEndDates
     ).find(
@@ -390,6 +409,21 @@ export default function SystemSettingsManager({
       setMessage({
         type: "error",
         text: "תאריך סיום אישי חייב להיות בתוך תקופת הצו.",
+      });
+      return;
+    }
+
+    const hasInvalidPersonalRange = users.some((user) => {
+      const personalStart =
+        newOrderPersonalStartDates[user.userId] || newOrderStartDate;
+      const personalEnd =
+        newOrderPersonalEndDates[user.userId] || newOrderEndDate;
+      return personalStart > personalEnd;
+    });
+    if (hasInvalidPersonalRange) {
+      setMessage({
+        type: "error",
+        text: "תאריך התחלה אישי לא יכול להיות מאוחר מתאריך הסיום האישי.",
       });
       return;
     }
@@ -428,6 +462,7 @@ export default function SystemSettingsManager({
                 processingDate: newOrderProcessingDate,
                 processingExcludedUserIds:
                   newOrderProcessingExcludedUserIds,
+                personalStartDates: newOrderPersonalStartDates,
                 personalEndDates: newOrderPersonalEndDates,
                 personalProcessingBenefits:
                   newOrderPersonalProcessingBenefits,
@@ -450,6 +485,7 @@ export default function SystemSettingsManager({
         lineEndDate: newOrderLineEndDate,
         processingDate: newOrderProcessingDate,
         processingExcludedUserIds: newOrderProcessingExcludedUserIds,
+        personalStartDates: newOrderPersonalStartDates,
         personalEndDates: newOrderPersonalEndDates,
         personalProcessingBenefits: newOrderPersonalProcessingBenefits,
         note: newOrderNote.trim(),
@@ -484,6 +520,7 @@ export default function SystemSettingsManager({
       order.processingExcludedUserIds || []
     );
     setProcessingExclusionSearch("");
+    setNewOrderPersonalStartDates(order.personalStartDates || {});
     setNewOrderPersonalEndDates(order.personalEndDates || {});
     setNewOrderPersonalProcessingBenefits(
       order.personalProcessingBenefits || {}
@@ -991,7 +1028,8 @@ export default function SystemSettingsManager({
                   </div>
                   <p className="mt-0.5 text-[10px] font-bold leading-5 text-slate-500">
                     לחייל שמשתחרר לפני סיום הצו הגדודי ניתן להזין תאריך
-                    סיום אישי. ימי ההתרעננות מתחילים מיד ביום הבא. ימי עיבוד
+                    תאריך התחלה ו/או סיום אישיים. ימי ההתרעננות מתחילים מיד
+                    לאחר הסיום האישי. ימי עיבוד
                     וימי משפחות מוזנים בנפרד עם כמות ותאריך ואינם דוחים את
                     ההתרעננות.
                   </p>
@@ -1025,7 +1063,7 @@ export default function SystemSettingsManager({
                   personalEndDateUsers.map((user) => (
                     <div
                       key={user.userId}
-                      className="grid grid-cols-1 gap-2 rounded-lg border border-slate-100 px-2 py-2 hover:bg-slate-50 sm:grid-cols-[minmax(180px,1fr)_170px] sm:items-center"
+                      className="grid grid-cols-1 gap-2 rounded-lg border border-slate-100 px-2 py-2 hover:bg-slate-50 sm:grid-cols-[minmax(180px,1fr)_170px_170px] sm:items-center"
                     >
                       <div className="min-w-0">
                         <div className="truncate text-xs font-black text-slate-700">
@@ -1037,26 +1075,59 @@ export default function SystemSettingsManager({
                             .join(" · ")}
                         </div>
                       </div>
-                      <input
-                        type="date"
-                        min={newOrderStartDate || undefined}
-                        max={newOrderEndDate || undefined}
-                        value={newOrderPersonalEndDates[user.userId] || ""}
-                        onChange={(event) => {
-                          const dateValue = event.target.value;
-                          setNewOrderPersonalEndDates((current) => {
-                            if (!dateValue) {
-                              const next = { ...current };
-                              delete next[user.userId];
-                              return next;
-                            }
-                            return { ...current, [user.userId]: dateValue };
-                          });
-                        }}
-                        className="input"
-                        aria-label={`תאריך סיום אישי עבור ${user.fullName}`}
-                      />
-                      <div className="grid grid-cols-1 gap-2 sm:col-span-2 lg:grid-cols-2">
+                      <label className="space-y-1 text-[10px] font-black text-slate-500">
+                        תחילת צו אישית
+                        <input
+                          type="date"
+                          min={newOrderStartDate || undefined}
+                          max={
+                            newOrderPersonalEndDates[user.userId] ||
+                            newOrderEndDate ||
+                            undefined
+                          }
+                          value={newOrderPersonalStartDates[user.userId] || ""}
+                          onChange={(event) => {
+                            const dateValue = event.target.value;
+                            setNewOrderPersonalStartDates((current) => {
+                              if (!dateValue) {
+                                const next = { ...current };
+                                delete next[user.userId];
+                                return next;
+                              }
+                              return { ...current, [user.userId]: dateValue };
+                            });
+                          }}
+                          className="input mt-1"
+                          aria-label={`תאריך תחילת צו אישי עבור ${user.fullName}`}
+                        />
+                      </label>
+                      <label className="space-y-1 text-[10px] font-black text-slate-500">
+                        סיום צו אישי
+                        <input
+                          type="date"
+                          min={
+                            newOrderPersonalStartDates[user.userId] ||
+                            newOrderStartDate ||
+                            undefined
+                          }
+                          max={newOrderEndDate || undefined}
+                          value={newOrderPersonalEndDates[user.userId] || ""}
+                          onChange={(event) => {
+                            const dateValue = event.target.value;
+                            setNewOrderPersonalEndDates((current) => {
+                              if (!dateValue) {
+                                const next = { ...current };
+                                delete next[user.userId];
+                                return next;
+                              }
+                              return { ...current, [user.userId]: dateValue };
+                            });
+                          }}
+                          className="input mt-1"
+                          aria-label={`תאריך סיום אישי עבור ${user.fullName}`}
+                        />
+                      </label>
+                      <div className="grid grid-cols-1 gap-2 sm:col-span-3 lg:grid-cols-2">
                         {(
                           [
                             ["processing", "ימי עיבוד"],
@@ -1230,6 +1301,11 @@ export default function SystemSettingsManager({
                           {Object.keys(order.personalEndDates || {}).length > 0 && (
                             <div className="mt-1 text-[11px] font-bold text-blue-700">
                               תאריכי סיום אישיים: {Object.keys(order.personalEndDates || {}).length}
+                            </div>
+                          )}
+                          {Object.keys(order.personalStartDates || {}).length > 0 && (
+                            <div className="mt-1 text-[11px] font-bold text-blue-700">
+                              תאריכי התחלה אישיים: {Object.keys(order.personalStartDates || {}).length}
                             </div>
                           )}
                         </div>

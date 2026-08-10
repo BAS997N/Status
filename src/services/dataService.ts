@@ -404,6 +404,19 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
               )
             )
           : [],
+        personalStartDates:
+          item.personalStartDates &&
+          typeof item.personalStartDates === "object" &&
+          !Array.isArray(item.personalStartDates)
+            ? Object.fromEntries(
+                Object.entries(item.personalStartDates).filter(
+                  ([userId, dateValue]) =>
+                    Boolean(userId) &&
+                    typeof dateValue === "string" &&
+                    /^\d{4}-\d{2}-\d{2}$/.test(dateValue)
+                )
+              )
+            : {},
         personalEndDates:
           item.personalEndDates &&
           typeof item.personalEndDates === "object" &&

@@ -143,6 +143,7 @@ export interface OrderEventConfig {
   lineEndDate?: string;
   processingDate?: string;
   processingExcludedUserIds?: string[];
+  personalStartDates?: Record<string, string>;
   personalEndDates?: Record<string, string>;
   personalProcessingBenefits?: Record<
     string,

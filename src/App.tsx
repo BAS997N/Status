@@ -472,12 +472,16 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const todayDateKey = getIsraelDateString(new Date());
   const hasActiveOrder = (systemSettings?.orderEvents || []).some(
     (order) => {
+      const personalStartDate = viewingProfile?.userId
+        ? order.personalStartDates?.[viewingProfile.userId]
+        : "";
       const personalEndDate = viewingProfile?.userId
         ? order.personalEndDates?.[viewingProfile.userId]
         : "";
+      const effectiveStartDate = personalStartDate || order.startDate;
       const effectiveEndDate = personalEndDate || order.endDate;
       return (
-        order.startDate <= todayDateKey && effectiveEndDate >= todayDateKey
+        effectiveStartDate <= todayDateKey && effectiveEndDate >= todayDateKey
       );
     }
   );
