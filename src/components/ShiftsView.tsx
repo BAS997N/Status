@@ -1034,19 +1034,15 @@ export default function ShiftsView({
   const duplicateShift = (shift: ShiftRecord) => {
     const startParts = toLocalParts(shift.startAt);
     const endParts = toLocalParts(shift.endAt);
-    const startDateValue = new Date(`${startParts.date}T12:00:00`);
-    startDateValue.setDate(startDateValue.getDate() + 7);
-    const endDateValue = new Date(`${endParts.date}T12:00:00`);
-    endDateValue.setDate(endDateValue.getDate() + 7);
 
     setEditingShift(null);
     setSelectedShiftTypeId("custom");
     setTitle(`${shift.title} - עותק`);
     setCustomTitle(`${shift.title} - עותק`);
     setShiftType(shift.shiftType);
-    setStartDate(startDateValue.toISOString().slice(0, 10));
+    setStartDate(startParts.date);
     setStartTime(startParts.time);
-    setEndDate(endDateValue.toISOString().slice(0, 10));
+    setEndDate(endParts.date);
     setEndTime(endParts.time);
     setLocation(shift.location || "");
     setNote(shift.note || "");
@@ -1073,7 +1069,7 @@ export default function ShiftsView({
     setIsFormOpen(true);
     setMessage({
       type: "success",
-      text: "נוצר עותק לשבוע הבא. ניתן לשנות ולשמור.",
+      text: "נוצר עותק של המשמרת באותו תאריך. ניתן לשנות את התאריך ולשמור.",
     });
   };
 
@@ -2233,7 +2229,7 @@ export default function ShiftsView({
     window.open(whatsappUrl.toString(), "_blank", "noopener,noreferrer");
   };
 
-  const shareShiftOnWhatsApp = (shift: ShiftRecord) => {
+  const shareShiftOnWhatsApp = async (shift: ShiftRecord) => {
     if (shift.status === "cancelled") {
       setMessage({
         type: "error",
@@ -2271,6 +2267,30 @@ export default function ShiftsView({
     ]
       .filter(Boolean)
       .join("\n");
+
+    const defaultGroup =
+      whatsAppGroups.find((group) => group.isDefault && group.link) ||
+      whatsAppGroups.find(
+        (group) => group.id === selectedWhatsAppTarget && group.link
+      );
+
+    if (defaultGroup?.link) {
+      try {
+        await navigator.clipboard.writeText(message);
+        setMessage({
+          type: "success",
+          text: `פרטי המשמרת הועתקו. קבוצת "${defaultGroup.name}" נפתחת כעת — יש להדביק ולשלוח.`,
+        });
+        window.open(defaultGroup.link, "_blank", "noopener,noreferrer");
+      } catch (error) {
+        console.error("Failed preparing single shift group share:", error);
+        setMessage({
+          type: "error",
+          text: "לא ניתן היה להעתיק את פרטי המשמרת לפני פתיחת הקבוצה.",
+        });
+      }
+      return;
+    }
 
     const whatsappUrl = new URL("https://api.whatsapp.com/send");
     whatsappUrl.searchParams.set("text", message);
