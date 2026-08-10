@@ -417,6 +417,39 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
                 )
               )
             : {},
+        personalProcessingBenefits:
+          item.personalProcessingBenefits &&
+          typeof item.personalProcessingBenefits === "object" &&
+          !Array.isArray(item.personalProcessingBenefits)
+            ? Object.fromEntries(
+                Object.entries(item.personalProcessingBenefits)
+                  .filter(
+                    ([userId, benefit]) =>
+                      Boolean(userId) &&
+                      Boolean(benefit) &&
+                      typeof benefit === "object" &&
+                      typeof (benefit as { days?: unknown }).days === "number" &&
+                      Number.isFinite((benefit as { days: number }).days) &&
+                      (benefit as { days: number }).days > 0
+                  )
+                  .map(([userId, benefit]) => [
+                    userId,
+                    {
+                      days: Math.max(
+                        1,
+                        Math.min(
+                          30,
+                          Math.round((benefit as { days: number }).days)
+                        )
+                      ),
+                      type:
+                        (benefit as { type?: unknown }).type === "family"
+                          ? "family"
+                          : "processing",
+                    },
+                  ])
+              )
+            : {},
         note: typeof item.note === "string" ? item.note.trim() : "",
         createdAt:
           typeof item.createdAt === "string"

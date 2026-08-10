@@ -668,6 +668,8 @@ useEffect(() => {
   };
 
   const configuredProcessingDays = displayedOrderEvent?.processingDays ?? 3;
+  const personalProcessingBenefit =
+    displayedOrderEvent?.personalProcessingBenefits?.[currentUser.userId];
   const hasPersonalEarlyEnd = Boolean(
     personalOrderEndDate &&
       globalOrderEndDate &&
@@ -677,12 +679,20 @@ useEffect(() => {
     displayedOrderEvent?.processingExcludedUserIds?.includes(
       currentUser.userId
     ) ?? false;
+  const hasPersonalProcessingBenefit = Boolean(
+    personalProcessingBenefit && personalProcessingBenefit.days > 0
+  );
   const isExcludedFromProcessing =
-    isExplicitlyExcludedFromProcessing || hasPersonalEarlyEnd;
-  const processingDays = isExcludedFromProcessing
+    !hasPersonalProcessingBenefit &&
+    (isExplicitlyExcludedFromProcessing || hasPersonalEarlyEnd);
+  const processingDays = hasPersonalProcessingBenefit
+    ? personalProcessingBenefit!.days
+    : isExcludedFromProcessing
     ? 0
     : configuredProcessingDays;
-  const processingDayType = displayedOrderEvent?.processingDayType || "processing";
+  const processingDayType = hasPersonalProcessingBenefit
+    ? personalProcessingBenefit!.type
+    : displayedOrderEvent?.processingDayType || "processing";
   const processingDayLabel =
     processingDayType === "family"
       ? processingDays === 1

@@ -144,6 +144,10 @@ export interface OrderEventConfig {
   processingDate?: string;
   processingExcludedUserIds?: string[];
   personalEndDates?: Record<string, string>;
+  personalProcessingBenefits?: Record<
+    string,
+    { days: number; type: "processing" | "family" }
+  >;
   note?: string;
   createdAt: string;
   createdBy?: string;

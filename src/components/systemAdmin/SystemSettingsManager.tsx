@@ -131,6 +131,10 @@ export default function SystemSettingsManager({
   const [newOrderPersonalEndDates, setNewOrderPersonalEndDates] = useState<
     Record<string, string>
   >({});
+  const [newOrderPersonalProcessingBenefits, setNewOrderPersonalProcessingBenefits] =
+    useState<
+      Record<string, { days: number; type: "processing" | "family" }>
+    >({});
   const [personalEndDateSearch, setPersonalEndDateSearch] = useState("");
   const [newOrderNote, setNewOrderNote] = useState("");
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -330,6 +334,7 @@ export default function SystemSettingsManager({
     setNewOrderProcessingExcludedUserIds([]);
     setProcessingExclusionSearch("");
     setNewOrderPersonalEndDates({});
+    setNewOrderPersonalProcessingBenefits({});
     setPersonalEndDateSearch("");
     setNewOrderNote("");
   };
@@ -401,6 +406,8 @@ export default function SystemSettingsManager({
                 processingExcludedUserIds:
                   newOrderProcessingExcludedUserIds,
                 personalEndDates: newOrderPersonalEndDates,
+                personalProcessingBenefits:
+                  newOrderPersonalProcessingBenefits,
                 note: newOrderNote.trim(),
               }
             : order
@@ -421,6 +428,7 @@ export default function SystemSettingsManager({
         processingDate: newOrderProcessingDate,
         processingExcludedUserIds: newOrderProcessingExcludedUserIds,
         personalEndDates: newOrderPersonalEndDates,
+        personalProcessingBenefits: newOrderPersonalProcessingBenefits,
         note: newOrderNote.trim(),
         createdAt: new Date().toISOString(),
         createdBy: currentUser.userId,
@@ -454,6 +462,9 @@ export default function SystemSettingsManager({
     );
     setProcessingExclusionSearch("");
     setNewOrderPersonalEndDates(order.personalEndDates || {});
+    setNewOrderPersonalProcessingBenefits(
+      order.personalProcessingBenefits || {}
+    );
     setPersonalEndDateSearch("");
     setNewOrderNote(order.note || "");
     setMessage(null);
@@ -957,8 +968,8 @@ export default function SystemSettingsManager({
                   </div>
                   <p className="mt-0.5 text-[10px] font-bold leading-5 text-slate-500">
                     לחייל שמשתחרר לפני סיום הצו הגדודי ניתן להזין תאריך
-                    סיום אישי. ימי ההתרעננות שלו יתחילו ביום הבא, ללא ימי
-                    העיבוד הגדודיים. ימי עיבוד אישיים ינוהלו בנפרד.
+                    סיום אישי. ניתן להוסיף לו בנפרד ימי עיבוד או ימי משפחות;
+                    לאחריהם יחלו ימי ההתרעננות.
                   </p>
                 </div>
                 {Object.values(newOrderPersonalEndDates).filter(Boolean)
@@ -990,7 +1001,7 @@ export default function SystemSettingsManager({
                   personalEndDateUsers.map((user) => (
                     <div
                       key={user.userId}
-                      className="grid grid-cols-1 gap-2 rounded-lg px-2 py-2 hover:bg-slate-50 sm:grid-cols-[1fr_170px] sm:items-center"
+                      className="grid grid-cols-1 gap-2 rounded-lg px-2 py-2 hover:bg-slate-50 sm:grid-cols-[minmax(180px,1fr)_170px_150px_110px] sm:items-center"
                     >
                       <div className="min-w-0">
                         <div className="truncate text-xs font-black text-slate-700">
@@ -1013,6 +1024,13 @@ export default function SystemSettingsManager({
                             if (!dateValue) {
                               const next = { ...current };
                               delete next[user.userId];
+                              setNewOrderPersonalProcessingBenefits(
+                                (benefits) => {
+                                  const nextBenefits = { ...benefits };
+                                  delete nextBenefits[user.userId];
+                                  return nextBenefits;
+                                }
+                              );
                               return next;
                             }
                             return { ...current, [user.userId]: dateValue };
@@ -1020,6 +1038,64 @@ export default function SystemSettingsManager({
                         }}
                         className="input"
                         aria-label={`תאריך סיום אישי עבור ${user.fullName}`}
+                      />
+                      <select
+                        value={
+                          newOrderPersonalProcessingBenefits[user.userId]
+                            ?.type || "processing"
+                        }
+                        disabled={!newOrderPersonalEndDates[user.userId]}
+                        onChange={(event) => {
+                          const type = event.target.value as
+                            | "processing"
+                            | "family";
+                          setNewOrderPersonalProcessingBenefits((current) => ({
+                            ...current,
+                            [user.userId]: {
+                              days: current[user.userId]?.days || 1,
+                              type,
+                            },
+                          }));
+                        }}
+                        className="input disabled:cursor-not-allowed disabled:opacity-50"
+                        aria-label={`סוג ימים אישיים עבור ${user.fullName}`}
+                      >
+                        <option value="processing">ימי עיבוד</option>
+                        <option value="family">ימי משפחות</option>
+                      </select>
+                      <input
+                        type="number"
+                        min={0}
+                        max={30}
+                        placeholder="ללא ימים"
+                        disabled={!newOrderPersonalEndDates[user.userId]}
+                        value={
+                          newOrderPersonalProcessingBenefits[user.userId]
+                            ?.days || ""
+                        }
+                        onChange={(event) => {
+                          const days = Math.max(
+                            0,
+                            Math.min(30, Number(event.target.value) || 0)
+                          );
+                          setNewOrderPersonalProcessingBenefits((current) => {
+                            if (days === 0) {
+                              const next = { ...current };
+                              delete next[user.userId];
+                              return next;
+                            }
+                            return {
+                              ...current,
+                              [user.userId]: {
+                                days,
+                                type:
+                                  current[user.userId]?.type || "processing",
+                              },
+                            };
+                          });
+                        }}
+                        className="input disabled:cursor-not-allowed disabled:opacity-50"
+                        aria-label={`כמות ימים אישיים עבור ${user.fullName}`}
                       />
                     </div>
                   ))
