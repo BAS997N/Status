@@ -147,6 +147,10 @@ export default function SystemSettingsManager({
       >
     >({});
   const [personalEndDateSearch, setPersonalEndDateSearch] = useState("");
+  const [selectedPersonalOrderUserId, setSelectedPersonalOrderUserId] =
+    useState<string | null>(null);
+  const [personalOrderPickerOpen, setPersonalOrderPickerOpen] =
+    useState(false);
   const [newOrderNote, setNewOrderNote] = useState("");
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [message, setMessage] = useState<{
@@ -187,6 +191,9 @@ export default function SystemSettingsManager({
         );
     })
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"));
+  const selectedPersonalOrderUser = selectedPersonalOrderUserId
+    ? users.find((user) => user.userId === selectedPersonalOrderUserId) || null
+    : null;
 
   useEffect(() => {
     if (settings && !isDirty && !saving) {
@@ -348,6 +355,8 @@ export default function SystemSettingsManager({
     setNewOrderPersonalEndDates({});
     setNewOrderPersonalProcessingBenefits({});
     setPersonalEndDateSearch("");
+    setSelectedPersonalOrderUserId(null);
+    setPersonalOrderPickerOpen(false);
     setNewOrderNote("");
   };
 
@@ -526,6 +535,8 @@ export default function SystemSettingsManager({
       order.personalProcessingBenefits || {}
     );
     setPersonalEndDateSearch("");
+    setSelectedPersonalOrderUserId(null);
+    setPersonalOrderPickerOpen(false);
     setNewOrderNote(order.note || "");
     setMessage(null);
   };
@@ -1045,22 +1056,75 @@ export default function SystemSettingsManager({
                   </span>
                 )}
               </div>
-              <input
-                type="search"
-                value={personalEndDateSearch}
-                onChange={(event) =>
-                  setPersonalEndDateSearch(event.target.value)
-                }
-                placeholder="חיפוש לפי שם, מספר אישי או יחידה..."
-                className="input mt-3"
-              />
-              <div className="mt-2 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
-                {personalEndDateUsers.length === 0 ? (
-                  <div className="py-3 text-center text-[11px] font-bold text-slate-400">
-                    לא נמצאו חיילים
+              <div className="relative mt-3">
+                <div className="flex gap-2">
+                  <input
+                    type="search"
+                    value={personalEndDateSearch}
+                    onFocus={() => setPersonalOrderPickerOpen(true)}
+                    onChange={(event) => {
+                      setPersonalEndDateSearch(event.target.value);
+                      setSelectedPersonalOrderUserId(null);
+                      setPersonalOrderPickerOpen(true);
+                    }}
+                    placeholder="חיפוש ובחירת חייל לפי שם, מספר אישי או יחידה..."
+                    className="input"
+                    role="combobox"
+                    aria-expanded={personalOrderPickerOpen}
+                  />
+                  {selectedPersonalOrderUser && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPersonalOrderUserId(null);
+                        setPersonalEndDateSearch("");
+                        setPersonalOrderPickerOpen(true);
+                      }}
+                      className="min-w-max rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-600 hover:bg-slate-50"
+                    >
+                      בחר חייל אחר
+                    </button>
+                  )}
+                </div>
+                {personalOrderPickerOpen && !selectedPersonalOrderUser && (
+                  <div className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+                    {personalEndDateUsers.length === 0 ? (
+                      <div className="px-3 py-4 text-center text-[11px] font-bold text-slate-400">
+                        לא נמצאו חיילים
+                      </div>
+                    ) : (
+                      personalEndDateUsers.slice(0, 30).map((user) => (
+                        <button
+                          key={user.userId}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPersonalOrderUserId(user.userId);
+                            setPersonalEndDateSearch(user.fullName);
+                            setPersonalOrderPickerOpen(false);
+                          }}
+                          className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-right hover:bg-blue-50"
+                        >
+                          <span className="text-xs font-black text-slate-700">
+                            {user.fullName}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            {[user.personalId, user.unit]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="mt-2 rounded-lg border border-slate-200 bg-white p-2">
+                {!selectedPersonalOrderUser ? (
+                  <div className="py-5 text-center text-[11px] font-bold text-slate-400">
+                    יש לבחור חייל כדי לפתוח את פרטי התקופה והזכאויות שלו
                   </div>
                 ) : (
-                  personalEndDateUsers.map((user) => (
+                  [selectedPersonalOrderUser].map((user) => (
                     <div
                       key={user.userId}
                       className="grid grid-cols-1 gap-2 rounded-lg border border-slate-100 px-2 py-2 hover:bg-slate-50 sm:grid-cols-[minmax(180px,1fr)_170px_170px] sm:items-center"
