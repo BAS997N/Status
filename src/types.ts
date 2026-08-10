@@ -146,7 +146,12 @@ export interface OrderEventConfig {
   personalEndDates?: Record<string, string>;
   personalProcessingBenefits?: Record<
     string,
-    { days: number; type: "processing" | "family" }
+    {
+      processingDays?: number;
+      processingDate?: string;
+      familyDays?: number;
+      familyDate?: string;
+    }
   >;
   note?: string;
   createdAt: string;

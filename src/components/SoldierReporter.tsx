@@ -668,7 +668,7 @@ useEffect(() => {
   };
 
   const configuredProcessingDays = displayedOrderEvent?.processingDays ?? 3;
-  const personalProcessingBenefit =
+  const personalSeparateBenefits =
     displayedOrderEvent?.personalProcessingBenefits?.[currentUser.userId];
   const hasPersonalEarlyEnd = Boolean(
     personalOrderEndDate &&
@@ -679,20 +679,12 @@ useEffect(() => {
     displayedOrderEvent?.processingExcludedUserIds?.includes(
       currentUser.userId
     ) ?? false;
-  const hasPersonalProcessingBenefit = Boolean(
-    personalProcessingBenefit && personalProcessingBenefit.days > 0
-  );
   const isExcludedFromProcessing =
-    !hasPersonalProcessingBenefit &&
-    (isExplicitlyExcludedFromProcessing || hasPersonalEarlyEnd);
-  const processingDays = hasPersonalProcessingBenefit
-    ? personalProcessingBenefit!.days
-    : isExcludedFromProcessing
+    isExplicitlyExcludedFromProcessing || hasPersonalEarlyEnd;
+  const processingDays = isExcludedFromProcessing
     ? 0
     : configuredProcessingDays;
-  const processingDayType = hasPersonalProcessingBenefit
-    ? personalProcessingBenefit!.type
-    : displayedOrderEvent?.processingDayType || "processing";
+  const processingDayType = displayedOrderEvent?.processingDayType || "processing";
   const processingDayLabel =
     processingDayType === "family"
       ? processingDays === 1
@@ -1428,6 +1420,18 @@ dayMarker || undefined
                         ? ""
                         : displayedOrderEvent?.processingDate,
                     ],
+                    [
+                      `ימי עיבוד אישיים (${personalSeparateBenefits?.processingDays || 0})`,
+                      personalSeparateBenefits?.processingDays
+                        ? personalSeparateBenefits.processingDate
+                        : "",
+                    ],
+                    [
+                      `ימי משפחות אישיים (${personalSeparateBenefits?.familyDays || 0})`,
+                      personalSeparateBenefits?.familyDays
+                        ? personalSeparateBenefits.familyDate
+                        : "",
+                    ],
                   ].some(([, value]) => Boolean(value)) && (
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
                       {[
@@ -1445,6 +1449,18 @@ dayMarker || undefined
                           isExcludedFromProcessing
                             ? ""
                             : displayedOrderEvent?.processingDate,
+                        ],
+                        [
+                          `ימי עיבוד אישיים (${personalSeparateBenefits?.processingDays || 0})`,
+                          personalSeparateBenefits?.processingDays
+                            ? personalSeparateBenefits.processingDate
+                            : "",
+                        ],
+                        [
+                          `ימי משפחות אישיים (${personalSeparateBenefits?.familyDays || 0})`,
+                          personalSeparateBenefits?.familyDays
+                            ? personalSeparateBenefits.familyDate
+                            : "",
                         ],
                       ]
                         .filter(([, value]) => Boolean(value))

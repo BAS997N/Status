@@ -427,27 +427,48 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
                     ([userId, benefit]) =>
                       Boolean(userId) &&
                       Boolean(benefit) &&
-                      typeof benefit === "object" &&
-                      typeof (benefit as { days?: unknown }).days === "number" &&
-                      Number.isFinite((benefit as { days: number }).days) &&
-                      (benefit as { days: number }).days > 0
+                      typeof benefit === "object"
                   )
-                  .map(([userId, benefit]) => [
-                    userId,
-                    {
-                      days: Math.max(
-                        1,
-                        Math.min(
-                          30,
-                          Math.round((benefit as { days: number }).days)
-                        )
-                      ),
-                      type:
-                        (benefit as { type?: unknown }).type === "family"
-                          ? "family"
-                          : "processing",
-                    },
-                  ])
+                  .map(([userId, rawBenefit]) => {
+                    const benefit = rawBenefit as Record<string, unknown>;
+                    const legacyDays =
+                      typeof benefit.days === "number" &&
+                      Number.isFinite(benefit.days) &&
+                      benefit.days > 0
+                        ? Math.max(1, Math.min(30, Math.round(benefit.days)))
+                        : 0;
+                    const normalizeDays = (value: unknown) =>
+                      typeof value === "number" &&
+                      Number.isFinite(value) &&
+                      value > 0
+                        ? Math.max(1, Math.min(30, Math.round(value)))
+                        : undefined;
+                    const normalizeDate = (value: unknown) =>
+                      typeof value === "string" &&
+                      /^\d{4}-\d{2}-\d{2}$/.test(value)
+                        ? value
+                        : undefined;
+                    const normalizedBenefit = {
+                      processingDays:
+                        normalizeDays(benefit.processingDays) ||
+                        (benefit.type !== "family" && legacyDays
+                          ? legacyDays
+                          : undefined),
+                      processingDate: normalizeDate(benefit.processingDate),
+                      familyDays:
+                        normalizeDays(benefit.familyDays) ||
+                        (benefit.type === "family" && legacyDays
+                          ? legacyDays
+                          : undefined),
+                      familyDate: normalizeDate(benefit.familyDate),
+                    };
+                    return [userId, normalizedBenefit];
+                  })
+                  .filter(([, benefit]) =>
+                    Object.values(benefit as Record<string, unknown>).some(
+                      Boolean
+                    )
+                  )
               )
             : {},
         note: typeof item.note === "string" ? item.note.trim() : "",
