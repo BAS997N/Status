@@ -389,6 +389,36 @@ export default function ShiftsView({
     return medicalAllowed || systemAllowed || individuallyAllowed;
   };
 
+  const getSlotRoleMatchPriority = (
+    user: UserProfile,
+    slot: ExpandedSlot
+  ) => {
+    const medicalRoleName = (user.medicalRole || "")
+      .trim()
+      .toLocaleLowerCase("he");
+    const matchesMedicalRole = slot.allowedMedicalRoleIds.some(
+      (roleId) => medicalRoleNameById.get(roleId) === medicalRoleName
+    );
+
+    if (matchesMedicalRole) return 0;
+    if (slot.allowedUserIds.includes(user.userId)) return 1;
+    if (slot.allowedSystemRoles.includes(getSystemRole(user))) return 2;
+    return 3;
+  };
+
+  const getAttendanceSortPriority = (
+    attendance: ReturnType<typeof getAttendanceInfo>
+  ) => {
+    const report = attendance.report;
+    if (!report) return 5;
+    if (report.dayMarker === "exit_home") return 0;
+    if (report.status === "base" && !report.dayMarker) return 1;
+    if (report.dayMarker === "return_to_base") return 2;
+    if (report.dayMarker === "after_hours") return 3;
+    if (report.status === "base") return 1;
+    return 4;
+  };
+
   const loadShifts = async () => {
     setLoading(true);
     try {
@@ -2268,30 +2298,6 @@ export default function ShiftsView({
       .filter(Boolean)
       .join("\n");
 
-    const defaultGroup =
-      whatsAppGroups.find((group) => group.isDefault && group.link) ||
-      whatsAppGroups.find(
-        (group) => group.id === selectedWhatsAppTarget && group.link
-      );
-
-    if (defaultGroup?.link) {
-      try {
-        await navigator.clipboard.writeText(message);
-        setMessage({
-          type: "success",
-          text: `פרטי המשמרת הועתקו. קבוצת "${defaultGroup.name}" נפתחת כעת — יש להדביק ולשלוח.`,
-        });
-        window.open(defaultGroup.link, "_blank", "noopener,noreferrer");
-      } catch (error) {
-        console.error("Failed preparing single shift group share:", error);
-        setMessage({
-          type: "error",
-          text: "לא ניתן היה להעתיק את פרטי המשמרת לפני פתיחת הקבוצה.",
-        });
-      }
-      return;
-    }
-
     const whatsappUrl = new URL("https://api.whatsapp.com/send");
     whatsappUrl.searchParams.set("text", message);
     window.open(whatsappUrl.toString(), "_blank", "noopener,noreferrer");
@@ -3423,6 +3429,7 @@ export default function ShiftsView({
                         user,
                         attendance: getAttendanceInfo(user),
                         overlappingShift: getOverlappingShift(user.userId),
+                        roleMatchPriority: getSlotRoleMatchPriority(user, slot),
                       }))
                       .sort((a, b) => {
                         const dischargedDifference =
@@ -3432,8 +3439,15 @@ export default function ShiftsView({
                           return dischargedDifference;
                         }
 
+                        const roleDifference =
+                          a.roleMatchPriority - b.roleMatchPriority;
+                        if (roleDifference !== 0) {
+                          return roleDifference;
+                        }
+
                         const attendanceDifference =
-                          a.attendance.priority - b.attendance.priority;
+                          getAttendanceSortPriority(a.attendance) -
+                          getAttendanceSortPriority(b.attendance);
                         if (attendanceDifference !== 0) {
                           return attendanceDifference;
                         }
