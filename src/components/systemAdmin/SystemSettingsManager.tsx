@@ -12,6 +12,7 @@ import {
   Trash2,
   Star,
   Edit2,
+  CalendarRange,
 } from "lucide-react";
 import {
   SystemMode,
@@ -107,6 +108,9 @@ export default function SystemSettingsManager({
   );
   const [saving, setSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState<
+    "general" | "modes" | "orders" | "whatsapp"
+  >("general");
   const [newOrderTitle, setNewOrderTitle] = useState("");
   const [newOrderStartDate, setNewOrderStartDate] = useState("");
   const [newOrderEndDate, setNewOrderEndDate] = useState("");
@@ -469,7 +473,34 @@ export default function SystemSettingsManager({
         </div>
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { id: "general" as const, label: "הגדרות כלליות", icon: Settings },
+          { id: "modes" as const, label: "מצבי מערכת", icon: ShieldAlert },
+          { id: "orders" as const, label: "ניהול צווים", icon: CalendarRange },
+          { id: "whatsapp" as const, label: "קבוצות WhatsApp", icon: MessageCircle },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const selected = activeSettingsTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveSettingsTab(tab.id)}
+              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-xs font-black transition ${
+                selected
+                  ? "border-violet-600 bg-violet-600 text-white shadow-sm"
+                  : "border-transparent bg-slate-50 text-slate-600 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <section className={`${activeSettingsTab === "general" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
         <div className="mb-4 flex items-center gap-2">
           <MonitorCog className="h-5 w-5 text-violet-600" />
           <h3 className="text-sm font-black text-slate-900">זהות ותצוגה</h3>
@@ -504,7 +535,7 @@ export default function SystemSettingsManager({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className={`${activeSettingsTab === "general" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
         <div className="mb-4 flex items-center gap-2">
           <Bell className="h-5 w-5 text-amber-600" />
           <h3 className="text-sm font-black text-slate-900">התראות</h3>
@@ -541,7 +572,7 @@ export default function SystemSettingsManager({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className={`${activeSettingsTab === "general" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
         <div className="mb-4 flex items-center gap-2">
           <Database className="h-5 w-5 text-sky-600" />
           <h3 className="text-sm font-black text-slate-900">ביצועים ורענון</h3>
@@ -556,14 +587,14 @@ export default function SystemSettingsManager({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-amber-200 bg-amber-50/40 p-5 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
+      <section className={`${activeSettingsTab === "modes" || activeSettingsTab === "orders" ? "" : "hidden"} rounded-2xl border border-amber-200 bg-amber-50/40 p-5 shadow-sm`}>
+        <div className={`${activeSettingsTab === "modes" ? "" : "hidden"} mb-4 flex items-center gap-2`}>
           <ShieldAlert className="h-5 w-5 text-amber-700" />
           <h3 className="text-sm font-black text-slate-900">מצבי מערכת</h3>
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-xl border border-red-200 bg-white p-4">
+          <div className={`${activeSettingsTab === "modes" ? "" : "hidden"} rounded-xl border border-red-200 bg-white p-4`}>
             <div className="text-xs font-black text-slate-900">מצב עבודה של המערכת</div>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
               {[
@@ -642,7 +673,7 @@ export default function SystemSettingsManager({
             )}
           </div>
 
-          <div className="rounded-xl border border-amber-200 bg-white p-4">
+          <div className={`${activeSettingsTab === "modes" ? "" : "hidden"} rounded-xl border border-amber-200 bg-white p-4`}>
             <Toggle
               label="מצב תחזוקה מלא"
               description="חוסם את כל חלקי המערכת למשתמשים רגילים. מנהל האתר עדיין יכול להיכנס לניהול ולבטל את המצב."
@@ -669,7 +700,7 @@ export default function SystemSettingsManager({
             />
           </div>
 
-          <div className="rounded-xl border border-sky-200 bg-white p-4">
+          <div className={`${activeSettingsTab === "modes" ? "" : "hidden"} rounded-xl border border-sky-200 bg-white p-4`}>
             <Toggle
               label="קבלת דיווחי נוכחות"
               description="כאשר האפשרות כבויה, רק עמוד הדיווח האישי מוחלף בהודעה. לוח הבקרה ושאר המערכת נשארים זמינים."
@@ -700,7 +731,7 @@ export default function SystemSettingsManager({
             />
           </div>
 
-          <div className="rounded-xl border border-blue-200 bg-white p-4 lg:col-span-2">
+          <div className={`${activeSettingsTab === "orders" ? "" : "hidden"} rounded-xl border border-blue-200 bg-white p-4 lg:col-span-2`}>
             <div className="text-sm font-black text-slate-900">ניהול צווים גדודיים</div>
             <p className="mt-1 text-[11px] leading-5 text-slate-500">
               כל צו נשמר כאירוע נפרד. חייל שדיווח באותו יום „לא בצו” או
@@ -996,7 +1027,7 @@ export default function SystemSettingsManager({
             </div>
           </div>
 
-          <div className="rounded-xl border border-indigo-200 bg-white p-4">
+          <div className={`${activeSettingsTab === "modes" ? "" : "hidden"} rounded-xl border border-indigo-200 bg-white p-4`}>
             <Toggle
               label="מסך משמרות פעיל"
               description="כאשר האפשרות כבויה, לשונית המשמרות נשארת מוצגת אך תוכן המסך מוחלף בהודעה שהוגדרה."
@@ -1023,7 +1054,7 @@ export default function SystemSettingsManager({
         </div>
       )}
 
-      <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+      <section className={`${activeSettingsTab === "whatsapp" ? "" : "hidden"} rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm`}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
