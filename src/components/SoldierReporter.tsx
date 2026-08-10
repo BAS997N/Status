@@ -31,6 +31,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { dataService } from "../services/dataService";
 import { getDisciplinaryRestrictionStatus } from "../utils/shiftRestriction";
+import { getEffectiveSystemRole } from "../security/permissions";
 
 interface SoldierReporterProps {
   currentUser: UserProfile;
@@ -515,6 +516,11 @@ useEffect(() => {
   const latestPastOrderEvent = [...orderEvents]
     .reverse()
     .find((order) => getPersonalOrderEndDate(order) < todayDate);
+  const reportingBlockedByEndedOrder = Boolean(
+    getEffectiveSystemRole(currentUser) === "reporter" &&
+      !activeOrderEvent &&
+      latestPastOrderEvent
+  );
   const displayedOrderEvent =
     activeOrderEvent || futureOrderEvent || latestPastOrderEvent;
   const hasOrderPeriod = Boolean(displayedOrderEvent);
@@ -790,6 +796,10 @@ const handleGetLocation = () => {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (reportingBlockedByEndedOrder) {
+      alert("תקופת הצו האישית שלך הסתיימה ולכן לא ניתן לשלוח דיווח נוכחות חדש.");
+      return;
+    }
     if (!location.trim()) return;
     if (selectedStatusConfig?.requiresNote && !note.trim()) {
       alert("בסטטוס זה חובה להזין הערה.");
@@ -1780,6 +1790,19 @@ dayMarker || undefined
 </button>
 </div>
 
+          {reportingBlockedByEndedOrder ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
+              <CalendarDays className="mx-auto h-8 w-8 text-amber-600" />
+              <h4 className="mt-3 text-base font-black text-amber-900">
+                תקופת הצו שלך הסתיימה
+              </h4>
+              <p className="mx-auto mt-2 max-w-xl text-xs font-bold leading-6 text-amber-800">
+                לא ניתן לשלוח דיווח נוכחות חדש לאחר תאריך סיום הצו האישי.
+                היסטוריית הדיווחים, לוח היציאות והמידע האישי נשארים זמינים
+                לצפייה.
+              </p>
+            </div>
+          ) : (
           <form onSubmit={handleFormSubmit} className="min-w-0 space-y-5">
             <div>
   <label className="block text-sm font-bold text-slate-700 mb-2">
@@ -2034,6 +2057,7 @@ dayMarker || undefined
               </span>
             </button>
           </form>
+          )}
 
           {/* Success Banner */}
           {actionSuccess && (

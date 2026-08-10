@@ -1823,6 +1823,32 @@ setUserProfile(newProfile);
     return dateStr || getIsraelDateString();
   };
 
+  if (submitterSystemRole === "reporter") {
+    const today = getIsraelDateString();
+    const orderEvents = systemSettings?.orderEvents || [];
+    const getPersonalStartDate = (order: (typeof orderEvents)[number]) =>
+      order.personalStartDates?.[userProfile.userId] || order.startDate;
+    const getPersonalEndDate = (order: (typeof orderEvents)[number]) =>
+      order.personalEndDates?.[userProfile.userId] || order.endDate;
+    const hasActivePersonalOrder = orderEvents.some(
+      (order) =>
+        getPersonalStartDate(order) <= today &&
+        getPersonalEndDate(order) >= today
+    );
+    const hasEndedPersonalOrder = orderEvents.some(
+      (order) => getPersonalEndDate(order) < today
+    );
+
+    if (!hasActivePersonalOrder && hasEndedPersonalOrder) {
+      showAppMessage(
+        "תקופת הצו הסתיימה",
+        "לא ניתן לשלוח דיווח נוכחות חדש לאחר תאריך סיום הצו האישי.",
+        "info"
+      );
+      return;
+    }
+  }
+
   const buildReportPayload = (dateStr?: string) => ({
     userId: userProfile.userId,
     personalId: userProfile.personalId,
