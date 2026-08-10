@@ -1508,11 +1508,13 @@ dayMarker || undefined
                       </span>
                     </div>
                   )}
-                  {isExcludedFromProcessing && (
+                  {isExplicitlyExcludedFromProcessing && (
                     <div className="flex">
                       <span className="rounded-md bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-800">
-                        לא משתתף בימי{" "}
-                        {processingDayType === "family" ? "המשפחות" : "העיבוד"}
+                        הוחרג ידנית מימי{" "}
+                        {processingDayType === "family"
+                          ? "המשפחות הגדודיים"
+                          : "העיבוד הגדודיים"}
                       </span>
                     </div>
                   )}
@@ -1524,12 +1526,14 @@ dayMarker || undefined
                           {totalActualServiceDays} ימים
                         </strong>
                         <span className="mt-0.5 block text-[10px] font-bold text-slate-500">
-                          {isExcludedFromProcessing
-                            ? `ללא ימי ${
+                          {isExplicitlyExcludedFromProcessing
+                            ? `הוחרג מימי ${
                                 processingDayType === "family"
                                   ? "משפחות"
                                   : "עיבוד"
-                              }`
+                              } גדודיים`
+                            : hasPersonalEarlyEnd
+                            ? "ההתרעננות מחושבת מסיום השירות האישי"
                             : `מתוכם ${processingDays} ${processingDayLabel}`}
                         </span>
                       </div>
@@ -1541,7 +1545,13 @@ dayMarker || undefined
                         <span className="block font-bold text-blue-700">סה״כ ימים קלנדריים</span>
                         <strong className="text-blue-900">{totalCalendarDays} ימים</strong>
                         <span className="mt-0.5 block text-[10px] font-bold text-blue-600">
-                          ימי צו + תקופת {processingDayType === "family" ? "משפחות" : "עיבוד"} + תקופת התרעננות
+                          {processingDays > 0
+                            ? `ימי צו + תקופת ${
+                                processingDayType === "family"
+                                  ? "משפחות"
+                                  : "עיבוד"
+                              } + תקופת התרעננות`
+                            : "ימי צו + תקופת התרעננות"}
                         </span>
                       </div>
                       <div className="rounded-lg border border-emerald-200 bg-emerald-100/80 px-2 py-1.5">
