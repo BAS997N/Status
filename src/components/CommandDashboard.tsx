@@ -1297,6 +1297,216 @@ const exitHomeTodayCount = reportedTodayList.filter(
       !item.latestTodayReport
   );
 
+  type OrderBenefitStatus =
+    | "processing_days"
+    | "family_days"
+    | "refresh_days";
+
+  const toOrderBenefitDateKey = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+      date.getDate()
+    ).padStart(2, "0")}`;
+
+  const addOrderBenefitDays = (dateValue: string, days: number) => {
+    const date = new Date(`${dateValue}T12:00:00`);
+    date.setDate(date.getDate() + days);
+    return toOrderBenefitDateKey(date);
+  };
+
+  const getOrderBenefitInclusiveDays = (start: string, end: string) => {
+    if (!start || !end || end < start) return 0;
+    const startDate = new Date(`${start}T12:00:00`);
+    const endDate = new Date(`${end}T12:00:00`);
+    return Math.floor((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+  };
+
+  const getOrderBenefitEndDate = (start: string, benefitDays: number) => {
+    if (!start || benefitDays <= 0) return addOrderBenefitDays(start, -1);
+    const current = new Date(`${start}T12:00:00`);
+    let remaining = benefitDays;
+
+    while (remaining > 0) {
+      const dayOfWeek = current.getDay();
+      remaining -= 1;
+      if (dayOfWeek === 5) current.setDate(current.getDate() + 1);
+      if (remaining > 0) current.setDate(current.getDate() + 1);
+    }
+
+    return toOrderBenefitDateKey(current);
+  };
+
+  const getOrderRefreshmentDays = (serviceDays: number) => {
+    if (serviceDays >= 57) return 9;
+    if (serviceDays >= 43) return 7;
+    if (serviceDays >= 29) return 5;
+    if (serviceDays >= 15) return 3;
+    if (serviceDays >= 10) return 2;
+    return 0;
+  };
+
+  const getComputedOrderBenefitStatus = (
+    soldier: UserProfile,
+    date: string
+  ): OrderBenefitStatus | null => {
+    const soldierReports = activeReports.filter(
+      (report) =>
+        report.userId === soldier.userId ||
+        (!!soldier.personalId &&
+          String((report as any).personalId || "") === String(soldier.personalId))
+    );
+    const latestReportByDate = new Map<string, AttendanceReport>();
+    soldierReports.forEach((report) => {
+      const reportDate = getReportDateKey(report);
+      if (!reportDate) return;
+      const previous = latestReportByDate.get(reportDate);
+      if (
+        !previous ||
+        getTimeMsFromTimestamp(report.updatedAt || report.timestamp) >=
+          getTimeMsFromTimestamp(previous.updatedAt || previous.timestamp)
+      ) {
+        latestReportByDate.set(reportDate, report);
+      }
+    });
+
+    for (const order of systemSettings?.orderEvents || []) {
+      const personalStart =
+        order.personalStartDates?.[soldier.userId] || order.startDate;
+      const personalEnd =
+        order.personalEndDates?.[soldier.userId] || order.endDate;
+      if (!personalStart || !personalEnd || personalEnd < personalStart) continue;
+
+      const personalBenefits =
+        order.personalProcessingBenefits?.[soldier.userId];
+      if (personalBenefits?.processingDate && personalBenefits.processingDays) {
+        const end = getOrderBenefitEndDate(
+          personalBenefits.processingDate,
+          personalBenefits.processingDays
+        );
+        if (date >= personalBenefits.processingDate && date <= end) {
+          return "processing_days";
+        }
+      }
+      if (personalBenefits?.familyDate && personalBenefits.familyDays) {
+        const end = getOrderBenefitEndDate(
+          personalBenefits.familyDate,
+          personalBenefits.familyDays
+        );
+        if (date >= personalBenefits.familyDate && date <= end) {
+          return "family_days";
+        }
+      }
+
+      const excludedDates = new Set<string>();
+      let serviceDate = personalStart;
+      let safety = 0;
+      while (serviceDate <= personalEnd && safety < 400) {
+        safety += 1;
+        const report = latestReportByDate.get(serviceDate);
+        if (
+          report &&
+          ["not_on_order", "cut_order"].includes(String(report.status))
+        ) {
+          excludedDates.add(serviceDate);
+        }
+        serviceDate = addOrderBenefitDays(serviceDate, 1);
+      }
+
+      const effectiveServiceDays = Math.max(
+        0,
+        getOrderBenefitInclusiveDays(personalStart, personalEnd) -
+          excludedDates.size
+      );
+      let lastServiceDate = personalEnd;
+      while (
+        lastServiceDate >= personalStart &&
+        excludedDates.has(lastServiceDate)
+      ) {
+        lastServiceDate = addOrderBenefitDays(lastServiceDate, -1);
+      }
+      if (lastServiceDate < personalStart) continue;
+
+      const normalizedUnit = String(soldier.unit || "")
+        .replace(/[״׳'"`]/g, "")
+        .replace(/\s+/g, "")
+        .toLowerCase();
+      const attachedToTagad =
+        normalizedUnit.includes("מסופח") &&
+        normalizedUnit.includes("תאגד");
+      const endsEarly = personalEnd < order.endDate;
+      const excludedFromProcessing =
+        order.processingExcludedUserIds?.includes(soldier.userId) === true;
+      const processingType = order.processingDayType || "processing";
+      const processingDays =
+        endsEarly ||
+        excludedFromProcessing ||
+        (processingType === "family" && attachedToTagad)
+          ? 0
+          : order.processingDays ?? 3;
+      const processingStart = addOrderBenefitDays(lastServiceDate, 1);
+      const processingEnd = getOrderBenefitEndDate(
+        processingStart,
+        processingDays
+      );
+      if (
+        processingDays > 0 &&
+        date >= processingStart &&
+        date <= processingEnd
+      ) {
+        return processingType === "family"
+          ? "family_days"
+          : "processing_days";
+      }
+
+      const refreshmentDays = getOrderRefreshmentDays(
+        effectiveServiceDays + processingDays
+      );
+      const refreshmentStart = addOrderBenefitDays(processingEnd, 1);
+      const refreshmentEnd = getOrderBenefitEndDate(
+        refreshmentStart,
+        refreshmentDays
+      );
+      if (
+        refreshmentDays > 0 &&
+        date >= refreshmentStart &&
+        date <= refreshmentEnd
+      ) {
+        return "refresh_days";
+      }
+    }
+
+    return null;
+  };
+
+  const orderBenefitDetails = statusList.reduce(
+    (groups, item) => {
+      const isIncludedSoldier =
+        isAttachedToTagad(item.profile) ||
+        (item.profile.role !== "commander" &&
+          item.profile.role !== "adjutant_officer");
+      if (!isIncludedSoldier) return groups;
+
+      const manualStatus = item.latestTodayReport?.status;
+      const benefitStatus = item.latestTodayReport
+        ? (["processing_days", "family_days", "refresh_days"].includes(
+            String(manualStatus)
+          )
+            ? (manualStatus as OrderBenefitStatus)
+            : null)
+        : getComputedOrderBenefitStatus(item.profile, selectedDate);
+      if (benefitStatus) groups[benefitStatus].push(item);
+      return groups;
+    },
+    {
+      processing_days: [] as typeof statusList,
+      family_days: [] as typeof statusList,
+      refresh_days: [] as typeof statusList,
+    }
+  );
+  const orderBenefitCount =
+    orderBenefitDetails.processing_days.length +
+    orderBenefitDetails.family_days.length +
+    orderBenefitDetails.refresh_days.length;
+
   const openAttendanceStatDetails = (
     title: string,
     description: string,
@@ -1371,6 +1581,46 @@ const exitHomeTodayCount = reportedTodayList.filter(
       title: "זמינים לפעילות",
       description:
         "חלוקה לפי סימון היום של החיילים שדיווחו שהם בבסיס או בשטח וזמינים למשימות.",
+      items: groups.flatMap((group) => group.items),
+      groups,
+    });
+  };
+
+  const openOrderBenefitDetails = () => {
+    const mapItems = (items: typeof statusList) =>
+      items
+        .map((item) => ({
+          profile: item.profile,
+          report: item.latestTodayReport,
+        }))
+        .sort((first, second) =>
+          (first.profile.fullName || "").localeCompare(
+            second.profile.fullName || "",
+            "he"
+          )
+        );
+    const groups = [
+      {
+        title: "ימי עיבוד",
+        accentClass: "border-violet-200 bg-violet-50 text-violet-800",
+        items: mapItems(orderBenefitDetails.processing_days),
+      },
+      {
+        title: "ימי משפחות",
+        accentClass: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800",
+        items: mapItems(orderBenefitDetails.family_days),
+      },
+      {
+        title: "ימי התרעננות",
+        accentClass: "border-sky-200 bg-sky-50 text-sky-800",
+        items: mapItems(orderBenefitDetails.refresh_days),
+      },
+    ].filter((group) => group.items.length > 0);
+
+    setAttendanceStatDetails({
+      title: "הטבות לאחר שירות",
+      description:
+        "חיילים שנמצאים בתאריך שנבחר בימי עיבוד, ימי משפחות או ימי התרעננות.",
       items: groups.flatMap((group) => group.items),
       groups,
     });
@@ -4459,6 +4709,37 @@ const dates = getDateRange(startDate, endDate);
           </div>
         </button>
         </>)}
+
+        {orderBenefitCount > 0 && (
+          <button
+            type="button"
+            onClick={openOrderBenefitDetails}
+            className="w-full cursor-pointer bg-white p-4 rounded-xl border border-violet-200 shadow-sm flex items-center justify-between gap-3 text-right transition hover:-translate-y-0.5 hover:border-violet-400 hover:shadow-md"
+          >
+            <div className="min-w-0 flex-1">
+              <span className="text-xs text-violet-700 font-bold block">
+                הטבות לאחר שירות
+              </span>
+              <span className="text-2xl font-black text-violet-700 tracking-tight mt-1 block">
+                {orderBenefitCount}
+              </span>
+              <div className="mt-2 grid grid-cols-1 gap-0.5 text-[10px] font-bold leading-4 text-slate-600">
+                <span className="text-violet-700">
+                  ימי עיבוד: {orderBenefitDetails.processing_days.length}
+                </span>
+                <span className="text-fuchsia-700">
+                  ימי משפחות: {orderBenefitDetails.family_days.length}
+                </span>
+                <span className="text-sky-700">
+                  ימי התרעננות: {orderBenefitDetails.refresh_days.length}
+                </span>
+              </div>
+            </div>
+            <div className="p-3 bg-violet-50 rounded-lg text-violet-700 shrink-0">
+              <CalendarRange className="w-5 h-5" />
+            </div>
+          </button>
+        )}
 
         {shouldShowSummaryCard(absentCount) && (<>
         {/* Absent Status */}
