@@ -124,7 +124,7 @@ export default function AppDialogProvider({ children }: { children: ReactNode })
       {children}
       {current && (
         <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-[2px]"
           dir="rtl"
           role="presentation"
         >
