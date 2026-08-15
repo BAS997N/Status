@@ -59,6 +59,7 @@ import EmergencyCenter from "./components/EmergencyCenter";
 import CommanderMessageInbox from "./components/CommanderMessageInbox";
 import { appDialog } from "./components/AppDialogProvider";
 import { sendAutomaticPush } from "./services/pushService";
+import { deleteUserAccount } from "./services/adminUserService";
 import {
   completePasswordReset,
   requestPasswordReset,
@@ -1140,7 +1141,18 @@ const loadSystemLogsOnDemand = async () => {
       (u) => u.userId === userId
     );
 
-    await dataService.deleteUserProfile(userId);
+    const effectiveCurrentRole = getEffectiveSystemRole(userProfile);
+    if (
+      userProfile?.personalId !== "5749199" &&
+      effectiveCurrentRole !== "super_admin"
+    ) {
+      throw new Error("רק סופר־אדמין רשאי לבצע מחיקה מלאה");
+    }
+    if (userProfile?.userId === userId) {
+      throw new Error("לא ניתן למחוק את החשבון המחובר כעת");
+    }
+
+    await deleteUserAccount(userId);
 
     await dataService.createSystemLog({
       action: "delete_soldier",
@@ -1153,10 +1165,19 @@ const loadSystemLogsOnDemand = async () => {
 
     const updatedUsers = await dataService.getAllUsers();
     setAllUsers(updatedUsers);
+    showAppMessage(
+      "המשתמש נמחק",
+      "חשבון ההתחברות והרשומה נמחקו. ניתן להירשם מחדש עם אותו מספר אישי.",
+      "success"
+    );
 
   } catch (error) {
     console.error("Failed deleting soldier:", error);
-    showAppMessage("שגיאה", "אירעה שגיאה במחיקת החייל", "error");
+    showAppMessage(
+      "המחיקה נכשלה",
+      error instanceof Error ? error.message : "אירעה שגיאה במחיקת החייל",
+      "error"
+    );
   }
 };
  const handleUpdateUserSystemRole = async (

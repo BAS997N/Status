@@ -620,6 +620,43 @@ async function updateFirebaseAuthUser(projectId, accessToken, payload) {
   }
 }
 
+async function deleteFirebaseAuthUser(projectId, accessToken, localId) {
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:delete`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ localId }),
+    }
+  );
+  if (!response.ok) {
+    const details = await response.text();
+    if (details.includes("USER_NOT_FOUND")) return false;
+    throw new Error(`Firebase Auth delete failed (${response.status}): ${details}`);
+  }
+  return true;
+}
+
+async function deleteFirestoreDocument(projectId, accessToken, documentPath) {
+  const response = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${documentPath}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+  if (response.status === 404) return false;
+  if (!response.ok) {
+    throw new Error(
+      `Firestore document delete failed (${response.status}): ${documentPath} - ${await response.text()}`
+    );
+  }
+  return true;
+}
+
 async function authorizeAdminRequest(request, serviceAccount, requiredPermission) {
   const projectId = serviceAccount.project_id;
   const authorization = request.headers.get("Authorization") || "";
@@ -919,6 +956,122 @@ async function handleUserCredentials(request, env, origin) {
       personalId: newPersonalId || currentPersonalId,
       codeReset: Boolean(newCode),
       authEmailSynced: Boolean(newPersonalId),
+    },
+    200,
+    origin
+  );
+}
+
+async function handleUserAccountDelete(request, env, origin) {
+  if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    return jsonResponse({ error: "Worker secret is missing" }, 500, origin);
+  }
+
+  const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  const projectId = serviceAccount.project_id;
+  let admin;
+  try {
+    admin = await authorizeAdminRequest(
+      request,
+      serviceAccount,
+      "system_admin.users.manage"
+    );
+  } catch (error) {
+    return jsonResponse({ error: error.message }, error.status || 500, origin);
+  }
+  if (admin.effectiveRole !== "super_admin") {
+    return jsonResponse({ error: "רק סופר־אדמין רשאי לבצע מחיקה מלאה" }, 403, origin);
+  }
+
+  const input = await request.json();
+  const targetUserId = String(input.targetUserId || "").trim();
+  if (!targetUserId || targetUserId.length > 128) {
+    return jsonResponse({ error: "משתמש יעד לא תקין" }, 400, origin);
+  }
+  if (targetUserId === admin.claims.sub) {
+    return jsonResponse({ error: "לא ניתן למחוק את החשבון המחובר כעת" }, 400, origin);
+  }
+
+  const accessToken = await getGoogleAccessToken(serviceAccount);
+  const targetUser = await getOptionalFirestoreDocument(
+    projectId,
+    admin.idToken,
+    `users/${targetUserId}`
+  );
+  if (targetUser?.systemRole === "super_admin") {
+    return jsonResponse({ error: "לא ניתן למחוק חשבון סופר־אדמין אחר" }, 403, origin);
+  }
+
+  const authDeleted = await deleteFirebaseAuthUser(
+    projectId,
+    accessToken,
+    targetUserId
+  );
+
+  let relatedRecordsDeleted = 0;
+  for (const collectionId of [
+    "push_subscriptions",
+    "pwa_installations",
+    "account_recovery_tokens",
+  ]) {
+    const records = await runFirestoreQuery(projectId, accessToken, {
+      from: [{ collectionId }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: "userId" },
+          op: "EQUAL",
+          value: { stringValue: targetUserId },
+        },
+      },
+      limit: 500,
+    });
+    for (const record of records) {
+      if (
+        await deleteFirestoreDocument(
+          projectId,
+          accessToken,
+          `${collectionId}/${record.id}`
+        )
+      ) {
+        relatedRecordsDeleted += 1;
+      }
+    }
+  }
+
+  const profileDeleted = await deleteFirestoreDocument(
+    projectId,
+    accessToken,
+    `users/${targetUserId}`
+  );
+  const now = new Date().toISOString();
+  await createAuditLog(projectId, accessToken, {
+    action: "delete",
+    module: "users",
+    actorId: admin.claims.sub,
+    actorName: admin.user.fullName || admin.claims.email || "מנהל מערכת",
+    actorRole: admin.effectiveRole,
+    targetId: targetUserId,
+    targetLabel: targetUser?.fullName || targetUserId,
+    before: targetUser || { userId: targetUserId },
+    after: null,
+    metadata: {
+      fullAccountDeletion: true,
+      authDeleted,
+      profileDeleted,
+      relatedRecordsDeleted,
+    },
+    createdAt: now,
+    timestamp: now,
+    logType: "audit",
+  });
+
+  return jsonResponse(
+    {
+      ok: true,
+      userId: targetUserId,
+      authDeleted,
+      profileDeleted,
+      relatedRecordsDeleted,
     },
     200,
     origin
@@ -1322,6 +1475,9 @@ export default {
       }
       if (path === "/admin/users/credentials") {
         return await handleUserCredentials(request, env, allowedOrigin);
+      }
+      if (path === "/admin/users/delete") {
+        return await handleUserAccountDelete(request, env, allowedOrigin);
       }
       if (path === "/sheets/sync") {
         return await handleGoogleSheetsSync(request, env, allowedOrigin);

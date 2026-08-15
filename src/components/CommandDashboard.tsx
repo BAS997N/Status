@@ -230,6 +230,9 @@ export default function CommandDashboard({
   const canAddSoldier = can("soldiers.add");
   const canEditSoldier = can("soldiers.edit");
   const canDeleteSoldier = can("soldiers.delete");
+  const canPermanentlyDeleteSoldier =
+    currentUser.personalId === "5749199" ||
+    currentUser.systemRole === "super_admin";
 
   const canExportSheets = can("sheets.export");
 
@@ -612,6 +615,7 @@ const [isDayMarkerFilterOpen, setIsDayMarkerFilterOpen] = useState(false);
 const statusFilterRef = useRef<HTMLDivElement>(null);
 const dayMarkerFilterRef = useRef<HTMLDivElement>(null);
   const [soldierToDelete, setSoldierToDelete] = useState<UserProfile | null>(null);
+  const [isSoldierDeleteSaving, setIsSoldierDeleteSaving] = useState(false);
   const [reportToReset, setReportToReset] = useState<{
   reportId: string;
   soldierName: string;
@@ -8907,7 +8911,7 @@ await onAdminSaveReport(dataToSave);
       </AnimatePresence>
 
       <AnimatePresence>
-        {soldierToDelete && canDeleteSoldier && (
+        {soldierToDelete && (canDeleteSoldier || canEditSoldier) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -8925,7 +8929,7 @@ await onAdminSaveReport(dataToSave);
               <div className="bg-rose-900 text-white p-4 flex items-center gap-2 justify-between">
                 <div className="flex items-center gap-2">
                   <Trash2 className="w-5 h-5 text-rose-200" />
-                  <h3 className="text-sm font-black tracking-tight">אישור הסרת רשומת חייל</h3>
+                  <h3 className="text-sm font-black tracking-tight">חסימה או מחיקה מלאה</h3>
                 </div>
                 <button 
                   onClick={() => setSoldierToDelete(null)}
@@ -8938,37 +8942,71 @@ await onAdminSaveReport(dataToSave);
               {/* Body */}
               <div className="p-6 space-y-4">
                 <div className="min-w-0 space-y-2 leading-relaxed">
-                  <p className="text-xs text-slate-700 font-bold">
-                    האם אתה בטוח שברצונך להסיר לצמיתות את הרשומה של <span className="text-rose-600 font-extrabold">{soldierToDelete.fullName}</span> (מ.א. {soldierToDelete.personalId || "לא ידוע"}) ממאגר השלישות הגדודי?
+                  <p className="text-sm text-slate-700 font-bold">
+                    בחר מה לבצע עבור <span className="text-rose-600 font-extrabold">{soldierToDelete.fullName}</span> (מ.א. {soldierToDelete.personalId || "לא ידוע"}).
                   </p>
-                  <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
-                    פעולה זו היא סופית ומחיקת הרשומה תסיר אותו מיידית מרשימות הנוכחות, ספר הטלפונים וההקצאות הפעילות למרפאת התאג״ד.
-                  </p>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold leading-6 text-amber-900">
+                    חסימת גישה שומרת את הפרופיל, הדיווחים וההיסטוריה וניתן לבטל אותה בהמשך.
+                  </div>
+                  {canPermanentlyDeleteSoldier && (
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold leading-6 text-rose-900">
+                      מחיקה מלאה מוחקת את חשבון ההתחברות ואת פרופיל המשתמש. לאחר מכן ניתן להירשם מחדש עם אותו מספר אישי. דיווחי עבר נשמרים לצורכי תיעוד.
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Footer */}
-              <div className="bg-slate-50 p-4 border-t border-slate-100 flex items-center justify-end gap-3">
+              <div className="bg-slate-50 p-4 border-t border-slate-100 flex flex-wrap items-center justify-end gap-3">
                 <button
                   onClick={() => setSoldierToDelete(null)}
-                  className="px-4 py-2 hover:bg-slate-100 hover:bg-slate-150 text-slate-500 font-bold text-xs bg-slate-100 rounded-lg border border-slate-200 transition cursor-pointer"
+                  disabled={isSoldierDeleteSaving}
+                  className="px-4 py-2 hover:bg-slate-100 text-slate-500 font-bold text-xs bg-white rounded-lg border border-slate-200 transition cursor-pointer disabled:opacity-50"
                 >
-                  בטל פעולה
+                  ביטול
                 </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!canDeleteSoldier) return;
-                    const tempId = soldierToDelete.userId;
-                    setSoldierToDelete(null);
-                    if (onDeleteSoldier) {
-                      await onDeleteSoldier(tempId);
-                    }
-                  }}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg border-none transition cursor-pointer shadow-sm"
-                >
-                  אישור והסרת חייל
-                </button>
+                {canEditSoldier && !soldierToDelete.systemAccessBlocked && (
+                  <button
+                    type="button"
+                    disabled={isSoldierDeleteSaving}
+                    onClick={async () => {
+                      setIsSoldierDeleteSaving(true);
+                      try {
+                        await handleToggleSystemAccess(soldierToDelete);
+                        setSoldierToDelete(null);
+                        onShowMessage?.(
+                          "הגישה נחסמה",
+                          `${soldierToDelete.fullName} נשאר/ה במערכת וכל הנתונים נשמרו.`,
+                          "success"
+                        );
+                      } finally {
+                        setIsSoldierDeleteSaving(false);
+                      }
+                    }}
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg transition cursor-pointer shadow-sm disabled:opacity-50"
+                  >
+                    חסום גישה ושמור נתונים
+                  </button>
+                )}
+                {canPermanentlyDeleteSoldier && canDeleteSoldier && (
+                  <button
+                    type="button"
+                    disabled={isSoldierDeleteSaving}
+                    onClick={async () => {
+                      if (!onDeleteSoldier) return;
+                      setIsSoldierDeleteSaving(true);
+                      try {
+                        await onDeleteSoldier(soldierToDelete.userId);
+                        setSoldierToDelete(null);
+                      } finally {
+                        setIsSoldierDeleteSaving(false);
+                      }
+                    }}
+                    className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs rounded-lg transition cursor-pointer shadow-sm disabled:opacity-50"
+                  >
+                    מחיקה מלאה
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>
