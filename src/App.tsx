@@ -23,7 +23,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 } from "firebase/auth";
-import { doc, getDoc, setDoc, deleteField } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteField, onSnapshot } from "firebase/firestore";
 import { 
   UserProfile, 
   AttendanceReport, 
@@ -679,6 +679,43 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
       startupScreenAppliedRef.current = "";
     }
   }, [userProfile]);
+
+  useEffect(() => {
+    if (!isFirebaseActive() || !firebaseUser?.uid || !db) return;
+
+    const unsubscribe = onSnapshot(
+      doc(db, "users", firebaseUser.uid),
+      (snapshot) => {
+        if (!snapshot.exists()) return;
+        const updatedProfile = {
+          ...(snapshot.data() as UserProfile),
+          userId: snapshot.id,
+        };
+        setUserProfile((current) =>
+          current?.userId === updatedProfile.userId
+            ? updatedProfile
+            : current
+        );
+        setAllUsers((current) => {
+          const exists = current.some(
+            (user) => user.userId === updatedProfile.userId
+          );
+          return exists
+            ? current.map((user) =>
+                user.userId === updatedProfile.userId
+                  ? updatedProfile
+                  : user
+              )
+            : [...current, updatedProfile];
+        });
+      },
+      (error) => {
+        console.error("Failed listening to current user profile:", error);
+      }
+    );
+
+    return unsubscribe;
+  }, [firebaseUser?.uid]);
 
   useEffect(() => {
     if (
@@ -2027,6 +2064,17 @@ changes.push(
   }
 
   if (
+    oldSoldier.systemAccessBlocked !==
+    profileToSave.systemAccessBlocked
+  ) {
+    changes.push(
+      profileToSave.systemAccessBlocked
+        ? "נחסמה גישת החייל לכל מסכי המערכת"
+        : "נפתחה מחדש גישת החייל למערכת"
+    );
+  }
+
+  if (
     JSON.stringify(oldSoldier.disciplinaryRestriction || null) !==
     JSON.stringify(profileToSave.disciplinaryRestriction || null)
   ) {
@@ -2748,6 +2796,40 @@ const handleAdminBulkSaveReports = async (
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (
+    userProfile.role === "soldier" &&
+    userProfile.systemAccessBlocked === true
+  ) {
+    return (
+      <main
+        dir="rtl"
+        className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-8"
+      >
+        <section className="w-full max-w-md rounded-3xl border border-rose-800/60 bg-slate-900 p-7 text-center text-white shadow-2xl">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-rose-700 bg-rose-950/60 text-rose-300">
+            <AlertTriangle className="h-8 w-8" />
+          </div>
+          <h1 className="mt-5 text-xl font-black">הגישה למערכת חסומה</h1>
+          <p className="mt-3 text-sm font-bold leading-7 text-slate-300">
+            חשבונך הוצא מרשימת הסגל הפעיל. לפתיחת הגישה יש
+            לפנות למפקד.
+          </p>
+          <div className="mt-4 rounded-xl border border-slate-700 bg-slate-950/50 px-4 py-3 text-xs font-bold text-slate-400">
+            {userProfile.fullName} · {userProfile.personalId || "ללא מספר אישי"}
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-rose-700 px-4 py-3 text-sm font-black text-white transition hover:bg-rose-600"
+          >
+            <LogOut className="h-5 w-5" />
+            התנתקות
+          </button>
+        </section>
+      </main>
     );
   }
 

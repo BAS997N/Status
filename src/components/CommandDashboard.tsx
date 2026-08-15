@@ -985,6 +985,37 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
     }
   };
 
+  const handleToggleSystemAccess = async (soldier: UserProfile) => {
+    if (!canEditSoldier || soldier.role !== "soldier") return;
+
+    const shouldBlock = soldier.systemAccessBlocked !== true;
+    if (
+      shouldBlock &&
+      !window.confirm(
+        `לחסום ל-${soldier.fullName} את כל מסכי המערכת? סימון הגריעה הקיים לא ישתנה.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const updatedSoldier: UserProfile = {
+        ...soldier,
+        systemAccessBlocked: shouldBlock,
+      };
+      if (shouldBlock) {
+        updatedSoldier.systemAccessBlockedAt = new Date().toISOString();
+        updatedSoldier.systemAccessBlockedBy = currentUser.userId;
+      } else {
+        delete updatedSoldier.systemAccessBlockedAt;
+        delete updatedSoldier.systemAccessBlockedBy;
+      }
+      await onAdminUpdateSoldier(updatedSoldier);
+    } catch (error) {
+      console.error("Failed toggling soldier system access:", error);
+    }
+  };
+
 const handleFormSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   if (!(canAddSoldier || canEditSoldier)) return;
@@ -6598,6 +6629,11 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                           <div className="min-w-0">
                             <span className="block truncate font-black text-slate-800 text-sm">{soldier.fullName}</span>
                             <span className="block truncate text-[10px] text-slate-400 font-mono font-medium mt-0.5">{soldier.recoveryEmail || "מייל אישי לא הוזן"}</span>
+                            {soldier.systemAccessBlocked && (
+                              <span className="mt-1 inline-flex rounded-md border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[9px] font-black text-rose-700">
+                                הגישה למערכת חסומה
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -6675,6 +6711,33 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                           >
                             <Share2 className="h-4 w-4" />
                           </button>
+                          {canEditSoldier && soldier.role === "soldier" && (
+                            <button
+                              type="button"
+                              onClick={() => void handleToggleSystemAccess(soldier)}
+                              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-xs transition cursor-pointer ${
+                                soldier.systemAccessBlocked
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-600 hover:bg-emerald-600 hover:text-white"
+                                  : "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-600 hover:bg-amber-600 hover:text-white"
+                              }`}
+                              title={
+                                soldier.systemAccessBlocked
+                                  ? `פתח גישה ל-${soldier.fullName}`
+                                  : `חסום את הגישה של ${soldier.fullName}`
+                              }
+                              aria-label={
+                                soldier.systemAccessBlocked
+                                  ? `פתח גישה ל-${soldier.fullName}`
+                                  : `חסום את הגישה של ${soldier.fullName}`
+                              }
+                            >
+                              {soldier.systemAccessBlocked ? (
+                                <UserCheck className="h-4 w-4" />
+                              ) : (
+                                <ShieldAlert className="h-4 w-4" />
+                              )}
+                            </button>
+                          )}
                           {canEditSoldier && (
                             <button
                               onClick={() => handleOpenEdit(soldier)}
@@ -8612,6 +8675,31 @@ await onAdminSaveReport(dataToSave);
                   >
                     <Edit2 className="h-5 w-5" />
                     עריכת פרטים
+                  </button>
+                )}
+
+                {canEditSoldier && directoryActionsSoldier.role === "soldier" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const soldier = directoryActionsSoldier;
+                      setDirectoryActionsSoldier(null);
+                      void handleToggleSystemAccess(soldier);
+                    }}
+                    className={`col-span-2 flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm font-black ${
+                      directoryActionsSoldier.systemAccessBlocked
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-amber-200 bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    {directoryActionsSoldier.systemAccessBlocked ? (
+                      <UserCheck className="h-5 w-5" />
+                    ) : (
+                      <ShieldAlert className="h-5 w-5" />
+                    )}
+                    {directoryActionsSoldier.systemAccessBlocked
+                      ? "פתח גישה למערכת"
+                      : "חסום את כל מסכי המערכת"}
                   </button>
                 )}
 

@@ -523,6 +523,9 @@ export interface UserProfile {
   personalId?: string;
   phoneNumber?: string;
   isDischarged?: boolean;
+  systemAccessBlocked?: boolean;
+  systemAccessBlockedAt?: string;
+  systemAccessBlockedBy?: string;
   className?: string;
   medicalRole?: string;
   systemRole?: SystemRole;
