@@ -35,7 +35,8 @@ import {
   CalendarRange,
   Printer,
   Share2,
-  Copy
+  Copy,
+  MoreHorizontal
 } from "lucide-react";
 import { 
   UserProfile,
@@ -502,6 +503,8 @@ export default function CommandDashboard({
   const [directoryShareIncludesRole, setDirectoryShareIncludesRole] =
     useState(false);
   const [directoryShareFeedback, setDirectoryShareFeedback] = useState("");
+  const [directoryActionsSoldier, setDirectoryActionsSoldier] =
+    useState<UserProfile | null>(null);
 
   const getDirectoryShareText = (soldier: UserProfile) => {
     const lines = [
@@ -6500,8 +6503,9 @@ onChange={(e) =>
     {directorySortField === "role" ? (directorySortDirection === "asc" ? "▲" : "▼") : "↕"}
   </span>
 </th>
-                <th className="sticky left-0 z-40 w-[220px] min-w-[220px] bg-slate-50 px-2 py-3.5 text-center whitespace-nowrap shadow-[1px_0_0_0_#e2e8f0]">
-                  פעולה / יצירת קשר מהירה
+                <th className="sticky left-0 z-40 w-[64px] min-w-[64px] bg-slate-50 px-2 py-3.5 text-center whitespace-nowrap shadow-[1px_0_0_0_#e2e8f0] md:w-[220px] md:min-w-[220px]">
+                  <span className="md:hidden">פעולות</span>
+                  <span className="hidden md:inline">פעולה / יצירת קשר מהירה</span>
                 </th>
               </tr>
             </thead>
@@ -6647,8 +6651,17 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                       </td>
 
                       {/* Quick Communication Actions Column */}
-                      <td className="sticky left-0 z-20 w-[220px] min-w-[220px] bg-white px-2 py-4 text-center whitespace-nowrap shadow-[1px_0_0_0_#e2e8f0] group-hover:bg-slate-50">
-                        <div className="inline-flex w-full items-center justify-center gap-1">
+                      <td className="sticky left-0 z-20 w-[64px] min-w-[64px] bg-white px-2 py-4 text-center whitespace-nowrap shadow-[1px_0_0_0_#e2e8f0] group-hover:bg-slate-50 md:w-[220px] md:min-w-[220px]">
+                        <button
+                          type="button"
+                          onClick={() => setDirectoryActionsSoldier(soldier)}
+                          className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:border-slate-700 hover:bg-slate-800 hover:text-white md:hidden"
+                          title={`פתח פעולות עבור ${soldier.fullName}`}
+                          aria-label={`פתח פעולות עבור ${soldier.fullName}`}
+                        >
+                          <MoreHorizontal className="h-5 w-5" />
+                        </button>
+                        <div className="hidden w-full items-center justify-center gap-1 md:inline-flex">
                           <button
                             type="button"
                             onClick={() => {
@@ -8504,6 +8517,118 @@ await onAdminSaveReport(dataToSave);
                 >
                   {isSheetsExporting ? "מייצא..." : "ייצוא הטווח"}
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {directoryActionsSoldier && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[11000] flex items-end justify-center bg-slate-950/60 p-3 backdrop-blur-sm md:hidden"
+            onClick={() => setDirectoryActionsSoldier(null)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-2xl"
+              dir="rtl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-500">פעולות עבור</div>
+                  <div className="truncate text-base font-black text-slate-900">
+                    {directoryActionsSoldier.fullName}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDirectoryActionsSoldier(null)}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600"
+                  aria-label="סגור"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 p-4">
+                {directoryActionsSoldier.phoneNumber ? (
+                  <>
+                    <a
+                      href={`tel:${directoryActionsSoldier.phoneNumber.replace(/[-\s]/g, "")}`}
+                      onClick={() => setDirectoryActionsSoldier(null)}
+                      className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-black text-slate-700"
+                    >
+                      <Phone className="h-5 w-5" />
+                      חיוג
+                    </a>
+                    <a
+                      href={`https://wa.me/972${directoryActionsSoldier.phoneNumber.replace(/[-\s]/g, "").replace(/^0/, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setDirectoryActionsSoldier(null)}
+                      className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-black text-emerald-700"
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                      WhatsApp
+                    </a>
+                  </>
+                ) : (
+                  <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center text-xs font-bold text-slate-400">
+                    לחייל לא מוזן מספר טלפון
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const soldier = directoryActionsSoldier;
+                    setDirectoryActionsSoldier(null);
+                    setDirectoryShareSoldier(soldier);
+                    setDirectoryShareIncludesRole(false);
+                    setDirectoryShareFeedback("");
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-3 text-sm font-black text-sky-700"
+                >
+                  <Share2 className="h-5 w-5" />
+                  שיתוף פרטים
+                </button>
+
+                {canEditSoldier && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const soldier = directoryActionsSoldier;
+                      setDirectoryActionsSoldier(null);
+                      handleOpenEdit(soldier);
+                    }}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-3 text-sm font-black text-indigo-700"
+                  >
+                    <Edit2 className="h-5 w-5" />
+                    עריכת פרטים
+                  </button>
+                )}
+
+                {canDeleteSoldier && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const soldier = directoryActionsSoldier;
+                      setDirectoryActionsSoldier(null);
+                      setSoldierToDelete(soldier);
+                    }}
+                    className="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm font-black text-rose-700"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                    מחיקת חייל
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>
