@@ -1817,7 +1817,7 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
      try {
        await sendAutomaticPush({
          kind: "registration",
-         target: { type: "role", role: "commander" },
+         target: { type: "management" },
          title: "חייל חדש נרשם למערכת",
          body: `${newProfile.fullName} נרשם/ה למערכת וממתין/ה לשיוך והגדרת הרשאות.`,
          url: "/Status/",

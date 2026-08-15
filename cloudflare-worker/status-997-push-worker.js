@@ -1008,6 +1008,15 @@ function matchesTarget(subscription, target, kind) {
   }
   if (target.type === "user") return subscription.userId === target.userId;
   if (target.type === "users") return target.userIds.includes(subscription.userId);
+  if (target.type === "management") {
+    const systemRole = String(subscription.systemRole || "").trim();
+    return (
+      subscription.role === "commander" ||
+      systemRole === "super_admin" ||
+      systemRole === "admin" ||
+      (systemRole !== "" && systemRole !== "reporter" && systemRole !== "viewer")
+    );
+  }
   if (target.type === "unit") {
     return subscription.role === "soldier" && subscription.unit === target.unit;
   }
@@ -1237,8 +1246,7 @@ async function handlePush(request, env, origin) {
   const registrationAgeMs = Date.now() - registrationCreatedAt;
   const isRegistrationPush =
     input.kind === "registration" &&
-    input.target?.type === "role" &&
-    input.target?.role === "commander" &&
+    input.target?.type === "management" &&
     user.systemAccessBlocked !== true &&
     String(user.fullName || "").trim().length > 0 &&
     Number.isFinite(registrationCreatedAt) &&
