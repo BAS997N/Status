@@ -1170,6 +1170,7 @@ function matchesTarget(subscription, target, kind) {
       (systemRole !== "" && systemRole !== "reporter" && systemRole !== "viewer")
     );
   }
+  if (target.type === "registration_recipients") return false;
   if (target.type === "unit") {
     return subscription.role === "soldier" && subscription.unit === target.unit;
   }
@@ -1399,7 +1400,7 @@ async function handlePush(request, env, origin) {
   const registrationAgeMs = Date.now() - registrationCreatedAt;
   const isRegistrationPush =
     input.kind === "registration" &&
-    input.target?.type === "management" &&
+    input.target?.type === "registration_recipients" &&
     user.systemAccessBlocked !== true &&
     String(user.fullName || "").trim().length > 0 &&
     Number.isFinite(registrationCreatedAt) &&
@@ -1411,10 +1412,38 @@ async function handlePush(request, env, origin) {
     (requiredPermission && permissionSettings.roleMap?.[effectiveRole]?.[requiredPermission] === true);
   if (!authorized) return jsonResponse({ error: "Permission denied" }, 403, origin);
 
+  let registrationRecipientPersonalIds = ["5749199"];
+  if (input.kind === "registration") {
+    const systemSettings = await getOptionalFirestoreDocument(
+      projectId,
+      accessToken,
+      "settings/system_settings"
+    );
+    const configuredRecipients = Array.isArray(
+      systemSettings?.registrationNotificationRecipientPersonalIds
+    )
+      ? systemSettings.registrationNotificationRecipientPersonalIds
+          .map((value) => String(value || "").trim())
+          .filter(Boolean)
+      : [];
+    if (configuredRecipients.length > 0) {
+      registrationRecipientPersonalIds = configuredRecipients;
+    }
+  }
+
   const subscriptions = await getPushSubscriptions(projectId, accessToken);
-  const recipients = subscriptions.filter((subscription) =>
-    matchesTarget(subscription, input.target, input.kind)
-  );
+  const recipients = subscriptions.filter((subscription) => {
+    if (input.kind === "registration") {
+      return (
+        subscription.token &&
+        subscription.enabled !== false &&
+        registrationRecipientPersonalIds.includes(
+          String(subscription.personalId || "").trim()
+        )
+      );
+    }
+    return matchesTarget(subscription, input.target, input.kind);
+  });
   if (recipients.length > 500) {
     return jsonResponse({ error: "Recipient limit exceeded" }, 400, origin);
   }

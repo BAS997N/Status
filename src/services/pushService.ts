@@ -5,6 +5,7 @@ const PUSH_WORKER_URL = "https://status-997-push.avielias0.workers.dev/";
 export type PushTarget =
   | { type: "all" }
   | { type: "management" }
+  | { type: "registration_recipients" }
   | { type: "role"; role: "commander" | "soldier" | "adjutant_officer" }
   | { type: "unit"; unit: string }
   | { type: "user"; userId: string }

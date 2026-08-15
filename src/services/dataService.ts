@@ -229,6 +229,7 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   notificationSoundEnabled: false,
   attendanceReminderEnabled: false,
   attendanceReminderTime: "09:00",
+  registrationNotificationRecipientPersonalIds: ["5749199"],
   cacheMinutes: 30,
   autoRefreshSeconds: 60,
   maintenanceMode: false,
@@ -513,6 +514,17 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
       /^([01]\d|2[0-3]):[0-5]\d$/.test(raw.attendanceReminderTime)
         ? raw.attendanceReminderTime
         : DEFAULT_SYSTEM_SETTINGS.attendanceReminderTime,
+    registrationNotificationRecipientPersonalIds: Array.isArray(
+      raw.registrationNotificationRecipientPersonalIds
+    )
+      ? Array.from(
+          new Set(
+            raw.registrationNotificationRecipientPersonalIds
+              .map((value) => String(value || "").trim())
+              .filter((value) => /^\d{5,10}$/.test(value))
+          )
+        )
+      : ["5749199"],
     cacheMinutes: numberInRange(raw.cacheMinutes, 30, 1, 1440),
     autoRefreshSeconds: numberInRange(raw.autoRefreshSeconds, 60, 10, 3600),
     maintenanceMode: raw.maintenanceMode === true,
@@ -5433,10 +5445,17 @@ const formattedDate =
     }
   },
 
-  async createRegistrationNotification(profile: UserProfile): Promise<void> {
+  async createRegistrationNotification(
+    profile: UserProfile,
+    recipientPersonalIds: string[] = ["5749199"]
+  ): Promise<void> {
     const timestamp = new Date().toISOString();
     const notificationBase: Omit<AppNotification, "notificationId"> = {
       type: "registration",
+      recipientPersonalIds:
+        recipientPersonalIds.length > 0
+          ? recipientPersonalIds
+          : ["5749199"],
       reportId: `registration_${profile.userId}`,
       userId: profile.userId,
       soldierName: profile.fullName,

@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   notificationSoundEnabled: false,
   attendanceReminderEnabled: false,
   attendanceReminderTime: "09:00",
+  registrationNotificationRecipientPersonalIds: ["5749199"],
   cacheMinutes: 30,
   autoRefreshSeconds: 60,
   maintenanceMode: false,
@@ -194,6 +195,14 @@ export default function SystemSettingsManager({
   const selectedPersonalOrderUser = selectedPersonalOrderUserId
     ? users.find((user) => user.userId === selectedPersonalOrderUserId) || null
     : null;
+  const registrationNotificationUsers = users
+    .filter(
+      (user) =>
+        !user.isDischarged &&
+        user.systemAccessBlocked !== true &&
+        Boolean(String(user.personalId || "").trim())
+    )
+    .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"));
 
   useEffect(() => {
     if (settings && !isDirty && !saving) {
@@ -208,6 +217,22 @@ export default function SystemSettingsManager({
     setDraft((current) => ({ ...current, [key]: value }));
     setIsDirty(true);
     setMessage(null);
+  };
+
+  const toggleRegistrationNotificationRecipient = (
+    personalId: string,
+    checked: boolean
+  ) => {
+    const currentRecipients =
+      draft.registrationNotificationRecipientPersonalIds || ["5749199"];
+    const nextRecipients = checked
+      ? Array.from(new Set([...currentRecipients, personalId]))
+      : currentRecipients.filter((item) => item !== personalId);
+
+    update(
+      "registrationNotificationRecipientPersonalIds",
+      nextRecipients.length > 0 ? nextRecipients : ["5749199"]
+    );
   };
 
   const toggleAllowedRole = (
@@ -664,6 +689,54 @@ export default function SystemSettingsManager({
           <Toggle label="הפעלת התראות במערכת" checked={draft.notificationsEnabled} onChange={(value) => update("notificationsEnabled", value)} />
           <Toggle label="הצגת הודעות Toast" checked={draft.toastNotificationsEnabled} disabled={!draft.notificationsEnabled} onChange={(value) => update("toastNotificationsEnabled", value)} />
           <Toggle label="צליל התראה" description="התשתית נשמרת כעת ותשמש את מנגנון הצלילים בהמשך." checked={draft.notificationSoundEnabled} disabled={!draft.notificationsEnabled} onChange={(value) => update("notificationSoundEnabled", value)} />
+          <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4">
+            <div className="text-sm font-black text-slate-900">
+              מקבלי התראת רישום חדש
+            </div>
+            <p className="mt-1 text-xs font-medium text-slate-600">
+              רק המשתמשים המסומנים יקבלו התראה באתר ו־Push, אם הופעל במכשיר שלהם.
+            </p>
+            <div className="mt-3 grid max-h-56 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+              {registrationNotificationUsers.map((user) => {
+                const personalId = String(user.personalId || "").trim();
+                const checked = (
+                  draft.registrationNotificationRecipientPersonalIds || [
+                    "5749199",
+                  ]
+                ).includes(personalId);
+                return (
+                  <label
+                    key={user.userId}
+                    className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${
+                      checked
+                        ? "border-sky-400 bg-white"
+                        : "border-slate-200 bg-white/70"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) =>
+                        toggleRegistrationNotificationRecipient(
+                          personalId,
+                          event.target.checked
+                        )
+                      }
+                      className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-black text-slate-900">
+                        {user.fullName}
+                      </span>
+                      <span className="block truncate text-[11px] font-medium text-slate-500">
+                        {user.personalId} · {user.medicalRole || user.unit || "משתמש מערכת"}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
           <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
             <Toggle
               label="תזכורת Push אוטומטית למי שלא דיווח"

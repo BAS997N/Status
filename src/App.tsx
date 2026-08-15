@@ -30,7 +30,6 @@ import {
   AttendanceStatus, 
   AppNotification,
   IDF_UNITS,
-  UserRole,
   SystemRole,
   SystemRoleAccessLevel,
   RolePermissionConfig,
@@ -100,6 +99,19 @@ const getIsraelDateString = (date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
+const filterNotificationsForUser = (
+  notifications: AppNotification[],
+  personalId?: string
+) =>
+  notifications.filter((notification) => {
+    if (notification.type !== "registration") return true;
+    const recipients =
+      notification.recipientPersonalIds?.length
+        ? notification.recipientPersonalIds
+        : ["5749199"];
+    return Boolean(personalId && recipients.includes(personalId));
+  });
+
 export default function App() {
   // Auth & Profile states
   const buildAuthEmail = (personalId: string) => {
@@ -141,10 +153,8 @@ export default function App() {
   const [regPersonalId, setRegPersonalId] = useState("");
   const [regName, setRegName] = useState("");
   const [regUnit, setRegUnit] = useState(IDF_UNITS[0]);
-  const [regRole, setRegRole] = useState<UserRole>("soldier");
   const [regPhoneNumber, setRegPhoneNumber] = useState("");
   const [regRecoveryEmail, setRegRecoveryEmail] = useState("");
-  const [regPasscode, setRegPasscode] = useState("");
   const [regPersonalCode, setRegPersonalCode] = useState("");
 const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const initialRecoveryParams = new URLSearchParams(window.location.search);
@@ -910,7 +920,9 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
 
   const refreshNotifications = async () => {
     const updated = await dataService.fetchNotifications();
-    setNotifications(updated);
+    setNotifications(
+      filterNotificationsForUser(updated, userProfile?.personalId)
+    );
   };
 
   // 1. Manage Authentication Lifecycle with Firebase Auth persistence
@@ -1060,7 +1072,11 @@ const loadSystemLogsOnDemand = async () => {
   if (actualCanViewNotifications) {
     dataService
       .fetchNotifications()
-      .then(setNotifications)
+      .then((items) =>
+        setNotifications(
+          filterNotificationsForUser(items, userProfile.personalId)
+        )
+      )
       .catch((error) => console.error("Failed loading notifications:", error));
   } else {
     setNotifications([]);
@@ -1360,8 +1376,11 @@ const handleResetReport = async (reportId: string) => {
             dashboardPollCursorRef.current
           );
           const updatedNots = canViewNotifications
-            ? await dataService.fetchNotificationsSince(
-                dashboardPollCursorRef.current
+            ? filterNotificationsForUser(
+                await dataService.fetchNotificationsSince(
+                  dashboardPollCursorRef.current
+                ),
+                userProfile.personalId
               )
             : [];
           dashboardPollCursorRef.current = pollStartedAt;
@@ -1567,7 +1586,6 @@ const beginFirstRegistration = () => {
   setRegPersonalCode(/^\d{6}$/.test(cleanCode) ? cleanCode : "");
   setRegPersonalCodeConfirm("");
   setRegRecoveryEmail("");
-  setRegRole("soldier");
   setLoginError("");
   setIsRegisteringId(true);
 };
@@ -1682,7 +1700,6 @@ const handleIdLoginSubmit = async (e: React.FormEvent) => {
         setRegPersonalCode(cleanCode);
         setRegPersonalCodeConfirm("");
         setRegRecoveryEmail("");
-        setRegRole("soldier");
         setLoginError(
           "החשבון זוהה, אך הרישום לא הושלם. יש להשלים את הפרטים."
         );
@@ -1782,17 +1799,13 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
   return;
 }
 
-    if (regRole === "commander" || regRole === "adjutant_officer") {
-  setLoginError("לא ניתן להירשם עצמאית כמפקד או קצין שלישות. יש לפנות למנהל המערכת.");
-  return;
-    }
-
     setLoading(true);
     const generatedUserId = `user_${Date.now()}`;
     const newProfile: UserProfile = {
       userId: generatedUserId,
       fullName: regName.trim(),
-      role: regRole,
+      role: "soldier",
+      systemRole: "reporter",
       unit: "טרם שוייך",
       email: `${regPersonalId}@idf.il`,
       createdAt: new Date().toISOString(),
@@ -1828,7 +1841,12 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
 }
      await dataService.saveUserProfile(newProfile);
      try {
-       await dataService.createRegistrationNotification(newProfile);
+       await dataService.createRegistrationNotification(
+         newProfile,
+         systemSettings?.registrationNotificationRecipientPersonalIds || [
+           "5749199",
+         ]
+       );
      } catch (notificationError) {
        console.warn(
          "Failed creating new-user registration notification:",
@@ -1838,7 +1856,7 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
      try {
        await sendAutomaticPush({
          kind: "registration",
-         target: { type: "management" },
+         target: { type: "registration_recipients" },
          title: "חייל חדש נרשם למערכת",
          body: `${newProfile.fullName} נרשם/ה למערכת וממתין/ה לשיוך והגדרת הרשאות.`,
          url: "/Status/",
@@ -2772,44 +2790,14 @@ const handleAdminBulkSaveReports = async (
   </div>
 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-1">
+                <div className="pb-1">
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-slate-400">שיוך רפואי (מחלקת תאג״ד)</label>
                     <div className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-slate-500 font-bold select-none leading-relaxed">
                       ייקבע ע״י מפקד לאחר הרישום
                     </div>
                   </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-200">הרשאת מערכת ותפקיד</label>
-                    <select
-                      value={regRole}
-                      onChange={(e) => setRegRole(e.target.value as any)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-2.5 focus:border-emerald-500 text-xs font-bold focus:ring-1 focus:ring-emerald-500 outline-none text-white cursor-pointer"
-                      disabled={loading}
-                    >
-                      <option className="bg-slate-950 text-white" value="soldier">חייל/ת - דיווח אישי בלבד</option>
-                      <option className="bg-slate-950 text-white" value="commander">מפקד/ת - גישה ללוח בקרה</option>
-                      <option className="bg-slate-950 text-white" value="adjutant_officer">קצינ/ת שלישות - צפייה בלבד</option>
-                    </select>
-                  </div>
                 </div>
-
-                {(regRole === "commander" || regRole === "adjutant_officer") && (
-                  <div className="space-y-1.5 p-3.5 bg-emerald-950/20 border border-emerald-800/20 rounded-xl animate-fade-in relative">
-                    <label className="block text-xs font-bold text-emerald-300">קוד אימות מפקד מורשה</label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="הזן קוד אימות"
-                      value={regPasscode}
-                      onChange={(e) => setRegPasscode(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 focus:border-emerald-500 text-xs text-center tracking-widest font-black focus:ring-1 focus:ring-emerald-500 outline-none text-white"
-                      disabled={loading}
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1 leading-normal">• הרשאת מפקד כפופה להזנת קוד אימות זה כדי למנוע גישה לא מורשית לנתוני הסגל.</p>
-                  </div>
-                )}
 
                 {loginError && (
                   <div className="p-3 bg-red-950/40 border border-red-900/40 text-red-300 rounded-lg text-xs font-semibold flex items-center gap-1.5">

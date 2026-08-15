@@ -242,6 +242,7 @@ export interface SystemSettingsConfig {
   notificationSoundEnabled: boolean;
   attendanceReminderEnabled: boolean;
   attendanceReminderTime: string;
+  registrationNotificationRecipientPersonalIds: string[];
   cacheMinutes: number;
   autoRefreshSeconds: number;
   maintenanceMode: boolean;
@@ -702,6 +703,7 @@ export interface AttendanceReport {
 export interface AppNotification {
   notificationId: string;
   type?: "attendance" | "registration";
+  recipientPersonalIds?: string[];
   reportId: string;
   userId: string;
   soldierName: string;
