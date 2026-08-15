@@ -5433,6 +5433,48 @@ const formattedDate =
     }
   },
 
+  async createRegistrationNotification(profile: UserProfile): Promise<void> {
+    const timestamp = new Date().toISOString();
+    const notificationBase: Omit<AppNotification, "notificationId"> = {
+      type: "registration",
+      reportId: `registration_${profile.userId}`,
+      userId: profile.userId,
+      soldierName: profile.fullName,
+      unit: profile.unit || "טרם שויך",
+      status: "base",
+      location: "הרשמה חדשה",
+      timestamp,
+      isRead: false,
+      message: `חייל חדש נרשם למערכת. מספר אישי: ${profile.personalId || "לא צוין"} · טלפון: ${profile.phoneNumber || "לא צוין"}`,
+    };
+
+    if (!isFirebaseActive()) {
+      const notifications: AppNotification[] = JSON.parse(
+        localStorage.getItem("idf_notifications") || "[]"
+      );
+      notifications.unshift({
+        ...notificationBase,
+        notificationId: `registration_${Date.now()}`,
+      });
+      localStorage.setItem(
+        "idf_notifications",
+        JSON.stringify(notifications)
+      );
+      return;
+    }
+
+    const path = "notifications";
+    try {
+      const notificationRef = doc(collection(db, "notifications"));
+      await setDoc(notificationRef, {
+        ...notificationBase,
+        notificationId: notificationRef.id,
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  },
+
   async fetchNotifications(forceRefresh = false): Promise<AppNotification[]> {
     if (!isFirebaseActive()) {
       const notifications = JSON.parse(localStorage.getItem("idf_notifications") || "[]");

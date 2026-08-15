@@ -1371,10 +1371,16 @@ const handleResetReport = async (reportId: string) => {
                       "he-IL"
                     )
                   : "לא ידוע";
+                const isRegistrationNotification =
+                  not.type === "registration";
                 const newToast: ToastMessage = {
                   id: `toast_${Date.now()}_${not.notificationId}`,
-                  title: `חייל/ת מחוץ לבסיס: ${not.soldierName}`,
-                  message: `דווח עבור ${targetReportDate} על סטטוס '${labelObj.label}' במיקום: ${not.location}`,
+                  title: isRegistrationNotification
+                    ? `חייל חדש נרשם: ${not.soldierName}`
+                    : `חייל/ת מחוץ לבסיס: ${not.soldierName}`,
+                  message: isRegistrationNotification
+                    ? not.message
+                    : `דווח עבור ${targetReportDate} על סטטוס '${labelObj.label}' במיקום: ${not.location}`,
                   status: not.status
                 };
                 setToasts(current => [newToast, ...current]);
@@ -1794,6 +1800,14 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
   newProfile.email = authEmail;
 }
      await dataService.saveUserProfile(newProfile);
+     try {
+       await dataService.createRegistrationNotification(newProfile);
+     } catch (notificationError) {
+       console.warn(
+         "Failed creating new-user registration notification:",
+         notificationError
+       );
+     }
 
 localStorage.setItem("idf_active_user_id", newProfile.userId);
 localStorage.setItem("idf_active_personal_id", newProfile.personalId || regPersonalId.trim());

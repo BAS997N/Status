@@ -701,6 +701,7 @@ export interface AttendanceReport {
 
 export interface AppNotification {
   notificationId: string;
+  type?: "attendance" | "registration";
   reportId: string;
   userId: string;
   soldierName: string;

@@ -262,6 +262,8 @@ export default function Header({
                           </div>
                         ) : (
                           notifications.map((not) => {
+                            const isRegistrationNotification =
+                              not.type === "registration";
                             const date = new Date(not.timestamp);
                             const timeStr = date.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
                             const dateStr = date.toLocaleDateString("he-IL", { month: "2-digit", day: "2-digit" });
@@ -302,17 +304,27 @@ export default function Header({
                                   {not.message}
                                 </div>
 
-                                <div className="inline-flex w-fit items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-800">
-                                  תאריך הדיווח: {reportDateStr}
-                                </div>
+                                {isRegistrationNotification ? (
+                                  <div className="inline-flex w-fit items-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] font-black text-violet-800">
+                                    הרשמה חדשה למערכת
+                                  </div>
+                                ) : (
+                                  <div className="inline-flex w-fit items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-800">
+                                    תאריך הדיווח: {reportDateStr}
+                                  </div>
+                                )}
 
                                 <div className="flex items-center justify-between mt-1 pt-1 border-t border-dashed border-slate-100">
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <span className="text-[10px] font-mono text-slate-400">
                                       {not.unit.split(" - ")[0]}
                                     </span>
-                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${labelObj.bg} ${labelObj.color} ${labelObj.border}`}>
-                                      {not.status === "base" ? "חריג" : labelObj.label}
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${isRegistrationNotification ? "border-violet-200 bg-violet-50 text-violet-700" : `${labelObj.bg} ${labelObj.color} ${labelObj.border}`}`}>
+                                      {isRegistrationNotification
+                                        ? "חייל חדש"
+                                        : not.status === "base"
+                                          ? "חריג"
+                                          : labelObj.label}
                                     </span>
                                   </div>
 
