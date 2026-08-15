@@ -2665,8 +2665,13 @@ const handleAdminBulkSaveReports = async (
     type="password"
     required
     placeholder="6 ספרות"
+    inputMode="numeric"
+    pattern="[0-9]{6}"
+    maxLength={6}
     value={personalCodeInput}
-    onChange={(e) => setPersonalCodeInput(e.target.value)}
+    onChange={(e) =>
+      setPersonalCodeInput(e.target.value.replace(/\D/g, "").slice(0, 6))
+    }
     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-3 focus:border-emerald-500 text-sm focus:ring-1 focus:ring-emerald-500 outline-none text-left tracking-widest font-black text-white transition-all shadow-inner"
     disabled={loading}
   />
