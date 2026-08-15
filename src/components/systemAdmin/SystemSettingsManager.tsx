@@ -23,6 +23,7 @@ import {
   OrderEventConfig,
 } from "../../types";
 import { dataService } from "../../services/dataService";
+import { playNotificationSound } from "../../services/notificationSoundService";
 
 interface SystemSettingsManagerProps {
   currentUser: UserProfile;
@@ -693,7 +694,23 @@ export default function SystemSettingsManager({
         <div className="space-y-3">
           <Toggle label="הפעלת התראות במערכת" checked={draft.notificationsEnabled} onChange={(value) => update("notificationsEnabled", value)} />
           <Toggle label="הצגת הודעות Toast" checked={draft.toastNotificationsEnabled} disabled={!draft.notificationsEnabled} onChange={(value) => update("toastNotificationsEnabled", value)} />
-          <Toggle label="צליל התראה" description="התשתית נשמרת כעת ותשמש את מנגנון הצלילים בהמשך." checked={draft.notificationSoundEnabled} disabled={!draft.notificationsEnabled} onChange={(value) => update("notificationSoundEnabled", value)} />
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+            <Toggle
+              label="צליל התראה"
+              description="משמיע צליל קצר ועדין כאשר מתקבלת התראה חדשה בזמן שהמערכת פתוחה."
+              checked={draft.notificationSoundEnabled}
+              disabled={!draft.notificationsEnabled}
+              onChange={(value) => update("notificationSoundEnabled", value)}
+            />
+            <button
+              type="button"
+              disabled={!draft.notificationsEnabled || !draft.notificationSoundEnabled}
+              onClick={() => void playNotificationSound(true)}
+              className="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:border-amber-400 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              בדיקת צליל
+            </button>
+          </div>
           <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4">
             <div className="text-sm font-black text-slate-900">
               מקבלי התראת רישום חדש

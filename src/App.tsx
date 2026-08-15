@@ -58,6 +58,10 @@ import EmergencyCenter from "./components/EmergencyCenter";
 import CommanderMessageInbox from "./components/CommanderMessageInbox";
 import { appDialog } from "./components/AppDialogProvider";
 import { sendAutomaticPush } from "./services/pushService";
+import {
+  playNotificationSound,
+  unlockNotificationSound,
+} from "./services/notificationSoundService";
 import { deleteUserAccount } from "./services/adminUserService";
 import {
   completePasswordReset,
@@ -253,6 +257,19 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
   const [attendanceStatuses, setAttendanceStatuses] = useState<AttendanceStatusConfig[]>(
     DEFAULT_ATTENDANCE_STATUS_CONFIGS
   );
+
+  useEffect(() => {
+    if (systemSettings?.notificationSoundEnabled !== true) return;
+    const unlock = () => {
+      void unlockNotificationSound();
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, [systemSettings?.notificationSoundEnabled]);
 
   useEffect(() => {
     if (isFirebaseActive() && !auth?.currentUser) return;
@@ -1426,6 +1443,9 @@ const handleResetReport = async (reportId: string) => {
                   status: not.status
                 };
                 setToasts(current => [newToast, ...current]);
+                if (systemSettings?.notificationSoundEnabled === true) {
+                  void playNotificationSound();
+                }
                 setTimeout(() => {
                    setToasts(current => current.filter(t => t.id !== newToast.id));
                 }, 6000);
