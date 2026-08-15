@@ -2812,7 +2812,7 @@ const handleAdminBulkSaveReports = async (
           <h1 className="mt-5 text-xl font-black">הגישה למערכת חסומה</h1>
           <p className="mt-3 text-sm font-bold leading-7 text-slate-300">
             הגישה לחשבונך במערכת נחסמה. לפרטים או לפתיחת הגישה יש
-            לפנות למנהל המערכת.
+            לפנות למנהל המערכת – אבי אליאס.
           </p>
           <div className="mt-4 rounded-xl border border-slate-700 bg-slate-950/50 px-4 py-3 text-xs font-bold text-slate-400">
             {userProfile.fullName} · {userProfile.personalId || "ללא מספר אישי"}
