@@ -200,7 +200,12 @@ export default function SystemSettingsManager({
       (user) =>
         !user.isDischarged &&
         user.systemAccessBlocked !== true &&
-        Boolean(String(user.personalId || "").trim())
+        Boolean(String(user.personalId || "").trim()) &&
+        (user.role === "commander" ||
+          user.role === "adjutant_officer" ||
+          user.systemRole === "super_admin" ||
+          user.systemRole === "admin" ||
+          user.systemRoleAccessLevel === "admin")
     )
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "he"));
 

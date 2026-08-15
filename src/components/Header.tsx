@@ -38,6 +38,9 @@ export default function Header({
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notificationTab, setNotificationTab] = useState<
+    "registration" | "current" | "future"
+  >("registration");
   const [time, setTime] = useState(new Date());
 
   // Edit states
@@ -129,6 +132,33 @@ export default function Header({
     day: "numeric",
     timeZone: configuredTimeZone
   });
+  const todayParts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: configuredTimeZone,
+  }).formatToParts(time);
+  const todayDateKey = `${todayParts.find((part) => part.type === "year")?.value}-${todayParts.find((part) => part.type === "month")?.value}-${todayParts.find((part) => part.type === "day")?.value}`;
+  const registrationNotifications = notifications.filter(
+    (notification) => notification.type === "registration"
+  );
+  const futureAttendanceNotifications = notifications.filter(
+    (notification) =>
+      notification.type !== "registration" &&
+      Boolean(notification.reportDate) &&
+      String(notification.reportDate) > todayDateKey
+  );
+  const currentAttendanceNotifications = notifications.filter(
+    (notification) =>
+      notification.type !== "registration" &&
+      (!notification.reportDate || String(notification.reportDate) <= todayDateKey)
+  );
+  const visibleNotifications =
+    notificationTab === "registration"
+      ? registrationNotifications
+      : notificationTab === "future"
+      ? futureAttendanceNotifications
+      : currentAttendanceNotifications;
 
   return (
     <header id="app-header" className="relative max-w-full border-b-4 border-military-600 bg-military-800 text-white shadow-md">
@@ -205,7 +235,19 @@ export default function Header({
             {systemSettings?.notificationsEnabled !== false && currentUser.role === "commander" && (
               <div id="commander-notifications-panel" className="relative">
                 <button
-                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                  onClick={() => {
+                    const opening = !isNotificationsOpen;
+                    if (opening) {
+                      setNotificationTab(
+                        registrationNotifications.some(
+                          (notification) => !notification.isRead
+                        )
+                          ? "registration"
+                          : "current"
+                      );
+                    }
+                    setIsNotificationsOpen(opening);
+                  }}
                   className={`text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 border cursor-pointer transition shadow-sm relative focus:outline-none ${
                     isNotificationsOpen 
                       ? "bg-military-500 border-military-300 text-white" 
@@ -254,14 +296,70 @@ export default function Header({
                         </div>
                       </div>
 
+                      <div className="grid grid-cols-3 gap-1 border-b border-slate-200 bg-white p-2">
+                        {[
+                          {
+                            id: "registration" as const,
+                            label: "רישומים חדשים",
+                            count: registrationNotifications.length,
+                            unread: registrationNotifications.filter(
+                              (notification) => !notification.isRead
+                            ).length,
+                          },
+                          {
+                            id: "current" as const,
+                            label: "עד היום",
+                            count: currentAttendanceNotifications.length,
+                            unread: currentAttendanceNotifications.filter(
+                              (notification) => !notification.isRead
+                            ).length,
+                          },
+                          {
+                            id: "future" as const,
+                            label: "עתידיים",
+                            count: futureAttendanceNotifications.length,
+                            unread: futureAttendanceNotifications.filter(
+                              (notification) => !notification.isRead
+                            ).length,
+                          },
+                        ].map((tab) => (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setNotificationTab(tab.id)}
+                            className={`relative rounded-lg border px-2 py-2 text-[10px] font-black transition ${
+                              notificationTab === tab.id
+                                ? "border-military-500 bg-military-700 text-white"
+                                : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            <span>{tab.label}</span>
+                            <span
+                              className={`mr-1 rounded-full px-1.5 py-0.5 font-mono text-[9px] ${
+                                notificationTab === tab.id
+                                  ? "bg-white/20 text-white"
+                                  : "bg-slate-200 text-slate-700"
+                              }`}
+                            >
+                              {tab.count}
+                            </span>
+                            {tab.unread > 0 && (
+                              <span className="absolute -left-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[8px] font-black text-white">
+                                {tab.unread}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+
                       <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-slate-100">
-                        {notifications.length === 0 ? (
+                        {visibleNotifications.length === 0 ? (
                           <div className="p-8 text-center text-slate-400 text-xs">
                             <Shield className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50" />
                             המבצעיות תקינה. אין דיווחי חריגים רשומים.
                           </div>
                         ) : (
-                          notifications.map((not) => {
+                          visibleNotifications.map((not) => {
                             const isRegistrationNotification =
                               not.type === "registration";
                             const date = new Date(not.timestamp);
