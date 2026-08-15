@@ -505,6 +505,9 @@ export default function CommandDashboard({
   const [directoryShareFeedback, setDirectoryShareFeedback] = useState("");
   const [directoryActionsSoldier, setDirectoryActionsSoldier] =
     useState<UserProfile | null>(null);
+  const [systemAccessToggleTarget, setSystemAccessToggleTarget] =
+    useState<UserProfile | null>(null);
+  const [isSystemAccessToggling, setIsSystemAccessToggling] = useState(false);
 
   const getDirectoryShareText = (soldier: UserProfile) => {
     const lines = [
@@ -986,18 +989,11 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
   };
 
   const handleToggleSystemAccess = async (soldier: UserProfile) => {
-    if (!canEditSoldier || soldier.role !== "soldier") return;
+    if (!canEditSoldier || soldier.userId === currentUser.userId) return;
 
     const shouldBlock = soldier.systemAccessBlocked !== true;
-    if (
-      shouldBlock &&
-      !window.confirm(
-        `לחסום ל-${soldier.fullName} את כל מסכי המערכת? סימון הגריעה הקיים לא ישתנה.`
-      )
-    ) {
-      return;
-    }
 
+    setIsSystemAccessToggling(true);
     try {
       const updatedSoldier: UserProfile = {
         ...soldier,
@@ -1011,8 +1007,11 @@ const handleSummarySort = (field: "fullName" | "medicalRole") => {
         delete updatedSoldier.systemAccessBlockedBy;
       }
       await onAdminUpdateSoldier(updatedSoldier);
+      setSystemAccessToggleTarget(null);
     } catch (error) {
       console.error("Failed toggling soldier system access:", error);
+    } finally {
+      setIsSystemAccessToggling(false);
     }
   };
 
@@ -6711,10 +6710,10 @@ return matchesSearch && matchesUnit && matchesSoldierStatus;
                           >
                             <Share2 className="h-4 w-4" />
                           </button>
-                          {canEditSoldier && soldier.role === "soldier" && (
+                          {canEditSoldier && soldier.userId !== currentUser.userId && (
                             <button
                               type="button"
-                              onClick={() => void handleToggleSystemAccess(soldier)}
+                              onClick={() => setSystemAccessToggleTarget(soldier)}
                               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-xs transition cursor-pointer ${
                                 soldier.systemAccessBlocked
                                   ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-600 hover:bg-emerald-600 hover:text-white"
@@ -8678,13 +8677,13 @@ await onAdminSaveReport(dataToSave);
                   </button>
                 )}
 
-                {canEditSoldier && directoryActionsSoldier.role === "soldier" && (
+                {canEditSoldier && directoryActionsSoldier.userId !== currentUser.userId && (
                   <button
                     type="button"
                     onClick={() => {
                       const soldier = directoryActionsSoldier;
                       setDirectoryActionsSoldier(null);
-                      void handleToggleSystemAccess(soldier);
+                      setSystemAccessToggleTarget(soldier);
                     }}
                     className={`col-span-2 flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm font-black ${
                       directoryActionsSoldier.systemAccessBlocked
@@ -8717,6 +8716,93 @@ await onAdminSaveReport(dataToSave);
                     מחיקת חייל
                   </button>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {systemAccessToggleTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm"
+            onClick={() => {
+              if (!isSystemAccessToggling) setSystemAccessToggleTarget(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-2xl"
+              dir="rtl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div
+                className={`flex items-center gap-3 p-5 text-white ${
+                  systemAccessToggleTarget.systemAccessBlocked
+                    ? "bg-emerald-700"
+                    : "bg-rose-700"
+                }`}
+              >
+                {systemAccessToggleTarget.systemAccessBlocked ? (
+                  <UserCheck className="h-6 w-6 shrink-0" />
+                ) : (
+                  <ShieldAlert className="h-6 w-6 shrink-0" />
+                )}
+                <div>
+                  <h3 className="text-base font-black">
+                    {systemAccessToggleTarget.systemAccessBlocked
+                      ? "פתיחת גישה למערכת"
+                      : "חסימת גישה למערכת"}
+                  </h3>
+                  <p className="mt-1 text-xs font-bold text-white/80">
+                    {systemAccessToggleTarget.fullName}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 p-5">
+                <p className="text-sm font-bold leading-7 text-slate-700">
+                  {systemAccessToggleTarget.systemAccessBlocked
+                    ? "המשתמש יוכל לחזור ולפתוח את כל המסכים המורשים לתפקידו."
+                    : "המשתמש לא יראה אף מסך במערכת ויוצג לו מסך חסימה בלבד."}
+                </p>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold leading-6 text-amber-900">
+                  התפקיד, ההרשאות ומצב הגריעה הקיים לא ישתנו.
+                </div>
+              </div>
+
+              <div className="flex gap-3 border-t border-slate-100 bg-slate-50 p-4">
+                <button
+                  type="button"
+                  disabled={isSystemAccessToggling}
+                  onClick={() => setSystemAccessToggleTarget(null)}
+                  className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-600 disabled:opacity-50"
+                >
+                  ביטול
+                </button>
+                <button
+                  type="button"
+                  disabled={isSystemAccessToggling}
+                  onClick={() =>
+                    void handleToggleSystemAccess(systemAccessToggleTarget)
+                  }
+                  className={`flex-[2] rounded-xl px-4 py-3 text-sm font-black text-white disabled:cursor-wait disabled:opacity-60 ${
+                    systemAccessToggleTarget.systemAccessBlocked
+                      ? "bg-emerald-700 hover:bg-emerald-800"
+                      : "bg-rose-700 hover:bg-rose-800"
+                  }`}
+                >
+                  {isSystemAccessToggling
+                    ? "מעדכן..."
+                    : systemAccessToggleTarget.systemAccessBlocked
+                      ? "פתח גישה"
+                      : "חסום גישה"}
+                </button>
               </div>
             </motion.div>
           </motion.div>

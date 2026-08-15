@@ -2069,8 +2069,8 @@ changes.push(
   ) {
     changes.push(
       profileToSave.systemAccessBlocked
-        ? "נחסמה גישת החייל לכל מסכי המערכת"
-        : "נפתחה מחדש גישת החייל למערכת"
+        ? "נחסמה גישת המשתמש לכל מסכי המערכת"
+        : "נפתחה מחדש גישת המשתמש למערכת"
     );
   }
 
@@ -2799,10 +2799,7 @@ const handleAdminBulkSaveReports = async (
     );
   }
 
-  if (
-    userProfile.role === "soldier" &&
-    userProfile.systemAccessBlocked === true
-  ) {
+  if (userProfile.systemAccessBlocked === true) {
     return (
       <main
         dir="rtl"
@@ -2814,8 +2811,8 @@ const handleAdminBulkSaveReports = async (
           </div>
           <h1 className="mt-5 text-xl font-black">הגישה למערכת חסומה</h1>
           <p className="mt-3 text-sm font-bold leading-7 text-slate-300">
-            חשבונך הוצא מרשימת הסגל הפעיל. לפתיחת הגישה יש
-            לפנות למפקד.
+            הגישה לחשבונך במערכת נחסמה. לפרטים או לפתיחת הגישה יש
+            לפנות למנהל המערכת.
           </p>
           <div className="mt-4 rounded-xl border border-slate-700 bg-slate-950/50 px-4 py-3 text-xs font-bold text-slate-400">
             {userProfile.fullName} · {userProfile.personalId || "ללא מספר אישי"}
