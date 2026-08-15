@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, MessageSquarePlus, Trash2 } from "lucide-r
 import { CommanderMessage, CommanderMessageTarget, UserProfile } from "../types";
 import { dataService } from "../services/dataService";
 import { PushTarget, sendAutomaticPush } from "../services/pushService";
+import { appDialog } from "./AppDialogProvider";
 
 interface CommanderMessagesProps {
   currentUser: UserProfile;
@@ -158,7 +159,9 @@ export default function CommanderMessages({
   };
 
   const handleDelete = async (messageId: string) => {
-    if (!window.confirm("למחוק את ההודעה ואת אישורי הקריאה שלה?")) return;
+    if (!(await appDialog.confirm("למחוק את ההודעה ואת אישורי הקריאה שלה?", {
+      title: "מחיקת הודעה", confirmLabel: "מחק הודעה", tone: "danger",
+    }))) return;
     await dataService.deleteCommanderMessage(messageId);
     await refresh();
   };

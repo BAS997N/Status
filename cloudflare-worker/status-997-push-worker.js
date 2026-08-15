@@ -3,6 +3,7 @@ const REQUIRED_PERMISSION_BY_KIND = {
   emergency: "emergency.manage",
   shift: "shifts.manage",
   attendance_reminder: "reports.manage",
+  registration: null,
 };
 
 const jsonResponse = (body, status, origin) =>
@@ -1214,7 +1215,7 @@ async function handlePush(request, env, origin) {
 
   const input = await request.json();
   const requiredPermission = REQUIRED_PERMISSION_BY_KIND[input.kind];
-  if (!requiredPermission || !input.target || !input.title || !input.body) {
+  if (!(input.kind in REQUIRED_PERMISSION_BY_KIND) || !input.target || !input.title || !input.body) {
     return jsonResponse({ error: "Invalid push request" }, 400, origin);
   }
   if (input.title.length > 120 || input.body.length > 600) {
@@ -1232,9 +1233,21 @@ async function handlePush(request, env, origin) {
   const effectiveRole =
     user.systemRole ||
     (user.role === "commander" ? "admin" : user.role === "adjutant_officer" ? "viewer" : "reporter");
+  const registrationCreatedAt = Date.parse(String(user.createdAt || ""));
+  const registrationAgeMs = Date.now() - registrationCreatedAt;
+  const isRegistrationPush =
+    input.kind === "registration" &&
+    input.target?.type === "role" &&
+    input.target?.role === "commander" &&
+    user.systemAccessBlocked !== true &&
+    String(user.fullName || "").trim().length > 0 &&
+    Number.isFinite(registrationCreatedAt) &&
+    registrationAgeMs >= 0 &&
+    registrationAgeMs <= 15 * 60 * 1000;
   const authorized =
+    isRegistrationPush ||
     effectiveRole === "super_admin" ||
-    permissionSettings.roleMap?.[effectiveRole]?.[requiredPermission] === true;
+    (requiredPermission && permissionSettings.roleMap?.[effectiveRole]?.[requiredPermission] === true);
   if (!authorized) return jsonResponse({ error: "Permission denied" }, 403, origin);
 
   const subscriptions = await getPushSubscriptions(projectId, accessToken);

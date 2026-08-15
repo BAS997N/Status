@@ -16,6 +16,7 @@ import {
 } from "../../types";
 import { dataService } from "../../services/dataService";
 import { PERMISSION_DEFINITIONS } from "../../security/permissions";
+import { appDialog } from "../AppDialogProvider";
 
 interface Props {
   currentUser: UserProfile;
@@ -168,13 +169,14 @@ export default function SystemRolesManager({ currentUser }: Props) {
     setRoles(normalizeOrder(next));
   };
 
-  const removeRole = (role: SystemRoleConfig) => {
+  const removeRole = async (role: SystemRoleConfig) => {
     if (role.protected) return;
 
     if (
-      !window.confirm(
-        `למחוק את התפקיד "${role.name}"? משתמשים שכבר משויכים אליו לא יימחקו, אך יש לשייך להם תפקיד אחר.`
-      )
+      !(await appDialog.confirm(
+        `למחוק את התפקיד "${role.name}"? משתמשים שכבר משויכים אליו לא יימחקו, אך יש לשייך להם תפקיד אחר.`,
+        { title: "מחיקת תפקיד מערכת", confirmLabel: "מחק תפקיד", tone: "danger" }
+      ))
     ) {
       return;
     }

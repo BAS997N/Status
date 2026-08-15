@@ -10,7 +10,7 @@ export type PushTarget =
   | { type: "users"; userIds: string[] };
 
 export interface AutomaticPushRequest {
-  kind: "commander_message" | "emergency" | "shift" | "attendance_reminder";
+  kind: "commander_message" | "emergency" | "shift" | "attendance_reminder" | "registration";
   target: PushTarget;
   title: string;
   body: string;

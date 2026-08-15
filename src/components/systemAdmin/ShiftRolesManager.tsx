@@ -20,6 +20,7 @@ import {
   UserProfile,
 } from "../../types";
 import { dataService } from "../../services/dataService";
+import { appDialog } from "../AppDialogProvider";
 
 interface ShiftRolesManagerProps {
   currentUser: UserProfile;
@@ -656,8 +657,10 @@ export default function ShiftRolesManager({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!window.confirm(`למחוק את "${slot.name}"?`)) return;
+                  onClick={async () => {
+                    if (!(await appDialog.confirm(`למחוק את "${slot.name}"?`, {
+                      title: "מחיקת תפקיד משמרת", confirmLabel: "מחק", tone: "danger",
+                    }))) return;
                     updateDraft(draft.filter((item) => item.id !== slot.id));
                   }}
                   className="rounded-lg border border-rose-200 p-2 text-rose-600 hover:bg-rose-50"

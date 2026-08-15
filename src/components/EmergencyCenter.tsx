@@ -17,6 +17,7 @@ import {
 } from "../types";
 import { dataService } from "../services/dataService";
 import { sendAutomaticPush } from "../services/pushService";
+import { appDialog } from "./AppDialogProvider";
 
 interface EmergencyCenterProps {
   currentUser: UserProfile;
@@ -318,7 +319,9 @@ export default function EmergencyCenter({
   };
 
   const closeEmergency = async () => {
-    if (!canManage || !window.confirm("לסגור את אירוע החירום הפעיל?")) return;
+    if (!canManage || !(await appDialog.confirm("לסגור את אירוע החירום הפעיל?", {
+      title: "סגירת אירוע חירום", confirmLabel: "סגור אירוע", tone: "warning",
+    }))) return;
 
     setSaving(true);
     setMessage("");
@@ -355,7 +358,9 @@ export default function EmergencyCenter({
     );
     if (
       deletableIds.length === 0 ||
-      !window.confirm(`למחוק ${deletableIds.length} אירועים ואת כל התגובות שלהם?`)
+      !(await appDialog.confirm(`למחוק ${deletableIds.length} אירועים ואת כל התגובות שלהם?`, {
+        title: "מחיקת אירועי חירום", confirmLabel: "מחק אירועים", tone: "danger",
+      }))
     ) {
       return;
     }

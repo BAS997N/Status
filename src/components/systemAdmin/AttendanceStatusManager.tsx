@@ -16,6 +16,7 @@ import {
   UserProfile,
 } from "../../types";
 import { dataService } from "../../services/dataService";
+import { appDialog } from "../AppDialogProvider";
 
 interface AttendanceStatusManagerProps {
   currentUser: UserProfile;
@@ -219,9 +220,11 @@ export default function AttendanceStatusManager({
     setStatuses((current) => [...current, copy]);
   };
 
-  const deleteStatus = (status: AttendanceStatusConfig) => {
+  const deleteStatus = async (status: AttendanceStatusConfig) => {
     if (status.systemStatus) return;
-    if (!window.confirm(`למחוק את הסטטוס “${status.label}”? דיווחים ישנים לא יימחקו.`)) return;
+    if (!(await appDialog.confirm(`למחוק את הסטטוס “${status.label}”? דיווחים ישנים לא יימחקו.`, {
+      title: "מחיקת סטטוס", confirmLabel: "מחק סטטוס", tone: "danger",
+    }))) return;
     setStatuses((current) => applyOrder(current.filter((item) => item.id !== status.id)));
   };
 

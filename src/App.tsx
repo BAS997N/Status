@@ -57,6 +57,8 @@ import ShiftsView from "./components/ShiftsView";
 import LinePlanning from "./components/LinePlanning";
 import EmergencyCenter from "./components/EmergencyCenter";
 import CommanderMessageInbox from "./components/CommanderMessageInbox";
+import { appDialog } from "./components/AppDialogProvider";
+import { sendAutomaticPush } from "./services/pushService";
 import {
   completePasswordReset,
   requestPasswordReset,
@@ -1497,8 +1499,12 @@ const handleResetReport = async (reportId: string) => {
     });
   };
 
-  const handleResetData = () => {
-    if (window.confirm("האם אתה בטוח שברצונך לאפס את כל נתוני הסימולציה וההתראות?")) {
+  const handleResetData = async () => {
+    if (await appDialog.confirm("האם אתה בטוח שברצונך לאפס את כל נתוני הסימולציה וההתראות?", {
+      title: "איפוס נתוני סימולציה",
+      confirmLabel: "אפס נתונים",
+      tone: "danger",
+    })) {
       dataService.resetSimulatedData();
       setSimCounter(prev => prev + 1);
     }
@@ -1807,6 +1813,17 @@ if (cleanRegCode !== regPersonalCodeConfirm.trim()) {
          "Failed creating new-user registration notification:",
          notificationError
        );
+     }
+     try {
+       await sendAutomaticPush({
+         kind: "registration",
+         target: { type: "role", role: "commander" },
+         title: "חייל חדש נרשם למערכת",
+         body: `${newProfile.fullName} נרשם/ה למערכת וממתין/ה לשיוך והגדרת הרשאות.`,
+         url: "/Status/",
+       });
+     } catch (pushError) {
+       console.warn("Failed sending new-user registration push:", pushError);
      }
 
 localStorage.setItem("idf_active_user_id", newProfile.userId);

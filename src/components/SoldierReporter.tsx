@@ -32,6 +32,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { dataService } from "../services/dataService";
 import { getDisciplinaryRestrictionStatus } from "../utils/shiftRestriction";
 import { getEffectiveSystemRole } from "../security/permissions";
+import { appDialog } from "./AppDialogProvider";
 
 interface SoldierReporterProps {
   currentUser: UserProfile;
@@ -806,7 +807,7 @@ useEffect(() => {
 const handleGetLocation = () => {
   if (!navigator.geolocation) {
     setGeoState("error");
-    alert("הדפדפן לא תומך באימות מיקום GPS.");
+    void appDialog.alert("הדפדפן לא תומך באימות מיקום GPS.", { title: "אימות מיקום אינו זמין", tone: "warning" });
     return;
   }
 
@@ -828,7 +829,7 @@ const handleGetLocation = () => {
     () => {
       setCoords(undefined);
       setGeoState("error");
-      alert("לא ניתן לקבל מיקום. יש לאשר הרשאת מיקום בדפדפן ולנסות שוב.");
+      void appDialog.alert("לא ניתן לקבל מיקום. יש לאשר הרשאת מיקום בדפדפן ולנסות שוב.", { title: "קבלת המיקום נכשלה", tone: "warning" });
     },
     { timeout: 5000 }
   );
@@ -837,25 +838,25 @@ const handleGetLocation = () => {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (reportingBlockedByEndedOrder) {
-      alert("תקופת הצו האישית שלך הסתיימה ולכן לא ניתן לשלוח דיווח נוכחות חדש.");
+      void appDialog.alert("תקופת הצו האישית שלך הסתיימה ולכן לא ניתן לשלוח דיווח נוכחות חדש.", { title: "הדיווח חסום", tone: "warning" });
       return;
     }
     if (!location.trim()) return;
     if (selectedStatusConfig?.requiresNote && !note.trim()) {
-      alert("בסטטוס זה חובה להזין הערה.");
+      void appDialog.alert("בסטטוס זה חובה להזין הערה.", { title: "חסרה הערה", tone: "warning" });
       return;
     }
     if (requiresGps && !coords) {
-      alert("בסטטוס זה חובה לאמת מיקום GPS לפני שליחת הדיווח.");
+      void appDialog.alert("בסטטוס זה חובה לאמת מיקום GPS לפני שליחת הדיווח.", { title: "נדרש אימות מיקום", tone: "warning" });
       return;
     }
     if (showDateRangeFields) {
       if (!cutOrderStartDate || !cutOrderEndDate) {
-        alert("בסטטוס זה חובה לבחור תאריך התחלה ותאריך סיום.");
+        void appDialog.alert("בסטטוס זה חובה לבחור תאריך התחלה ותאריך סיום.", { title: "חסרים תאריכים", tone: "warning" });
         return;
       }
       if (cutOrderEndDate < cutOrderStartDate) {
-        alert("תאריך הסיום לא יכול להיות מוקדם מתאריך ההתחלה.");
+        void appDialog.alert("תאריך הסיום לא יכול להיות מוקדם מתאריך ההתחלה.", { title: "טווח תאריכים לא תקין", tone: "warning" });
         return;
       }
     }

@@ -17,6 +17,7 @@ import {
 } from "../../types";
 import { dataService } from "../../services/dataService";
 import { updateUserCredentials } from "../../services/adminUserService";
+import { appDialog } from "../AppDialogProvider";
 
 interface UsersManagerProps {
   currentUser: UserProfile;
@@ -189,9 +190,10 @@ export default function UsersManager({
       .filter(Boolean)
       .join(" ו־");
     if (
-      !window.confirm(
-        `לעדכן את פרטי ההתחברות של ${credentialUser.fullName}?\n${changeDescription}`
-      )
+      !(await appDialog.confirm(
+        `לעדכן את פרטי ההתחברות של ${credentialUser.fullName}?\n${changeDescription}`,
+        { title: "עדכון פרטי התחברות", confirmLabel: "עדכן פרטים", tone: "warning" }
+      ))
     ) {
       return;
     }
@@ -206,6 +208,11 @@ export default function UsersManager({
         newPersonalId: cleanPersonalId,
         newCode: cleanCode || undefined,
       });
+      if (!result.authEmailSynced) {
+        throw new Error(
+          "הסנכרון לא הושלם. יש לפרסם את הגרסה החדשה של Cloudflare Worker ולנסות שוב."
+        );
+      }
       onCredentialsUpdated?.(credentialUser.userId, result.personalId);
       setCredentialUser(null);
       setCredentialCode("");

@@ -4,6 +4,7 @@ import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getMessaging, getToken, isSupported, onMessage } from "firebase/messaging";
 import { app, db, isFirebaseActive } from "../firebase";
 import { UserProfile } from "../types";
+import { appDialog } from "./AppDialogProvider";
 
 const VAPID_PUBLIC_KEY =
   "BHQmIKmZKdv_8MmYStvekIpAgr1Gi4NDiqyGw_MM-mjNA1BRBh_ec0BHgcuR8Ckuq8w9Oyf1zg9tyefg6hKqL8M";
@@ -188,8 +189,9 @@ export default function PushNotificationButton({ currentUser }: { currentUser: U
         saveCurrentDevice(true).catch((error) => {
           console.error("Push registration failed:", error);
           setState("error");
-          window.alert(
-            "הפעלת ההתראות נכשלה. יש לרענן את הדף ולנסות שוב. אם התקלה נמשכת, יש לוודא שחוקי Firebase המעודכנים פורסמו."
+          void appDialog.alert(
+            "הפעלת ההתראות נכשלה. יש לרענן את הדף ולנסות שוב. אם התקלה נמשכת, יש לוודא שחוקי Firebase המעודכנים פורסמו.",
+            { title: "הפעלת ההתראות נכשלה", tone: "danger" }
           );
         })
       }

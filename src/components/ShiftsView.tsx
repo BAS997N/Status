@@ -33,6 +33,7 @@ import {
 } from "../types";
 import { dataService } from "../services/dataService";
 import ShiftFilters, { ShiftViewMode } from "./shifts/ShiftFilters";
+import { appDialog } from "./AppDialogProvider";
 import WeeklyShiftView from "./shifts/WeeklyShiftView";
 import CompactShiftList from "./shifts/CompactShiftList";
 import MonthlyShiftCalendar from "./shifts/MonthlyShiftCalendar";
@@ -978,7 +979,9 @@ export default function ShiftsView({
   };
 
   const deleteShift = async (shift: ShiftRecord) => {
-    if (!window.confirm(`למחוק את המשמרת "${shift.title}"?`)) return;
+    if (!(await appDialog.confirm(`למחוק את המשמרת "${shift.title}"?`, {
+      title: "מחיקת משמרת", confirmLabel: "מחק משמרת", tone: "danger",
+    }))) return;
     try {
       await dataService.deleteShift(shift.shiftId);
       await loadShifts();

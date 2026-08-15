@@ -16,6 +16,7 @@ import {
   UserProfile,
 } from "../../types";
 import { dataService } from "../../services/dataService";
+import { appDialog } from "../AppDialogProvider";
 
 interface BackupsManagerProps {
   currentUser: UserProfile;
@@ -171,13 +172,15 @@ export default function BackupsManager({
   const restoreBackup = async () => {
     if (!loadedBackup || selectedSections.length === 0) return;
 
-    const confirmed = window.confirm(
-      "השחזור יעדכן נתונים קיימים ב־Firestore. מומלץ ליצור גיבוי חדש לפני ההמשך. להמשיך?"
+    const confirmed = await appDialog.confirm(
+      "השחזור יעדכן נתונים קיימים ב־Firestore. מומלץ ליצור גיבוי חדש לפני ההמשך. להמשיך?",
+      { title: "שחזור נתוני מערכת", confirmLabel: "המשך לשחזור", tone: "danger" }
     );
     if (!confirmed) return;
 
-    const secondConfirmation = window.prompt(
-      'כדי לאשר שחזור, הקלד בדיוק: שחזור'
+    const secondConfirmation = await appDialog.prompt(
+      'כדי לאשר שחזור, הקלד בדיוק: שחזור',
+      { title: "אישור סופי לשחזור", confirmLabel: "אשר שחזור", placeholder: "שחזור", tone: "danger" }
     );
     if (secondConfirmation !== "שחזור") {
       setMessage({ type: "error", text: "השחזור בוטל כי מילת האישור לא הוקלדה." });

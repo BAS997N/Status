@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ShiftTypeConfig, UserProfile } from "../../types";
 import { dataService } from "../../services/dataService";
+import { appDialog } from "../AppDialogProvider";
 
 interface ShiftTypesManagerProps {
   currentUser: UserProfile;
@@ -378,8 +379,10 @@ export default function ShiftTypesManager({
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (!window.confirm(`למחוק את "${item.name}"?`)) {
+                      onClick={async () => {
+                        if (!(await appDialog.confirm(`למחוק את "${item.name}"?`, {
+                          title: "מחיקת סוג משמרת", confirmLabel: "מחק", tone: "danger",
+                        }))) {
                           return;
                         }
                         updateItems(

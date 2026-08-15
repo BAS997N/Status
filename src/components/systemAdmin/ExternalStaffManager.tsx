@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ExternalStaffMember, UserProfile } from "../../types";
 import { dataService } from "../../services/dataService";
+import { appDialog } from "../AppDialogProvider";
 
 interface ExternalStaffManagerProps {
   currentUser: UserProfile;
@@ -308,8 +309,10 @@ export default function ExternalStaffManager({
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (!window.confirm(`למחוק את "${item.fullName}"?`)) return;
+                    onClick={async () => {
+                      if (!(await appDialog.confirm(`למחוק את "${item.fullName}"?`, {
+                        title: "מחיקת איש צוות חיצוני", confirmLabel: "מחק", tone: "danger",
+                      }))) return;
                       updateDraft(draft.filter((current) => current.id !== item.id));
                     }}
                     className="rounded-lg border border-rose-200 p-2 text-rose-600"

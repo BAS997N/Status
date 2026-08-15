@@ -53,6 +53,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { hasPermission, PermissionMap } from "../security/permissions";
 import { buildCsv } from "../utils/csvSecurity";
 import { getDisciplinaryRestrictionStatus } from "../utils/shiftRestriction";
+import { appDialog } from "./AppDialogProvider";
 import {
   getPushAvailableUserIds,
   sendAutomaticPush,
@@ -1655,11 +1656,12 @@ const exitHomeTodayCount = reportedTodayList.filter(
     const currentlyAllowed =
       profile.disciplinaryRestriction.allowManagerShiftAssignment === true;
     if (
-      !window.confirm(
+      !(await appDialog.confirm(
         currentlyAllowed
           ? `לחסום שוב שיבוץ של ${profile.fullName} למשמרות בתקופת עבודות הרס״ר?`
-          : `לאפשר למנהל לשבץ את ${profile.fullName} למשמרת, בלי לבטל את תקופת עבודות הרס״ר?`
-      )
+          : `לאפשר למנהל לשבץ את ${profile.fullName} למשמרת, בלי לבטל את תקופת עבודות הרס״ר?`,
+        { title: "שינוי הרשאת שיבוץ", tone: "warning" }
+      ))
     ) {
       return;
     }
@@ -2241,9 +2243,10 @@ const latestTodayReport = [...todayReports].sort(
 
     if (
       bulkUncoveredDates.length > 0 &&
-      !window.confirm(
-        `נותרו ${bulkUncoveredDates.length} ימים ללא הגדרה. להמשיך ולשמור רק את הימים שהוגדרו?`
-      )
+      !(await appDialog.confirm(
+        `נותרו ${bulkUncoveredDates.length} ימים ללא הגדרה. להמשיך ולשמור רק את הימים שהוגדרו?`,
+        { title: "ימים ללא הגדרה", confirmLabel: "שמור בכל זאת", tone: "warning" }
+      ))
     ) {
       return;
     }

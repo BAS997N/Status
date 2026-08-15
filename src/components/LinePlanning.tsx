@@ -33,6 +33,7 @@ import {
   UserProfile,
 } from "../types";
 import { dataService } from "../services/dataService";
+import { appDialog } from "./AppDialogProvider";
 
 interface LinePlanningProps {
   currentUser: UserProfile;
@@ -1012,9 +1013,10 @@ export default function LinePlanning({
     }
 
     if (
-      !window.confirm(
-        `לעדכן את תכנון הקו לפי ${latestByUserAndDate.size} דיווחי נוכחות קיימים? רק תאריכים שבהם קיים דיווח יעודכנו.`
-      )
+      !(await appDialog.confirm(
+        `לעדכן את תכנון הקו לפי ${latestByUserAndDate.size} דיווחי נוכחות קיימים? רק תאריכים שבהם קיים דיווח יעודכנו.`,
+        { title: "סנכרון תכנון קו", confirmLabel: "עדכן תכנון", tone: "warning" }
+      ))
     ) {
       return;
     }
