@@ -8395,6 +8395,9 @@ await onAdminSaveReport(dataToSave);
                               const statusLabel = report
                                 ? statusLabels[report.status]?.label || report.status
                                 : "טרם דיווח";
+                              const statusStyle = report
+                                ? statusLabels[report.status]
+                                : null;
                               const dayMarkerText = getDayMarkerText({ report });
                               const reportTime = getReportTimeText(report);
 
@@ -8415,10 +8418,10 @@ await onAdminSaveReport(dataToSave);
                                       </p>
                                     </div>
                                     <span
-                                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${
-                                        report
-                                          ? "bg-emerald-50 text-emerald-700"
-                                          : "bg-rose-50 text-rose-700"
+                                      className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-black ${
+                                        report && statusStyle
+                                          ? `${statusStyle.bg} ${statusStyle.color} ${statusStyle.border}`
+                                          : "border-rose-200 bg-rose-50 text-rose-700"
                                       }`}
                                     >
                                       {statusLabel}
