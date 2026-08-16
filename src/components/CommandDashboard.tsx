@@ -1638,6 +1638,11 @@ const exitHomeTodayCount = reportedTodayList.filter(
             reports,
             selectedDate
           );
+          const startDate = restriction.startDate
+            ? new Date(`${restriction.startDate}T12:00:00`).toLocaleDateString(
+                "he-IL"
+              )
+            : "לא הוגדר";
           const endDate = restriction.expectedEndDate
             ? new Date(`${restriction.expectedEndDate}T12:00:00`).toLocaleDateString(
                 "he-IL"
@@ -1646,7 +1651,7 @@ const exitHomeTodayCount = reportedTodayList.filter(
           return {
             profile: item.profile,
             report: item.latestTodayReport,
-            detailText: `הושלמו ${restriction.completedDays} מתוך עד ${restriction.requiredDays} ימים · נותרו ${restriction.remainingDays} · חיתוך צו: ${restriction.skippedCutOrderDays} · סיום: ${endDate}${restriction.cappedByLineEnd ? " (סיום הקו)" : ""}`,
+            detailText: `תחילת התקופה: ${startDate} · הושלמו ${restriction.completedDays} מתוך עד ${restriction.requiredDays} ימים · נותרו ${restriction.remainingDays} · חיתוך צו: ${restriction.skippedCutOrderDays} · סיום: ${endDate}${restriction.cappedByLineEnd ? " (סיום הקו)" : ""}`,
           };
         })
         .sort((first, second) =>
