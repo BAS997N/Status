@@ -150,6 +150,35 @@ interface CommanderChartCollapsePreferences {
   unitComparison: boolean;
 }
 
+interface AttendanceSummaryFilterPreferences {
+  name: string;
+  medicalRole: string;
+  hideDischarged: boolean;
+  hideSystemAccessBlocked: boolean;
+}
+
+const getAttendanceSummaryFilterPreferences = (
+  userId: string
+): AttendanceSummaryFilterPreferences => {
+  const defaults: AttendanceSummaryFilterPreferences = {
+    name: "",
+    medicalRole: "all",
+    hideDischarged: true,
+    hideSystemAccessBlocked: true,
+  };
+
+  if (typeof window === "undefined") return defaults;
+
+  try {
+    const saved = window.localStorage.getItem(
+      `idf_attendance_summary_filters_${userId}`
+    );
+    return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+  } catch {
+    return defaults;
+  }
+};
+
 interface BulkAttendancePeriod {
   id: string;
   startDate: string;
@@ -724,6 +753,42 @@ const dayMarkerFilterRef = useRef<HTMLDivElement>(null);
     "roster" | "fullName" | "medicalRole"
   >("roster");
 const [summarySortDirection, setSummarySortDirection] = useState<"asc" | "desc">("asc");
+  const initialSummaryFilters = useRef(
+    getAttendanceSummaryFilterPreferences(currentUser.userId)
+  ).current;
+  const [summaryNameFilter, setSummaryNameFilter] = useState(
+    initialSummaryFilters.name
+  );
+  const [summaryMedicalRoleFilter, setSummaryMedicalRoleFilter] = useState(
+    initialSummaryFilters.medicalRole
+  );
+  const [summaryHideDischarged, setSummaryHideDischarged] = useState(
+    initialSummaryFilters.hideDischarged
+  );
+  const [summaryHideSystemAccessBlocked, setSummaryHideSystemAccessBlocked] =
+    useState(initialSummaryFilters.hideSystemAccessBlocked);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        `idf_attendance_summary_filters_${currentUser.userId}`,
+        JSON.stringify({
+          name: summaryNameFilter,
+          medicalRole: summaryMedicalRoleFilter,
+          hideDischarged: summaryHideDischarged,
+          hideSystemAccessBlocked: summaryHideSystemAccessBlocked,
+        } satisfies AttendanceSummaryFilterPreferences)
+      );
+    } catch {
+      // The filters still work for the current visit when storage is unavailable.
+    }
+  }, [
+    currentUser.userId,
+    summaryNameFilter,
+    summaryMedicalRoleFilter,
+    summaryHideDischarged,
+    summaryHideSystemAccessBlocked,
+  ]);
 
 const handleSummarySort = (field: "fullName" | "medicalRole") => {
   if (summarySortField === field) {
@@ -3185,8 +3250,7 @@ const dates = getDateRange(startDate, endDate);
     return markerText ? `${statusText} / ${markerText}` : statusText;
   };
 
-  const rows = allSoldiers
-    .filter((soldier) => !soldier.isDischarged)
+  const rows = summaryFilteredSoldiers
     .map((soldier) => {
       const baseData = [
         soldier.personalId || "",
@@ -3350,8 +3414,7 @@ const dates = getDateRange(startDate, endDate);
       "סה״כ",
     ];
 
-    const rowDetails = allSoldiers
-      .filter((soldier) => !soldier.isDischarged)
+    const rowDetails = summaryFilteredSoldiers
       .sort(compareRosterUsers)
       .map((soldier) => {
         const reportByDate = new Map(
@@ -3724,7 +3787,35 @@ const dates = getDateRange(startDate, endDate);
     }
   };
 
-  const summaryRows = allSoldiers.map((soldier) => {
+  const normalizedSummaryNameFilter = summaryNameFilter.trim().toLocaleLowerCase("he");
+  const summaryMedicalRoleOptions = Array.from(
+    new Set(
+      allSoldiers
+        .map((soldier) => soldier.medicalRole?.trim())
+        .filter((role): role is string => Boolean(role))
+    )
+  ).sort((a, b) => a.localeCompare(b, "he"));
+  const summaryFilteredSoldiers = allSoldiers.filter((soldier) => {
+    if (summaryHideDischarged && soldier.isDischarged) return false;
+    if (summaryHideSystemAccessBlocked && soldier.systemAccessBlocked) return false;
+    if (
+      summaryMedicalRoleFilter !== "all" &&
+      soldier.medicalRole !== summaryMedicalRoleFilter
+    ) {
+      return false;
+    }
+
+    if (normalizedSummaryNameFilter) {
+      const searchableName = `${soldier.fullName || ""} ${
+        soldier.personalId || ""
+      }`.toLocaleLowerCase("he");
+      if (!searchableName.includes(normalizedSummaryNameFilter)) return false;
+    }
+
+    return true;
+  });
+
+  const summaryRows = summaryFilteredSoldiers.map((soldier) => {
     const soldierReports = getSummaryReportsForSoldier(soldier);
     const counts = {
       base: soldierReports.filter((report) => report.status === "base").length,
@@ -4465,6 +4556,89 @@ const dates = getDateRange(startDate, endDate);
             className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold"
           />
         </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1">
+              חיפוש חייל
+            </label>
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="search"
+                value={summaryNameFilter}
+                onChange={(event) => setSummaryNameFilter(event.target.value)}
+                placeholder="שם חייל או מספר אישי..."
+                className="w-full bg-white border border-slate-300 rounded-lg py-2 pr-9 pl-3 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1">
+              סינון לפי תפקיד
+            </label>
+            <select
+              value={summaryMedicalRoleFilter}
+              onChange={(event) => setSummaryMedicalRoleFilter(event.target.value)}
+              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="all">כל התפקידים</option>
+              {summaryMedicalRoleOptions.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={summaryHideDischarged}
+              onChange={(event) => setSummaryHideDischarged(event.target.checked)}
+              className="h-4 w-4 accent-blue-600"
+            />
+            הסתר חיילים שנגרעו
+          </label>
+          <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={summaryHideSystemAccessBlocked}
+              onChange={(event) =>
+                setSummaryHideSystemAccessBlocked(event.target.checked)
+              }
+              className="h-4 w-4 accent-blue-600"
+            />
+            הסתר חסומי גישה ודיווח
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              setSummaryNameFilter("");
+              setSummaryMedicalRoleFilter("all");
+              setSummaryHideDischarged(true);
+              setSummaryHideSystemAccessBlocked(true);
+            }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100"
+          >
+            איפוס סינון חיילים
+          </button>
+          <span className="text-xs font-bold text-slate-500">
+            מוצגים {summaryFilteredSoldiers.length} מתוך {allSoldiers.length} חיילים
+          </span>
+        </div>
+
+        <p className="mt-2 text-[11px] font-medium text-slate-400">
+          בחירת הסינון נשמרת במכשיר ותישאר גם בכניסה הבאה.
+        </p>
       </div>
     </div>
 
