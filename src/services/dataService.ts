@@ -1258,6 +1258,7 @@ const DEFAULT_SHIFT_SLOT_CONFIGS: ShiftSlotConfig[] = [
     sortOrder: 1,
     allowedMedicalRoleIds: [],
     allowedSystemRoles: ["admin", "super_admin"],
+    allowedAttendanceStatusIds: ["base"],
     allowSystemUsers: true,
     allowDischargedUsers: false,
     allowExternalStaff: false,
@@ -1272,6 +1273,7 @@ const DEFAULT_SHIFT_SLOT_CONFIGS: ShiftSlotConfig[] = [
     sortOrder: 2,
     allowedMedicalRoleIds: [],
     allowedSystemRoles: [],
+    allowedAttendanceStatusIds: ["base"],
     allowSystemUsers: true,
     allowDischargedUsers: false,
     allowExternalStaff: false,
@@ -1286,6 +1288,7 @@ const DEFAULT_SHIFT_SLOT_CONFIGS: ShiftSlotConfig[] = [
     sortOrder: 3,
     allowedMedicalRoleIds: [],
     allowedSystemRoles: [],
+    allowedAttendanceStatusIds: ["base"],
     allowSystemUsers: true,
     allowDischargedUsers: false,
     allowExternalStaff: false,
@@ -1300,6 +1303,7 @@ const DEFAULT_SHIFT_SLOT_CONFIGS: ShiftSlotConfig[] = [
     sortOrder: 4,
     allowedMedicalRoleIds: [],
     allowedSystemRoles: [],
+    allowedAttendanceStatusIds: ["base"],
     allowSystemUsers: true,
     allowDischargedUsers: false,
     allowExternalStaff: false,
@@ -1314,6 +1318,7 @@ const DEFAULT_SHIFT_SLOT_CONFIGS: ShiftSlotConfig[] = [
     sortOrder: 5,
     allowedMedicalRoleIds: [],
     allowedSystemRoles: [],
+    allowedAttendanceStatusIds: ["base"],
     allowSystemUsers: true,
     allowDischargedUsers: false,
     allowExternalStaff: false,
@@ -1330,6 +1335,7 @@ const cloneDefaultShiftSlotConfigs = (): ShiftSlotConfig[] =>
     ...item,
     allowedMedicalRoleIds: [...item.allowedMedicalRoleIds],
     allowedSystemRoles: [...item.allowedSystemRoles],
+    allowedAttendanceStatusIds: [...(item.allowedAttendanceStatusIds || ["base"])],
     allowedUserIds: [...(item.allowedUserIds || [])],
     allowedExternalStaffTypes: [...(item.allowedExternalStaffTypes || [])],
   }));
@@ -1386,6 +1392,21 @@ const normalizeShiftSlotConfigs = (value: unknown): ShiftSlotConfig[] => {
               )
             )
           : [],
+        allowedAttendanceStatusIds: Array.isArray(
+          item.allowedAttendanceStatusIds
+        )
+          ? Array.from(
+              new Set(
+                item.allowedAttendanceStatusIds
+                  .filter(
+                    (statusId): statusId is string =>
+                      typeof statusId === "string" &&
+                      statusId.trim().length > 0
+                  )
+                  .map((statusId) => statusId.trim())
+              )
+            )
+          : ["base"],
         allowedUserIds: Array.isArray(item.allowedUserIds)
           ? Array.from(
               new Set(

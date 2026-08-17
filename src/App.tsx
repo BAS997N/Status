@@ -3229,6 +3229,7 @@ const handleAdminBulkSaveReports = async (
                 onUpdateSystemRole={handleUpdateUserSystemRole}
                 onUserCredentialsUpdated={handleUserCredentialsUpdated}
                 onAttendanceStatusesChanged={handleAttendanceStatusesChanged}
+                attendanceStatuses={attendanceStatuses}
                 unitConfigs={unitConfigs}
                 onUnitConfigsChanged={handleUnitConfigsChanged}
                 medicalRoleConfigs={medicalRoleConfigs}

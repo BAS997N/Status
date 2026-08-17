@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  AttendanceStatusConfig,
   ExternalStaffMember,
   MedicalRoleConfig,
   ShiftSlotConfig,
@@ -26,6 +27,7 @@ interface ShiftRolesManagerProps {
   currentUser: UserProfile;
   users: UserProfile[];
   medicalRoles: MedicalRoleConfig[];
+  attendanceStatuses: AttendanceStatusConfig[];
   externalStaff: ExternalStaffMember[];
   configs: ShiftSlotConfig[];
   onConfigsChanged: (configs: ShiftSlotConfig[]) => void;
@@ -45,6 +47,7 @@ export default function ShiftRolesManager({
   currentUser,
   users,
   medicalRoles,
+  attendanceStatuses,
   externalStaff,
   configs,
   onConfigsChanged,
@@ -59,6 +62,13 @@ export default function ShiftRolesManager({
         .filter((role) => role.enabled)
         .sort((a, b) => a.sortOrder - b.sortOrder),
     [medicalRoles]
+  );
+  const activeAttendanceStatuses = useMemo(
+    () =>
+      attendanceStatuses
+        .filter((status) => status.enabled && status.visibleToCommanders)
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    [attendanceStatuses]
   );
 
   const externalStaffTypes = useMemo(
@@ -120,6 +130,7 @@ export default function ShiftRolesManager({
         sortOrder: draft.length + 1,
         allowedMedicalRoleIds: [],
         allowedSystemRoles: [],
+        allowedAttendanceStatusIds: ["base"],
         allowedUserIds: [],
         allowSystemUsers: true,
         allowDischargedUsers: false,
@@ -165,6 +176,22 @@ export default function ShiftRolesManager({
           allowedSystemRoles: selected
             ? slot.allowedSystemRoles.filter((item) => item !== role)
             : [...slot.allowedSystemRoles, role],
+        };
+      })
+    );
+  };
+
+  const toggleAttendanceStatus = (slotId: string, statusId: string) => {
+    updateDraft(
+      draft.map((slot) => {
+        if (slot.id !== slotId) return slot;
+        const current = slot.allowedAttendanceStatusIds || ["base"];
+        const selected = current.includes(statusId);
+        return {
+          ...slot,
+          allowedAttendanceStatusIds: selected
+            ? current.filter((id) => id !== statusId)
+            : [...current, statusId],
         };
       })
     );
@@ -458,6 +485,47 @@ export default function ShiftRolesManager({
                       );
                     })}
                   </div>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3">
+                  <div className="mb-1 text-xs font-black text-slate-700">
+                    סטטוסי נוכחות מותרים לשיבוץ
+                  </div>
+                  <p className="mb-3 text-[11px] font-bold leading-5 text-slate-500">
+                    חייל ללא דיווח או עם סטטוס שלא סומן כאן לא יוצג ולא יהיה ניתן לשבץ אותו. ברירת המחדל היא בבסיס בלבד.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {activeAttendanceStatuses.map((status) => {
+                      const checked = (
+                        slot.allowedAttendanceStatusIds || ["base"]
+                      ).includes(status.id);
+                      return (
+                        <label
+                          key={status.id}
+                          className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-xs font-bold ${
+                            checked
+                              ? "border-emerald-300 bg-emerald-100 text-emerald-900"
+                              : "border-slate-200 bg-white text-slate-600"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              toggleAttendanceStatus(slot.id, status.id)
+                            }
+                          />
+                          <span>{status.icon || "•"}</span>
+                          {status.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {(slot.allowedAttendanceStatusIds || ["base"]).length === 0 && (
+                    <div className="mt-2 text-[11px] font-black text-rose-600">
+                      לא נבחר סטטוס — לא יהיה ניתן לשבץ חיילים בתפקיד זה.
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/40 p-3">

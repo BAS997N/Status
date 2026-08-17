@@ -71,6 +71,7 @@ interface SystemAdminPanelProps {
   onAttendanceStatusesChanged?: (
     statuses: AttendanceStatusConfig[]
   ) => void;
+  attendanceStatuses: AttendanceStatusConfig[];
   unitConfigs: UnitConfig[];
   onUnitConfigsChanged: (units: UnitConfig[]) => void;
   medicalRoleConfigs: MedicalRoleConfig[];
@@ -237,6 +238,7 @@ export default function SystemAdminPanel({
   onUpdateSystemRole,
   onUserCredentialsUpdated,
   onAttendanceStatusesChanged,
+  attendanceStatuses,
   unitConfigs,
   onUnitConfigsChanged,
   medicalRoleConfigs,
@@ -453,6 +455,7 @@ export default function SystemAdminPanel({
           currentUser={currentUser}
           users={users}
           medicalRoles={medicalRoleConfigs}
+          attendanceStatuses={attendanceStatuses}
           externalStaff={externalStaff}
           configs={shiftSlotConfigs}
           onConfigsChanged={onShiftSlotConfigsChanged}

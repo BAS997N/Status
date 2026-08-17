@@ -431,6 +431,8 @@ export interface ShiftSlotConfig {
   sortOrder: number;
   allowedMedicalRoleIds: string[];
   allowedSystemRoles: SystemRole[];
+  /** סטטוסי הנוכחות שמאפשרים שיבוץ לתפקיד זה. ברירת המחדל היא בבסיס בלבד. */
+  allowedAttendanceStatusIds?: string[];
   allowedUserIds?: string[];
   allowSystemUsers?: boolean;
   allowDischargedUsers?: boolean;

@@ -63,6 +63,7 @@ interface ExpandedSlot {
   required: boolean;
   allowedMedicalRoleIds: string[];
   allowedSystemRoles: SystemRole[];
+  allowedAttendanceStatusIds: string[];
   allowedUserIds: string[];
   allowSystemUsers: boolean;
   allowDischargedUsers: boolean;
@@ -272,6 +273,9 @@ export default function ShiftsView({
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [slotAssignments, setSlotAssignments] = useState<Record<string, string>>({});
+  const [visibleCandidateStatusIds, setVisibleCandidateStatusIds] = useState<
+    string[]
+  >(["base"]);
 
   const expandedSlots = useMemo<ExpandedSlot[]>(
     () =>
@@ -287,6 +291,8 @@ export default function ShiftsView({
             required: config.required,
             allowedMedicalRoleIds: config.allowedMedicalRoleIds || [],
             allowedSystemRoles: config.allowedSystemRoles || [],
+            allowedAttendanceStatusIds:
+              config.allowedAttendanceStatusIds || ["base"],
             allowedUserIds: config.allowedUserIds || [],
             allowSystemUsers: config.allowSystemUsers !== false,
             allowDischargedUsers: config.allowDischargedUsers === true,
@@ -330,6 +336,13 @@ export default function ShiftsView({
       new Map(
         attendanceStatuses.map((status) => [status.id, status.label])
       ),
+    [attendanceStatuses]
+  );
+  const candidateAttendanceStatuses = useMemo(
+    () =>
+      attendanceStatuses
+        .filter((status) => status.enabled && status.visibleToCommanders)
+        .sort((a, b) => a.sortOrder - b.sortOrder),
     [attendanceStatuses]
   );
 
@@ -425,7 +438,14 @@ export default function ShiftsView({
     );
     const systemAllowed = slot.allowedSystemRoles.includes(getSystemRole(user));
     const individuallyAllowed = slot.allowedUserIds.includes(user.userId);
-    return medicalAllowed || systemAllowed || individuallyAllowed;
+    const attendanceStatusId = getAttendanceInfo(user).report?.status || "";
+    const attendanceAllowed =
+      attendanceStatusId.length > 0 &&
+      slot.allowedAttendanceStatusIds.includes(attendanceStatusId);
+    return (
+      attendanceAllowed &&
+      (medicalAllowed || systemAllowed || individuallyAllowed)
+    );
   };
 
   const getSlotRoleMatchPriority = (
@@ -1061,6 +1081,32 @@ export default function ShiftsView({
       setMessage({
         type: "error",
         text: `${restrictedSelection.fullName} נמצא/ת בתקופת עבודות רס״ר ומנוע/ה משיבוץ למשמרת בתאריך זה.`,
+      });
+      return;
+    }
+
+    const invalidAttendanceSelection = expandedSlots
+      .map((slot) => {
+        const selectedValue = slotAssignments[slot.key];
+        if (!selectedValue?.startsWith("user:")) return null;
+        const userId = selectedValue.replace("user:", "");
+        const user = selectableUsers.find((item) => item.userId === userId);
+        if (!user) return null;
+        const attendance = getAttendanceInfo(user);
+        const statusId = attendance.report?.status || "";
+        if (
+          statusId &&
+          slot.allowedAttendanceStatusIds.includes(statusId)
+        ) {
+          return null;
+        }
+        return { user, slot, attendance };
+      })
+      .find(Boolean);
+    if (invalidAttendanceSelection) {
+      setMessage({
+        type: "error",
+        text: `${invalidAttendanceSelection.user.fullName} לא ניתן/ת לשיבוץ כ${invalidAttendanceSelection.slot.label}: סטטוס הנוכחות לתאריך המשמרת הוא „${invalidAttendanceSelection.attendance.label}”.`,
       });
       return;
     }
@@ -4167,6 +4213,67 @@ export default function ShiftsView({
                   מידע בלבד.
                 </div>
               </div>
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs font-black text-slate-800">
+                      הצגת מועמדים לפי סטטוס נוכחות
+                    </div>
+                    <div className="mt-1 text-[10px] font-bold text-slate-500">
+                      הסינון משפיע רק על הרשימה. ניתן לשבץ רק סטטוסים שהוגדרו כמותרים לכל תפקיד משמרת.
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCandidateStatusIds(["base"])}
+                      className="rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[10px] font-black text-emerald-800"
+                    >
+                      בסיס בלבד
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisibleCandidateStatusIds(
+                          candidateAttendanceStatuses.map((status) => status.id)
+                        )
+                      }
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black text-slate-700"
+                    >
+                      הצג את כל המותרים
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {candidateAttendanceStatuses.map((status) => {
+                    const checked = visibleCandidateStatusIds.includes(status.id);
+                    return (
+                      <label
+                        key={status.id}
+                        className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-bold ${
+                          checked
+                            ? "border-emerald-300 bg-emerald-100 text-emerald-900"
+                            : "border-slate-200 bg-white text-slate-500"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setVisibleCandidateStatusIds((current) =>
+                              checked
+                                ? current.filter((id) => id !== status.id)
+                                : [...current, status.id]
+                            )
+                          }
+                        />
+                        <span>{status.icon || "•"}</span>
+                        {status.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
               {expandedSlots.map((slot) => {
                 const availableUsers = slot.allowSystemUsers
                   ? selectableUsers
@@ -4174,8 +4281,11 @@ export default function ShiftsView({
                         (user) =>
                           (slot.allowDischargedUsers ||
                             !user.isDischarged) &&
-                          isAllowedForSlot(user, slot) &&
-                          (!getShiftRestriction(user, startDate).active ||
+                           isAllowedForSlot(user, slot) &&
+                           visibleCandidateStatusIds.includes(
+                             getAttendanceInfo(user).report?.status || ""
+                           ) &&
+                           (!getShiftRestriction(user, startDate).active ||
                             user.disciplinaryRestriction
                               ?.allowManagerShiftAssignment === true)
                       )
