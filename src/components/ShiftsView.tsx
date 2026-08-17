@@ -59,6 +59,7 @@ interface ShiftsViewProps {
 interface ExpandedSlot {
   key: string;
   configId: string;
+  roleName: string;
   label: string;
   required: boolean;
   allowedMedicalRoleIds: string[];
@@ -128,6 +129,16 @@ const DAY_MARKER_LABELS: Record<string, string> = {
   exit_home: "יציאה לבית",
   after_hours: "אפטר",
 };
+
+const normalizeRoleForComparison = (value?: string) =>
+  String(value || "")
+    .trim()
+    .toLocaleLowerCase("he")
+    .replace(/["״׳'’`]/g, "")
+    .replace(/\/(?:ית|ת|ה)/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const getReportDateKey = (report: AttendanceReport) => {
   if (report.reportDate) return report.reportDate;
@@ -286,6 +297,7 @@ export default function ShiftsView({
           Array.from({ length: Math.max(1, config.quantity) }, (_, index) => ({
             key: `${config.id}_${index + 1}`,
             configId: config.id,
+            roleName: config.name,
             label:
               config.quantity > 1 ? `${config.name} ${index + 1}` : config.name,
             required: config.required,
@@ -335,6 +347,13 @@ export default function ShiftsView({
     () =>
       new Map(
         attendanceStatuses.map((status) => [status.id, status.label])
+      ),
+    [attendanceStatuses]
+  );
+  const attendanceStatusOrderById = useMemo(
+    () =>
+      new Map(
+        attendanceStatuses.map((status) => [status.id, status.sortOrder])
       ),
     [attendanceStatuses]
   );
@@ -458,24 +477,29 @@ export default function ShiftsView({
     const matchesMedicalRole = slot.allowedMedicalRoleIds.some(
       (roleId) => medicalRoleNameById.get(roleId) === medicalRoleName
     );
+    const matchesPrimarySlotRole =
+      matchesMedicalRole &&
+      normalizeRoleForComparison(user.medicalRole) ===
+        normalizeRoleForComparison(slot.roleName);
 
-    if (matchesMedicalRole) return 0;
+    if (matchesPrimarySlotRole) return 0;
     if (slot.allowedUserIds.includes(user.userId)) return 1;
-    if (slot.allowedSystemRoles.includes(getSystemRole(user))) return 2;
-    return 3;
+    if (matchesMedicalRole) return 2;
+    if (slot.allowedSystemRoles.includes(getSystemRole(user))) return 3;
+    return 4;
   };
 
   const getAttendanceSortPriority = (
     attendance: ReturnType<typeof getAttendanceInfo>
   ) => {
     const report = attendance.report;
-    if (!report) return 5;
-    if (report.dayMarker === "exit_home") return 0;
+    if (!report) return 999;
+    if (report.status === "base" && report.dayMarker === "exit_home") return 0;
     if (report.status === "base" && !report.dayMarker) return 1;
-    if (report.dayMarker === "return_to_base") return 2;
-    if (report.dayMarker === "after_hours") return 3;
-    if (report.status === "base") return 1;
-    return 4;
+    if (report.status === "base" && report.dayMarker === "return_to_base") return 2;
+    if (report.status === "base" && report.dayMarker === "after_hours") return 3;
+    if (report.status === "base") return 4;
+    return 10 + (attendanceStatusOrderById.get(report.status) || 500);
   };
 
   const loadShifts = async () => {
