@@ -972,7 +972,7 @@ function writeLineRosterTab(
   }
 
   if (isNumeric && tableRows.length) {
-    lastDataRow += addNumericLineRosterSubtotals(
+    lastDataRow += addLineRosterSubtotals(
       sheet,
       data.rows,
       dates,
@@ -1020,7 +1020,7 @@ function writeLineRosterTab(
   );
 }
 
-function addNumericLineRosterSubtotals(
+function addLineRosterSubtotals(
   sheet,
   rows,
   dates,
@@ -1032,8 +1032,12 @@ function addNumericLineRosterSubtotals(
       orders: [2, 3],
     },
     {
-      label: "סיכום ביניים מנהלי אירוע וחובשים",
-      orders: [4, 5, 6],
+      label: "סיכום ביניים מנהלי/ות אירוע",
+      orders: [4],
+    },
+    {
+      label: "סיכום ביניים חובשים",
+      orders: [5, 6],
     },
   ]
     .map((group) => {
@@ -1083,23 +1087,11 @@ function addNumericLineRosterSubtotals(
     dates.forEach((_, dateIndex) => {
       const column = dateIndex + 5;
       const letter = lineRosterColumnLetter(column);
+      const range =
+        letter + firstSheetRow + ":" + letter + lastSheetRow;
       sheet
         .getRange(subtotalRow, column)
-        .setFormula(
-          "=SUMIF(" +
-            letter +
-            firstSheetRow +
-            ":" +
-            letter +
-            lastSheetRow +
-            ',"<>100",' +
-            letter +
-            firstSheetRow +
-            ":" +
-            letter +
-            lastSheetRow +
-            ")"
-        )
+        .setFormula("=SUMIF(" + range + ',"<>100",' + range + ")")
         .setNumberFormat("0.##");
     });
 
