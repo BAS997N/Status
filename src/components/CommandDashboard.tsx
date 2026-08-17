@@ -155,6 +155,7 @@ interface AttendanceSummaryFilterPreferences {
   medicalRole: string;
   hideDischarged: boolean;
   hideSystemAccessBlocked: boolean;
+  hideEmptyStatusColumns: boolean;
 }
 
 const getAttendanceSummaryFilterPreferences = (
@@ -165,6 +166,7 @@ const getAttendanceSummaryFilterPreferences = (
     medicalRole: "all",
     hideDischarged: true,
     hideSystemAccessBlocked: true,
+    hideEmptyStatusColumns: false,
   };
 
   if (typeof window === "undefined") return defaults;
@@ -767,6 +769,8 @@ const [summarySortDirection, setSummarySortDirection] = useState<"asc" | "desc">
   );
   const [summaryHideSystemAccessBlocked, setSummaryHideSystemAccessBlocked] =
     useState(initialSummaryFilters.hideSystemAccessBlocked);
+  const [summaryHideEmptyStatusColumns, setSummaryHideEmptyStatusColumns] =
+    useState(initialSummaryFilters.hideEmptyStatusColumns);
 
   useEffect(() => {
     try {
@@ -777,6 +781,7 @@ const [summarySortDirection, setSummarySortDirection] = useState<"asc" | "desc">
           medicalRole: summaryMedicalRoleFilter,
           hideDischarged: summaryHideDischarged,
           hideSystemAccessBlocked: summaryHideSystemAccessBlocked,
+          hideEmptyStatusColumns: summaryHideEmptyStatusColumns,
         } satisfies AttendanceSummaryFilterPreferences)
       );
     } catch {
@@ -788,6 +793,7 @@ const [summarySortDirection, setSummarySortDirection] = useState<"asc" | "desc">
     summaryMedicalRoleFilter,
     summaryHideDischarged,
     summaryHideSystemAccessBlocked,
+    summaryHideEmptyStatusColumns,
   ]);
 
 const handleSummarySort = (field: "fullName" | "medicalRole") => {
@@ -3815,17 +3821,29 @@ const dates = getDateRange(startDate, endDate);
     return true;
   });
 
+  const summaryStatusColumns = attendanceStatuses
+    .filter((status) => status.enabled)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const summaryCountedStatusIds = new Set([
+    "base",
+    "home",
+    "sick",
+    "course",
+    "refresh_days",
+  ]);
+
   const summaryRows = summaryFilteredSoldiers.map((soldier) => {
     const soldierReports = getSummaryReportsForSoldier(soldier);
-    const counts = {
-      base: soldierReports.filter((report) => report.status === "base").length,
-      home: soldierReports.filter((report) => report.status === "home").length,
-      field: soldierReports.filter((report) => report.status === "field").length,
-      sick: soldierReports.filter((report) => report.status === "sick").length,
-      course: soldierReports.filter((report) => report.status === "course").length,
-      cut_order: soldierReports.filter((report) => report.status === "cut_order").length,
-      not_on_order: soldierReports.filter((report) => report.status === "not_on_order").length,
-      other: soldierReports.filter((report) => report.status === "other").length,
+    const counts = summaryStatusColumns.reduce<Record<string, number>>(
+      (result, status) => {
+        result[status.id] = soldierReports.filter(
+          (report) => report.status === status.id
+        ).length;
+        return result;
+      },
+      {}
+    );
+    const dayMarkerCounts = {
       return_to_base: soldierReports.filter(
         (report) => report.dayMarker === "return_to_base"
       ).length,
@@ -3836,44 +3854,44 @@ const dates = getDateRange(startDate, endDate);
         (report) => report.dayMarker === "after_hours"
       ).length,
     };
+    const total = soldierReports.filter((report) =>
+      summaryCountedStatusIds.has(report.status)
+    ).length;
 
     return {
       soldier,
-      total: soldierReports.length,
+      total,
       counts,
+      dayMarkerCounts,
     };
   });
 
   const summaryTotals = summaryRows.reduce(
-    (totals, row) => ({
-      total: totals.total + row.total,
-      base: totals.base + row.counts.base,
-      home: totals.home + row.counts.home,
-      field: totals.field + row.counts.field,
-      sick: totals.sick + row.counts.sick,
-      course: totals.course + row.counts.course,
-      cut_order: totals.cut_order + row.counts.cut_order,
-      not_on_order: totals.not_on_order + row.counts.not_on_order,
-      other: totals.other + row.counts.other,
-      return_to_base: totals.return_to_base + row.counts.return_to_base,
-      exit_home: totals.exit_home + row.counts.exit_home,
-      after_hours: totals.after_hours + row.counts.after_hours,
-    }),
+    (totals, row) => {
+      summaryStatusColumns.forEach((status) => {
+        totals.statusCounts[status.id] =
+          (totals.statusCounts[status.id] || 0) +
+          (row.counts[status.id] || 0);
+      });
+      totals.total += row.total;
+      totals.return_to_base += row.dayMarkerCounts.return_to_base;
+      totals.exit_home += row.dayMarkerCounts.exit_home;
+      totals.after_hours += row.dayMarkerCounts.after_hours;
+      return totals;
+    },
     {
       total: 0,
-      base: 0,
-      home: 0,
-      field: 0,
-      sick: 0,
-      course: 0,
-      cut_order: 0,
-      not_on_order: 0,
-      other: 0,
+      statusCounts: {} as Record<string, number>,
       return_to_base: 0,
       exit_home: 0,
       after_hours: 0,
     }
   );
+  const displayedSummaryStatusColumns = summaryHideEmptyStatusColumns
+    ? summaryStatusColumns.filter(
+        (status) => (summaryTotals.statusCounts[status.id] || 0) > 0
+      )
+    : summaryStatusColumns;
 
   const getSystemLogTimestamp = (timestamp: any) => {
   if (!timestamp) return "";
@@ -4837,6 +4855,17 @@ const dates = getDateRange(startDate, endDate);
             />
             הסתר חסומי גישה ודיווח
           </label>
+          <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={summaryHideEmptyStatusColumns}
+              onChange={(event) =>
+                setSummaryHideEmptyStatusColumns(event.target.checked)
+              }
+              className="h-4 w-4 accent-blue-600"
+            />
+            הסתר עמודות ללא נתונים
+          </label>
           <button
             type="button"
             onClick={() => {
@@ -4844,6 +4873,7 @@ const dates = getDateRange(startDate, endDate);
               setSummaryMedicalRoleFilter("all");
               setSummaryHideDischarged(true);
               setSummaryHideSystemAccessBlocked(true);
+              setSummaryHideEmptyStatusColumns(false);
             }}
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100"
           >
@@ -4946,16 +4976,13 @@ const dates = getDateRange(startDate, endDate);
   תפקיד {summarySortField === "medicalRole" ? (summarySortDirection === "asc" ? "▲" : "▼") : "↕"}
 </th>
 
-<th className="px-4 py-3">יחידה</th>
+            <th className="px-4 py-3">יחידה</th>
             <th className="px-4 py-3">סה״כ ימים</th>
-            <th className="px-4 py-3">בבסיס</th>
-            <th className="px-4 py-3">בבית / אפטר</th>
-            <th className="px-4 py-3">שטח / אימון</th>
-            <th className="px-4 py-3">גימלים</th>
-            <th className="px-4 py-3">קורס</th>
-            <th className="px-4 py-3">חיתוך צו</th>
-            <th className="px-4 py-3">לא בצו</th>
-            <th className="px-4 py-3">אחר</th>
+            {displayedSummaryStatusColumns.map((status) => (
+              <th key={status.id} className="px-4 py-3 whitespace-nowrap">
+                {status.label}
+              </th>
+            ))}
             <th className="px-4 py-3 whitespace-nowrap">יציאה לבית</th>
             <th className="px-4 py-3 whitespace-nowrap">חזרה לבסיס</th>
             <th className="px-4 py-3 whitespace-nowrap">אפטר</th>
@@ -4987,24 +5014,24 @@ const dates = getDateRange(startDate, endDate);
     ? (a.soldier.fullName || "").localeCompare(b.soldier.fullName || "", "he")
     : (b.soldier.fullName || "").localeCompare(a.soldier.fullName || "", "he");
 })
-  .map(({ soldier, counts, total }) => {
+  .map(({ soldier, counts, dayMarkerCounts, total }) => {
               return (
                 <tr key={soldier.userId} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-bold text-slate-800">{soldier.fullName}</td>
 <td className="px-4 py-3 text-slate-600 font-bold">{soldier.medicalRole || "—"}</td>
-<td className="px-4 py-3 text-slate-500">{soldier.unit}</td>
+                  <td className="px-4 py-3 text-slate-500">{soldier.unit}</td>
                   <td className="px-4 py-3 font-black text-slate-800">{total}</td>
-                  <td className="px-4 py-3 text-emerald-700 font-bold">{counts.base}</td>
-                  <td className="px-4 py-3 text-indigo-700 font-bold">{counts.home}</td>
-                  <td className="px-4 py-3 text-amber-700 font-bold">{counts.field}</td>
-                  <td className="px-4 py-3 text-rose-700 font-bold">{counts.sick}</td>
-                  <td className="px-4 py-3 text-cyan-700 font-bold">{counts.course}</td>
-                  <td className="px-4 py-3 text-red-700 font-bold">{counts.cut_order}</td>
-                  <td className="px-4 py-3 text-orange-700 font-bold">{counts.not_on_order}</td>
-                  <td className="px-4 py-3 text-slate-600 font-bold">{counts.other}</td>
-                  <td className="px-4 py-3 text-purple-700 font-bold">{counts.exit_home}</td>
-                  <td className="px-4 py-3 text-blue-700 font-bold">{counts.return_to_base}</td>
-                  <td className="px-4 py-3 text-fuchsia-700 font-bold">{counts.after_hours}</td>
+                  {displayedSummaryStatusColumns.map((status) => (
+                    <td
+                      key={status.id}
+                      className={`px-4 py-3 font-bold ${status.color || "text-slate-700"}`}
+                    >
+                      {counts[status.id] || 0}
+                    </td>
+                  ))}
+                  <td className="px-4 py-3 text-purple-700 font-bold">{dayMarkerCounts.exit_home}</td>
+                  <td className="px-4 py-3 text-blue-700 font-bold">{dayMarkerCounts.return_to_base}</td>
+                  <td className="px-4 py-3 text-fuchsia-700 font-bold">{dayMarkerCounts.after_hours}</td>
                 </tr>
               );
             })}
@@ -5015,14 +5042,14 @@ const dates = getDateRange(startDate, endDate);
             <td className="px-4 py-3">—</td>
             <td className="px-4 py-3">—</td>
             <td className="px-4 py-3">{summaryTotals.total}</td>
-            <td className="px-4 py-3 text-emerald-700">{summaryTotals.base}</td>
-            <td className="px-4 py-3 text-indigo-700">{summaryTotals.home}</td>
-            <td className="px-4 py-3 text-amber-700">{summaryTotals.field}</td>
-            <td className="px-4 py-3 text-rose-700">{summaryTotals.sick}</td>
-            <td className="px-4 py-3 text-cyan-700">{summaryTotals.course}</td>
-            <td className="px-4 py-3 text-red-700">{summaryTotals.cut_order}</td>
-            <td className="px-4 py-3 text-orange-700">{summaryTotals.not_on_order}</td>
-            <td className="px-4 py-3 text-slate-600">{summaryTotals.other}</td>
+            {displayedSummaryStatusColumns.map((status) => (
+              <td
+                key={status.id}
+                className={`px-4 py-3 ${status.color || "text-slate-700"}`}
+              >
+                {summaryTotals.statusCounts[status.id] || 0}
+              </td>
+            ))}
             <td className="px-4 py-3 text-purple-700">{summaryTotals.exit_home}</td>
             <td className="px-4 py-3 text-blue-700">{summaryTotals.return_to_base}</td>
             <td className="px-4 py-3 text-fuchsia-700">{summaryTotals.after_hours}</td>
