@@ -459,8 +459,9 @@ export default function ShiftsView({
     const individuallyAllowed = slot.allowedUserIds.includes(user.userId);
     const attendanceStatusId = getAttendanceInfo(user).report?.status || "";
     const attendanceAllowed =
-      attendanceStatusId.length > 0 &&
-      slot.allowedAttendanceStatusIds.includes(attendanceStatusId);
+      (user.isDischarged === true && slot.allowDischargedUsers) ||
+      (attendanceStatusId.length > 0 &&
+        slot.allowedAttendanceStatusIds.includes(attendanceStatusId));
     return (
       attendanceAllowed &&
       (medicalAllowed || systemAllowed || individuallyAllowed)
@@ -1118,6 +1119,12 @@ export default function ShiftsView({
         if (!user) return null;
         const attendance = getAttendanceInfo(user);
         const statusId = attendance.report?.status || "";
+        if (
+          user.isDischarged === true &&
+          slot.allowDischargedUsers
+        ) {
+          return null;
+        }
         if (
           statusId &&
           slot.allowedAttendanceStatusIds.includes(statusId)
@@ -4306,9 +4313,11 @@ export default function ShiftsView({
                           (slot.allowDischargedUsers ||
                             !user.isDischarged) &&
                            isAllowedForSlot(user, slot) &&
-                           visibleCandidateStatusIds.includes(
-                             getAttendanceInfo(user).report?.status || ""
-                           ) &&
+                           ((user.isDischarged === true &&
+                             slot.allowDischargedUsers) ||
+                             visibleCandidateStatusIds.includes(
+                               getAttendanceInfo(user).report?.status || ""
+                             )) &&
                            (!getShiftRestriction(user, startDate).active ||
                             user.disciplinaryRestriction
                               ?.allowManagerShiftAssignment === true)

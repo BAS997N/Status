@@ -666,7 +666,7 @@ export default function ShiftRolesManager({
                       }
                     />
                     <span className="text-xs font-bold text-slate-700">
-                      אפשר גם משתמשים שמסומנים כנגרעו
+                      אפשר משתמשים שנגרעו ללא סטטוס נוכחות
                     </span>
                   </label>
                 </div>
