@@ -4958,8 +4958,8 @@ const dates = getDateRange(startDate, endDate);
       </button>
     </div>
 
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
-      <table className="w-full border-collapse border border-slate-300 text-right text-xs [&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-300">
+    <div className="custom-scrollbar block w-full max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-slate-200 bg-white shadow-sm">
+      <table className="w-max min-w-full border-collapse border border-slate-300 text-right text-xs [&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-300">
         <thead className="bg-slate-50 text-slate-600 font-black">
           <tr>
             <th
