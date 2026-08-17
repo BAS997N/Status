@@ -3893,10 +3893,214 @@ const dates = getDateRange(startDate, endDate);
     return log.targetId || "—";
   };
 
+  const getSystemLogActionKey = (log: any) => {
+    const action = String(log.action || "");
+    const module = String(log.module || "");
+
+    if (
+      [
+        "add_soldier",
+        "edit_soldier",
+        "delete_soldier",
+        "create_report",
+        "edit_report",
+        "delete_report",
+        "reset_report",
+        "bulk_attendance_update",
+      ].includes(action)
+    ) {
+      return action;
+    }
+
+    if (module === "users") {
+      if (action === "create") return "add_soldier";
+      if (action === "update") return "edit_soldier";
+      if (action === "delete") return "delete_soldier";
+      if (action === "reset") return "reset_user_code";
+    }
+
+    if (module === "reports") {
+      if (action === "create") return "create_report";
+      if (action === "update") return "edit_report";
+      if (action === "delete") return "delete_report";
+      if (action === "reset") return "reset_report";
+    }
+
+    if (module === "shifts") {
+      if (action === "create") return "create_shift";
+      if (action === "update") return "edit_shift";
+      if (action === "delete") return "delete_shift";
+      if (action === "acknowledge") return "acknowledge_shift";
+    }
+
+    if (module === "line_planning") {
+      if (action === "create") return "create_line_plan";
+      if (action === "update") return "edit_line_plan";
+      if (action === "delete") return "delete_line_plan";
+    }
+
+    if (module === "google_sheets" || action === "sync") return "sync";
+    if (module === "backups" && action === "backup") return "backup";
+    if (module === "backups" && action === "restore") return "restore";
+    if (
+      [
+        "permissions",
+        "attendance_statuses",
+        "units",
+        "medical_roles",
+        "system_settings",
+      ].includes(module)
+    ) {
+      return "update_settings";
+    }
+
+    return action || "other";
+  };
+
+  const systemLogActionLabels: Record<string, string> = {
+    add_soldier: "הוספת חייל",
+    edit_soldier: "עריכת חייל",
+    delete_soldier: "מחיקת חייל",
+    reset_user_code: "איפוס קוד אישי",
+    create_report: "יצירת דיווח",
+    edit_report: "עריכת דיווח",
+    delete_report: "מחיקת דיווח",
+    reset_report: "איפוס דיווח",
+    bulk_attendance_update: "עדכון נוכחות מרוכז",
+    create_shift: "יצירת משמרת",
+    edit_shift: "עריכת משמרת",
+    delete_shift: "מחיקת משמרת",
+    acknowledge_shift: "אישור קריאת משמרת",
+    create_line_plan: "יצירת אילוץ או תכנון",
+    edit_line_plan: "עריכת אילוץ או תכנון",
+    delete_line_plan: "מחיקת אילוץ או תכנון",
+    update_settings: "עדכון הגדרות",
+    sync: "סנכרון",
+    backup: "יצירת גיבוי",
+    restore: "שחזור גיבוי",
+    create: "יצירה",
+    update: "עדכון",
+    delete: "מחיקה",
+    reset: "איפוס",
+    acknowledge: "אישור קריאה",
+    other: "פעולה אחרת",
+  };
+
+  const getSystemLogActionLabel = (log: any) => {
+    const key = getSystemLogActionKey(log);
+    return systemLogActionLabels[key] || String(log.action || "פעולה");
+  };
+
+  const systemLogModuleLabels: Record<string, string> = {
+    users: "משתמשים וחיילים",
+    reports: "דיווחי נוכחות",
+    shifts: "משמרות",
+    line_planning: "תכנון קו ואילוצים",
+    permissions: "הרשאות",
+    attendance_statuses: "סטטוסי נוכחות",
+    units: "יחידות ושיוכים",
+    medical_roles: "תפקידי רפואה",
+    system_settings: "הגדרות מערכת",
+    google_sheets: "Google Sheets",
+    backups: "גיבויים ושחזור",
+  };
+
   const getSystemLogDetails = (log: any) => {
     if (log.details) return log.details;
 
     const result = log.after || log.metadata;
+    const metadata = (log.metadata || {}) as Record<string, any>;
+    const before = (log.before || {}) as Record<string, any>;
+    const after = (log.after || {}) as Record<string, any>;
+    const actionKey = getSystemLogActionKey(log);
+
+    if (actionKey === "delete_soldier") {
+      const parts = ["המשתמש נמחק מהמערכת"];
+      if (before.medicalRole) parts.push(`תפקיד: ${before.medicalRole}`);
+      if (metadata.fullAccountDeletion) {
+        parts.push(metadata.authDeleted ? "חשבון ההתחברות נמחק" : "חשבון ההתחברות לא נמצא");
+        parts.push(metadata.profileDeleted ? "פרופיל המשתמש נמחק" : "פרופיל המשתמש לא נמצא");
+        if (Number(metadata.relatedRecordsDeleted || 0) > 0) {
+          parts.push(`${metadata.relatedRecordsDeleted} רשומות קשורות נמחקו`);
+        }
+      }
+      return parts.join(" · ");
+    }
+
+    if (actionKey === "add_soldier") {
+      return `נוסף משתמש חדש${after.medicalRole ? ` · תפקיד: ${after.medicalRole}` : ""}${
+        after.unit ? ` · יחידה: ${after.unit}` : ""
+      }`;
+    }
+
+    if (actionKey === "edit_soldier") {
+      const ignoredFields = new Set([
+        "updatedAt",
+        "updatedBy",
+        "systemRoleUpdatedAt",
+        "systemRoleUpdatedBy",
+      ]);
+      const fieldLabels: Record<string, string> = {
+        fullName: "שם מלא",
+        personalId: "מספר אישי",
+        phoneNumber: "טלפון",
+        medicalRole: "תפקיד רפואי",
+        role: "תפקיד מערכת",
+        systemRole: "תפקיד ניהולי",
+        systemRoleAccessLevel: "רמת גישה",
+        unit: "יחידה",
+        isDischarged: "סטטוס גריעה",
+        systemAccessBlocked: "חסימת גישה",
+      };
+      const changedFields = Array.from(
+        new Set([...Object.keys(before), ...Object.keys(after)])
+      )
+        .filter((field) => !ignoredFields.has(field))
+        .filter(
+          (field) =>
+            JSON.stringify(before[field]) !== JSON.stringify(after[field])
+        )
+        .map((field) => fieldLabels[field] || field)
+        .slice(0, 6);
+
+      if (metadata.credentialManagement) {
+        const credentialChanges = [
+          metadata.authEmailSynced ? "המספר האישי וחשבון ההתחברות סונכרנו" : "",
+          after.codeReset ? "הקוד האישי אופס" : "",
+        ].filter(Boolean);
+        if (credentialChanges.length > 0) return credentialChanges.join(" · ");
+      }
+      return changedFields.length > 0
+        ? `עודכנו: ${changedFields.join(", ")}`
+        : "עודכנו פרטי המשתמש";
+    }
+
+    if (actionKey === "reset_user_code") return "הקוד האישי אופס באמצעות תהליך השחזור";
+
+    if (["create_report", "edit_report", "delete_report", "reset_report"].includes(actionKey)) {
+      const report = Object.keys(after).length > 0 ? after : before;
+      const date = report.reportDate || report.date || "תאריך לא ידוע";
+      const status = report.status
+        ? attendanceStatuses.find((item) => item.id === report.status)?.label || report.status
+        : "";
+      return `${systemLogActionLabels[actionKey]} לתאריך ${date}${status ? ` · סטטוס: ${status}` : ""}${
+        report.location ? ` · מיקום: ${report.location}` : ""
+      }`;
+    }
+
+    if (["create_shift", "edit_shift", "delete_shift"].includes(actionKey)) {
+      const shift = Object.keys(after).length > 0 ? after : before;
+      const assignmentCount = Array.isArray(shift.assignments) ? shift.assignments.length : 0;
+      return `${systemLogActionLabels[actionKey]}${shift.startAt ? ` · התחלה: ${new Date(shift.startAt).toLocaleString("he-IL")}` : ""}${
+        assignmentCount ? ` · ${assignmentCount} משובצים` : ""
+      }`;
+    }
+
+    if (["create_line_plan", "edit_line_plan", "delete_line_plan"].includes(actionKey)) {
+      return `${systemLogActionLabels[actionKey]} · ${
+        log.targetLabel || "תכנון קו"
+      }`;
+    }
     if (log.module === "google_sheets" && result) {
       if (
         typeof result.soldierCount === "number" ||
@@ -3922,9 +4126,40 @@ const dates = getDateRange(startDate, endDate);
       return `${status} · נמצאו ${found} · נשלחו ${sent} · נכשלו ${failed} · דולגו ${skipped}`;
     }
 
-    if (log.module) return `מודול: ${log.module}`;
+    if (log.module) {
+      return `${systemLogActionLabels[actionKey] || "בוצעה פעולה"} ב־${
+        systemLogModuleLabels[log.module] || log.module
+      }`;
+    }
     return "—";
   };
+
+  const systemLogActionOptions = [
+    "add_soldier",
+    "edit_soldier",
+    "delete_soldier",
+    "reset_user_code",
+    "create_report",
+    "edit_report",
+    "delete_report",
+    "reset_report",
+    "bulk_attendance_update",
+    "create_shift",
+    "edit_shift",
+    "delete_shift",
+    "acknowledge_shift",
+    "create_line_plan",
+    "edit_line_plan",
+    "delete_line_plan",
+    "update_settings",
+    "sync",
+    "backup",
+    "restore",
+    "create",
+    "update",
+    "delete",
+    "other",
+  ];
   
   const filteredSystemLogs = [...systemLogs]
   .sort((a, b) => {
@@ -3947,7 +4182,8 @@ const dates = getDateRange(startDate, endDate);
         .includes(systemLogFilterUser.toLowerCase());
 
     const matchesAction =
-      systemLogFilterAction === "all" || log.action === systemLogFilterAction;
+      systemLogFilterAction === "all" ||
+      getSystemLogActionKey(log) === systemLogFilterAction;
 
     return matchesDate && matchesUser && matchesAction;
   });
@@ -4450,17 +4686,11 @@ const dates = getDateRange(startDate, endDate);
       className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold bg-white"
     >
       <option value="all">כל הפעולות</option>
-      <option value="add_soldier">הוספת חייל</option>
-      <option value="edit_soldier">עריכת חייל</option>
-      <option value="delete_soldier">מחיקת חייל</option>
-      <option value="create_report">יצירת דיווח</option>
-      <option value="edit_report">עריכת דיווח</option>
-      <option value="delete_report">מחיקת דיווח</option>
-      <option value="reset_report">איפוס דיווח</option>
-      <option value="sync">סנכרון</option>
-      <option value="create">יצירה</option>
-      <option value="update">עדכון</option>
-      <option value="delete">מחיקה</option>
+      {systemLogActionOptions.map((actionKey) => (
+        <option key={actionKey} value={actionKey}>
+          {systemLogActionLabels[actionKey]}
+        </option>
+      ))}
     </select>
 
     <button
@@ -4506,19 +4736,7 @@ const dates = getDateRange(startDate, endDate);
 </td>
                 <td className="px-4 py-3">{log.actorName || "—"}</td>
                 <td className="px-4 py-3 font-black text-slate-800">
-  {{
-    add_soldier: "הוספת חייל",
-    edit_soldier: "עריכת חייל",
-    delete_soldier: "מחיקת חייל",
-    create_report: "יצירת דיווח",
-    edit_report: "עריכת דיווח",
-    delete_report: "מחיקת דיווח",
-    reset_report: "איפוס דיווח",
-    sync: "סנכרון",
-    create: "יצירה",
-    update: "עדכון",
-    delete: "מחיקה"
-  }[log.action] || log.action}
+  {getSystemLogActionLabel(log)}
 </td>
                 <td className="px-4 py-3">{getSystemLogTarget(log)}</td>
                 <td className="px-4 py-3 text-slate-500">{getSystemLogDetails(log)}</td>
