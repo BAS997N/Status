@@ -364,6 +364,19 @@ type AuditAssignment = Record<string, unknown>;
 const getAssignmentKey = (item: AuditAssignment, index: number) =>
   String(item.slotId || item.slotLabel || `assignment_${index}`);
 
+const getAssignmentIdentity = (item?: AuditAssignment) => {
+  if (!item) return "";
+
+  return String(
+    item.externalStaffId ||
+      item.userId ||
+      item.personalId ||
+      item.userName ||
+      item.fullName ||
+      ""
+  );
+};
+
 const getShiftAssignmentChanges = (before: unknown, after: unknown) => {
   const beforeAssignments = Array.isArray(
     (before as Record<string, unknown> | undefined)?.assignments
@@ -389,8 +402,8 @@ const getShiftAssignmentChanges = (before: unknown, after: unknown) => {
   return keys
     .filter(
       (key) =>
-        JSON.stringify(sanitizeAuditValue(beforeBySlot.get(key))) !==
-        JSON.stringify(sanitizeAuditValue(afterBySlot.get(key)))
+        getAssignmentIdentity(beforeBySlot.get(key)) !==
+        getAssignmentIdentity(afterBySlot.get(key))
     )
     .map((key) => ({
       key,
@@ -461,7 +474,11 @@ const ShiftAssignmentsAuditDetails = ({
           return (
             <div
               key={`${side}-${key}`}
-              className="flex min-w-0 items-baseline gap-1.5"
+              className={`flex min-w-0 items-baseline gap-1.5 rounded-md px-1.5 py-0.5 ${
+                changed
+                  ? "bg-amber-200 text-amber-950 ring-1 ring-inset ring-amber-300"
+                  : ""
+              }`}
             >
               <span className="shrink-0 font-black">
                 {assignmentRole(assignment, assignment)}:
@@ -469,9 +486,7 @@ const ShiftAssignmentsAuditDetails = ({
               <span
                 className={`min-w-0 break-words rounded px-1.5 py-0.5 font-bold ${
                   changed
-                    ? side === "before"
-                      ? "bg-rose-200 text-rose-950"
-                      : "bg-emerald-200 text-emerald-950"
+                    ? "bg-amber-300 text-amber-950"
                     : ""
                 }`}
               >
