@@ -71,6 +71,12 @@ interface ExpandedSlot {
   index: number;
 }
 
+interface BulkShiftTypeSchedule {
+  startTime: string;
+  endTime: string;
+  crossesMidnight: boolean;
+}
+
 const toLocalParts = (value?: string) => {
   if (!value) return { date: "", time: "" };
   const date = new Date(value);
@@ -155,6 +161,11 @@ export default function ShiftsView({
   const [viewMode, setViewMode] = useState<ShiftViewMode>(
     canManage ? "week" : "list"
   );
+  const [shiftPageTab, setShiftPageTab] = useState<"shifts" | "summary">(
+    "shifts"
+  );
+  const [shiftSummaryStartDate, setShiftSummaryStartDate] = useState("");
+  const [shiftSummaryEndDate, setShiftSummaryEndDate] = useState("");
   const [shiftTypeFilter, setShiftTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [weekAnchor, setWeekAnchor] = useState(new Date());
@@ -206,6 +217,33 @@ export default function ShiftsView({
   const [selectedWhatsAppTarget, setSelectedWhatsAppTarget] =
     useState("__general__");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isBulkFormOpen, setIsBulkFormOpen] = useState(false);
+  const [bulkDateMode, setBulkDateMode] = useState<"range" | "specific">(
+    "range"
+  );
+  const [bulkStartDate, setBulkStartDate] = useState(getTodayInputDate());
+  const [bulkEndDate, setBulkEndDate] = useState(
+    addDaysToInputDate(getTodayInputDate(), 6)
+  );
+  const [bulkSpecificDateInput, setBulkSpecificDateInput] = useState("");
+  const [bulkSpecificDates, setBulkSpecificDates] = useState<string[]>([]);
+  const [bulkSelectedShiftTypeIds, setBulkSelectedShiftTypeIds] = useState<
+    string[]
+  >([]);
+  const [bulkTypeSchedules, setBulkTypeSchedules] = useState<
+    Record<string, BulkShiftTypeSchedule>
+  >({});
+  const [bulkStatus, setBulkStatus] = useState<
+    "draft" | "published" | "cancelled"
+  >("draft");
+  const [bulkLocation, setBulkLocation] = useState("");
+  const [bulkNote, setBulkNote] = useState("");
+  const [bulkSendPushOnPublish, setBulkSendPushOnPublish] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [editingShift, setEditingShift] = useState<ShiftRecord | null>(null);
   const [formStatus, setFormStatus] = useState<
     "draft" | "published" | "cancelled"
@@ -542,6 +580,41 @@ export default function ShiftsView({
     statusFilter,
   ]);
 
+  const completedShiftSummary = useMemo(() => {
+    const normalizeLabel = (value?: string) =>
+      String(value || "")
+        .toLocaleLowerCase("he")
+        .replace(/[\s\-_'"״׳]/g, "");
+    const completed = shifts.filter((shift) => {
+      if (!isPublishedShift(shift)) return false;
+      if (new Date(shift.endAt).getTime() > Date.now()) return false;
+      const date = toLocalParts(shift.startAt).date;
+      if (shiftSummaryStartDate && date < shiftSummaryStartDate) return false;
+      if (shiftSummaryEndDate && date > shiftSummaryEndDate) return false;
+      return true;
+    });
+    const byType = Array.from(
+      completed.reduce((result, shift) => {
+        const label = shift.title || shift.shiftType || "משמרת ללא שם";
+        result.set(label, (result.get(label) || 0) + 1);
+        return result;
+      }, new Map<string, number>())
+    ).sort((first, second) =>
+      first[0].localeCompare(second[0], "he")
+    );
+
+    return {
+      total: completed.length,
+      tgbatz: completed.filter((shift) =>
+        normalizeLabel(`${shift.title} ${shift.shiftType}`).includes("תגבץ")
+      ).length,
+      hipuk: completed.filter((shift) =>
+        normalizeLabel(shift.note).includes("חיפוק")
+      ).length,
+      byType,
+    };
+  }, [shifts, shiftSummaryStartDate, shiftSummaryEndDate]);
+
   const signupRequestsByShiftId = useMemo(() => {
     const map = new Map<string, ShiftSignupRequest[]>();
     signupRequests.forEach((request) => {
@@ -674,6 +747,221 @@ export default function ShiftsView({
   const openNew = () => {
     resetForm();
     setIsFormOpen(true);
+  };
+
+  const resetBulkForm = () => {
+    const today = getTodayInputDate();
+    setBulkDateMode("range");
+    setBulkStartDate(today);
+    setBulkEndDate(addDaysToInputDate(today, 6));
+    setBulkSpecificDateInput("");
+    setBulkSpecificDates([]);
+    setBulkSelectedShiftTypeIds([]);
+    setBulkTypeSchedules({});
+    setBulkStatus("draft");
+    setBulkLocation("");
+    setBulkNote("");
+    setBulkSendPushOnPublish(false);
+    setBulkMessage(null);
+  };
+
+  const openBulkForm = () => {
+    resetBulkForm();
+    setIsBulkFormOpen(true);
+  };
+
+  const toggleBulkShiftType = (shiftTypeConfig: ShiftTypeConfig) => {
+    const selected = bulkSelectedShiftTypeIds.includes(shiftTypeConfig.id);
+    setBulkSelectedShiftTypeIds((current) =>
+      selected
+        ? current.filter((id) => id !== shiftTypeConfig.id)
+        : [...current, shiftTypeConfig.id]
+    );
+    setBulkTypeSchedules((current) => {
+      if (selected) {
+        const next = { ...current };
+        delete next[shiftTypeConfig.id];
+        return next;
+      }
+      return {
+        ...current,
+        [shiftTypeConfig.id]: {
+          startTime: shiftTypeConfig.defaultStartTime || "05:30",
+          endTime: shiftTypeConfig.defaultEndTime || "17:30",
+          crossesMidnight: shiftTypeConfig.crossesMidnight === true,
+        },
+      };
+    });
+  };
+
+  const addBulkSpecificDate = () => {
+    if (!bulkSpecificDateInput) return;
+    setBulkSpecificDates((current) =>
+      Array.from(new Set([...current, bulkSpecificDateInput])).sort()
+    );
+    setBulkSpecificDateInput("");
+  };
+
+  const bulkDates = useMemo(() => {
+    if (bulkDateMode === "specific") return bulkSpecificDates;
+    if (!bulkStartDate || !bulkEndDate || bulkEndDate < bulkStartDate) {
+      return [];
+    }
+
+    const dates: string[] = [];
+    let current = bulkStartDate;
+    while (current <= bulkEndDate && dates.length < 93) {
+      dates.push(current);
+      current = addDaysToInputDate(current, 1);
+    }
+    return dates;
+  }, [
+    bulkDateMode,
+    bulkSpecificDates,
+    bulkStartDate,
+    bulkEndDate,
+  ]);
+
+  const bulkPreview = useMemo(
+    () =>
+      bulkDates.flatMap((date) =>
+        bulkSelectedShiftTypeIds.flatMap((shiftTypeId) => {
+          const selectedType = shiftTypes.find(
+            (item) => item.id === shiftTypeId
+          );
+          const schedule = bulkTypeSchedules[shiftTypeId];
+          if (!selectedType || !schedule) return [];
+
+          const endDateForShift = addDaysToInputDate(
+            date,
+            schedule.crossesMidnight ? 1 : 0
+          );
+          const hasValidTimes = Boolean(
+            schedule.startTime &&
+              schedule.endTime &&
+              (schedule.crossesMidnight ||
+                schedule.endTime > schedule.startTime)
+          );
+          const startAt = hasValidTimes
+            ? combineDateAndTime(date, schedule.startTime)
+            : "";
+          const endAt = hasValidTimes
+            ? combineDateAndTime(endDateForShift, schedule.endTime)
+            : "";
+          const duplicate = Boolean(
+            startAt &&
+              endAt &&
+              shifts.some(
+                (shift) =>
+                  shift.title.trim().toLocaleLowerCase("he") ===
+                    selectedType.name.trim().toLocaleLowerCase("he") &&
+                  new Date(shift.startAt).getTime() === new Date(startAt).getTime() &&
+                  new Date(shift.endAt).getTime() === new Date(endAt).getTime()
+              )
+          );
+
+          return [
+            {
+              key: `${date}_${shiftTypeId}`,
+              date,
+              shiftType: selectedType,
+              schedule,
+              startAt,
+              endAt,
+              duplicate,
+              hasValidTimes,
+            },
+          ];
+        })
+      ),
+    [
+      bulkDates,
+      bulkSelectedShiftTypeIds,
+      bulkTypeSchedules,
+      shiftTypes,
+      shifts,
+    ]
+  );
+
+  const saveBulkShifts = async () => {
+    setBulkMessage(null);
+    if (bulkDates.length === 0) {
+      setBulkMessage({
+        type: "error",
+        text: "יש לבחור טווח תאריכים תקין או להוסיף תאריכים מסוימים.",
+      });
+      return;
+    }
+    if (bulkDates.length > 62) {
+      setBulkMessage({
+        type: "error",
+        text: "ניתן ליצור עד 62 ימים בפעולה אחת.",
+      });
+      return;
+    }
+    if (bulkSelectedShiftTypeIds.length === 0) {
+      setBulkMessage({ type: "error", text: "יש לבחור לפחות סוג משמרת אחד." });
+      return;
+    }
+    if (bulkPreview.some((item) => !item.hasValidTimes)) {
+      setBulkMessage({
+        type: "error",
+        text: "יש לתקן את שעות המשמרות. משמרת שמסתיימת למחרת חייבת להיות מסומנת בהתאם.",
+      });
+      return;
+    }
+
+    const itemsToCreate = bulkPreview.filter((item) => !item.duplicate);
+    if (itemsToCreate.length === 0) {
+      setBulkMessage({
+        type: "error",
+        text: "כל המשמרות בתצוגה המקדימה כבר קיימות במערכת.",
+      });
+      return;
+    }
+
+    setBulkSaving(true);
+    try {
+      for (const item of itemsToCreate) {
+        await dataService.createShift(
+          {
+            title: item.shiftType.name,
+            shiftType: item.shiftType.name,
+            startAt: item.startAt,
+            endAt: item.endAt,
+            location: bulkLocation.trim(),
+            note: bulkNote.trim(),
+            assignments: [],
+            status: bulkStatus,
+            sendPushOnPublish: bulkSendPushOnPublish,
+            signupRequestsEnabled: false,
+            signupRequestsLocked: false,
+            createdBy: currentUser.userId,
+            createdByName: currentUser.fullName,
+          },
+          currentUser
+        );
+      }
+
+      await loadShifts();
+      const skipped = bulkPreview.length - itemsToCreate.length;
+      setIsBulkFormOpen(false);
+      resetBulkForm();
+      setMessage({
+        type: "success",
+        text: `נוצרו ${itemsToCreate.length} משמרות בהצלחה${
+          skipped ? ` · ${skipped} משמרות כפולות דולגו` : ""
+        }.`,
+      });
+    } catch (error) {
+      console.error("Bulk shift creation failed:", error);
+      setBulkMessage({
+        type: "error",
+        text: "יצירת המשמרות המרוכזת נכשלה. המשמרות שכבר נוצרו נשמרו במערכת.",
+      });
+    } finally {
+      setBulkSaving(false);
+    }
   };
 
   const openEdit = (shift: ShiftRecord) => {
@@ -2337,6 +2625,14 @@ export default function ShiftsView({
               </button>
               <button
                 type="button"
+                onClick={openBulkForm}
+                className="flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-xs font-black text-indigo-700 hover:bg-indigo-50"
+              >
+                <Copy className="h-4 w-4" />
+                יצירה מרוכזת
+              </button>
+              <button
+                type="button"
                 onClick={openNew}
                 className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white hover:bg-indigo-700"
               >
@@ -2348,6 +2644,128 @@ export default function ShiftsView({
         </div>
       </div>
 
+      {canManage && (
+        <div className="grid grid-cols-2 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setShiftPageTab("shifts")}
+            className={`rounded-xl px-4 py-2.5 text-xs font-black transition ${
+              shiftPageTab === "shifts"
+                ? "bg-indigo-600 text-white"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            ניהול משמרות
+          </button>
+          <button
+            type="button"
+            onClick={() => setShiftPageTab("summary")}
+            className={`rounded-xl px-4 py-2.5 text-xs font-black transition ${
+              shiftPageTab === "summary"
+                ? "bg-indigo-600 text-white"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            סיכום משמרות
+          </button>
+        </div>
+      )}
+
+      {shiftPageTab === "summary" && canManage ? (
+        <section className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  סיכום משמרות שבוצעו
+                </h3>
+                <p className="mt-1 text-xs font-bold text-slate-500">
+                  נספרות רק משמרות שפורסמו ושזמן הסיום שלהן עבר. טיוטות ומשמרות מבוטלות אינן נספרות.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[160px_160px_auto]">
+                <Field label="מתאריך">
+                  <input
+                    type="date"
+                    value={shiftSummaryStartDate}
+                    onChange={(event) =>
+                      setShiftSummaryStartDate(event.target.value)
+                    }
+                    className="input"
+                  />
+                </Field>
+                <Field label="עד תאריך">
+                  <input
+                    type="date"
+                    value={shiftSummaryEndDate}
+                    onChange={(event) =>
+                      setShiftSummaryEndDate(event.target.value)
+                    }
+                    className="input"
+                  />
+                </Field>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShiftSummaryStartDate("");
+                    setShiftSummaryEndDate("");
+                  }}
+                  className="h-[42px] self-end rounded-xl border border-slate-200 px-4 text-xs font-black text-slate-600 hover:bg-slate-50"
+                >
+                  כל התקופה
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+              <div className="text-xs font-black text-emerald-700">כל המשמרות שבוצעו</div>
+              <div className="mt-2 text-3xl font-black text-emerald-900">
+                {completedShiftSummary.total}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
+              <div className="text-xs font-black text-indigo-700">משמרות תגב״ץ שבוצעו</div>
+              <div className="mt-2 text-3xl font-black text-indigo-900">
+                {completedShiftSummary.tgbatz}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+              <div className="text-xs font-black text-amber-700">משמרות עם חיפוק בהערה</div>
+              <div className="mt-2 text-3xl font-black text-amber-900">
+                {completedShiftSummary.hipuk}
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4 text-sm font-black text-slate-900">
+              פירוט לפי סוג משמרת
+            </div>
+            {completedShiftSummary.byType.length === 0 ? (
+              <div className="p-8 text-center text-xs font-bold text-slate-400">
+                אין משמרות שבוצעו בטווח שנבחר.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {completedShiftSummary.byType.map(([label, count]) => (
+                  <div
+                    key={label}
+                    className="flex items-center justify-between px-5 py-3 text-xs"
+                  >
+                    <span className="font-black text-slate-700">{label}</span>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 font-black text-slate-800">
+                      {count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      ) : (
+        <>
       <ShiftFilters
         viewMode={viewMode}
         onViewModeChange={setViewMode}
@@ -2359,7 +2777,9 @@ export default function ShiftsView({
         onStatusFilterChange={setStatusFilter}
         showPast={showPast}
         onShowPastChange={setShowPast}
-        shiftTypes={Array.from(new Set(shifts.map((shift) => shift.title))).sort(
+        shiftTypes={Array.from(
+          new Set<string>(shifts.map((shift) => String(shift.title || "")))
+        ).sort(
           (a, b) => a.localeCompare(b, "he")
         )}
         onPrint={openPrintOptions}
@@ -3201,6 +3621,337 @@ export default function ShiftsView({
         </div>
       )}
 
+      {isBulkFormOpen && canManage && (
+        <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm">
+          <div className="max-h-[94vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  יצירת משמרות מרוכזת
+                </h3>
+                <p className="mt-1 text-xs font-bold text-slate-500">
+                  יצירת כמה סוגי משמרות לטווח שבועי או לתאריכים מסוימים.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBulkFormOpen(false)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
+              <button
+                type="button"
+                onClick={() => setBulkDateMode("range")}
+                className={`rounded-lg px-3 py-2 text-xs font-black ${
+                  bulkDateMode === "range"
+                    ? "bg-white text-indigo-700 shadow-sm"
+                    : "text-slate-500"
+                }`}
+              >
+                טווח תאריכים
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkDateMode("specific")}
+                className={`rounded-lg px-3 py-2 text-xs font-black ${
+                  bulkDateMode === "specific"
+                    ? "bg-white text-indigo-700 shadow-sm"
+                    : "text-slate-500"
+                }`}
+              >
+                תאריכים מסוימים
+              </button>
+            </div>
+
+            {bulkDateMode === "range" ? (
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="מתאריך">
+                  <input
+                    type="date"
+                    value={bulkStartDate}
+                    onChange={(event) => setBulkStartDate(event.target.value)}
+                    className="input"
+                  />
+                </Field>
+                <Field label="עד תאריך">
+                  <input
+                    type="date"
+                    value={bulkEndDate}
+                    onChange={(event) => setBulkEndDate(event.target.value)}
+                    className="input"
+                  />
+                </Field>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="grid grid-cols-[1fr_auto] gap-2">
+                  <input
+                    type="date"
+                    value={bulkSpecificDateInput}
+                    onChange={(event) =>
+                      setBulkSpecificDateInput(event.target.value)
+                    }
+                    className="input"
+                  />
+                  <button
+                    type="button"
+                    onClick={addBulkSpecificDate}
+                    className="rounded-xl bg-indigo-600 px-4 text-xs font-black text-white hover:bg-indigo-700"
+                  >
+                    הוסף תאריך
+                  </button>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {bulkSpecificDates.length === 0 ? (
+                    <span className="text-xs font-bold text-slate-400">
+                      עדיין לא נבחרו תאריכים.
+                    </span>
+                  ) : (
+                    bulkSpecificDates.map((date) => (
+                      <button
+                        key={date}
+                        type="button"
+                        onClick={() =>
+                          setBulkSpecificDates((current) =>
+                            current.filter((item) => item !== date)
+                          )
+                        }
+                        className="flex items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-3 py-1.5 text-xs font-black text-indigo-700"
+                        title="הסר תאריך"
+                      >
+                        {new Date(`${date}T12:00:00`).toLocaleDateString("he-IL")}
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5">
+              <div className="text-sm font-black text-slate-900">
+                סוגי משמרות ושעות
+              </div>
+              <p className="mt-1 text-[10px] font-bold text-slate-500">
+                השעות נטענות מברירת המחדל שהוגדרה לכל סוג וניתן לשנות אותן כאן.
+              </p>
+              <div className="mt-3 space-y-2">
+                {shiftTypes.map((item) => {
+                  const checked = bulkSelectedShiftTypeIds.includes(item.id);
+                  const schedule = bulkTypeSchedules[item.id];
+                  return (
+                    <div
+                      key={item.id}
+                      className={`rounded-xl border p-3 ${
+                        checked
+                          ? "border-indigo-300 bg-indigo-50"
+                          : "border-slate-200 bg-white"
+                      }`}
+                    >
+                      <label className="flex cursor-pointer items-center gap-2 text-xs font-black text-slate-800">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleBulkShiftType(item)}
+                          className="h-4 w-4 accent-indigo-600"
+                        />
+                        {item.name}
+                      </label>
+                      {checked && schedule && (
+                        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                          <Field label="שעת התחלה">
+                            <input
+                              type="time"
+                              value={schedule.startTime}
+                              onChange={(event) =>
+                                setBulkTypeSchedules((current) => ({
+                                  ...current,
+                                  [item.id]: {
+                                    ...current[item.id],
+                                    startTime: event.target.value,
+                                  },
+                                }))
+                              }
+                              className="input"
+                            />
+                          </Field>
+                          <Field label="שעת סיום">
+                            <input
+                              type="time"
+                              value={schedule.endTime}
+                              onChange={(event) =>
+                                setBulkTypeSchedules((current) => ({
+                                  ...current,
+                                  [item.id]: {
+                                    ...current[item.id],
+                                    endTime: event.target.value,
+                                  },
+                                }))
+                              }
+                              className="input"
+                            />
+                          </Field>
+                          <label className="flex h-[42px] cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={schedule.crossesMidnight}
+                              onChange={(event) =>
+                                setBulkTypeSchedules((current) => ({
+                                  ...current,
+                                  [item.id]: {
+                                    ...current[item.id],
+                                    crossesMidnight: event.target.checked,
+                                  },
+                                }))
+                              }
+                              className="h-4 w-4 accent-indigo-600"
+                            />
+                            מסתיימת למחרת
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Field label="מצב המשמרות">
+                <select
+                  value={bulkStatus}
+                  onChange={(event) =>
+                    setBulkStatus(
+                      event.target.value as
+                        | "draft"
+                        | "published"
+                        | "cancelled"
+                    )
+                  }
+                  className="input"
+                >
+                  <option value="draft">טיוטה לקראת פרסום</option>
+                  <option value="published">פורסמה</option>
+                  <option value="cancelled">מבוטלת</option>
+                </select>
+              </Field>
+              <Field label="מיקום משותף (לא חובה)">
+                <input
+                  value={bulkLocation}
+                  onChange={(event) => setBulkLocation(event.target.value)}
+                  className="input"
+                />
+              </Field>
+              <Field label="הערה משותפת (לא חובה)">
+                <textarea
+                  rows={2}
+                  value={bulkNote}
+                  onChange={(event) => setBulkNote(event.target.value)}
+                  className="input resize-y"
+                />
+              </Field>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={bulkSendPushOnPublish}
+                  onChange={(event) =>
+                    setBulkSendPushOnPublish(event.target.checked)
+                  }
+                  className="mt-0.5 h-4 w-4 accent-indigo-600"
+                />
+                <span>
+                  <span className="block text-xs font-black text-indigo-900">
+                    שמור אפשרות Push בעת הפרסום
+                  </span>
+                  <span className="mt-1 block text-[10px] font-bold text-indigo-700">
+                    Push יישלח רק לאחר שיבוץ חיילים ופרסום המשמרת דרך מסך העריכה.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            <div className="mt-5 overflow-hidden rounded-xl border border-slate-200">
+              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+                <span className="text-sm font-black text-slate-900">
+                  תצוגה מקדימה
+                </span>
+                <span className="text-xs font-black text-slate-500">
+                  {bulkPreview.filter((item) => !item.duplicate).length} ליצירה
+                  {bulkPreview.some((item) => item.duplicate)
+                    ? ` · ${bulkPreview.filter((item) => item.duplicate).length} כפולות ידולגו`
+                    : ""}
+                </span>
+              </div>
+              <div className="max-h-64 divide-y divide-slate-100 overflow-y-auto">
+                {bulkPreview.length === 0 ? (
+                  <div className="p-6 text-center text-xs font-bold text-slate-400">
+                    בחר תאריכים וסוגי משמרות כדי לראות תצוגה מקדימה.
+                  </div>
+                ) : (
+                  bulkPreview.map((item) => (
+                    <div
+                      key={item.key}
+                      className={`flex flex-col gap-1 px-4 py-3 text-xs sm:flex-row sm:items-center sm:justify-between ${
+                        item.duplicate ? "bg-amber-50" : "bg-white"
+                      }`}
+                    >
+                      <span className="font-black text-slate-800">
+                        {item.shiftType.name} · {new Date(`${item.date}T12:00:00`).toLocaleDateString("he-IL")}
+                      </span>
+                      <span className="font-bold text-slate-500">
+                        {item.schedule.startTime}–{item.schedule.endTime}
+                        {item.schedule.crossesMidnight ? " (למחרת)" : ""}
+                        {!item.hasValidTimes
+                          ? " · שעות לא תקינות"
+                          : item.duplicate
+                          ? " · כבר קיימת — תידלג"
+                          : ""}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {bulkMessage && (
+              <div
+                className={`mt-4 rounded-xl border px-4 py-3 text-xs font-bold ${
+                  bulkMessage.type === "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-rose-200 bg-rose-50 text-rose-700"
+                }`}
+              >
+                {bulkMessage.text}
+              </div>
+            )}
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIsBulkFormOpen(false)}
+                className="rounded-xl border border-slate-200 px-4 py-3 text-xs font-black text-slate-600"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                onClick={saveBulkShifts}
+                disabled={bulkSaving || bulkPreview.length === 0}
+                className="rounded-xl bg-indigo-600 px-4 py-3 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {bulkSaving
+                  ? "יוצר משמרות..."
+                  : `צור ${bulkPreview.filter((item) => !item.duplicate).length} משמרות`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isFormOpen && canManage && (
         <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
           <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
@@ -3592,6 +4343,8 @@ export default function ShiftsView({
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </section>
   );
