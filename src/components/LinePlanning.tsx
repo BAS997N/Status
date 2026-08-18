@@ -161,6 +161,11 @@ const statusLabel: Record<LineCycleStatus, string> = {
   archived: "בארכיון",
 };
 
+const hasSubmissionDeadlinePassed = (
+  cycle: Pick<LineCycle, "submissionDeadline">,
+  today: string
+) => Boolean(cycle.submissionDeadline && cycle.submissionDeadline < today);
+
 const PLANNING_ONLY_STATUSES: AttendanceStatusConfig[] = [
   {
     id: "exit_home",
@@ -339,6 +344,42 @@ export default function LinePlanning({
       String(hidePastPlanningDates)
     );
   }, [hidePastPlanningDates]);
+
+  useEffect(() => {
+    if (
+      !selectedCycle ||
+      selectedCycle.status !== "open" ||
+      !hasSubmissionDeadlinePassed(selectedCycle, today)
+    ) {
+      return;
+    }
+
+    const closedCycle: LineCycle = {
+      ...selectedCycle,
+      status: "closed",
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser.userId,
+    };
+    setCycles((current) =>
+      current.map((item) =>
+        item.cycleId === closedCycle.cycleId ? closedCycle : item
+      )
+    );
+
+    if (canEdit) {
+      void dataService.saveLineCycle(closedCycle).catch(() => {
+        setMessage({
+          type: "error",
+          text: "מועד הזנת האילוצים עבר, אך שמירת הסגירה האוטומטית נכשלה.",
+        });
+      });
+    }
+  }, [
+    canEdit,
+    currentUser.userId,
+    selectedCycle,
+    today,
+  ]);
 
   const planningStatusOptions = useMemo(() => {
     const configured = attendanceStatuses
@@ -551,17 +592,47 @@ export default function LinePlanning({
     setLoading(true);
     try {
       const items = await dataService.getLineCycles();
-      setCycles(items);
+      const expiredOpenCycles = items.filter(
+        (item) =>
+          item.status === "open" && hasSubmissionDeadlinePassed(item, today)
+      );
+      const normalizedItems = items.map((item) =>
+        item.status === "open" && hasSubmissionDeadlinePassed(item, today)
+          ? {
+              ...item,
+              status: "closed" as LineCycleStatus,
+              updatedAt: new Date().toISOString(),
+              updatedBy: currentUser.userId,
+            }
+          : item
+      );
+
+      setCycles(normalizedItems);
       setSelectedCycleId((current) => {
-        if (current && items.some((item) => item.cycleId === current)) {
+        if (
+          current &&
+          normalizedItems.some((item) => item.cycleId === current)
+        ) {
           return current;
         }
         return (
-          items.find((item) => item.status === "open")?.cycleId ||
-          items[0]?.cycleId ||
+          normalizedItems.find((item) => item.status === "open")?.cycleId ||
+          normalizedItems[0]?.cycleId ||
           ""
         );
       });
+
+      if (canEdit && expiredOpenCycles.length) {
+        await Promise.allSettled(
+          normalizedItems
+            .filter((item) =>
+              expiredOpenCycles.some(
+                (expired) => expired.cycleId === item.cycleId
+              )
+            )
+            .map((item) => dataService.saveLineCycle(item))
+        );
+      }
     } catch {
       setMessage({ type: "error", text: "טעינת הקווים נכשלה." });
     } finally {
@@ -665,6 +736,12 @@ export default function LinePlanning({
       startDate: newStartDate,
       endDate: newEndDate,
       ...(newDeadline ? { submissionDeadline: newDeadline } : {}),
+      status:
+        existingCycle?.status === "archived"
+          ? "archived"
+          : newDeadline && newDeadline < today
+          ? "closed"
+          : existingCycle?.status || "open",
       googleSheetTabName:
         newGoogleSheetTabName.trim() || newTitle.trim(),
       updatedAt: now,
@@ -752,6 +829,16 @@ export default function LinePlanning({
 
   const changeCycleStatus = async (status: LineCycleStatus) => {
     if (!selectedCycle) return;
+    if (
+      status === "open" &&
+      hasSubmissionDeadlinePassed(selectedCycle, today)
+    ) {
+      setMessage({
+        type: "error",
+        text: "מועד הזנת האילוצים כבר עבר. כדי לפתוח מחדש יש לעדכן את מועד ההזנה.",
+      });
+      return;
+    }
     const updated: LineCycle = {
       ...selectedCycle,
       status,
