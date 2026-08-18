@@ -4958,34 +4958,34 @@ const dates = getDateRange(startDate, endDate);
       </button>
     </div>
 
-    <div className="custom-scrollbar block w-full max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-slate-200 bg-white shadow-sm">
-      <table className="w-max min-w-full border-collapse border border-slate-300 text-right text-xs [&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-300">
+    <div className="block w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <table className="w-full table-fixed border-collapse border border-slate-300 text-center text-[9px] lg:text-[10px] xl:text-xs [&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-300">
         <thead className="bg-slate-50 text-slate-600 font-black">
           <tr>
             <th
   onClick={() => handleSummarySort("fullName")}
-  className="px-4 py-3 cursor-pointer whitespace-nowrap"
+  className="cursor-pointer break-words px-1 py-3 leading-tight"
 >
   שם חייל {summarySortField === "fullName" ? (summarySortDirection === "asc" ? "▲" : "▼") : "↕"}
 </th>
 
 <th
   onClick={() => handleSummarySort("medicalRole")}
-  className="px-4 py-3 cursor-pointer whitespace-nowrap"
+  className="cursor-pointer break-words px-1 py-3 leading-tight"
 >
   תפקיד {summarySortField === "medicalRole" ? (summarySortDirection === "asc" ? "▲" : "▼") : "↕"}
 </th>
 
-            <th className="px-4 py-3">יחידה</th>
-            <th className="px-4 py-3">סה״כ ימים</th>
+            <th className="break-words px-1 py-3 leading-tight">יחידה</th>
+            <th className="break-words px-1 py-3 leading-tight">סה״כ ימים</th>
             {displayedSummaryStatusColumns.map((status) => (
-              <th key={status.id} className="px-4 py-3 whitespace-nowrap">
+              <th key={status.id} className="break-words px-1 py-3 leading-tight">
                 {status.label}
               </th>
             ))}
-            <th className="px-4 py-3 whitespace-nowrap">יציאה לבית</th>
-            <th className="px-4 py-3 whitespace-nowrap">חזרה לבסיס</th>
-            <th className="px-4 py-3 whitespace-nowrap">אפטר</th>
+            <th className="break-words px-1 py-3 leading-tight">יציאה לבית</th>
+            <th className="break-words px-1 py-3 leading-tight">חזרה לבסיס</th>
+            <th className="break-words px-1 py-3 leading-tight">אפטר</th>
           </tr>
         </thead>
 
@@ -5017,42 +5017,42 @@ const dates = getDateRange(startDate, endDate);
   .map(({ soldier, counts, dayMarkerCounts, total }) => {
               return (
                 <tr key={soldier.userId} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-bold text-slate-800">{soldier.fullName}</td>
-<td className="px-4 py-3 text-slate-600 font-bold">{soldier.medicalRole || "—"}</td>
-                  <td className="px-4 py-3 text-slate-500">{soldier.unit}</td>
-                  <td className="px-4 py-3 font-black text-slate-800">{total}</td>
+                  <td className="break-words px-1 py-3 text-right font-bold leading-tight text-slate-800">{soldier.fullName}</td>
+<td className="break-words px-1 py-3 font-bold leading-tight text-slate-600">{soldier.medicalRole || "—"}</td>
+                  <td className="break-words px-1 py-3 leading-tight text-slate-500">{soldier.unit}</td>
+                  <td className="px-1 py-3 font-black text-slate-800">{total}</td>
                   {displayedSummaryStatusColumns.map((status) => (
                     <td
                       key={status.id}
-                      className={`px-4 py-3 font-bold ${status.color || "text-slate-700"}`}
+                      className={`px-1 py-3 font-bold ${status.color || "text-slate-700"}`}
                     >
                       {counts[status.id] || 0}
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-purple-700 font-bold">{dayMarkerCounts.exit_home}</td>
-                  <td className="px-4 py-3 text-blue-700 font-bold">{dayMarkerCounts.return_to_base}</td>
-                  <td className="px-4 py-3 text-fuchsia-700 font-bold">{dayMarkerCounts.after_hours}</td>
+                  <td className="px-1 py-3 text-purple-700 font-bold">{dayMarkerCounts.exit_home}</td>
+                  <td className="px-1 py-3 text-blue-700 font-bold">{dayMarkerCounts.return_to_base}</td>
+                  <td className="px-1 py-3 text-fuchsia-700 font-bold">{dayMarkerCounts.after_hours}</td>
                 </tr>
               );
             })}
         </tbody>
         <tfoot className="border-t-2 border-slate-300 bg-slate-100 font-black text-slate-800">
           <tr>
-            <td className="px-4 py-3 whitespace-nowrap">סה״כ לכל החיילים</td>
-            <td className="px-4 py-3">—</td>
-            <td className="px-4 py-3">—</td>
-            <td className="px-4 py-3">{summaryTotals.total}</td>
+            <td className="break-words px-1 py-3 leading-tight">סה״כ לכל החיילים</td>
+            <td className="px-1 py-3">—</td>
+            <td className="px-1 py-3">—</td>
+            <td className="px-1 py-3">{summaryTotals.total}</td>
             {displayedSummaryStatusColumns.map((status) => (
               <td
                 key={status.id}
-                className={`px-4 py-3 ${status.color || "text-slate-700"}`}
+                className={`px-1 py-3 ${status.color || "text-slate-700"}`}
               >
                 {summaryTotals.statusCounts[status.id] || 0}
               </td>
             ))}
-            <td className="px-4 py-3 text-purple-700">{summaryTotals.exit_home}</td>
-            <td className="px-4 py-3 text-blue-700">{summaryTotals.return_to_base}</td>
-            <td className="px-4 py-3 text-fuchsia-700">{summaryTotals.after_hours}</td>
+            <td className="px-1 py-3 text-purple-700">{summaryTotals.exit_home}</td>
+            <td className="px-1 py-3 text-blue-700">{summaryTotals.return_to_base}</td>
+            <td className="px-1 py-3 text-fuchsia-700">{summaryTotals.after_hours}</td>
           </tr>
         </tfoot>
       </table>
