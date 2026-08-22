@@ -513,11 +513,37 @@ export default function ShiftsView({
       matchesMedicalRole &&
       matchesPrimaryShiftRole(user.medicalRole, slot.roleName);
 
+    const normalizedUserRole = normalizeRoleForComparison(user.medicalRole);
+    const normalizedSlotRole = normalizeRoleForComparison(slot.roleName);
+    const isMedic = normalizedUserRole.includes("חובש");
+    const isEventManager =
+      normalizedUserRole.includes("מנהל") &&
+      normalizedUserRole.includes("אירוע");
+    const isCommander =
+      normalizedUserRole.includes("מפקד") ||
+      normalizedUserRole.includes("מפ רפואה") ||
+      ["admin", "super_admin"].includes(getSystemRole(user));
+    const isMedicSlot = normalizedSlotRole.includes("חובש");
+    const isEventManagerSlot =
+      normalizedSlotRole.includes("מנהל") &&
+      normalizedSlotRole.includes("אירוע");
+
     if (matchesPrimarySlotRole) return 0;
-    if (slot.allowedUserIds.includes(user.userId)) return 1;
-    if (matchesMedicalRole) return 2;
-    if (slot.allowedSystemRoles.includes(getSystemRole(user))) return 3;
-    return 4;
+
+    if (isMedicSlot) {
+      if (isEventManager) return 1;
+      if (isCommander) return 2;
+    }
+
+    if (isEventManagerSlot) {
+      if (isMedic) return 1;
+      if (isCommander) return 2;
+    }
+
+    if (matchesMedicalRole) return 3;
+    if (slot.allowedUserIds.includes(user.userId)) return 4;
+    if (slot.allowedSystemRoles.includes(getSystemRole(user))) return 5;
+    return 6;
   };
 
   const getAttendanceSortPriority = (
