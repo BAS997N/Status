@@ -21,6 +21,7 @@ import {
   UserProfile,
   WhatsAppGroupConfig,
   OrderEventConfig,
+  ReportingClosedVisibleSection,
 } from "../../types";
 import { dataService } from "../../services/dataService";
 import { playNotificationSound } from "../../services/notificationSoundService";
@@ -53,6 +54,7 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   reportingEnabled: true,
   reportingClosedMessage: "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
   reportingClosedAllowedRoles: ["super_admin", "admin"],
+  reportingClosedVisibleSections: [],
   orderEvents: [],
   linePlanningVisibleToSoldiers: true,
   shiftsEnabled: true,
@@ -96,6 +98,33 @@ const SYSTEM_ROLE_OPTIONS: Array<{
     value: "reporter",
     label: "חייל",
     description: "גישה למסך הדיווח האישי.",
+  },
+];
+
+const REPORTING_CLOSED_SECTION_OPTIONS: Array<{
+  value: ReportingClosedVisibleSection;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "shifts",
+    label: "משמרות",
+    description: "המשמרת הבאה והמשמרות השבועיות של החייל.",
+  },
+  {
+    value: "planning",
+    label: "לוח יציאות",
+    description: "תכנון הנוכחות האישי בקו.",
+  },
+  {
+    value: "order",
+    label: "הצו שלי",
+    description: "פרטי הצו והימים האישיים.",
+  },
+  {
+    value: "messages",
+    label: "הודעות",
+    description: "הודעות מפקד ואישורי קריאה.",
   },
 ];
 
@@ -918,10 +947,59 @@ export default function SystemSettingsManager({
           <div className={`${activeSettingsTab === "modes" ? "" : "hidden"} rounded-xl border border-sky-200 bg-white p-4`}>
             <Toggle
               label="קבלת דיווחי נוכחות"
-              description="כאשר האפשרות כבויה, רק עמוד הדיווח האישי מוחלף בהודעה. לוח הבקרה ושאר המערכת נשארים זמינים."
+              description="כאשר האפשרות כבויה, לא ניתן להגיש דיווח נוכחות. ניתן לבחור למטה אילו טאבים אישיים יישארו זמינים לצפייה."
               checked={draft.reportingEnabled}
               onChange={(value) => update("reportingEnabled", value)}
             />
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-sm font-black text-slate-900">
+                טאבים שיישארו זמינים כשהדיווחים סגורים
+              </div>
+              <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                אם לא ייבחר אף טאב, החייל יראה רק את הודעת הסגירה הקיימת.
+              </p>
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {REPORTING_CLOSED_SECTION_OPTIONS.map((option) => {
+                  const selected = (
+                    draft.reportingClosedVisibleSections || []
+                  ).includes(option.value);
+                  return (
+                    <label
+                      key={option.value}
+                      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${
+                        selected
+                          ? "border-sky-300 bg-sky-50"
+                          : "border-slate-200 bg-white"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={(event) => {
+                          const current =
+                            draft.reportingClosedVisibleSections || [];
+                          update(
+                            "reportingClosedVisibleSections",
+                            event.target.checked
+                              ? Array.from(new Set([...current, option.value]))
+                              : current.filter((item) => item !== option.value)
+                          );
+                        }}
+                        className="mt-0.5 h-4 w-4 accent-sky-600"
+                      />
+                      <span>
+                        <span className="block text-xs font-black text-slate-800">
+                          {option.label}
+                        </span>
+                        <span className="mt-0.5 block text-[10px] leading-4 text-slate-500">
+                          {option.description}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
             <div className="mt-4">
               <Field label="הודעה כאשר הדיווחים סגורים">
                 <textarea

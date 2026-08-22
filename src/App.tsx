@@ -2921,6 +2921,18 @@ const handleAdminBulkSaveReports = async (
     systemSettings?.reportingClosedMessage ||
     "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.";
 
+  const reportingClosedForCurrentUser =
+    systemSettings?.reportingEnabled === false &&
+    !canUseReporterWhileClosed;
+  const reportingClosedVisibleSections =
+    systemSettings?.reportingClosedVisibleSections || [];
+  const hasVisibleReporterSectionWhileClosed =
+    reportingClosedVisibleSections.some(
+      (section) =>
+        section !== "planning" ||
+        systemSettings?.linePlanningVisibleToSoldiers !== false
+    );
+
   return (
     <div id="full-idf-app-interface" className="min-h-screen bg-military-50 flex flex-col pb-12">
       {/* Floating Toast Notification Popups */}
@@ -3329,8 +3341,8 @@ const handleAdminBulkSaveReports = async (
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.15 }}
             >
-              {systemSettings?.reportingEnabled === false &&
-              !canUseReporterWhileClosed ? (
+              {reportingClosedForCurrentUser &&
+              !hasVisibleReporterSectionWhileClosed ? (
                 <section
                   dir="rtl"
                   className="rounded-3xl border border-sky-200 bg-gradient-to-l from-sky-50 to-white p-8 text-center shadow-sm"
@@ -3353,6 +3365,7 @@ const handleAdminBulkSaveReports = async (
                   systemSettings={systemSettings!}
                   attendanceStatuses={attendanceStatuses}
                   readOnly={Boolean(previewUser)}
+                  reportingClosed={reportingClosedForCurrentUser}
                   onSubmitReport={
                     previewUser ? async () => undefined : handleSubmitReport
                   }

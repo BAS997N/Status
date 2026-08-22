@@ -62,6 +62,7 @@ import {
   LineConstraint,
   LinePresencePlan,
   LinePlanCommanderNotes,
+  ReportingClosedVisibleSection,
 } from "../types";
 
 // Firestore Error Handlers according to standard skill blueprint
@@ -238,6 +239,7 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   reportingEnabled: true,
   reportingClosedMessage: "האתר אינו מקבל דיווחי נוכחות כעת מאחר שהגדוד אינו מגויס.",
   reportingClosedAllowedRoles: ["super_admin", "admin"],
+  reportingClosedVisibleSections: [],
   orderEvents: [],
   linePlanningVisibleToSoldiers: true,
   shiftsEnabled: true,
@@ -542,6 +544,20 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
       raw.reportingClosedAllowedRoles,
       DEFAULT_SYSTEM_SETTINGS.reportingClosedAllowedRoles
     ),
+    reportingClosedVisibleSections: Array.isArray(
+      raw.reportingClosedVisibleSections
+    )
+      ? Array.from(
+          new Set(
+            raw.reportingClosedVisibleSections.filter(
+              (value): value is ReportingClosedVisibleSection =>
+                ["shifts", "planning", "order", "messages"].includes(
+                  String(value)
+                )
+            )
+          )
+        )
+      : DEFAULT_SYSTEM_SETTINGS.reportingClosedVisibleSections,
     orderEvents: normalizeOrderEvents(raw.orderEvents),
     linePlanningVisibleToSoldiers:
       raw.linePlanningVisibleToSoldiers !== false,

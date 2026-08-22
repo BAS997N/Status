@@ -230,6 +230,12 @@ export interface LinePlanCommanderNotes {
   updatedByName: string;
 }
 
+export type ReportingClosedVisibleSection =
+  | "shifts"
+  | "planning"
+  | "order"
+  | "messages";
+
 export interface SystemSettingsConfig {
   systemName: string;
   unitName: string;
@@ -251,6 +257,7 @@ export interface SystemSettingsConfig {
   reportingEnabled: boolean;
   reportingClosedMessage: string;
   reportingClosedAllowedRoles: SystemRole[];
+  reportingClosedVisibleSections: ReportingClosedVisibleSection[];
   orderEvents: OrderEventConfig[];
   linePlanningVisibleToSoldiers?: boolean;
   shiftsEnabled: boolean;

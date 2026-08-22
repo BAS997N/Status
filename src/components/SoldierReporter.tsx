@@ -26,6 +26,7 @@ import {
   CommanderMessage,
   LineCycle,
   LinePresencePlan,
+  ReportingClosedVisibleSection,
   DEFAULT_ATTENDANCE_STATUS_CONFIGS
 } from "../types";
 import { motion, AnimatePresence } from "motion/react";
@@ -41,6 +42,7 @@ interface SoldierReporterProps {
   systemSettings: SystemSettingsConfig;
   attendanceStatuses?: AttendanceStatusConfig[];
   readOnly?: boolean;
+  reportingClosed?: boolean;
  onSubmitReport: (
   status: AttendanceStatus,
   location: string,
@@ -142,7 +144,8 @@ export default function SoldierReporter({
   systemSettings,
   attendanceStatuses = DEFAULT_ATTENDANCE_STATUS_CONFIGS,
   onSubmitReport,
-  readOnly = false
+  readOnly = false,
+  reportingClosed = false
 }: SoldierReporterProps) {
   const orderCollapseStorageKey = `idf_order_card_collapsed_${currentUser.userId}`;
   const nextShiftCollapseStorageKey = `idf_next_shift_collapsed_${currentUser.userId}`;
@@ -193,6 +196,35 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [activeSection, setActiveSection] =
     useState<SoldierPageSection>("report");
+  const reportingClosedVisibleSections =
+    systemSettings.reportingClosedVisibleSections || [];
+  const canViewPersonalSection = (section: SoldierPageSection) => {
+    if (
+      section === "planning" &&
+      systemSettings.linePlanningVisibleToSoldiers === false
+    ) {
+      return false;
+    }
+    if (!reportingClosed) return true;
+    if (section === "report") return false;
+    return reportingClosedVisibleSections.includes(
+      section as ReportingClosedVisibleSection
+    );
+  };
+  const visiblePersonalSections = (
+    ["report", "shifts", "planning", "order", "messages"] as SoldierPageSection[]
+  ).filter(canViewPersonalSection);
+  const visiblePersonalSectionKey = visiblePersonalSections.join("|");
+  const personalSectionGridClass =
+    visiblePersonalSections.length <= 1
+      ? "grid-cols-1"
+      : visiblePersonalSections.length === 2
+        ? "grid-cols-2"
+        : visiblePersonalSections.length === 3
+          ? "grid-cols-3"
+          : visiblePersonalSections.length === 4
+            ? "grid-cols-4"
+            : "grid-cols-5";
   const [myLineCycle, setMyLineCycle] = useState<LineCycle | null>(null);
   const [myLinePlan, setMyLinePlan] = useState<LinePresencePlan | null>(null);
   const [isMyLinePlanLoading, setIsMyLinePlanLoading] = useState(false);
@@ -251,13 +283,10 @@ const [isDateRangeReport, setIsDateRangeReport] = useState(false);
   }, [currentUser.userId]);
 
   useEffect(() => {
-    if (
-      systemSettings.linePlanningVisibleToSoldiers === false &&
-      activeSection === "planning"
-    ) {
-      setActiveSection("report");
-    }
-  }, [activeSection, systemSettings.linePlanningVisibleToSoldiers]);
+    if (visiblePersonalSections.includes(activeSection)) return;
+    const firstVisibleSection = visiblePersonalSections[0];
+    if (firstVisibleSection) setActiveSection(firstVisibleSection);
+  }, [activeSection, visiblePersonalSectionKey]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
@@ -1030,13 +1059,9 @@ dayMarker || undefined
       <nav
         dir="rtl"
         aria-label="ניווט בעמוד האישי"
-        className={`sticky top-2 z-30 grid gap-1 rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-md backdrop-blur-sm sm:gap-2 sm:p-2 ${
-          systemSettings.linePlanningVisibleToSoldiers === false
-            ? "grid-cols-4"
-            : "grid-cols-5"
-        }`}
+        className={`sticky top-2 z-30 grid gap-1 rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-md backdrop-blur-sm sm:gap-2 sm:p-2 ${personalSectionGridClass}`}
       >
-        <button
+        {canViewPersonalSection("report") && <button
           type="button"
           onClick={() => setActiveSection("report")}
           aria-current={activeSection === "report" ? "page" : undefined}
@@ -1048,8 +1073,8 @@ dayMarker || undefined
         >
           <Activity className="h-4 w-4 shrink-0" />
           <span>דיווח</span>
-        </button>
-        <button
+        </button>}
+        {canViewPersonalSection("shifts") && <button
           type="button"
           onClick={() => setActiveSection("shifts")}
           aria-current={activeSection === "shifts" ? "page" : undefined}
@@ -1061,8 +1086,8 @@ dayMarker || undefined
         >
           <CalendarDays className="h-4 w-4 shrink-0" />
           <span>משמרות</span>
-        </button>
-        {systemSettings.linePlanningVisibleToSoldiers !== false && (
+        </button>}
+        {canViewPersonalSection("planning") && (
           <button
             type="button"
             onClick={() => setActiveSection("planning")}
@@ -1077,7 +1102,7 @@ dayMarker || undefined
             <span>לוח יציאות</span>
           </button>
         )}
-        <button
+        {canViewPersonalSection("order") && <button
           type="button"
           onClick={() => setActiveSection("order")}
           aria-current={activeSection === "order" ? "page" : undefined}
@@ -1089,8 +1114,8 @@ dayMarker || undefined
         >
           <FileText className="h-4 w-4 shrink-0" />
           <span>הצו שלי</span>
-        </button>
-        <button
+        </button>}
+        {canViewPersonalSection("messages") && <button
           type="button"
           onClick={() => setActiveSection("messages")}
           aria-current={activeSection === "messages" ? "page" : undefined}
@@ -1113,7 +1138,7 @@ dayMarker || undefined
               {commanderMessages.length}
             </span>
           )}
-        </button>
+        </button>}
       </nav>
 
       {disciplinaryRestrictionStatus.active && (
@@ -1180,7 +1205,7 @@ dayMarker || undefined
       )}
 
       {activeSection === "planning" &&
-        systemSettings.linePlanningVisibleToSoldiers !== false && (
+        canViewPersonalSection("planning") && (
           <section
             dir="rtl"
             className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
@@ -1324,7 +1349,9 @@ dayMarker || undefined
           </section>
         )}
 
-      {activeSection === "messages" && commanderMessages.length > 0 && (
+      {activeSection === "messages" &&
+        canViewPersonalSection("messages") &&
+        commanderMessages.length > 0 && (
         <section className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm" dir="rtl">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -1396,7 +1423,9 @@ dayMarker || undefined
         </section>
       )}
 
-      {activeSection === "messages" && commanderMessages.length === 0 && (
+      {activeSection === "messages" &&
+        canViewPersonalSection("messages") &&
+        commanderMessages.length === 0 && (
         <section
           dir="rtl"
           className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm"
@@ -1409,7 +1438,7 @@ dayMarker || undefined
         </section>
       )}
 
-      {activeSection === "order" && (
+      {activeSection === "order" && canViewPersonalSection("order") && (
       <section
         dir="rtl"
         className={`rounded-xl border px-4 py-3 shadow-sm sm:px-5 ${
@@ -1695,7 +1724,7 @@ dayMarker || undefined
       </section>
       )}
 
-      {activeSection === "shifts" && (
+      {activeSection === "shifts" && canViewPersonalSection("shifts") && (
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2" dir="rtl">
         <div className="flex items-center justify-end gap-2 lg:col-span-2">
           <button
@@ -1852,7 +1881,7 @@ dayMarker || undefined
       </section>
       )}
 
-      {activeSection === "report" && (
+      {activeSection === "report" && canViewPersonalSection("report") && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* REPORT FORM */}
