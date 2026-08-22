@@ -140,6 +140,37 @@ const normalizeRoleForComparison = (value?: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const matchesPrimaryShiftRole = (
+  userMedicalRole?: string,
+  shiftRoleName?: string
+) => {
+  const userRole = normalizeRoleForComparison(userMedicalRole);
+  const shiftRole = normalizeRoleForComparison(shiftRoleName);
+  if (!userRole || !shiftRole) return false;
+  if (userRole === shiftRole) return true;
+
+  const ignoredShiftWords = new Set([
+    "מוצב",
+    "תורן",
+    "תורנית",
+    "ראשי",
+    "ראשית",
+  ]);
+  const identifyingWords = shiftRole
+    .split(" ")
+    .filter(
+      (word) =>
+        word.length > 1 &&
+        !ignoredShiftWords.has(word) &&
+        !/^\d+$/.test(word)
+    );
+
+  return (
+    identifyingWords.length > 0 &&
+    identifyingWords.every((word) => userRole.includes(word))
+  );
+};
+
 const getReportDateKey = (report: AttendanceReport) => {
   if (report.reportDate) return report.reportDate;
   if (typeof report.timestamp === "string") {
@@ -480,8 +511,7 @@ export default function ShiftsView({
     );
     const matchesPrimarySlotRole =
       matchesMedicalRole &&
-      normalizeRoleForComparison(user.medicalRole) ===
-        normalizeRoleForComparison(slot.roleName);
+      matchesPrimaryShiftRole(user.medicalRole, slot.roleName);
 
     if (matchesPrimarySlotRole) return 0;
     if (slot.allowedUserIds.includes(user.userId)) return 1;
