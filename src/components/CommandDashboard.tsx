@@ -1411,6 +1411,31 @@ const exitHomeTodayCount = reportedTodayList.filter(
     | "family_days"
     | "refresh_days";
 
+  const getOrderBenefitStatusFromReportStatus = (
+    statusId?: string
+  ): OrderBenefitStatus | null => {
+    if (!statusId) return null;
+    if (statusId === "processing_days") return "processing_days";
+    if (statusId === "family_days") return "family_days";
+    if (statusId === "refresh_days") return "refresh_days";
+
+    const statusLabel = getStatusConfig(statusId)?.label || "";
+    const normalizedStatusText = `${statusId} ${statusLabel}`
+      .replace(/[״׳'"`/\\()\-_]/g, "")
+      .replace(/\s+/g, "")
+      .toLocaleLowerCase("he");
+
+    if (normalizedStatusText.includes("משפח")) return "family_days";
+    if (normalizedStatusText.includes("עיבוד")) return "processing_days";
+    if (
+      normalizedStatusText.includes("התרענ") ||
+      normalizedStatusText.includes("ריענ")
+    ) {
+      return "refresh_days";
+    }
+    return null;
+  };
+
   const toOrderBenefitDateKey = (date: Date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
       date.getDate()
@@ -1556,13 +1581,10 @@ const exitHomeTodayCount = reportedTodayList.filter(
           item.profile.role !== "adjutant_officer");
       if (!isIncludedSoldier) return groups;
 
-      const manualStatus = item.latestTodayReport?.status;
       const benefitStatus = item.latestTodayReport
-        ? (["processing_days", "family_days", "refresh_days"].includes(
-            String(manualStatus)
+        ? getOrderBenefitStatusFromReportStatus(
+            item.latestTodayReport.status
           )
-            ? (manualStatus as OrderBenefitStatus)
-            : null)
         : getComputedOrderBenefitStatus(item.profile, selectedDate);
       if (benefitStatus) groups[benefitStatus].push(item);
       return groups;
@@ -1791,6 +1813,29 @@ const exitHomeTodayCount = reportedTodayList.filter(
     if (statusId) acc[statusId] = (acc[statusId] || 0) + 1;
     return acc;
   }, {});
+
+  const dedicatedSummaryStatusIds = new Set([
+    "base",
+    "home",
+    "not_on_order",
+    "cut_order",
+  ]);
+  const additionalSummaryStatusCards = attendanceStatuses
+    .filter(
+      (status) =>
+        status.enabled &&
+        status.visibleToCommanders &&
+        !dedicatedSummaryStatusIds.has(status.id) &&
+        !getOrderBenefitStatusFromReportStatus(status.id)
+    )
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((status) => ({
+      status,
+      count: statusStats[status.id] || 0,
+      items: reportedTodayList.filter(
+        (item) => item.latestTodayReport?.status === status.id
+      ),
+    }));
 
   const chartCategoryCounts = reportedTodayList.reduce<Record<string, number>>((acc, item) => {
     const category = getChartCategory(item.latestTodayReport?.status);
@@ -5168,6 +5213,57 @@ const dates = getDateRange(startDate, endDate);
               <CalendarRange className="w-5 h-5" />
             </div>
           </button>
+        )}
+
+        {additionalSummaryStatusCards.map(({ status, count, items }) =>
+          shouldShowSummaryCard(count) ? (
+            <button
+              key={status.id}
+              type="button"
+              onClick={() =>
+                openAttendanceStatDetails(
+                  status.label,
+                  `חיילים שדיווחו „${status.label}” בתאריך שנבחר.`,
+                  items
+                )
+              }
+              className={`w-full cursor-pointer rounded-xl border bg-white p-4 text-right shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                status.border || "border-slate-200"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold text-slate-400">
+                    {status.label}
+                  </span>
+                  <span
+                    className={`mt-1 block text-2xl font-black tracking-tight ${
+                      status.color || "text-slate-700"
+                    }`}
+                  >
+                    {count}
+                    <span className="pr-1.5 text-xs font-normal text-slate-400">
+                      ({totalSoldiersCount > 0
+                        ? Math.round((count / totalSoldiersCount) * 100)
+                        : 0}
+                      %)
+                    </span>
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-500">
+                    חיילים בתאריך שנבחר
+                  </span>
+                </div>
+                <div
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-xl ${
+                    status.bg || "bg-slate-50"
+                  }`}
+                  aria-hidden="true"
+                >
+                  {status.icon || "•"}
+                </div>
+              </div>
+            </button>
+          ) : null
         )}
 
         {shouldShowSummaryCard(absentCount) && (<>
