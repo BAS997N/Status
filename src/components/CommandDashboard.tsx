@@ -1474,7 +1474,8 @@ const exitHomeTodayCount = reportedTodayList.filter(
     );
     const latestReportByDate = new Map<string, AttendanceReport>();
     soldierReports.forEach((report) => {
-      const reportDate = getReportDateKey(report);
+      const reportDate =
+        report.reportDate || getDateOnlyFromTimestamp(report.timestamp);
       if (!reportDate) return;
       const previous = latestReportByDate.get(reportDate);
       if (
