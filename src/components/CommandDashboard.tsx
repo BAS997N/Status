@@ -5004,8 +5004,8 @@ const dates = getDateRange(startDate, endDate);
       </button>
     </div>
 
-    <div className="block w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <table className="w-full table-fixed border-collapse border border-slate-300 text-center text-[9px] lg:text-[10px] xl:text-xs [&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-300">
+    <div className="block max-h-[72vh] w-full max-w-full min-w-0 overflow-auto overscroll-contain rounded-xl border border-slate-200 bg-white shadow-sm lg:max-h-none lg:overflow-hidden">
+      <table className="w-full min-w-[1180px] table-auto border-collapse border border-slate-300 text-center text-[10px] lg:min-w-0 lg:table-fixed lg:text-[10px] xl:text-xs [&_td]:min-w-[84px] [&_td]:border [&_td]:border-slate-200 [&_th]:min-w-[84px] [&_th]:border [&_th]:border-slate-300 [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-20 [&_thead_th]:bg-slate-50 [&_tr>*:first-child]:sticky [&_tr>*:first-child]:right-0 [&_tr>*:first-child]:z-10 [&_tr>*:first-child]:min-w-[140px] [&_tbody_tr>*:first-child]:bg-white [&_tfoot_tr>*:first-child]:bg-slate-100 [&_thead_tr>*:first-child]:z-30 lg:[&_td]:min-w-0 lg:[&_th]:min-w-0 lg:[&_tr>*:first-child]:min-w-0">
         <thead className="bg-slate-50 text-slate-600 font-black">
           <tr>
             <th
