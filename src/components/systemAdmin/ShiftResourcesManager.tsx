@@ -44,6 +44,8 @@ export default function ShiftResourcesManager({
   const [draft, setDraft] = useState<OperationalResourceConfig[]>(sorted);
   const [name, setName] = useState("");
   const [type, setType] = useState<OperationalResourceType>("hospital");
+  const [activeTab, setActiveTab] =
+    useState<OperationalResourceType>("hospital");
   const [coordinates, setCoordinates] = useState("");
   const [link, setLink] = useState("");
   const [frequency, setFrequency] = useState("");
@@ -128,7 +130,7 @@ export default function ShiftResourcesManager({
       onSettingsChanged(saved);
       setMessage({
         type: "success",
-        text: "רשימות בתי החולים, המנחתים והתדרים נשמרו.",
+        text: "רשימות בתי החולים, המנחתים, נקודות השחלוף והתדרים נשמרו.",
       });
     } catch (error) {
       console.error("Failed saving shift resources:", error);
@@ -157,27 +159,48 @@ export default function ShiftResourcesManager({
     <div dir="rtl" className="space-y-5">
       <div className="rounded-2xl border border-sky-200 bg-gradient-to-l from-sky-50 to-white p-5 shadow-sm">
         <h2 className="text-lg font-black text-slate-900">
-          מנחתים, בתי חולים ותדרים
+          משאבי פעילות מיוחדת
         </h2>
         <p className="mt-1 text-xs leading-5 text-slate-500">
-          הרשימות הפעילות יופיעו לבחירה בטופס יצירת ועריכת משמרת.
+          כל תחום מנוהל בטאב נפרד. רק פריטים פעילים יופיעו בטופס המשמרת.
         </p>
       </div>
 
+      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm md:grid-cols-4">
+        {groups.map((group) => {
+          const Icon = group.icon;
+          const selected = activeTab === group.type;
+          return (
+            <button
+              key={group.type}
+              type="button"
+              onClick={() => {
+                setActiveTab(group.type);
+                setType(group.type);
+                setName("");
+                setCoordinates("");
+                setLink("");
+                setFrequency("");
+                setCallSign("");
+                setMessage(null);
+              }}
+              className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-xs font-black transition ${
+                selected
+                  ? "bg-slate-900 text-white shadow"
+                  : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <Icon className="h-4 w-4" /> {group.title}
+            </button>
+          );
+        })}
+      </div>
+
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[180px_1fr_auto]">
-          <select
-            value={type}
-            onChange={(event) =>
-              setType(event.target.value as OperationalResourceType)
-            }
-            className="input"
-          >
-            <option value="hospital">בית חולים</option>
-            <option value="helipad">מנחת</option>
-            <option value="evacuation_point">נקודת שחלוף / יעד פינוי</option>
-            <option value="frequency">תדר</option>
-          </select>
+        <div className="mb-3 text-sm font-black text-slate-900">
+          הוספת פריט חדש — {groups.find((group) => group.type === activeTab)?.title}
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -225,8 +248,8 @@ export default function ShiftResourcesManager({
         )}
       </section>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {groups.map((group) => {
+      <div className="grid grid-cols-1 gap-4">
+        {groups.filter((group) => group.type === activeTab).map((group) => {
           const Icon = group.icon;
           const items = draft.filter((item) => item.type === group.type);
           return (
@@ -375,7 +398,7 @@ export default function ShiftResourcesManager({
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white disabled:opacity-50"
       >
         <Save className="h-4 w-4" />
-        {saving ? "שומר..." : "שמור מנחתים, בתי חולים ותדרים"}
+        {saving ? "שומר..." : "שמור שינויים"}
       </button>
     </div>
   );

@@ -174,8 +174,9 @@ const sections: Array<{
   },
   {
     id: "shift_resources",
-    title: "מנחתים ובתי חולים",
-    description: "ניהול יעדי פינוי ומנחתים לבחירה בטופס המשמרת.",
+    title: "משאבי פעילות מיוחדת",
+    description:
+      "ניהול בתי חולים, מנחתים, נקודות שחלוף ויעדי פינוי ותדרי קשר.",
     icon: Building2,
   },
   {
@@ -211,7 +212,8 @@ const adminGroups: Array<{
   {
     id: "shifts",
     title: "ניהול משמרות",
-    description: "סוגי משמרות, תקנים, אנשי צוות ויעדי פינוי.",
+    description:
+      "סוגי משמרות, תקנים, אנשי צוות ומשאבי פעילות מיוחדת.",
     icon: CalendarCog,
     sections: ["shift_types", "shift_roles", "external_staff", "shift_resources"],
   },
