@@ -602,12 +602,17 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
               typeof item.name === "string" &&
               (item.type === "hospital" ||
                 item.type === "helipad" ||
+                item.type === "evacuation_point" ||
                 item.type === "frequency")
           )
           .map((item, index) => ({
             id: String(item.id),
             name: String(item.name).trim(),
-            type: item.type as "hospital" | "helipad" | "frequency",
+            type: item.type as
+              | "hospital"
+              | "helipad"
+              | "evacuation_point"
+              | "frequency",
             enabled: item.enabled !== false,
             coordinates:
               typeof item.coordinates === "string"

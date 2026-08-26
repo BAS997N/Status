@@ -236,7 +236,11 @@ export type ReportingClosedVisibleSection =
   | "order"
   | "messages";
 
-export type OperationalResourceType = "hospital" | "helipad" | "frequency";
+export type OperationalResourceType =
+  | "hospital"
+  | "helipad"
+  | "evacuation_point"
+  | "frequency";
 
 export interface OperationalResourceConfig {
   id: string;
@@ -506,6 +510,7 @@ export interface ShiftRecord {
   medicalDutyOnCallPhone?: string;
   evacuationPointName?: string;
   evacuationPointLink?: string;
+  evacuationPointIds?: string[];
   hospitalIds?: string[];
   helipadIds?: string[];
   frequencyIds?: string[];

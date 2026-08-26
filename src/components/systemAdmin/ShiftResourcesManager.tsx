@@ -86,7 +86,10 @@ export default function ShiftResourcesManager({
           enabled: true,
           sortOrder: draft.length + 1,
           coordinates: type === "helipad" ? coordinates.trim() : "",
-          link: type === "helipad" ? link.trim() : "",
+          link:
+            type === "helipad" || type === "evacuation_point"
+              ? link.trim()
+              : "",
           frequency: type === "frequency" ? frequency.trim() : "",
           callSign: type === "frequency" ? callSign.trim() : "",
         },
@@ -142,6 +145,11 @@ export default function ShiftResourcesManager({
   }> = [
     { type: "hospital", title: "בתי חולים לפינוי", icon: Building2 },
     { type: "helipad", title: "מנחתים", icon: MapPinned },
+    {
+      type: "evacuation_point",
+      title: "נקודות שחלוף ויעדי פינוי",
+      icon: MapPinned,
+    },
     { type: "frequency", title: "תדרי קשר", icon: Radio },
   ];
 
@@ -167,6 +175,7 @@ export default function ShiftResourcesManager({
           >
             <option value="hospital">בית חולים</option>
             <option value="helipad">מנחת</option>
+            <option value="evacuation_point">נקודת שחלוף / יעד פינוי</option>
             <option value="frequency">תדר</option>
           </select>
           <input
@@ -183,6 +192,8 @@ export default function ShiftResourcesManager({
                 ? "שם בית החולים"
                 : type === "helipad"
                 ? "שם המנחת"
+                : type === "evacuation_point"
+                ? "שם הנקודה, למשל 104"
                 : "מטרת התדר, למשל: פינוי רפואי"
             }
             className="input"
@@ -199,6 +210,11 @@ export default function ShiftResourcesManager({
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input value={coordinates} onChange={(event) => setCoordinates(event.target.value)} placeholder="נ.צ" className="input" />
             <input value={link} onChange={(event) => setLink(event.target.value)} placeholder="קישור למפה" className="input" />
+          </div>
+        )}
+        {type === "evacuation_point" && (
+          <div className="mt-3">
+            <input value={link} onChange={(event) => setLink(event.target.value)} placeholder="קישור למיקום במפה" className="input" />
           </div>
         )}
         {type === "frequency" && (
@@ -234,37 +250,43 @@ export default function ShiftResourcesManager({
                     return (
                       <div
                         key={item.id}
-                        className={`flex flex-wrap items-center gap-2 rounded-xl border p-3 ${
+                        className={`rounded-xl border p-3 ${
                           item.enabled
                             ? "border-slate-200 bg-white"
                             : "border-slate-100 bg-slate-50 opacity-60"
                         }`}
                       >
-                        <input
-                          value={item.name}
-                          onChange={(event) =>
-                            setDraft((current) =>
-                              current.map((value) =>
-                                value.id === item.id
-                                  ? { ...value, name: event.target.value }
-                                  : value
+                        <div className="grid grid-cols-1 gap-2">
+                          <input
+                            value={item.name}
+                            onChange={(event) =>
+                              setDraft((current) =>
+                                current.map((value) =>
+                                  value.id === item.id
+                                    ? { ...value, name: event.target.value }
+                                    : value
+                                )
                               )
-                            )
-                          }
-                          className="input min-w-0 flex-1"
-                        />
+                            }
+                            className="input w-full"
+                          />
                         {item.type === "helipad" && (
-                          <>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <input value={item.coordinates || ""} onChange={(event) => setDraft((current) => current.map((value) => value.id === item.id ? { ...value, coordinates: event.target.value } : value))} placeholder="נ.צ" className="input min-w-[150px] flex-1" />
                             <input value={item.link || ""} onChange={(event) => setDraft((current) => current.map((value) => value.id === item.id ? { ...value, link: event.target.value } : value))} placeholder="קישור למפה" className="input min-w-[180px] flex-1" />
-                          </>
+                          </div>
+                        )}
+                        {item.type === "evacuation_point" && (
+                          <input value={item.link || ""} onChange={(event) => setDraft((current) => current.map((value) => value.id === item.id ? { ...value, link: event.target.value } : value))} placeholder="קישור למיקום במפה" className="input w-full" />
                         )}
                         {item.type === "frequency" && (
-                          <>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <input value={item.callSign || ""} onChange={(event) => setDraft((current) => current.map((value) => value.id === item.id ? { ...value, callSign: event.target.value } : value))} placeholder="או״ק / שם הרשת" className="input min-w-[160px] flex-1" />
                             <input value={item.frequency || ""} onChange={(event) => setDraft((current) => current.map((value) => value.id === item.id ? { ...value, frequency: event.target.value } : value))} placeholder="תדר" className="input min-w-[120px] flex-1" />
-                          </>
+                          </div>
                         )}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
                         <button
                           type="button"
                           onClick={() =>
@@ -323,6 +345,7 @@ export default function ShiftResourcesManager({
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
+                        </div>
                       </div>
                     );
                   })

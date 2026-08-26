@@ -330,10 +330,12 @@ export default function ShiftsView({
   const [specialSeniorCaregiverPhone, setSpecialSeniorCaregiverPhone] = useState("");
   const [medicalDutyPersonalPhone, setMedicalDutyPersonalPhone] = useState("");
   const [medicalDutyOnCallPhone, setMedicalDutyOnCallPhone] = useState("");
-  const [evacuationPointName, setEvacuationPointName] = useState("104");
+  const [evacuationPointName, setEvacuationPointName] = useState("");
   const [evacuationPointLink, setEvacuationPointLink] = useState("");
   const [selectedHospitalIds, setSelectedHospitalIds] = useState<string[]>([]);
   const [selectedHelipadIds, setSelectedHelipadIds] = useState<string[]>([]);
+  const [selectedEvacuationPointIds, setSelectedEvacuationPointIds] =
+    useState<string[]>([]);
   const [selectedFrequencyIds, setSelectedFrequencyIds] = useState<string[]>([]);
   const [doubleSlotIds, setDoubleSlotIds] = useState<string[]>([]);
   const [replacementTimes, setReplacementTimes] = useState<
@@ -408,6 +410,9 @@ export default function ShiftsView({
   );
   const activeFrequencies = activeOperationalResources.filter(
     (item) => item.type === "frequency"
+  );
+  const activeEvacuationPoints = activeOperationalResources.filter(
+    (item) => item.type === "evacuation_point"
   );
   const operationalResourceById = useMemo(
     () =>
@@ -980,10 +985,11 @@ export default function ShiftsView({
     setSpecialSeniorCaregiverPhone("");
     setMedicalDutyPersonalPhone("");
     setMedicalDutyOnCallPhone("");
-    setEvacuationPointName("104");
+    setEvacuationPointName("");
     setEvacuationPointLink("");
     setSelectedHospitalIds([]);
     setSelectedHelipadIds([]);
+    setSelectedEvacuationPointIds([]);
     setSelectedFrequencyIds([]);
     setDoubleSlotIds([]);
     setReplacementTimes({});
@@ -1284,10 +1290,11 @@ export default function ShiftsView({
     setSpecialSeniorCaregiverPhone(shift.specialSeniorCaregiverPhone || "");
     setMedicalDutyPersonalPhone(shift.medicalDutyPersonalPhone || "");
     setMedicalDutyOnCallPhone(shift.medicalDutyOnCallPhone || "");
-    setEvacuationPointName(shift.evacuationPointName || "104");
+    setEvacuationPointName(shift.evacuationPointName || "");
     setEvacuationPointLink(shift.evacuationPointLink || "");
     setSelectedHospitalIds(shift.hospitalIds || []);
     setSelectedHelipadIds(shift.helipadIds || []);
+    setSelectedEvacuationPointIds(shift.evacuationPointIds || []);
     setSelectedFrequencyIds(shift.frequencyIds || []);
     setDoubleSlotIds(nextDoubleSlotIds);
     setReplacementTimes(nextReplacementTimes);
@@ -1512,6 +1519,9 @@ export default function ShiftsView({
         evacuationPointLink: specialActivity
           ? evacuationPointLink.trim()
           : "",
+        evacuationPointIds: specialActivity
+          ? selectedEvacuationPointIds
+          : [],
         hospitalIds: specialActivity ? selectedHospitalIds : [],
         helipadIds: specialActivity ? selectedHelipadIds : [],
         frequencyIds: specialActivity ? selectedFrequencyIds : [],
@@ -1713,10 +1723,11 @@ export default function ShiftsView({
     setSpecialSeniorCaregiverPhone(shift.specialSeniorCaregiverPhone || "");
     setMedicalDutyPersonalPhone(shift.medicalDutyPersonalPhone || "");
     setMedicalDutyOnCallPhone(shift.medicalDutyOnCallPhone || "");
-    setEvacuationPointName(shift.evacuationPointName || "104");
+    setEvacuationPointName(shift.evacuationPointName || "");
     setEvacuationPointLink(shift.evacuationPointLink || "");
     setSelectedHospitalIds(shift.hospitalIds || []);
     setSelectedHelipadIds(shift.helipadIds || []);
+    setSelectedEvacuationPointIds(shift.evacuationPointIds || []);
     setSelectedFrequencyIds(shift.frequencyIds || []);
     setDoubleSlotIds(
       expandedSlots
@@ -2151,7 +2162,12 @@ export default function ShiftsView({
                 }
                 ${
                   shift.specialActivity && (shift.evacuationPointName || shift.evacuationPointLink)
-                    ? `<div class="shift-location"><strong>נקודת שחלוף / יעד פינוי:</strong> ${escapeHtml([shift.evacuationPointName, shift.evacuationPointLink].filter(Boolean).join(" · "))}</div>`
+                    ? `<div class="shift-location"><strong>נקודת שחלוף / יעד פינוי:</strong> ${shift.evacuationPointName ? escapeHtml(shift.evacuationPointName) : ""}${shift.evacuationPointLink ? `<br>${escapeHtml(shift.evacuationPointLink)}` : ""}</div>`
+                    : ""
+                }
+                ${
+                  shift.specialActivity && getResources(shift.evacuationPointIds).length
+                    ? `<div class="shift-location"><strong>נקודות שחלוף ויעדי פינוי:</strong> ${getResources(shift.evacuationPointIds).map((item) => `${escapeHtml(item.name)}${item.link ? `<br>${escapeHtml(item.link)}` : ""}`).join("<br>")}</div>`
                     : ""
                 }
                 ${
@@ -2161,7 +2177,7 @@ export default function ShiftsView({
                 }
                 ${
                   shift.specialActivity && getResources(shift.helipadIds).length
-                    ? `<div class="shift-location"><strong>מנחתים:</strong> ${getResources(shift.helipadIds).map((item) => escapeHtml([item.name, item.coordinates ? `נ.צ ${item.coordinates}` : "", item.link].filter(Boolean).join(" · "))).join("<br>")}</div>`
+                    ? `<div class="shift-location"><strong>מנחתים:</strong> ${getResources(shift.helipadIds).map((item) => `${escapeHtml([item.name, item.coordinates ? `נ.צ ${item.coordinates}` : ""].filter(Boolean).join(" · "))}${item.link ? `<br>${escapeHtml(item.link)}` : ""}`).join("<br>")}</div>`
                     : ""
                 }
                 ${
@@ -2896,13 +2912,15 @@ export default function ShiftsView({
 
             return [
               `*${shift.title}*`,
-              `🕒 ${new Date(shift.startAt).toLocaleTimeString("he-IL", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}–${new Date(shift.endAt).toLocaleTimeString("he-IL", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}`,
+              shift.specialActivity
+                ? ""
+                : `🕒 ${new Date(shift.startAt).toLocaleTimeString("he-IL", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}–${new Date(shift.endAt).toLocaleTimeString("he-IL", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}`,
               includeLocationInWhatsApp && shift.location
                 ? `📍 מיקום: ${shift.location}`
                 : "",
@@ -2927,11 +2945,14 @@ export default function ShiftsView({
               shift.specialActivity && (shift.evacuationPointName || shift.evacuationPointLink)
                 ? `📌 *נקודת שחלוף / יעד פינוי:*\n${[shift.evacuationPointName, shift.evacuationPointLink].filter(Boolean).join("\n")}`
                 : "",
+              shift.specialActivity && getResources(shift.evacuationPointIds).length
+                ? `📌 *נקודות שחלוף ויעדי פינוי:*\n${getResources(shift.evacuationPointIds).map((item) => `• ${item.name}${item.link ? `\n📍 מיקום במפה:\n${item.link}` : ""}`).join("\n")}`
+                : "",
               shift.specialActivity && getResourceNames(shift.hospitalIds).length
                 ? `🏥 בתי חולים: ${getResourceNames(shift.hospitalIds).join(", ")}`
                 : "",
               shift.specialActivity && getResources(shift.helipadIds).length
-                ? `🚁 *מנחתים:*\n${getResources(shift.helipadIds).map((item) => `• ${[item.name, item.coordinates ? `נ.צ ${item.coordinates}` : "", item.link].filter(Boolean).join(" · ")}`).join("\n")}`
+                ? `🚁 *מנחתים:*\n${getResources(shift.helipadIds).map((item) => `• ${[item.name, item.coordinates ? `נ.צ ${item.coordinates}` : ""].filter(Boolean).join(" · ")}${item.link ? `\n📍 מיקום במפה:\n${item.link}` : ""}`).join("\n")}`
                 : "",
               shift.specialActivity && getResources(shift.frequencyIds).length
                 ? `📡 *תקשוב:*\n${getResources(shift.frequencyIds).map((item) => `• ${item.name}${item.callSign || item.frequency ? ` יתנהל בתדר ${[item.callSign, item.frequency].filter(Boolean).join(" ")}` : ""}`).join("\n")}`
@@ -3051,6 +3072,12 @@ export default function ShiftsView({
       dateStyle: "medium",
       timeStyle: "short",
     });
+    const shiftDate = new Date(shift.startAt).toLocaleDateString("he-IL", {
+      weekday: "long",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
 
     const assignmentsText = shift.assignments
       .map((assignment) => {
@@ -3070,8 +3097,8 @@ export default function ShiftsView({
     const message = [
       `*${shift.title}*`,
       shift.shiftType ? `סוג: ${shift.shiftType}` : "",
-      `🕒 התחלה: ${start}`,
-      `🕒 סיום: ${end}`,
+      shift.specialActivity ? `📅 תאריך: ${shiftDate}` : `🕒 התחלה: ${start}`,
+      shift.specialActivity ? "" : `🕒 סיום: ${end}`,
       shift.location ? `📍 מיקום: ${shift.location}` : "",
       shift.specialActivity && shift.dispatchTime
         ? `⏱️ שעת מוקי: ${shift.dispatchTime}`
@@ -3094,11 +3121,14 @@ export default function ShiftsView({
       shift.specialActivity && (shift.evacuationPointName || shift.evacuationPointLink)
         ? `📌 *נקודת שחלוף / יעד פינוי:*\n${[shift.evacuationPointName, shift.evacuationPointLink].filter(Boolean).join("\n")}`
         : "",
+      shift.specialActivity && getResources(shift.evacuationPointIds).length
+        ? `📌 *נקודות שחלוף ויעדי פינוי:*\n${getResources(shift.evacuationPointIds).map((item) => `• ${item.name}${item.link ? `\n📍 מיקום במפה:\n${item.link}` : ""}`).join("\n")}`
+        : "",
       shift.specialActivity && getResourceNames(shift.hospitalIds).length
         ? `🏥 בתי חולים: ${getResourceNames(shift.hospitalIds).join(", ")}`
         : "",
       shift.specialActivity && getResources(shift.helipadIds).length
-        ? `🚁 *מנחתים:*\n${getResources(shift.helipadIds).map((item) => `• ${[item.name, item.coordinates ? `נ.צ ${item.coordinates}` : "", item.link].filter(Boolean).join(" · ")}`).join("\n")}`
+        ? `🚁 *מנחתים:*\n${getResources(shift.helipadIds).map((item) => `• ${[item.name, item.coordinates ? `נ.צ ${item.coordinates}` : ""].filter(Boolean).join(" · ")}${item.link ? `\n📍 מיקום במפה:\n${item.link}` : ""}`).join("\n")}`
         : "",
       shift.specialActivity && getResources(shift.frequencyIds).length
         ? `📡 *תקשוב:*\n${getResources(shift.frequencyIds).map((item) => `• ${item.name}${item.callSign || item.frequency ? ` יתנהל בתדר ${[item.callSign, item.frequency].filter(Boolean).join(" ")}` : ""}`).join("\n")}`
@@ -3997,6 +4027,7 @@ export default function ShiftsView({
               detailsShift.medicalDutyOnCallPhone ||
               detailsShift.evacuationPointName ||
               detailsShift.evacuationPointLink ||
+              getResourceNames(detailsShift.evacuationPointIds).length > 0 ||
               getResourceNames(detailsShift.hospitalIds).length > 0 ||
               getResourceNames(detailsShift.helipadIds).length > 0 ||
               getResourceNames(detailsShift.frequencyIds).length > 0) && (
@@ -4067,6 +4098,17 @@ export default function ShiftsView({
                     <div className="font-black text-slate-500">📌 נקודת שחלוף / יעד פינוי</div>
                     {detailsShift.evacuationPointName && <div className="mt-1 font-bold text-slate-900">{detailsShift.evacuationPointName}</div>}
                     {detailsShift.evacuationPointLink && <a href={detailsShift.evacuationPointLink} target="_blank" rel="noreferrer" className="mt-1 block break-all font-bold text-sky-600 underline">פתח קישור</a>}
+                  </div>
+                )}
+                {getResources(detailsShift.evacuationPointIds).length > 0 && (
+                  <div className="rounded-xl border border-slate-200 p-3 text-xs sm:col-span-2">
+                    <div className="font-black text-slate-500">📌 נקודות שחלוף ויעדי פינוי</div>
+                    {getResources(detailsShift.evacuationPointIds).map((item) => (
+                      <div key={item.id} className="mt-2 font-bold text-slate-900">
+                        <div>{item.name}</div>
+                        {item.link && <a href={item.link} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sky-600 underline">מיקום במפה</a>}
+                      </div>
+                    ))}
                   </div>
                 )}
                 {getResourceNames(detailsShift.hospitalIds).length > 0 && (
@@ -4881,12 +4923,13 @@ export default function ShiftsView({
                   <Field label="תורן רפואה — ☎️ כוננות">
                     <input type="tel" inputMode="tel" value={medicalDutyOnCallPhone} onChange={(event) => setMedicalDutyOnCallPhone(event.target.value)} placeholder="מספר כוננות" className="input" />
                   </Field>
-                  <Field label="📌 נקודת שחלוף / יעד פינוי">
-                    <input value={evacuationPointName} onChange={(event) => setEvacuationPointName(event.target.value)} placeholder="למשל 104" className="input" />
-                  </Field>
-                  <Field label="קישור לנקודת השחלוף">
-                    <input type="url" value={evacuationPointLink} onChange={(event) => setEvacuationPointLink(event.target.value)} placeholder="https://maps.app.goo.gl/..." className="input" />
-                  </Field>
+                  <ResourceDropdown
+                    label="נקודות שחלוף ויעדי פינוי"
+                    items={activeEvacuationPoints}
+                    selectedIds={selectedEvacuationPointIds}
+                    onChange={setSelectedEvacuationPointIds}
+                    emptyText="לא הוגדרו נקודות שחלוף פעילות בהגדרות."
+                  />
                   <ResourceDropdown
                     label="בתי חולים לפינוי"
                     items={activeHospitals}
