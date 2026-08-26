@@ -476,6 +476,7 @@ export interface ShiftAssignment {
   medicalRole?: string;
   readStatus?: ShiftReadStatus;
   readAt?: string;
+  replacementTime?: string;
 }
 
 export interface ShiftRecord {
@@ -486,7 +487,13 @@ export interface ShiftRecord {
   endAt: string;
   location?: string;
   note?: string;
+  specialActivity?: boolean;
   dispatchTime?: string;
+  specialActivityEndTime?: string;
+  specialForceCommanderUserId?: string;
+  specialForceCommanderName?: string;
+  specialEventManagerUserId?: string;
+  specialEventManagerName?: string;
   hospitalIds?: string[];
   helipadIds?: string[];
   status: ShiftStatus;

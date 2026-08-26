@@ -317,10 +317,19 @@ export default function ShiftsView({
   const [endTime, setEndTime] = useState("17:30");
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
+  const [specialActivity, setSpecialActivity] = useState(false);
   const [dispatchTime, setDispatchTime] = useState("");
+  const [specialActivityEndTime, setSpecialActivityEndTime] = useState("");
+  const [specialForceCommanderUserId, setSpecialForceCommanderUserId] =
+    useState("");
+  const [specialEventManagerUserId, setSpecialEventManagerUserId] =
+    useState("");
   const [selectedHospitalIds, setSelectedHospitalIds] = useState<string[]>([]);
   const [selectedHelipadIds, setSelectedHelipadIds] = useState<string[]>([]);
   const [doubleSlotIds, setDoubleSlotIds] = useState<string[]>([]);
+  const [replacementTimes, setReplacementTimes] = useState<
+    Record<string, string>
+  >({});
   const [slotAssignments, setSlotAssignments] = useState<Record<string, string>>({});
   const [visibleCandidateStatusIds, setVisibleCandidateStatusIds] = useState<
     string[]
@@ -891,10 +900,15 @@ export default function ShiftsView({
     setEndTime("17:30");
     setLocation("");
     setNote("");
+    setSpecialActivity(false);
     setDispatchTime("");
+    setSpecialActivityEndTime("");
+    setSpecialForceCommanderUserId("");
+    setSpecialEventManagerUserId("");
     setSelectedHospitalIds([]);
     setSelectedHelipadIds([]);
     setDoubleSlotIds([]);
+    setReplacementTimes({});
     setFormStatus("draft");
     setSendPushOnPublish(false);
     setSignupRequestsEnabled(false);
@@ -1125,6 +1139,7 @@ export default function ShiftsView({
 
   const openEdit = (shift: ShiftRecord) => {
     const next: Record<string, string> = {};
+    const nextReplacementTimes: Record<string, string> = {};
     const nextDoubleSlotIds = expandedSlots
       .filter((slot) =>
         shift.assignments.some(
@@ -1156,6 +1171,8 @@ export default function ShiftsView({
                 doubleAssignment.userId.replace("external:", "")
               }`
             : `user:${doubleAssignment.userId}`;
+        nextReplacementTimes[`${slot.key}__double`] =
+          doubleAssignment.replacementTime || "";
       }
     });
     const startParts = toLocalParts(shift.startAt);
@@ -1177,10 +1194,17 @@ export default function ShiftsView({
     setEndTime(endParts.time);
     setLocation(shift.location || "");
     setNote(shift.note || "");
+    setSpecialActivity(shift.specialActivity === true);
     setDispatchTime(shift.dispatchTime || "");
+    setSpecialActivityEndTime(shift.specialActivityEndTime || "");
+    setSpecialForceCommanderUserId(
+      shift.specialForceCommanderUserId || ""
+    );
+    setSpecialEventManagerUserId(shift.specialEventManagerUserId || "");
     setSelectedHospitalIds(shift.hospitalIds || []);
     setSelectedHelipadIds(shift.helipadIds || []);
     setDoubleSlotIds(nextDoubleSlotIds);
+    setReplacementTimes(nextReplacementTimes);
     setFormStatus(
       isPublishedShift(shift)
         ? "published"
@@ -1357,6 +1381,7 @@ export default function ShiftsView({
             userName: person.fullName,
             medicalRole: person.staffType,
             readStatus: "unread",
+            replacementTime: replacementTimes[slot.key] || undefined,
           };
         }
 
@@ -1379,6 +1404,7 @@ export default function ShiftsView({
           medicalRole: user.medicalRole,
           readStatus: previous?.readStatus || "unread",
           readAt: previous?.readAt,
+          replacementTime: replacementTimes[slot.key] || undefined,
         };
       });
 
@@ -1394,9 +1420,29 @@ export default function ShiftsView({
         endAt,
         location: location.trim(),
         note: note.trim(),
-        dispatchTime,
-        hospitalIds: selectedHospitalIds,
-        helipadIds: selectedHelipadIds,
+        specialActivity,
+        dispatchTime: specialActivity ? dispatchTime : "",
+        specialActivityEndTime: specialActivity
+          ? specialActivityEndTime
+          : "",
+        specialForceCommanderUserId: specialActivity
+          ? specialForceCommanderUserId
+          : "",
+        specialForceCommanderName: specialActivity
+          ? selectableUsers.find(
+              (user) => user.userId === specialForceCommanderUserId
+            )?.fullName || ""
+          : "",
+        specialEventManagerUserId: specialActivity
+          ? specialEventManagerUserId
+          : "",
+        specialEventManagerName: specialActivity
+          ? selectableUsers.find(
+              (user) => user.userId === specialEventManagerUserId
+            )?.fullName || ""
+          : "",
+        hospitalIds: specialActivity ? selectedHospitalIds : [],
+        helipadIds: specialActivity ? selectedHelipadIds : [],
         assignments,
         status: targetStatus,
         sendPushOnPublish,
@@ -1584,7 +1630,13 @@ export default function ShiftsView({
     setEndTime(endParts.time);
     setLocation(shift.location || "");
     setNote(shift.note || "");
+    setSpecialActivity(shift.specialActivity === true);
     setDispatchTime(shift.dispatchTime || "");
+    setSpecialActivityEndTime(shift.specialActivityEndTime || "");
+    setSpecialForceCommanderUserId(
+      shift.specialForceCommanderUserId || ""
+    );
+    setSpecialEventManagerUserId(shift.specialEventManagerUserId || "");
     setSelectedHospitalIds(shift.hospitalIds || []);
     setSelectedHelipadIds(shift.helipadIds || []);
     setDoubleSlotIds(
@@ -1602,6 +1654,7 @@ export default function ShiftsView({
     setSignupRequestsLocked(false);
 
     const nextAssignments: Record<string, string> = {};
+    const nextReplacementTimes: Record<string, string> = {};
     expandedSlots.forEach((slot, index) => {
       const assignment =
         shift.assignments.find((item) => item.slotId === slot.key) ||
@@ -1625,9 +1678,12 @@ export default function ShiftsView({
                 doubleAssignment.userId.replace("external:", "")
               }`
             : `user:${doubleAssignment.userId}`;
+        nextReplacementTimes[`${slot.key}__double`] =
+          doubleAssignment.replacementTime || "";
       }
     });
     setSlotAssignments(nextAssignments);
+    setReplacementTimes(nextReplacementTimes);
     setIsFormOpen(true);
     setMessage({
       type: "success",
@@ -1982,6 +2038,36 @@ export default function ShiftsView({
                     ? `<div class="shift-location"><strong>מיקום:</strong> ${escapeHtml(
                         shift.location
                       )}</div>`
+                    : ""
+                }
+                ${
+                  shift.specialActivity && shift.dispatchTime
+                    ? `<div class="shift-location"><strong>שעת מוקי:</strong> ${escapeHtml(shift.dispatchTime)}</div>`
+                    : ""
+                }
+                ${
+                  shift.specialActivity && shift.specialActivityEndTime
+                    ? `<div class="shift-location"><strong>שעת סיום:</strong> ${escapeHtml(shift.specialActivityEndTime)}</div>`
+                    : ""
+                }
+                ${
+                  shift.specialActivity && shift.specialForceCommanderName
+                    ? `<div class="shift-location"><strong>מפקד הכוח החביר:</strong> ${escapeHtml(shift.specialForceCommanderName)}</div>`
+                    : ""
+                }
+                ${
+                  shift.specialActivity && shift.specialEventManagerName
+                    ? `<div class="shift-location"><strong>מנהל האירוע החביר:</strong> ${escapeHtml(shift.specialEventManagerName)}</div>`
+                    : ""
+                }
+                ${
+                  shift.specialActivity && getResourceNames(shift.hospitalIds).length
+                    ? `<div class="shift-location"><strong>בתי חולים:</strong> ${escapeHtml(getResourceNames(shift.hospitalIds).join(", "))}</div>`
+                    : ""
+                }
+                ${
+                  shift.specialActivity && getResourceNames(shift.helipadIds).length
+                    ? `<div class="shift-location"><strong>מנחתים:</strong> ${escapeHtml(getResourceNames(shift.helipadIds).join(", "))}</div>`
                     : ""
                 }
                 ${
@@ -2677,6 +2763,10 @@ export default function ShiftsView({
 
                 return `• ${roleLabel} — ${assignment.userName}${
                   phoneNumber ? ` — ${phoneNumber}` : ""
+                }${
+                  assignment.replacementTime
+                    ? ` — החלפה ${assignment.replacementTime}`
+                    : ""
                 }`;
               })
               .join("\n");
@@ -2693,11 +2783,22 @@ export default function ShiftsView({
               includeLocationInWhatsApp && shift.location
                 ? `📍 מיקום: ${shift.location}`
                 : "",
-              shift.dispatchTime ? `⏱️ שעת מוקד: ${shift.dispatchTime}` : "",
-              getResourceNames(shift.hospitalIds).length
+              shift.specialActivity && shift.dispatchTime
+                ? `⏱️ שעת מוקי: ${shift.dispatchTime}`
+                : "",
+              shift.specialActivity && shift.specialActivityEndTime
+                ? `🏁 שעת סיום: ${shift.specialActivityEndTime}`
+                : "",
+              shift.specialActivity && shift.specialForceCommanderName
+                ? `👤 מפקד הכוח החביר: ${shift.specialForceCommanderName}`
+                : "",
+              shift.specialActivity && shift.specialEventManagerName
+                ? `👤 מנהל האירוע החביר: ${shift.specialEventManagerName}`
+                : "",
+              shift.specialActivity && getResourceNames(shift.hospitalIds).length
                 ? `🏥 בתי חולים: ${getResourceNames(shift.hospitalIds).join(", ")}`
                 : "",
-              getResourceNames(shift.helipadIds).length
+              shift.specialActivity && getResourceNames(shift.helipadIds).length
                 ? `🚁 מנחתים: ${getResourceNames(shift.helipadIds).join(", ")}`
                 : "",
               assignments || "• טרם שובצו חיילים",
@@ -2819,7 +2920,11 @@ export default function ShiftsView({
     const assignmentsText = shift.assignments
       .map(
         (assignment) =>
-          `${assignment.slotLabel || "תפקיד"}: ${assignment.userName}`
+          `${assignment.slotLabel || "תפקיד"}: ${assignment.userName}${
+            assignment.replacementTime
+              ? ` — החלפה ${assignment.replacementTime}`
+              : ""
+          }`
       )
       .join("\n");
 
@@ -2829,11 +2934,22 @@ export default function ShiftsView({
       `🕒 התחלה: ${start}`,
       `🕒 סיום: ${end}`,
       shift.location ? `📍 מיקום: ${shift.location}` : "",
-      shift.dispatchTime ? `⏱️ שעת מוקד: ${shift.dispatchTime}` : "",
-      getResourceNames(shift.hospitalIds).length
+      shift.specialActivity && shift.dispatchTime
+        ? `⏱️ שעת מוקי: ${shift.dispatchTime}`
+        : "",
+      shift.specialActivity && shift.specialActivityEndTime
+        ? `🏁 שעת סיום: ${shift.specialActivityEndTime}`
+        : "",
+      shift.specialActivity && shift.specialForceCommanderName
+        ? `👤 מפקד הכוח החביר: ${shift.specialForceCommanderName}`
+        : "",
+      shift.specialActivity && shift.specialEventManagerName
+        ? `👤 מנהל האירוע החביר: ${shift.specialEventManagerName}`
+        : "",
+      shift.specialActivity && getResourceNames(shift.hospitalIds).length
         ? `🏥 בתי חולים: ${getResourceNames(shift.hospitalIds).join(", ")}`
         : "",
-      getResourceNames(shift.helipadIds).length
+      shift.specialActivity && getResourceNames(shift.helipadIds).length
         ? `🚁 מנחתים: ${getResourceNames(shift.helipadIds).join(", ")}`
         : "",
       "",
@@ -3717,15 +3833,47 @@ export default function ShiftsView({
               </div>
             )}
 
-            {(detailsShift.dispatchTime ||
+            {detailsShift.specialActivity &&
+              (detailsShift.dispatchTime ||
+              detailsShift.specialActivityEndTime ||
+              detailsShift.specialForceCommanderName ||
+              detailsShift.specialEventManagerName ||
               getResourceNames(detailsShift.hospitalIds).length > 0 ||
               getResourceNames(detailsShift.helipadIds).length > 0) && (
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {detailsShift.dispatchTime && (
                   <div className="rounded-xl border border-slate-200 p-3 text-xs">
-                    <div className="font-black text-slate-500">שעת מוקד</div>
+                    <div className="font-black text-slate-500">שעת מוקי</div>
                     <div className="mt-1 font-bold text-slate-900">
                       {detailsShift.dispatchTime}
+                    </div>
+                  </div>
+                )}
+                {detailsShift.specialActivityEndTime && (
+                  <div className="rounded-xl border border-slate-200 p-3 text-xs">
+                    <div className="font-black text-slate-500">שעת סיום</div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {detailsShift.specialActivityEndTime}
+                    </div>
+                  </div>
+                )}
+                {detailsShift.specialForceCommanderName && (
+                  <div className="rounded-xl border border-slate-200 p-3 text-xs">
+                    <div className="font-black text-slate-500">
+                      מפקד הכוח החביר
+                    </div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {detailsShift.specialForceCommanderName}
+                    </div>
+                  </div>
+                )}
+                {detailsShift.specialEventManagerName && (
+                  <div className="rounded-xl border border-slate-200 p-3 text-xs">
+                    <div className="font-black text-slate-500">
+                      מנהל האירוע החביר
+                    </div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {detailsShift.specialEventManagerName}
                     </div>
                   </div>
                 )}
@@ -3761,6 +3909,11 @@ export default function ShiftsView({
                     <div className="text-xs font-black text-slate-900">
                       {assignment.userName}
                     </div>
+                    {assignment.replacementTime && (
+                      <div className="mt-0.5 text-[9px] font-black text-indigo-600">
+                        החלפה בשעה {assignment.replacementTime}
+                      </div>
+                    )}
                     {assignment.assigneeType !== "external" && (
                       <div
                         className={`mt-0.5 text-[9px] font-bold ${
@@ -4431,29 +4584,106 @@ export default function ShiftsView({
                   className="input"
                 />
               </Field>
-              <Field label="שעת מוקד / התייצבות">
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 md:col-span-2">
                 <input
-                  type="time"
-                  value={dispatchTime}
-                  onChange={(event) => setDispatchTime(event.target.value)}
-                  step={60}
-                  className="input"
+                  type="checkbox"
+                  checked={specialActivity}
+                  onChange={(event) => setSpecialActivity(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-orange-600"
                 />
-              </Field>
-              <ResourceDropdown
-                label="בתי חולים לפינוי"
-                items={activeHospitals}
-                selectedIds={selectedHospitalIds}
-                onChange={setSelectedHospitalIds}
-                emptyText="לא הוגדרו בתי חולים פעילים בהגדרות."
-              />
-              <ResourceDropdown
-                label="מנחתים"
-                items={activeHelipads}
-                selectedIds={selectedHelipadIds}
-                onChange={setSelectedHelipadIds}
-                emptyText="לא הוגדרו מנחתים פעילים בהגדרות."
-              />
+                <span>
+                  <span className="block text-xs font-black text-orange-950">
+                    פעילות מיוחדת
+                  </span>
+                  <span className="mt-1 block text-[10px] font-bold text-orange-700">
+                    פתח שעת מוקי, שעת סיום, מפקדים ויעדי פינוי.
+                  </span>
+                </span>
+              </label>
+              {specialActivity && (
+                <>
+                  <Field label="שעת מוקי">
+                    <input
+                      type="time"
+                      value={dispatchTime}
+                      onChange={(event) => setDispatchTime(event.target.value)}
+                      step={60}
+                      className="input"
+                    />
+                  </Field>
+                  <Field label="שעת סיום">
+                    <input
+                      type="time"
+                      value={specialActivityEndTime}
+                      onChange={(event) =>
+                        setSpecialActivityEndTime(event.target.value)
+                      }
+                      step={60}
+                      className="input"
+                    />
+                  </Field>
+                  <Field label="מפקד הכוח החביר">
+                    <select
+                      value={specialForceCommanderUserId}
+                      onChange={(event) =>
+                        setSpecialForceCommanderUserId(event.target.value)
+                      }
+                      className="input"
+                    >
+                      <option value="">בחר חייל...</option>
+                      {selectableUsers
+                        .filter(
+                          (user) =>
+                            !user.isDischarged &&
+                            user.systemAccessBlocked !== true
+                        )
+                        .map((user) => (
+                        <option key={user.userId} value={user.userId}>
+                          {user.fullName}
+                          {user.medicalRole ? ` — ${user.medicalRole}` : ""}
+                        </option>
+                        ))}
+                    </select>
+                  </Field>
+                  <Field label="מנהל האירוע החביר">
+                    <select
+                      value={specialEventManagerUserId}
+                      onChange={(event) =>
+                        setSpecialEventManagerUserId(event.target.value)
+                      }
+                      className="input"
+                    >
+                      <option value="">בחר חייל...</option>
+                      {selectableUsers
+                        .filter(
+                          (user) =>
+                            !user.isDischarged &&
+                            user.systemAccessBlocked !== true
+                        )
+                        .map((user) => (
+                        <option key={user.userId} value={user.userId}>
+                          {user.fullName}
+                          {user.medicalRole ? ` — ${user.medicalRole}` : ""}
+                        </option>
+                        ))}
+                    </select>
+                  </Field>
+                  <ResourceDropdown
+                    label="בתי חולים לפינוי"
+                    items={activeHospitals}
+                    selectedIds={selectedHospitalIds}
+                    onChange={setSelectedHospitalIds}
+                    emptyText="לא הוגדרו בתי חולים פעילים בהגדרות."
+                  />
+                  <ResourceDropdown
+                    label="מנחתים"
+                    items={activeHelipads}
+                    selectedIds={selectedHelipadIds}
+                    onChange={setSelectedHelipadIds}
+                    emptyText="לא הוגדרו מנחתים פעילים בהגדרות."
+                  />
+                </>
+              )}
               <Field label="הערה / דגשים">
                 <textarea
                   rows={3}
@@ -4623,6 +4853,11 @@ export default function ShiftsView({
                                 delete next[slot.key];
                                 return next;
                               });
+                              setReplacementTimes((current) => {
+                                const next = { ...current };
+                                delete next[slot.key];
+                                return next;
+                              });
                             }}
                             className="mt-2 text-[10px] font-black text-rose-600"
                           >
@@ -4645,16 +4880,23 @@ export default function ShiftsView({
                           </button>
                         )}
                       </div>
-                      <select
-                        value={slotAssignments[slot.key] || ""}
-                        onChange={(event) =>
-                          setSlotAssignments((current) => ({
-                            ...current,
-                            [slot.key]: event.target.value,
-                          }))
-                        }
-                        className="input"
+                      <div
+                        className={`grid grid-cols-1 gap-2 ${
+                          slot.key.endsWith("__double")
+                            ? "sm:grid-cols-[1fr_150px]"
+                            : ""
+                        }`}
                       >
+                        <select
+                          value={slotAssignments[slot.key] || ""}
+                          onChange={(event) =>
+                            setSlotAssignments((current) => ({
+                              ...current,
+                              [slot.key]: event.target.value,
+                            }))
+                          }
+                          className="input"
+                        >
                         <option value="">
                           {slot.required ? "בחר חייל..." : "ללא שיבוץ"}
                         </option>
@@ -4693,7 +4935,29 @@ export default function ShiftsView({
                             {item.staffType ? ` — ${item.staffType}` : ""}
                           </option>
                         ))}
-                      </select>
+                        </select>
+                        {slot.key.endsWith("__double") && (
+                          <label className="block">
+                            <span className="mb-1 block text-[10px] font-black text-slate-500">
+                              שעת החלפה
+                            </span>
+                            <input
+                              type="time"
+                              value={replacementTimes[slot.key] || ""}
+                              onChange={(event) =>
+                                setReplacementTimes((current) => ({
+                                  ...current,
+                                  [slot.key]: event.target.value,
+                                }))
+                              }
+                              step={60}
+                              title="שעת החלפה"
+                              aria-label="שעת החלפה"
+                              className="input"
+                            />
+                          </label>
+                        )}
+                      </div>
                     </div>
                     {availableUsers.length === 0 &&
                       availableExternal.length === 0 && (
