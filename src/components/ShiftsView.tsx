@@ -21,6 +21,7 @@ import {
   AttendanceStatusConfig,
   ExternalStaffMember,
   MedicalRoleConfig,
+  OperationalResourceConfig,
   ShiftAssignment,
   ShiftRecord,
   ShiftSignupRequest,
@@ -54,6 +55,7 @@ interface ShiftsViewProps {
   externalStaff: ExternalStaffMember[];
   reports: AttendanceReport[];
   attendanceStatuses: AttendanceStatusConfig[];
+  systemSettings: SystemSettingsConfig | null;
 }
 
 interface ExpandedSlot {
@@ -195,6 +197,7 @@ export default function ShiftsView({
   externalStaff,
   reports,
   attendanceStatuses,
+  systemSettings,
 }: ShiftsViewProps) {
   const [shifts, setShifts] = useState<ShiftRecord[]>(initialShifts);
   const [loading, setLoading] = useState(false);
@@ -314,6 +317,10 @@ export default function ShiftsView({
   const [endTime, setEndTime] = useState("17:30");
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
+  const [dispatchTime, setDispatchTime] = useState("");
+  const [selectedHospitalIds, setSelectedHospitalIds] = useState<string[]>([]);
+  const [selectedHelipadIds, setSelectedHelipadIds] = useState<string[]>([]);
+  const [doubleSlotIds, setDoubleSlotIds] = useState<string[]>([]);
   const [slotAssignments, setSlotAssignments] = useState<Record<string, string>>({});
   const [visibleCandidateStatusIds, setVisibleCandidateStatusIds] = useState<
     string[]
@@ -346,6 +353,53 @@ export default function ShiftsView({
         ),
     [shiftSlotConfigs]
   );
+
+  const formSlots = useMemo<ExpandedSlot[]>(
+    () =>
+      expandedSlots.flatMap((slot) => [
+        slot,
+        ...(doubleSlotIds.includes(slot.key)
+          ? [
+              {
+                ...slot,
+                key: `${slot.key}__double`,
+                label: `${slot.label} — שיבוץ נוסף`,
+                required: false,
+                index: slot.index + 1000,
+              },
+            ]
+          : []),
+      ]),
+    [expandedSlots, doubleSlotIds]
+  );
+
+  const activeOperationalResources = useMemo(
+    () =>
+      [...(systemSettings?.operationalResources || [])]
+        .filter((item) => item.enabled)
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    [systemSettings?.operationalResources]
+  );
+  const activeHospitals = activeOperationalResources.filter(
+    (item) => item.type === "hospital"
+  );
+  const activeHelipads = activeOperationalResources.filter(
+    (item) => item.type === "helipad"
+  );
+  const operationalResourceNameById = useMemo(
+    () =>
+      new Map(
+        (systemSettings?.operationalResources || []).map((item) => [
+          item.id,
+          item.name,
+        ])
+      ),
+    [systemSettings?.operationalResources]
+  );
+  const getResourceNames = (ids?: string[]) =>
+    (ids || [])
+      .map((id) => operationalResourceNameById.get(id))
+      .filter((name): name is string => Boolean(name));
 
   const medicalRoleNameById = useMemo(
     () =>
@@ -837,6 +891,10 @@ export default function ShiftsView({
     setEndTime("17:30");
     setLocation("");
     setNote("");
+    setDispatchTime("");
+    setSelectedHospitalIds([]);
+    setSelectedHelipadIds([]);
+    setDoubleSlotIds([]);
     setFormStatus("draft");
     setSendPushOnPublish(false);
     setSignupRequestsEnabled(false);
@@ -1067,6 +1125,13 @@ export default function ShiftsView({
 
   const openEdit = (shift: ShiftRecord) => {
     const next: Record<string, string> = {};
+    const nextDoubleSlotIds = expandedSlots
+      .filter((slot) =>
+        shift.assignments.some(
+          (assignment) => assignment.slotId === `${slot.key}__double`
+        )
+      )
+      .map((slot) => slot.key);
     const hasSlotIds = shift.assignments.some((item) => Boolean(item.slotId));
     expandedSlots.forEach((slot, index) => {
       const assignment =
@@ -1080,6 +1145,18 @@ export default function ShiftsView({
             }`
           : `user:${assignment.userId}`
         : "";
+      const doubleAssignment = shift.assignments.find(
+        (item) => item.slotId === `${slot.key}__double`
+      );
+      if (doubleAssignment) {
+        next[`${slot.key}__double`] =
+          doubleAssignment.assigneeType === "external"
+            ? `external:${
+                doubleAssignment.externalStaffId ||
+                doubleAssignment.userId.replace("external:", "")
+              }`
+            : `user:${doubleAssignment.userId}`;
+      }
     });
     const startParts = toLocalParts(shift.startAt);
     const endParts = toLocalParts(shift.endAt);
@@ -1100,6 +1177,10 @@ export default function ShiftsView({
     setEndTime(endParts.time);
     setLocation(shift.location || "");
     setNote(shift.note || "");
+    setDispatchTime(shift.dispatchTime || "");
+    setSelectedHospitalIds(shift.hospitalIds || []);
+    setSelectedHelipadIds(shift.helipadIds || []);
+    setDoubleSlotIds(nextDoubleSlotIds);
     setFormStatus(
       isPublishedShift(shift)
         ? "published"
@@ -1166,7 +1247,7 @@ export default function ShiftsView({
       return;
     }
 
-    const invalidAttendanceSelection = expandedSlots
+    const invalidAttendanceSelection = formSlots
       .map((slot) => {
         const selectedValue = slotAssignments[slot.key];
         if (!selectedValue?.startsWith("user:")) return null;
@@ -1198,7 +1279,7 @@ export default function ShiftsView({
       return;
     }
 
-    const missing = expandedSlots.filter(
+    const missing = formSlots.filter(
       (slot) => slot.required && !slotAssignments[slot.key]
     );
 
@@ -1216,7 +1297,7 @@ export default function ShiftsView({
       return;
     }
 
-    const selectedSlotsByAssignee = expandedSlots.reduce<
+    const selectedSlotsByAssignee = formSlots.reduce<
       Record<string, ExpandedSlot[]>
     >((result, slot) => {
       const assigneeId = slotAssignments[slot.key];
@@ -1255,7 +1336,7 @@ export default function ShiftsView({
       return;
     }
 
-    const assignments: ShiftAssignment[] = expandedSlots
+    const assignments: ShiftAssignment[] = formSlots
       .filter((slot) => slotAssignments[slot.key])
       .map((slot) => {
         const selectedValue = slotAssignments[slot.key];
@@ -1313,6 +1394,9 @@ export default function ShiftsView({
         endAt,
         location: location.trim(),
         note: note.trim(),
+        dispatchTime,
+        hospitalIds: selectedHospitalIds,
+        helipadIds: selectedHelipadIds,
         assignments,
         status: targetStatus,
         sendPushOnPublish,
@@ -1500,6 +1584,18 @@ export default function ShiftsView({
     setEndTime(endParts.time);
     setLocation(shift.location || "");
     setNote(shift.note || "");
+    setDispatchTime(shift.dispatchTime || "");
+    setSelectedHospitalIds(shift.hospitalIds || []);
+    setSelectedHelipadIds(shift.helipadIds || []);
+    setDoubleSlotIds(
+      expandedSlots
+        .filter((slot) =>
+          shift.assignments.some(
+            (assignment) => assignment.slotId === `${slot.key}__double`
+          )
+        )
+        .map((slot) => slot.key)
+    );
     setFormStatus("draft");
     setSendPushOnPublish(false);
     setSignupRequestsEnabled(false);
@@ -1518,6 +1614,18 @@ export default function ShiftsView({
             )}`
           : `user:${assignment.userId}`
         : "";
+      const doubleAssignment = shift.assignments.find(
+        (item) => item.slotId === `${slot.key}__double`
+      );
+      if (doubleAssignment) {
+        nextAssignments[`${slot.key}__double`] =
+          doubleAssignment.assigneeType === "external"
+            ? `external:${
+                doubleAssignment.externalStaffId ||
+                doubleAssignment.userId.replace("external:", "")
+              }`
+            : `user:${doubleAssignment.userId}`;
+      }
     });
     setSlotAssignments(nextAssignments);
     setIsFormOpen(true);
@@ -2585,6 +2693,13 @@ export default function ShiftsView({
               includeLocationInWhatsApp && shift.location
                 ? `📍 מיקום: ${shift.location}`
                 : "",
+              shift.dispatchTime ? `⏱️ שעת מוקד: ${shift.dispatchTime}` : "",
+              getResourceNames(shift.hospitalIds).length
+                ? `🏥 בתי חולים: ${getResourceNames(shift.hospitalIds).join(", ")}`
+                : "",
+              getResourceNames(shift.helipadIds).length
+                ? `🚁 מנחתים: ${getResourceNames(shift.helipadIds).join(", ")}`
+                : "",
               assignments || "• טרם שובצו חיילים",
               includeNotesInWhatsApp && shift.note
                 ? `📝 הערה: ${shift.note}`
@@ -2714,6 +2829,13 @@ export default function ShiftsView({
       `🕒 התחלה: ${start}`,
       `🕒 סיום: ${end}`,
       shift.location ? `📍 מיקום: ${shift.location}` : "",
+      shift.dispatchTime ? `⏱️ שעת מוקד: ${shift.dispatchTime}` : "",
+      getResourceNames(shift.hospitalIds).length
+        ? `🏥 בתי חולים: ${getResourceNames(shift.hospitalIds).join(", ")}`
+        : "",
+      getResourceNames(shift.helipadIds).length
+        ? `🚁 מנחתים: ${getResourceNames(shift.helipadIds).join(", ")}`
+        : "",
       "",
       "*שיבוץ המשמרת:*",
       assignmentsText,
@@ -3595,6 +3717,37 @@ export default function ShiftsView({
               </div>
             )}
 
+            {(detailsShift.dispatchTime ||
+              getResourceNames(detailsShift.hospitalIds).length > 0 ||
+              getResourceNames(detailsShift.helipadIds).length > 0) && (
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {detailsShift.dispatchTime && (
+                  <div className="rounded-xl border border-slate-200 p-3 text-xs">
+                    <div className="font-black text-slate-500">שעת מוקד</div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {detailsShift.dispatchTime}
+                    </div>
+                  </div>
+                )}
+                {getResourceNames(detailsShift.hospitalIds).length > 0 && (
+                  <div className="rounded-xl border border-slate-200 p-3 text-xs">
+                    <div className="font-black text-slate-500">בתי חולים</div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {getResourceNames(detailsShift.hospitalIds).join(", ")}
+                    </div>
+                  </div>
+                )}
+                {getResourceNames(detailsShift.helipadIds).length > 0 && (
+                  <div className="rounded-xl border border-slate-200 p-3 text-xs">
+                    <div className="font-black text-slate-500">מנחתים</div>
+                    <div className="mt-1 font-bold text-slate-900">
+                      {getResourceNames(detailsShift.helipadIds).join(", ")}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="mt-5 space-y-2">
               {detailsShift.assignments.map((assignment) => (
                 <div
@@ -4278,7 +4431,30 @@ export default function ShiftsView({
                   className="input"
                 />
               </Field>
-              <Field label="הערה">
+              <Field label="שעת מוקד / התייצבות">
+                <input
+                  type="time"
+                  value={dispatchTime}
+                  onChange={(event) => setDispatchTime(event.target.value)}
+                  step={60}
+                  className="input"
+                />
+              </Field>
+              <ResourceDropdown
+                label="בתי חולים לפינוי"
+                items={activeHospitals}
+                selectedIds={selectedHospitalIds}
+                onChange={setSelectedHospitalIds}
+                emptyText="לא הוגדרו בתי חולים פעילים בהגדרות."
+              />
+              <ResourceDropdown
+                label="מנחתים"
+                items={activeHelipads}
+                selectedIds={selectedHelipadIds}
+                onChange={setSelectedHelipadIds}
+                emptyText="לא הוגדרו מנחתים פעילים בהגדרות."
+              />
+              <Field label="הערה / דגשים">
                 <textarea
                   rows={3}
                   value={note}
@@ -4361,7 +4537,7 @@ export default function ShiftsView({
                   })}
                 </div>
               </div>
-              {expandedSlots.map((slot) => {
+              {formSlots.map((slot) => {
                 const availableUsers = slot.allowSystemUsers
                   ? selectableUsers
                       .filter(
@@ -4434,6 +4610,40 @@ export default function ShiftsView({
                             </span>
                           )}
                         </div>
+                        {slot.key.endsWith("__double") ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const baseKey = slot.key.replace("__double", "");
+                              setDoubleSlotIds((current) =>
+                                current.filter((key) => key !== baseKey)
+                              );
+                              setSlotAssignments((current) => {
+                                const next = { ...current };
+                                delete next[slot.key];
+                                return next;
+                              });
+                            }}
+                            className="mt-2 text-[10px] font-black text-rose-600"
+                          >
+                            הסר שיבוץ נוסף
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDoubleSlotIds((current) =>
+                                current.includes(slot.key)
+                                  ? current
+                                  : [...current, slot.key]
+                              )
+                            }
+                            disabled={doubleSlotIds.includes(slot.key)}
+                            className="mt-2 inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-white px-2 py-1 text-[10px] font-black text-indigo-700 disabled:opacity-40"
+                          >
+                            <Plus className="h-3 w-3" /> הזנת חייל נוסף
+                          </button>
+                        )}
                       </div>
                       <select
                         value={slotAssignments[slot.key] || ""}
@@ -4563,5 +4773,81 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+function ResourceDropdown({
+  label,
+  items,
+  selectedIds,
+  onChange,
+  emptyText,
+}: {
+  label: string;
+  items: OperationalResourceConfig[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  emptyText: string;
+}) {
+  const selectedNames = items
+    .filter((item) => selectedIds.includes(item.id))
+    .map((item) => item.name);
+
+  return (
+    <div className="block">
+      <span className="mb-1.5 block text-xs font-bold text-slate-700">
+        {label}
+      </span>
+      <details className="group relative">
+        <summary className="input flex min-h-[42px] cursor-pointer list-none items-center justify-between gap-2">
+          <span className={selectedNames.length ? "text-slate-800" : "text-slate-400"}>
+            {selectedNames.length ? selectedNames.join(", ") : `בחר ${label}...`}
+          </span>
+          <span className="text-slate-400 transition-transform group-open:rotate-180">⌄</span>
+        </summary>
+        <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+          {items.length === 0 ? (
+            <div className="px-3 py-4 text-center text-[11px] font-bold text-slate-400">
+              {emptyText}
+            </div>
+          ) : (
+            <>
+              {items.map((item) => {
+                const checked = selectedIds.includes(item.id);
+                return (
+                  <label
+                    key={item.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        onChange(
+                          checked
+                            ? selectedIds.filter((id) => id !== item.id)
+                            : [...selectedIds, item.id]
+                        )
+                      }
+                      className="h-4 w-4 accent-indigo-600"
+                    />
+                    {item.name}
+                  </label>
+                );
+              })}
+              {selectedIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => onChange([])}
+                  className="mt-1 w-full rounded-lg bg-slate-50 px-3 py-2 text-[10px] font-black text-slate-500"
+                >
+                  נקה בחירה
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </details>
+    </div>
   );
 }

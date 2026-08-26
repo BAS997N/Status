@@ -3310,6 +3310,7 @@ const handleAdminBulkSaveReports = async (
                   externalStaff={externalStaff}
                   reports={reports}
                   attendanceStatuses={attendanceStatuses}
+                  systemSettings={systemSettings}
                 />
               )}
             </motion.div>

@@ -270,6 +270,7 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
     "settings",
   ],
   mainTabOrder: ["reporter", "dashboard", "shifts", "emergency", "system_admin"],
+  operationalResources: [],
 };
 
 const SYSTEM_SETTINGS_CACHE_KEY = "idf_system_settings";
@@ -591,6 +592,29 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
       Array.isArray(raw.mainTabOrder) && raw.mainTabOrder.length
         ? raw.mainTabOrder.filter((item): item is string => typeof item === "string")
         : [...DEFAULT_SYSTEM_SETTINGS.mainTabOrder],
+    operationalResources: Array.isArray(raw.operationalResources)
+      ? raw.operationalResources
+          .filter(
+            (item) =>
+              item &&
+              typeof item === "object" &&
+              typeof item.id === "string" &&
+              typeof item.name === "string" &&
+              (item.type === "hospital" || item.type === "helipad")
+          )
+          .map((item, index) => ({
+            id: String(item.id),
+            name: String(item.name).trim(),
+            type: item.type as "hospital" | "helipad",
+            enabled: item.enabled !== false,
+            sortOrder:
+              typeof item.sortOrder === "number" && Number.isFinite(item.sortOrder)
+                ? item.sortOrder
+                : index + 1,
+          }))
+          .filter((item) => item.name)
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+      : [],
   };
 };
 

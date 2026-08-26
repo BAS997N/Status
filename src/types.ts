@@ -236,6 +236,16 @@ export type ReportingClosedVisibleSection =
   | "order"
   | "messages";
 
+export type OperationalResourceType = "hospital" | "helipad";
+
+export interface OperationalResourceConfig {
+  id: string;
+  name: string;
+  type: OperationalResourceType;
+  enabled: boolean;
+  sortOrder: number;
+}
+
 export interface SystemSettingsConfig {
   systemName: string;
   unitName: string;
@@ -268,6 +278,7 @@ export interface SystemSettingsConfig {
   whatsappGroups: WhatsAppGroupConfig[];
   adminTabOrder: string[];
   mainTabOrder: string[];
+  operationalResources?: OperationalResourceConfig[];
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -475,6 +486,9 @@ export interface ShiftRecord {
   endAt: string;
   location?: string;
   note?: string;
+  dispatchTime?: string;
+  hospitalIds?: string[];
+  helipadIds?: string[];
   status: ShiftStatus;
   sendPushOnPublish?: boolean;
   signupRequestsEnabled?: boolean;

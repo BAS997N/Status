@@ -72,6 +72,7 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   whatsappGroups: [],
   adminTabOrder: [],
   mainTabOrder: [],
+  operationalResources: [],
 };
 
 const SYSTEM_ROLE_OPTIONS: Array<{

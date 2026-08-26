@@ -30,6 +30,7 @@ import BackupsManager from "./systemAdmin/BackupsManager";
 import ShiftRolesManager from "./systemAdmin/ShiftRolesManager";
 import ExternalStaffManager from "./systemAdmin/ExternalStaffManager";
 import ShiftTypesManager from "./systemAdmin/ShiftTypesManager";
+import ShiftResourcesManager from "./systemAdmin/ShiftResourcesManager";
 import SystemRolesManager from "./systemAdmin/SystemRolesManager";
 import AppStatusManager from "./systemAdmin/AppStatusManager";
 import { hasPermission, PermissionMap } from "../security/permissions";
@@ -49,6 +50,7 @@ type AdminSection =
   | "shift_roles"
   | "external_staff"
   | "shift_types"
+  | "shift_resources"
   | "system_roles";
 
 type AdminGroupId =
@@ -171,6 +173,12 @@ const sections: Array<{
     icon: CalendarClock,
   },
   {
+    id: "shift_resources",
+    title: "מנחתים ובתי חולים",
+    description: "ניהול יעדי פינוי ומנחתים לבחירה בטופס המשמרת.",
+    icon: Building2,
+  },
+  {
     id: "settings",
     title: "הגדרות מערכת",
     description: "הגדרות כלליות, התראות, תצוגה ותחזוקה.",
@@ -203,9 +211,9 @@ const adminGroups: Array<{
   {
     id: "shifts",
     title: "ניהול משמרות",
-    description: "סוגי משמרות, תקנים ואנשי צוות חיצוניים.",
+    description: "סוגי משמרות, תקנים, אנשי צוות ויעדי פינוי.",
     icon: CalendarCog,
-    sections: ["shift_types", "shift_roles", "external_staff"],
+    sections: ["shift_types", "shift_roles", "external_staff", "shift_resources"],
   },
   {
     id: "connections",
@@ -272,6 +280,7 @@ export default function SystemAdminPanel({
     shift_roles: "system_admin.shift_roles.manage",
     external_staff: "system_admin.external_staff.manage",
     shift_types: "system_admin.shift_types.manage",
+    shift_resources: "system_admin.shift_types.manage",
   };
 
   const visibleSections = useMemo(
@@ -468,6 +477,12 @@ export default function SystemAdminPanel({
         />
       ) : activeSection === "shift_types" ? (
         <ShiftTypesManager currentUser={currentUser} />
+      ) : activeSection === "shift_resources" ? (
+        <ShiftResourcesManager
+          currentUser={currentUser}
+          settings={systemSettings}
+          onSettingsChanged={onSystemSettingsChanged}
+        />
       ) : activeSection === "settings" ? (
         <SystemSettingsManager
           currentUser={currentUser}
