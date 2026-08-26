@@ -333,6 +333,8 @@ export default function ShiftsView({
     Record<string, string>
   >({});
   const [slotAssignments, setSlotAssignments] = useState<Record<string, string>>({});
+  const [allowDuplicateAssignment, setAllowDuplicateAssignment] =
+    useState(false);
   const [visibleCandidateStatusIds, setVisibleCandidateStatusIds] = useState<
     string[]
   >(["base"]);
@@ -374,7 +376,7 @@ export default function ShiftsView({
               {
                 ...slot,
                 key: `${slot.key}__double`,
-                label: `${slot.label} — שיבוץ נוסף`,
+                label: `${slot.label} — מחליף/ה`,
                 required: false,
                 index: slot.index + 1000,
               },
@@ -438,6 +440,47 @@ export default function ShiftsView({
         .sort((a, b) => a.sortOrder - b.sortOrder),
     [externalStaff]
   );
+
+  const duplicateAssignmentInfo = useMemo(() => {
+    const selectedSlotsByAssignee = formSlots.reduce<
+      Record<string, ExpandedSlot[]>
+    >((result, slot) => {
+      const assigneeId = slotAssignments[slot.key];
+      if (!assigneeId) return result;
+      result[assigneeId] = [...(result[assigneeId] || []), slot];
+      return result;
+    }, {});
+
+    const duplicateEntry = (
+      Object.entries(selectedSlotsByAssignee) as Array<
+        [string, ExpandedSlot[]]
+      >
+    ).find(
+      ([, slots]) =>
+        slots.length > 1 &&
+        !(
+          slots.length === 2 &&
+          slots.some((slot) => slot.configId === "duty_commander")
+        )
+    );
+
+    if (!duplicateEntry) return null;
+
+    const [assigneeId, slots] = duplicateEntry;
+    const userId = assigneeId.replace("user:", "");
+    const externalId = assigneeId.replace("external:", "");
+    const user = selectableUsers.find((item) => item.userId === userId);
+    const externalPerson = activeExternalStaff.find(
+      (item) => item.id === externalId
+    );
+
+    return {
+      assigneeId,
+      assigneeName:
+        user?.fullName || externalPerson?.fullName || "אותו אדם",
+      roleLabels: slots.map((slot) => slot.label),
+    };
+  }, [activeExternalStaff, formSlots, selectableUsers, slotAssignments]);
 
   const attendanceStatusLabelById = useMemo(
     () =>
@@ -918,6 +961,7 @@ export default function ShiftsView({
     setSignupRequestsEnabled(false);
     setSignupRequestsLocked(false);
     setSlotAssignments({});
+    setAllowDuplicateAssignment(false);
     setMessage(null);
   };
 
@@ -1325,41 +1369,10 @@ export default function ShiftsView({
       return;
     }
 
-    const selectedSlotsByAssignee = formSlots.reduce<
-      Record<string, ExpandedSlot[]>
-    >((result, slot) => {
-      const assigneeId = slotAssignments[slot.key];
-      if (!assigneeId) return result;
-      result[assigneeId] = [...(result[assigneeId] || []), slot];
-      return result;
-    }, {});
-    const invalidDuplicate = (
-      Object.entries(selectedSlotsByAssignee) as Array<
-        [string, ExpandedSlot[]]
-      >
-    ).find(
-      ([, slots]) =>
-        slots.length > 1 &&
-        !(
-          slots.length === 2 &&
-          slots.some((slot) => slot.configId === "duty_commander")
-        )
-    );
-    if (invalidDuplicate) {
-      const [duplicate] = invalidDuplicate;
-      const duplicateUserId = duplicate.replace("user:", "");
-      const user = selectableUsers.find(
-        (item) => item.userId === duplicateUserId
-      );
-      const externalId = duplicate.replace("external:", "");
-      const externalPerson = activeExternalStaff.find(
-        (item) => item.id === externalId
-      );
+    if (duplicateAssignmentInfo && !allowDuplicateAssignment) {
       setMessage({
         type: "error",
-        text: `${
-          user?.fullName || externalPerson?.fullName || "אותו אדם"
-        } נבחר ליותר מתפקיד אחד.`,
+        text: `${duplicateAssignmentInfo.assigneeName} נבחר ליותר מתפקיד אחד. יש לאשר שיבוץ כפול כדי להמשיך.`,
       });
       return;
     }
@@ -2704,6 +2717,27 @@ export default function ShiftsView({
     (phoneRoleMode === "all" ||
       selectedPhoneRoles.includes(roleLabel));
 
+  const getReplacementDetails = (
+    shift: ShiftRecord,
+    assignment: ShiftAssignment
+  ) => {
+    if (!assignment.replacementTime) return null;
+
+    const baseSlotId = assignment.slotId.replace(/__double$/, "");
+    const replacedAssignment = shift.assignments.find(
+      (item) => item.slotId === baseSlotId
+    );
+
+    return {
+      roleLabel: (assignment.slotLabel || "תפקיד").replace(
+        /\s*—\s*(?:שיבוץ נוסף|מחליף\/ה)\s*$/,
+        ""
+      ),
+      replacedName: replacedAssignment?.userName || "החייל/ת הראשי/ת",
+      replacementTime: assignment.replacementTime,
+    };
+  };
+
   const shareMultipleShiftsOnWhatsApp = async () => {
     if (!whatsAppStartDate || !whatsAppEndDate) {
       setMessage({
@@ -2757,7 +2791,8 @@ export default function ShiftsView({
           .map((shift) => {
             const assignments = shift.assignments
               .map((assignment) => {
-                const roleLabel =
+                const replacement = getReplacementDetails(shift, assignment);
+                const roleLabel = replacement?.roleLabel ||
                   assignment.slotLabel || "תפקיד";
                 const phoneNumber = shouldIncludePhoneForRole(roleLabel)
                   ? getAssignmentPhoneNumber(assignment)
@@ -2766,8 +2801,8 @@ export default function ShiftsView({
                 return `• ${roleLabel} — ${assignment.userName}${
                   phoneNumber ? ` — ${phoneNumber}` : ""
                 }${
-                  assignment.replacementTime
-                    ? ` — החלפה ${assignment.replacementTime}`
+                  replacement
+                    ? ` — מחליף/ה את ${replacement.replacedName} בשעה ${replacement.replacementTime}`
                     : ""
                 }`;
               })
@@ -2920,14 +2955,16 @@ export default function ShiftsView({
     });
 
     const assignmentsText = shift.assignments
-      .map(
-        (assignment) =>
-          `${assignment.slotLabel || "תפקיד"}: ${assignment.userName}${
-            assignment.replacementTime
-              ? ` — החלפה ${assignment.replacementTime}`
-              : ""
-          }`
-      )
+      .map((assignment) => {
+        const replacement = getReplacementDetails(shift, assignment);
+        const roleLabel = replacement?.roleLabel || assignment.slotLabel || "תפקיד";
+
+        return `${roleLabel}: ${assignment.userName}${
+          replacement
+            ? ` — מחליף/ה את ${replacement.replacedName} בשעה ${replacement.replacementTime}`
+            : ""
+        }`;
+      })
       .join("\n");
 
     const message = [
@@ -3913,23 +3950,29 @@ export default function ShiftsView({
             )}
 
             <div className="mt-5 space-y-2">
-              {detailsShift.assignments.map((assignment) => (
-                <div
-                  key={`${assignment.slotId}_${assignment.userId}`}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2"
-                >
-                  <span className="text-xs font-bold text-slate-500">
-                    {assignment.slotLabel || "תפקיד"}
-                  </span>
-                  <div className="text-left">
-                    <div className="text-xs font-black text-slate-900">
-                      {assignment.userName}
-                    </div>
-                    {assignment.replacementTime && (
-                      <div className="mt-0.5 text-[9px] font-black text-indigo-600">
-                        החלפה בשעה {assignment.replacementTime}
+              {detailsShift.assignments.map((assignment) => {
+                const replacement = getReplacementDetails(
+                  detailsShift,
+                  assignment
+                );
+
+                return (
+                  <div
+                    key={`${assignment.slotId}_${assignment.userId}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2"
+                  >
+                    <span className="text-xs font-bold text-slate-500">
+                      {replacement?.roleLabel || assignment.slotLabel || "תפקיד"}
+                    </span>
+                    <div className="text-left">
+                      <div className="text-xs font-black text-slate-900">
+                        {assignment.userName}
                       </div>
-                    )}
+                      {replacement && (
+                        <div className="mt-0.5 text-[9px] font-black text-indigo-600">
+                          מחליף/ה את {replacement.replacedName} בשעה {replacement.replacementTime}
+                        </div>
+                      )}
                     {assignment.assigneeType !== "external" && (
                       <div
                         className={`mt-0.5 text-[9px] font-bold ${
@@ -3943,9 +3986,10 @@ export default function ShiftsView({
                           : "טרם נקרא"}
                       </div>
                     )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {canManage && detailsShift.signupRequestsEnabled && (
@@ -4994,6 +5038,29 @@ export default function ShiftsView({
                 );
               })}
             </div>
+
+            {duplicateAssignmentInfo && (
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">
+                <div>
+                  {duplicateAssignmentInfo.assigneeName} נבחר ליותר מתפקיד אחד
+                  {duplicateAssignmentInfo.roleLabels.length > 0
+                    ? ` (${duplicateAssignmentInfo.roleLabels.join(", ")})`
+                    : ""}
+                  .
+                </div>
+                <label className="mt-3 flex cursor-pointer items-center gap-2 rounded-lg border border-rose-200 bg-white px-3 py-2 text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={allowDuplicateAssignment}
+                    onChange={(event) =>
+                      setAllowDuplicateAssignment(event.target.checked)
+                    }
+                    className="h-4 w-4 accent-indigo-600"
+                  />
+                  <span>אני מאשר/ת את השיבוץ הכפול</span>
+                </label>
+              </div>
+            )}
 
             {message?.type === "error" && (
               <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">
