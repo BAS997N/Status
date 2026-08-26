@@ -320,10 +320,12 @@ export default function ShiftsView({
   const [specialActivity, setSpecialActivity] = useState(false);
   const [dispatchTime, setDispatchTime] = useState("");
   const [specialActivityEndTime, setSpecialActivityEndTime] = useState("");
-  const [specialForceCommanderUserId, setSpecialForceCommanderUserId] =
+  const [specialForceCommanderName, setSpecialForceCommanderName] =
     useState("");
-  const [specialEventManagerUserId, setSpecialEventManagerUserId] =
+  const [specialForceCommanderPhone, setSpecialForceCommanderPhone] =
     useState("");
+  const [specialEventManagerName, setSpecialEventManagerName] = useState("");
+  const [specialEventManagerPhone, setSpecialEventManagerPhone] = useState("");
   const [selectedHospitalIds, setSelectedHospitalIds] = useState<string[]>([]);
   const [selectedHelipadIds, setSelectedHelipadIds] = useState<string[]>([]);
   const [doubleSlotIds, setDoubleSlotIds] = useState<string[]>([]);
@@ -903,8 +905,10 @@ export default function ShiftsView({
     setSpecialActivity(false);
     setDispatchTime("");
     setSpecialActivityEndTime("");
-    setSpecialForceCommanderUserId("");
-    setSpecialEventManagerUserId("");
+    setSpecialForceCommanderName("");
+    setSpecialForceCommanderPhone("");
+    setSpecialEventManagerName("");
+    setSpecialEventManagerPhone("");
     setSelectedHospitalIds([]);
     setSelectedHelipadIds([]);
     setDoubleSlotIds([]);
@@ -1197,10 +1201,10 @@ export default function ShiftsView({
     setSpecialActivity(shift.specialActivity === true);
     setDispatchTime(shift.dispatchTime || "");
     setSpecialActivityEndTime(shift.specialActivityEndTime || "");
-    setSpecialForceCommanderUserId(
-      shift.specialForceCommanderUserId || ""
-    );
-    setSpecialEventManagerUserId(shift.specialEventManagerUserId || "");
+    setSpecialForceCommanderName(shift.specialForceCommanderName || "");
+    setSpecialForceCommanderPhone(shift.specialForceCommanderPhone || "");
+    setSpecialEventManagerName(shift.specialEventManagerName || "");
+    setSpecialEventManagerPhone(shift.specialEventManagerPhone || "");
     setSelectedHospitalIds(shift.hospitalIds || []);
     setSelectedHelipadIds(shift.helipadIds || []);
     setDoubleSlotIds(nextDoubleSlotIds);
@@ -1425,21 +1429,19 @@ export default function ShiftsView({
         specialActivityEndTime: specialActivity
           ? specialActivityEndTime
           : "",
-        specialForceCommanderUserId: specialActivity
-          ? specialForceCommanderUserId
-          : "",
+        specialForceCommanderUserId: "",
         specialForceCommanderName: specialActivity
-          ? selectableUsers.find(
-              (user) => user.userId === specialForceCommanderUserId
-            )?.fullName || ""
+          ? specialForceCommanderName.trim()
           : "",
-        specialEventManagerUserId: specialActivity
-          ? specialEventManagerUserId
+        specialForceCommanderPhone: specialActivity
+          ? specialForceCommanderPhone.trim()
           : "",
+        specialEventManagerUserId: "",
         specialEventManagerName: specialActivity
-          ? selectableUsers.find(
-              (user) => user.userId === specialEventManagerUserId
-            )?.fullName || ""
+          ? specialEventManagerName.trim()
+          : "",
+        specialEventManagerPhone: specialActivity
+          ? specialEventManagerPhone.trim()
           : "",
         hospitalIds: specialActivity ? selectedHospitalIds : [],
         helipadIds: specialActivity ? selectedHelipadIds : [],
@@ -1633,10 +1635,10 @@ export default function ShiftsView({
     setSpecialActivity(shift.specialActivity === true);
     setDispatchTime(shift.dispatchTime || "");
     setSpecialActivityEndTime(shift.specialActivityEndTime || "");
-    setSpecialForceCommanderUserId(
-      shift.specialForceCommanderUserId || ""
-    );
-    setSpecialEventManagerUserId(shift.specialEventManagerUserId || "");
+    setSpecialForceCommanderName(shift.specialForceCommanderName || "");
+    setSpecialForceCommanderPhone(shift.specialForceCommanderPhone || "");
+    setSpecialEventManagerName(shift.specialEventManagerName || "");
+    setSpecialEventManagerPhone(shift.specialEventManagerPhone || "");
     setSelectedHospitalIds(shift.hospitalIds || []);
     setSelectedHelipadIds(shift.helipadIds || []);
     setDoubleSlotIds(
@@ -2051,13 +2053,13 @@ export default function ShiftsView({
                     : ""
                 }
                 ${
-                  shift.specialActivity && shift.specialForceCommanderName
-                    ? `<div class="shift-location"><strong>מפקד הכוח החביר:</strong> ${escapeHtml(shift.specialForceCommanderName)}</div>`
+                  shift.specialActivity && (shift.specialForceCommanderName || shift.specialForceCommanderPhone)
+                    ? `<div class="shift-location"><strong>מפקד הכוח החביר:</strong> ${escapeHtml([shift.specialForceCommanderName, shift.specialForceCommanderPhone].filter(Boolean).join(" · "))}</div>`
                     : ""
                 }
                 ${
-                  shift.specialActivity && shift.specialEventManagerName
-                    ? `<div class="shift-location"><strong>מנהל האירוע החביר:</strong> ${escapeHtml(shift.specialEventManagerName)}</div>`
+                  shift.specialActivity && (shift.specialEventManagerName || shift.specialEventManagerPhone)
+                    ? `<div class="shift-location"><strong>מנהל האירוע החביר:</strong> ${escapeHtml([shift.specialEventManagerName, shift.specialEventManagerPhone].filter(Boolean).join(" · "))}</div>`
                     : ""
                 }
                 ${
@@ -2789,11 +2791,11 @@ export default function ShiftsView({
               shift.specialActivity && shift.specialActivityEndTime
                 ? `🏁 שעת סיום: ${shift.specialActivityEndTime}`
                 : "",
-              shift.specialActivity && shift.specialForceCommanderName
-                ? `👤 מפקד הכוח החביר: ${shift.specialForceCommanderName}`
+              shift.specialActivity && (shift.specialForceCommanderName || shift.specialForceCommanderPhone)
+                ? `👤 מפקד הכוח החביר: ${[shift.specialForceCommanderName, shift.specialForceCommanderPhone].filter(Boolean).join(" · ")}`
                 : "",
-              shift.specialActivity && shift.specialEventManagerName
-                ? `👤 מנהל האירוע החביר: ${shift.specialEventManagerName}`
+              shift.specialActivity && (shift.specialEventManagerName || shift.specialEventManagerPhone)
+                ? `👤 מנהל האירוע החביר: ${[shift.specialEventManagerName, shift.specialEventManagerPhone].filter(Boolean).join(" · ")}`
                 : "",
               shift.specialActivity && getResourceNames(shift.hospitalIds).length
                 ? `🏥 בתי חולים: ${getResourceNames(shift.hospitalIds).join(", ")}`
@@ -2940,11 +2942,11 @@ export default function ShiftsView({
       shift.specialActivity && shift.specialActivityEndTime
         ? `🏁 שעת סיום: ${shift.specialActivityEndTime}`
         : "",
-      shift.specialActivity && shift.specialForceCommanderName
-        ? `👤 מפקד הכוח החביר: ${shift.specialForceCommanderName}`
+      shift.specialActivity && (shift.specialForceCommanderName || shift.specialForceCommanderPhone)
+        ? `👤 מפקד הכוח החביר: ${[shift.specialForceCommanderName, shift.specialForceCommanderPhone].filter(Boolean).join(" · ")}`
         : "",
-      shift.specialActivity && shift.specialEventManagerName
-        ? `👤 מנהל האירוע החביר: ${shift.specialEventManagerName}`
+      shift.specialActivity && (shift.specialEventManagerName || shift.specialEventManagerPhone)
+        ? `👤 מנהל האירוע החביר: ${[shift.specialEventManagerName, shift.specialEventManagerPhone].filter(Boolean).join(" · ")}`
         : "",
       shift.specialActivity && getResourceNames(shift.hospitalIds).length
         ? `🏥 בתי חולים: ${getResourceNames(shift.hospitalIds).join(", ")}`
@@ -3837,7 +3839,9 @@ export default function ShiftsView({
               (detailsShift.dispatchTime ||
               detailsShift.specialActivityEndTime ||
               detailsShift.specialForceCommanderName ||
+              detailsShift.specialForceCommanderPhone ||
               detailsShift.specialEventManagerName ||
+              detailsShift.specialEventManagerPhone ||
               getResourceNames(detailsShift.hospitalIds).length > 0 ||
               getResourceNames(detailsShift.helipadIds).length > 0) && (
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -3857,23 +3861,35 @@ export default function ShiftsView({
                     </div>
                   </div>
                 )}
-                {detailsShift.specialForceCommanderName && (
+                {(detailsShift.specialForceCommanderName ||
+                  detailsShift.specialForceCommanderPhone) && (
                   <div className="rounded-xl border border-slate-200 p-3 text-xs">
                     <div className="font-black text-slate-500">
                       מפקד הכוח החביר
                     </div>
                     <div className="mt-1 font-bold text-slate-900">
-                      {detailsShift.specialForceCommanderName}
+                      {[
+                        detailsShift.specialForceCommanderName,
+                        detailsShift.specialForceCommanderPhone,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </div>
                   </div>
                 )}
-                {detailsShift.specialEventManagerName && (
+                {(detailsShift.specialEventManagerName ||
+                  detailsShift.specialEventManagerPhone) && (
                   <div className="rounded-xl border border-slate-200 p-3 text-xs">
                     <div className="font-black text-slate-500">
                       מנהל האירוע החביר
                     </div>
                     <div className="mt-1 font-bold text-slate-900">
-                      {detailsShift.specialEventManagerName}
+                      {[
+                        detailsShift.specialEventManagerName,
+                        detailsShift.specialEventManagerPhone,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </div>
                   </div>
                 )}
@@ -4623,50 +4639,48 @@ export default function ShiftsView({
                     />
                   </Field>
                   <Field label="מפקד הכוח החביר">
-                    <select
-                      value={specialForceCommanderUserId}
+                    <input
+                      value={specialForceCommanderName}
                       onChange={(event) =>
-                        setSpecialForceCommanderUserId(event.target.value)
+                        setSpecialForceCommanderName(event.target.value)
                       }
+                      placeholder="שם מלא"
                       className="input"
-                    >
-                      <option value="">בחר חייל...</option>
-                      {selectableUsers
-                        .filter(
-                          (user) =>
-                            !user.isDischarged &&
-                            user.systemAccessBlocked !== true
-                        )
-                        .map((user) => (
-                        <option key={user.userId} value={user.userId}>
-                          {user.fullName}
-                          {user.medicalRole ? ` — ${user.medicalRole}` : ""}
-                        </option>
-                        ))}
-                    </select>
+                    />
+                  </Field>
+                  <Field label="טלפון מפקד הכוח החביר">
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      value={specialForceCommanderPhone}
+                      onChange={(event) =>
+                        setSpecialForceCommanderPhone(event.target.value)
+                      }
+                      placeholder="מספר טלפון"
+                      className="input"
+                    />
                   </Field>
                   <Field label="מנהל האירוע החביר">
-                    <select
-                      value={specialEventManagerUserId}
+                    <input
+                      value={specialEventManagerName}
                       onChange={(event) =>
-                        setSpecialEventManagerUserId(event.target.value)
+                        setSpecialEventManagerName(event.target.value)
                       }
+                      placeholder="שם מלא"
                       className="input"
-                    >
-                      <option value="">בחר חייל...</option>
-                      {selectableUsers
-                        .filter(
-                          (user) =>
-                            !user.isDischarged &&
-                            user.systemAccessBlocked !== true
-                        )
-                        .map((user) => (
-                        <option key={user.userId} value={user.userId}>
-                          {user.fullName}
-                          {user.medicalRole ? ` — ${user.medicalRole}` : ""}
-                        </option>
-                        ))}
-                    </select>
+                    />
+                  </Field>
+                  <Field label="טלפון מנהל האירוע החביר">
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      value={specialEventManagerPhone}
+                      onChange={(event) =>
+                        setSpecialEventManagerPhone(event.target.value)
+                      }
+                      placeholder="מספר טלפון"
+                      className="input"
+                    />
                   </Field>
                   <ResourceDropdown
                     label="בתי חולים לפינוי"
@@ -4706,16 +4720,25 @@ export default function ShiftsView({
                   מידע בלבד.
                 </div>
               </div>
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+              <details className="group rounded-xl border border-emerald-200 bg-emerald-50/50">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3">
                   <div>
                     <div className="text-xs font-black text-slate-800">
                       הצגת מועמדים לפי סטטוס נוכחות
                     </div>
                     <div className="mt-1 text-[10px] font-bold text-slate-500">
-                      הסינון משפיע רק על הרשימה. ניתן לשבץ רק סטטוסים שהוגדרו כמותרים לכל תפקיד משמרת.
+                      {visibleCandidateStatusIds.length} סטטוסים מוצגים · לחצו לפתיחת אפשרויות הסינון
                     </div>
                   </div>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-white text-lg font-black text-emerald-800 transition-transform group-open:rotate-180">
+                    ⌄
+                  </span>
+                </summary>
+                <div className="border-t border-emerald-200 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-[10px] font-bold leading-5 text-slate-500">
+                      הסינון משפיע רק על הרשימה. ניתן לשבץ רק סטטוסים שהוגדרו כמותרים לכל תפקיד משמרת.
+                    </div>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -4736,37 +4759,38 @@ export default function ShiftsView({
                       הצג את כל המותרים
                     </button>
                   </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {candidateAttendanceStatuses.map((status) => {
+                      const checked = visibleCandidateStatusIds.includes(status.id);
+                      return (
+                        <label
+                          key={status.id}
+                          className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-bold ${
+                            checked
+                              ? "border-emerald-300 bg-emerald-100 text-emerald-900"
+                              : "border-slate-200 bg-white text-slate-500"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setVisibleCandidateStatusIds((current) =>
+                                checked
+                                  ? current.filter((id) => id !== status.id)
+                                  : [...current, status.id]
+                              )
+                            }
+                          />
+                          <span>{status.icon || "•"}</span>
+                          {status.label}
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {candidateAttendanceStatuses.map((status) => {
-                    const checked = visibleCandidateStatusIds.includes(status.id);
-                    return (
-                      <label
-                        key={status.id}
-                        className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-bold ${
-                          checked
-                            ? "border-emerald-300 bg-emerald-100 text-emerald-900"
-                            : "border-slate-200 bg-white text-slate-500"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() =>
-                            setVisibleCandidateStatusIds((current) =>
-                              checked
-                                ? current.filter((id) => id !== status.id)
-                                : [...current, status.id]
-                            )
-                          }
-                        />
-                        <span>{status.icon || "•"}</span>
-                        {status.label}
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
+              </details>
               {formSlots.map((slot) => {
                 const availableUsers = slot.allowSystemUsers
                   ? selectableUsers

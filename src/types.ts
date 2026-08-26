@@ -492,8 +492,10 @@ export interface ShiftRecord {
   specialActivityEndTime?: string;
   specialForceCommanderUserId?: string;
   specialForceCommanderName?: string;
+  specialForceCommanderPhone?: string;
   specialEventManagerUserId?: string;
   specialEventManagerName?: string;
+  specialEventManagerPhone?: string;
   hospitalIds?: string[];
   helipadIds?: string[];
   status: ShiftStatus;
