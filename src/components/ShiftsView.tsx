@@ -2798,13 +2798,15 @@ export default function ShiftsView({
                   ? getAssignmentPhoneNumber(assignment)
                   : "";
 
-                return `• ${roleLabel} — ${assignment.userName}${
+                const assignmentLine = `• ${roleLabel} — ${assignment.userName}${
                   phoneNumber ? ` — ${phoneNumber}` : ""
                 }${
                   replacement
                     ? ` — מחליף/ה את ${replacement.replacedName} בשעה ${replacement.replacementTime}`
                     : ""
                 }`;
+
+                return replacement ? `*${assignmentLine}*` : assignmentLine;
               })
               .join("\n");
 
@@ -2959,11 +2961,13 @@ export default function ShiftsView({
         const replacement = getReplacementDetails(shift, assignment);
         const roleLabel = replacement?.roleLabel || assignment.slotLabel || "תפקיד";
 
-        return `${roleLabel}: ${assignment.userName}${
+        const assignmentLine = `${roleLabel}: ${assignment.userName}${
           replacement
             ? ` — מחליף/ה את ${replacement.replacedName} בשעה ${replacement.replacementTime}`
             : ""
         }`;
+
+        return replacement ? `*${assignmentLine}*` : assignmentLine;
       })
       .join("\n");
 
