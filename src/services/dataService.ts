@@ -600,13 +600,24 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
               typeof item === "object" &&
               typeof item.id === "string" &&
               typeof item.name === "string" &&
-              (item.type === "hospital" || item.type === "helipad")
+              (item.type === "hospital" ||
+                item.type === "helipad" ||
+                item.type === "frequency")
           )
           .map((item, index) => ({
             id: String(item.id),
             name: String(item.name).trim(),
-            type: item.type as "hospital" | "helipad",
+            type: item.type as "hospital" | "helipad" | "frequency",
             enabled: item.enabled !== false,
+            coordinates:
+              typeof item.coordinates === "string"
+                ? item.coordinates.trim()
+                : "",
+            link: typeof item.link === "string" ? item.link.trim() : "",
+            frequency:
+              typeof item.frequency === "string" ? item.frequency.trim() : "",
+            callSign:
+              typeof item.callSign === "string" ? item.callSign.trim() : "",
             sortOrder:
               typeof item.sortOrder === "number" && Number.isFinite(item.sortOrder)
                 ? item.sortOrder

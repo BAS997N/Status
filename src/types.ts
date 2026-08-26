@@ -236,7 +236,7 @@ export type ReportingClosedVisibleSection =
   | "order"
   | "messages";
 
-export type OperationalResourceType = "hospital" | "helipad";
+export type OperationalResourceType = "hospital" | "helipad" | "frequency";
 
 export interface OperationalResourceConfig {
   id: string;
@@ -244,6 +244,10 @@ export interface OperationalResourceConfig {
   type: OperationalResourceType;
   enabled: boolean;
   sortOrder: number;
+  coordinates?: string;
+  link?: string;
+  frequency?: string;
+  callSign?: string;
 }
 
 export interface SystemSettingsConfig {
@@ -496,8 +500,15 @@ export interface ShiftRecord {
   specialEventManagerUserId?: string;
   specialEventManagerName?: string;
   specialEventManagerPhone?: string;
+  specialSeniorCaregiverName?: string;
+  specialSeniorCaregiverPhone?: string;
+  medicalDutyPersonalPhone?: string;
+  medicalDutyOnCallPhone?: string;
+  evacuationPointName?: string;
+  evacuationPointLink?: string;
   hospitalIds?: string[];
   helipadIds?: string[];
+  frequencyIds?: string[];
   status: ShiftStatus;
   sendPushOnPublish?: boolean;
   signupRequestsEnabled?: boolean;

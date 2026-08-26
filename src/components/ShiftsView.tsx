@@ -326,8 +326,15 @@ export default function ShiftsView({
     useState("");
   const [specialEventManagerName, setSpecialEventManagerName] = useState("");
   const [specialEventManagerPhone, setSpecialEventManagerPhone] = useState("");
+  const [specialSeniorCaregiverName, setSpecialSeniorCaregiverName] = useState("");
+  const [specialSeniorCaregiverPhone, setSpecialSeniorCaregiverPhone] = useState("");
+  const [medicalDutyPersonalPhone, setMedicalDutyPersonalPhone] = useState("");
+  const [medicalDutyOnCallPhone, setMedicalDutyOnCallPhone] = useState("");
+  const [evacuationPointName, setEvacuationPointName] = useState("104");
+  const [evacuationPointLink, setEvacuationPointLink] = useState("");
   const [selectedHospitalIds, setSelectedHospitalIds] = useState<string[]>([]);
   const [selectedHelipadIds, setSelectedHelipadIds] = useState<string[]>([]);
+  const [selectedFrequencyIds, setSelectedFrequencyIds] = useState<string[]>([]);
   const [doubleSlotIds, setDoubleSlotIds] = useState<string[]>([]);
   const [replacementTimes, setReplacementTimes] = useState<
     Record<string, string>
@@ -399,6 +406,19 @@ export default function ShiftsView({
   const activeHelipads = activeOperationalResources.filter(
     (item) => item.type === "helipad"
   );
+  const activeFrequencies = activeOperationalResources.filter(
+    (item) => item.type === "frequency"
+  );
+  const operationalResourceById = useMemo(
+    () =>
+      new Map(
+        (systemSettings?.operationalResources || []).map((item) => [
+          item.id,
+          item,
+        ])
+      ),
+    [systemSettings?.operationalResources]
+  );
   const operationalResourceNameById = useMemo(
     () =>
       new Map(
@@ -413,6 +433,10 @@ export default function ShiftsView({
     (ids || [])
       .map((id) => operationalResourceNameById.get(id))
       .filter((name): name is string => Boolean(name));
+  const getResources = (ids?: string[]) =>
+    (ids || [])
+      .map((id) => operationalResourceById.get(id))
+      .filter((item): item is OperationalResourceConfig => Boolean(item));
 
   const medicalRoleNameById = useMemo(
     () =>
@@ -952,8 +976,15 @@ export default function ShiftsView({
     setSpecialForceCommanderPhone("");
     setSpecialEventManagerName("");
     setSpecialEventManagerPhone("");
+    setSpecialSeniorCaregiverName("");
+    setSpecialSeniorCaregiverPhone("");
+    setMedicalDutyPersonalPhone("");
+    setMedicalDutyOnCallPhone("");
+    setEvacuationPointName("104");
+    setEvacuationPointLink("");
     setSelectedHospitalIds([]);
     setSelectedHelipadIds([]);
+    setSelectedFrequencyIds([]);
     setDoubleSlotIds([]);
     setReplacementTimes({});
     setFormStatus("draft");
@@ -1249,8 +1280,15 @@ export default function ShiftsView({
     setSpecialForceCommanderPhone(shift.specialForceCommanderPhone || "");
     setSpecialEventManagerName(shift.specialEventManagerName || "");
     setSpecialEventManagerPhone(shift.specialEventManagerPhone || "");
+    setSpecialSeniorCaregiverName(shift.specialSeniorCaregiverName || "");
+    setSpecialSeniorCaregiverPhone(shift.specialSeniorCaregiverPhone || "");
+    setMedicalDutyPersonalPhone(shift.medicalDutyPersonalPhone || "");
+    setMedicalDutyOnCallPhone(shift.medicalDutyOnCallPhone || "");
+    setEvacuationPointName(shift.evacuationPointName || "104");
+    setEvacuationPointLink(shift.evacuationPointLink || "");
     setSelectedHospitalIds(shift.hospitalIds || []);
     setSelectedHelipadIds(shift.helipadIds || []);
+    setSelectedFrequencyIds(shift.frequencyIds || []);
     setDoubleSlotIds(nextDoubleSlotIds);
     setReplacementTimes(nextReplacementTimes);
     setFormStatus(
@@ -1456,8 +1494,27 @@ export default function ShiftsView({
         specialEventManagerPhone: specialActivity
           ? specialEventManagerPhone.trim()
           : "",
+        specialSeniorCaregiverName: specialActivity
+          ? specialSeniorCaregiverName.trim()
+          : "",
+        specialSeniorCaregiverPhone: specialActivity
+          ? specialSeniorCaregiverPhone.trim()
+          : "",
+        medicalDutyPersonalPhone: specialActivity
+          ? medicalDutyPersonalPhone.trim()
+          : "",
+        medicalDutyOnCallPhone: specialActivity
+          ? medicalDutyOnCallPhone.trim()
+          : "",
+        evacuationPointName: specialActivity
+          ? evacuationPointName.trim()
+          : "",
+        evacuationPointLink: specialActivity
+          ? evacuationPointLink.trim()
+          : "",
         hospitalIds: specialActivity ? selectedHospitalIds : [],
         helipadIds: specialActivity ? selectedHelipadIds : [],
+        frequencyIds: specialActivity ? selectedFrequencyIds : [],
         assignments,
         status: targetStatus,
         sendPushOnPublish,
@@ -1652,8 +1709,15 @@ export default function ShiftsView({
     setSpecialForceCommanderPhone(shift.specialForceCommanderPhone || "");
     setSpecialEventManagerName(shift.specialEventManagerName || "");
     setSpecialEventManagerPhone(shift.specialEventManagerPhone || "");
+    setSpecialSeniorCaregiverName(shift.specialSeniorCaregiverName || "");
+    setSpecialSeniorCaregiverPhone(shift.specialSeniorCaregiverPhone || "");
+    setMedicalDutyPersonalPhone(shift.medicalDutyPersonalPhone || "");
+    setMedicalDutyOnCallPhone(shift.medicalDutyOnCallPhone || "");
+    setEvacuationPointName(shift.evacuationPointName || "104");
+    setEvacuationPointLink(shift.evacuationPointLink || "");
     setSelectedHospitalIds(shift.hospitalIds || []);
     setSelectedHelipadIds(shift.helipadIds || []);
+    setSelectedFrequencyIds(shift.frequencyIds || []);
     setDoubleSlotIds(
       expandedSlots
         .filter((slot) =>
@@ -2076,13 +2140,33 @@ export default function ShiftsView({
                     : ""
                 }
                 ${
+                  shift.specialActivity && (shift.specialSeniorCaregiverName || shift.specialSeniorCaregiverPhone)
+                    ? `<div class="shift-location"><strong>מטפל בכיר הכוח החביר:</strong> ${escapeHtml([shift.specialSeniorCaregiverName, shift.specialSeniorCaregiverPhone].filter(Boolean).join(" · "))}</div>`
+                    : ""
+                }
+                ${
+                  shift.specialActivity && (shift.medicalDutyPersonalPhone || shift.medicalDutyOnCallPhone)
+                    ? `<div class="shift-location"><strong>תורן רפואה:</strong> ${escapeHtml([shift.medicalDutyPersonalPhone ? `אישי ${shift.medicalDutyPersonalPhone}` : "", shift.medicalDutyOnCallPhone ? `כוננות ${shift.medicalDutyOnCallPhone}` : ""].filter(Boolean).join(" · "))}</div>`
+                    : ""
+                }
+                ${
+                  shift.specialActivity && (shift.evacuationPointName || shift.evacuationPointLink)
+                    ? `<div class="shift-location"><strong>נקודת שחלוף / יעד פינוי:</strong> ${escapeHtml([shift.evacuationPointName, shift.evacuationPointLink].filter(Boolean).join(" · "))}</div>`
+                    : ""
+                }
+                ${
                   shift.specialActivity && getResourceNames(shift.hospitalIds).length
                     ? `<div class="shift-location"><strong>בתי חולים:</strong> ${escapeHtml(getResourceNames(shift.hospitalIds).join(", "))}</div>`
                     : ""
                 }
                 ${
-                  shift.specialActivity && getResourceNames(shift.helipadIds).length
-                    ? `<div class="shift-location"><strong>מנחתים:</strong> ${escapeHtml(getResourceNames(shift.helipadIds).join(", "))}</div>`
+                  shift.specialActivity && getResources(shift.helipadIds).length
+                    ? `<div class="shift-location"><strong>מנחתים:</strong> ${getResources(shift.helipadIds).map((item) => escapeHtml([item.name, item.coordinates ? `נ.צ ${item.coordinates}` : "", item.link].filter(Boolean).join(" · "))).join("<br>")}</div>`
+                    : ""
+                }
+                ${
+                  shift.specialActivity && getResources(shift.frequencyIds).length
+                    ? `<div class="shift-location"><strong>תדרים:</strong> ${getResources(shift.frequencyIds).map((item) => escapeHtml([item.name, item.callSign, item.frequency].filter(Boolean).join(" · "))).join("<br>")}</div>`
                     : ""
                 }
                 ${
@@ -2834,11 +2918,23 @@ export default function ShiftsView({
               shift.specialActivity && (shift.specialEventManagerName || shift.specialEventManagerPhone)
                 ? `👤 מנהל האירוע החביר: ${[shift.specialEventManagerName, shift.specialEventManagerPhone].filter(Boolean).join(" · ")}`
                 : "",
+              shift.specialActivity && (shift.specialSeniorCaregiverName || shift.specialSeniorCaregiverPhone)
+                ? `🩺 מטפל בכיר הכוח החביר: ${[shift.specialSeniorCaregiverName, shift.specialSeniorCaregiverPhone].filter(Boolean).join(" · ")}`
+                : "",
+              shift.specialActivity && (shift.medicalDutyPersonalPhone || shift.medicalDutyOnCallPhone)
+                ? `*תורן רפואה:*\n${[shift.medicalDutyPersonalPhone ? `📱 אישי: ${shift.medicalDutyPersonalPhone}` : "", shift.medicalDutyOnCallPhone ? `☎️ כוננות: ${shift.medicalDutyOnCallPhone}` : ""].filter(Boolean).join("\n")}`
+                : "",
+              shift.specialActivity && (shift.evacuationPointName || shift.evacuationPointLink)
+                ? `📌 *נקודת שחלוף / יעד פינוי:*\n${[shift.evacuationPointName, shift.evacuationPointLink].filter(Boolean).join("\n")}`
+                : "",
               shift.specialActivity && getResourceNames(shift.hospitalIds).length
                 ? `🏥 בתי חולים: ${getResourceNames(shift.hospitalIds).join(", ")}`
                 : "",
-              shift.specialActivity && getResourceNames(shift.helipadIds).length
-                ? `🚁 מנחתים: ${getResourceNames(shift.helipadIds).join(", ")}`
+              shift.specialActivity && getResources(shift.helipadIds).length
+                ? `🚁 *מנחתים:*\n${getResources(shift.helipadIds).map((item) => `• ${[item.name, item.coordinates ? `נ.צ ${item.coordinates}` : "", item.link].filter(Boolean).join(" · ")}`).join("\n")}`
+                : "",
+              shift.specialActivity && getResources(shift.frequencyIds).length
+                ? `📡 *תקשוב:*\n${getResources(shift.frequencyIds).map((item) => `• ${item.name}${item.callSign || item.frequency ? ` יתנהל בתדר ${[item.callSign, item.frequency].filter(Boolean).join(" ")}` : ""}`).join("\n")}`
                 : "",
               assignments || "• טרם שובצו חיילים",
               includeNotesInWhatsApp && shift.note
@@ -2989,11 +3085,23 @@ export default function ShiftsView({
       shift.specialActivity && (shift.specialEventManagerName || shift.specialEventManagerPhone)
         ? `👤 מנהל האירוע החביר: ${[shift.specialEventManagerName, shift.specialEventManagerPhone].filter(Boolean).join(" · ")}`
         : "",
+      shift.specialActivity && (shift.specialSeniorCaregiverName || shift.specialSeniorCaregiverPhone)
+        ? `🩺 מטפל בכיר הכוח החביר: ${[shift.specialSeniorCaregiverName, shift.specialSeniorCaregiverPhone].filter(Boolean).join(" · ")}`
+        : "",
+      shift.specialActivity && (shift.medicalDutyPersonalPhone || shift.medicalDutyOnCallPhone)
+        ? `*תורן רפואה:*\n${[shift.medicalDutyPersonalPhone ? `📱 אישי: ${shift.medicalDutyPersonalPhone}` : "", shift.medicalDutyOnCallPhone ? `☎️ כוננות: ${shift.medicalDutyOnCallPhone}` : ""].filter(Boolean).join("\n")}`
+        : "",
+      shift.specialActivity && (shift.evacuationPointName || shift.evacuationPointLink)
+        ? `📌 *נקודת שחלוף / יעד פינוי:*\n${[shift.evacuationPointName, shift.evacuationPointLink].filter(Boolean).join("\n")}`
+        : "",
       shift.specialActivity && getResourceNames(shift.hospitalIds).length
         ? `🏥 בתי חולים: ${getResourceNames(shift.hospitalIds).join(", ")}`
         : "",
-      shift.specialActivity && getResourceNames(shift.helipadIds).length
-        ? `🚁 מנחתים: ${getResourceNames(shift.helipadIds).join(", ")}`
+      shift.specialActivity && getResources(shift.helipadIds).length
+        ? `🚁 *מנחתים:*\n${getResources(shift.helipadIds).map((item) => `• ${[item.name, item.coordinates ? `נ.צ ${item.coordinates}` : "", item.link].filter(Boolean).join(" · ")}`).join("\n")}`
+        : "",
+      shift.specialActivity && getResources(shift.frequencyIds).length
+        ? `📡 *תקשוב:*\n${getResources(shift.frequencyIds).map((item) => `• ${item.name}${item.callSign || item.frequency ? ` יתנהל בתדר ${[item.callSign, item.frequency].filter(Boolean).join(" ")}` : ""}`).join("\n")}`
         : "",
       "",
       "*שיבוץ המשמרת:*",
@@ -3883,8 +3991,15 @@ export default function ShiftsView({
               detailsShift.specialForceCommanderPhone ||
               detailsShift.specialEventManagerName ||
               detailsShift.specialEventManagerPhone ||
+              detailsShift.specialSeniorCaregiverName ||
+              detailsShift.specialSeniorCaregiverPhone ||
+              detailsShift.medicalDutyPersonalPhone ||
+              detailsShift.medicalDutyOnCallPhone ||
+              detailsShift.evacuationPointName ||
+              detailsShift.evacuationPointLink ||
               getResourceNames(detailsShift.hospitalIds).length > 0 ||
-              getResourceNames(detailsShift.helipadIds).length > 0) && (
+              getResourceNames(detailsShift.helipadIds).length > 0 ||
+              getResourceNames(detailsShift.frequencyIds).length > 0) && (
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {detailsShift.dispatchTime && (
                   <div className="rounded-xl border border-slate-200 p-3 text-xs">
@@ -3934,6 +4049,26 @@ export default function ShiftsView({
                     </div>
                   </div>
                 )}
+                {(detailsShift.specialSeniorCaregiverName || detailsShift.specialSeniorCaregiverPhone) && (
+                  <div className="rounded-xl border border-slate-200 p-3 text-xs">
+                    <div className="font-black text-slate-500">מטפל בכיר הכוח החביר</div>
+                    <div className="mt-1 font-bold text-slate-900">{[detailsShift.specialSeniorCaregiverName, detailsShift.specialSeniorCaregiverPhone].filter(Boolean).join(" · ")}</div>
+                  </div>
+                )}
+                {(detailsShift.medicalDutyPersonalPhone || detailsShift.medicalDutyOnCallPhone) && (
+                  <div className="rounded-xl border border-slate-200 p-3 text-xs">
+                    <div className="font-black text-slate-500">תורן רפואה</div>
+                    {detailsShift.medicalDutyPersonalPhone && <div className="mt-1 font-bold text-slate-900">📱 אישי: {detailsShift.medicalDutyPersonalPhone}</div>}
+                    {detailsShift.medicalDutyOnCallPhone && <div className="mt-1 font-bold text-slate-900">☎️ כוננות: {detailsShift.medicalDutyOnCallPhone}</div>}
+                  </div>
+                )}
+                {(detailsShift.evacuationPointName || detailsShift.evacuationPointLink) && (
+                  <div className="rounded-xl border border-slate-200 p-3 text-xs">
+                    <div className="font-black text-slate-500">📌 נקודת שחלוף / יעד פינוי</div>
+                    {detailsShift.evacuationPointName && <div className="mt-1 font-bold text-slate-900">{detailsShift.evacuationPointName}</div>}
+                    {detailsShift.evacuationPointLink && <a href={detailsShift.evacuationPointLink} target="_blank" rel="noreferrer" className="mt-1 block break-all font-bold text-sky-600 underline">פתח קישור</a>}
+                  </div>
+                )}
                 {getResourceNames(detailsShift.hospitalIds).length > 0 && (
                   <div className="rounded-xl border border-slate-200 p-3 text-xs">
                     <div className="font-black text-slate-500">בתי חולים</div>
@@ -3942,12 +4077,16 @@ export default function ShiftsView({
                     </div>
                   </div>
                 )}
-                {getResourceNames(detailsShift.helipadIds).length > 0 && (
+                {getResources(detailsShift.helipadIds).length > 0 && (
                   <div className="rounded-xl border border-slate-200 p-3 text-xs">
                     <div className="font-black text-slate-500">מנחתים</div>
-                    <div className="mt-1 font-bold text-slate-900">
-                      {getResourceNames(detailsShift.helipadIds).join(", ")}
-                    </div>
+                    {getResources(detailsShift.helipadIds).map((item) => <div key={item.id} className="mt-1 font-bold text-slate-900">{item.name}{item.coordinates ? ` · נ.צ ${item.coordinates}` : ""}{item.link && <a href={item.link} target="_blank" rel="noreferrer" className="mr-1 text-sky-600 underline">קישור</a>}</div>)}
+                  </div>
+                )}
+                {getResources(detailsShift.frequencyIds).length > 0 && (
+                  <div className="rounded-xl border border-slate-200 p-3 text-xs sm:col-span-2">
+                    <div className="font-black text-slate-500">📡 תדרי קשר</div>
+                    {getResources(detailsShift.frequencyIds).map((item) => <div key={item.id} className="mt-1 font-bold text-slate-900">• {item.name}{item.callSign || item.frequency ? ` — ${[item.callSign, item.frequency].filter(Boolean).join(" ")}` : ""}</div>)}
                   </div>
                 )}
               </div>
@@ -4730,6 +4869,24 @@ export default function ShiftsView({
                       className="input"
                     />
                   </Field>
+                  <Field label="מטפל בכיר הכוח החביר">
+                    <input value={specialSeniorCaregiverName} onChange={(event) => setSpecialSeniorCaregiverName(event.target.value)} placeholder="שם מלא" className="input" />
+                  </Field>
+                  <Field label="טלפון מטפל בכיר הכוח החביר">
+                    <input type="tel" inputMode="tel" value={specialSeniorCaregiverPhone} onChange={(event) => setSpecialSeniorCaregiverPhone(event.target.value)} placeholder="מספר טלפון" className="input" />
+                  </Field>
+                  <Field label="תורן רפואה — 📱 אישי">
+                    <input type="tel" inputMode="tel" value={medicalDutyPersonalPhone} onChange={(event) => setMedicalDutyPersonalPhone(event.target.value)} placeholder="מספר אישי" className="input" />
+                  </Field>
+                  <Field label="תורן רפואה — ☎️ כוננות">
+                    <input type="tel" inputMode="tel" value={medicalDutyOnCallPhone} onChange={(event) => setMedicalDutyOnCallPhone(event.target.value)} placeholder="מספר כוננות" className="input" />
+                  </Field>
+                  <Field label="📌 נקודת שחלוף / יעד פינוי">
+                    <input value={evacuationPointName} onChange={(event) => setEvacuationPointName(event.target.value)} placeholder="למשל 104" className="input" />
+                  </Field>
+                  <Field label="קישור לנקודת השחלוף">
+                    <input type="url" value={evacuationPointLink} onChange={(event) => setEvacuationPointLink(event.target.value)} placeholder="https://maps.app.goo.gl/..." className="input" />
+                  </Field>
                   <ResourceDropdown
                     label="בתי חולים לפינוי"
                     items={activeHospitals}
@@ -4743,6 +4900,13 @@ export default function ShiftsView({
                     selectedIds={selectedHelipadIds}
                     onChange={setSelectedHelipadIds}
                     emptyText="לא הוגדרו מנחתים פעילים בהגדרות."
+                  />
+                  <ResourceDropdown
+                    label="תדרי קשר"
+                    items={activeFrequencies}
+                    selectedIds={selectedFrequencyIds}
+                    onChange={setSelectedFrequencyIds}
+                    emptyText="לא הוגדרו תדרים פעילים בהגדרות."
                   />
                 </>
               )}
@@ -5190,7 +5354,15 @@ function ResourceDropdown({
                       }
                       className="h-4 w-4 accent-indigo-600"
                     />
-                    {item.name}
+                    <span>
+                      {item.name}
+                      {item.type === "helipad" && item.coordinates
+                        ? ` · נ.צ ${item.coordinates}`
+                        : ""}
+                      {item.type === "frequency" && (item.callSign || item.frequency)
+                        ? ` · ${[item.callSign, item.frequency].filter(Boolean).join(" ")}`
+                        : ""}
+                    </span>
                   </label>
                 );
               })}

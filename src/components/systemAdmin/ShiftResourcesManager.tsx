@@ -7,6 +7,7 @@ import {
   EyeOff,
   MapPinned,
   Plus,
+  Radio,
   Save,
   Trash2,
 } from "lucide-react";
@@ -43,6 +44,10 @@ export default function ShiftResourcesManager({
   const [draft, setDraft] = useState<OperationalResourceConfig[]>(sorted);
   const [name, setName] = useState("");
   const [type, setType] = useState<OperationalResourceType>("hospital");
+  const [coordinates, setCoordinates] = useState("");
+  const [link, setLink] = useState("");
+  const [frequency, setFrequency] = useState("");
+  const [callSign, setCallSign] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -80,10 +85,18 @@ export default function ShiftResourcesManager({
           type,
           enabled: true,
           sortOrder: draft.length + 1,
+          coordinates: type === "helipad" ? coordinates.trim() : "",
+          link: type === "helipad" ? link.trim() : "",
+          frequency: type === "frequency" ? frequency.trim() : "",
+          callSign: type === "frequency" ? callSign.trim() : "",
         },
       ])
     );
     setName("");
+    setCoordinates("");
+    setLink("");
+    setFrequency("");
+    setCallSign("");
     setMessage(null);
   };
 
@@ -112,7 +125,7 @@ export default function ShiftResourcesManager({
       onSettingsChanged(saved);
       setMessage({
         type: "success",
-        text: "רשימות בתי החולים והמנחתים נשמרו.",
+        text: "רשימות בתי החולים, המנחתים והתדרים נשמרו.",
       });
     } catch (error) {
       console.error("Failed saving shift resources:", error);
@@ -129,13 +142,14 @@ export default function ShiftResourcesManager({
   }> = [
     { type: "hospital", title: "בתי חולים לפינוי", icon: Building2 },
     { type: "helipad", title: "מנחתים", icon: MapPinned },
+    { type: "frequency", title: "תדרי קשר", icon: Radio },
   ];
 
   return (
     <div dir="rtl" className="space-y-5">
       <div className="rounded-2xl border border-sky-200 bg-gradient-to-l from-sky-50 to-white p-5 shadow-sm">
         <h2 className="text-lg font-black text-slate-900">
-          מנחתים ובתי חולים
+          מנחתים, בתי חולים ותדרים
         </h2>
         <p className="mt-1 text-xs leading-5 text-slate-500">
           הרשימות הפעילות יופיעו לבחירה בטופס יצירת ועריכת משמרת.
@@ -153,6 +167,7 @@ export default function ShiftResourcesManager({
           >
             <option value="hospital">בית חולים</option>
             <option value="helipad">מנחת</option>
+            <option value="frequency">תדר</option>
           </select>
           <input
             value={name}
@@ -163,7 +178,13 @@ export default function ShiftResourcesManager({
                 add();
               }
             }}
-            placeholder={type === "hospital" ? "שם בית החולים" : "שם המנחת"}
+            placeholder={
+              type === "hospital"
+                ? "שם בית החולים"
+                : type === "helipad"
+                ? "שם המנחת"
+                : "מטרת התדר, למשל: פינוי רפואי"
+            }
             className="input"
           />
           <button
@@ -174,6 +195,18 @@ export default function ShiftResourcesManager({
             <Plus className="h-4 w-4" /> הוסף
           </button>
         </div>
+        {type === "helipad" && (
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input value={coordinates} onChange={(event) => setCoordinates(event.target.value)} placeholder="נ.צ" className="input" />
+            <input value={link} onChange={(event) => setLink(event.target.value)} placeholder="קישור למפה" className="input" />
+          </div>
+        )}
+        {type === "frequency" && (
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input value={callSign} onChange={(event) => setCallSign(event.target.value)} placeholder="או״ק / שם הרשת" className="input" />
+            <input value={frequency} onChange={(event) => setFrequency(event.target.value)} placeholder="תדר, למשל 53.900" className="input" />
+          </div>
+        )}
       </section>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -201,7 +234,7 @@ export default function ShiftResourcesManager({
                     return (
                       <div
                         key={item.id}
-                        className={`flex items-center gap-2 rounded-xl border p-3 ${
+                        className={`flex flex-wrap items-center gap-2 rounded-xl border p-3 ${
                           item.enabled
                             ? "border-slate-200 bg-white"
                             : "border-slate-100 bg-slate-50 opacity-60"
@@ -220,6 +253,18 @@ export default function ShiftResourcesManager({
                           }
                           className="input min-w-0 flex-1"
                         />
+                        {item.type === "helipad" && (
+                          <>
+                            <input value={item.coordinates || ""} onChange={(event) => setDraft((current) => current.map((value) => value.id === item.id ? { ...value, coordinates: event.target.value } : value))} placeholder="נ.צ" className="input min-w-[150px] flex-1" />
+                            <input value={item.link || ""} onChange={(event) => setDraft((current) => current.map((value) => value.id === item.id ? { ...value, link: event.target.value } : value))} placeholder="קישור למפה" className="input min-w-[180px] flex-1" />
+                          </>
+                        )}
+                        {item.type === "frequency" && (
+                          <>
+                            <input value={item.callSign || ""} onChange={(event) => setDraft((current) => current.map((value) => value.id === item.id ? { ...value, callSign: event.target.value } : value))} placeholder="או״ק / שם הרשת" className="input min-w-[160px] flex-1" />
+                            <input value={item.frequency || ""} onChange={(event) => setDraft((current) => current.map((value) => value.id === item.id ? { ...value, frequency: event.target.value } : value))} placeholder="תדר" className="input min-w-[120px] flex-1" />
+                          </>
+                        )}
                         <button
                           type="button"
                           onClick={() =>
@@ -307,7 +352,7 @@ export default function ShiftResourcesManager({
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white disabled:opacity-50"
       >
         <Save className="h-4 w-4" />
-        {saving ? "שומר..." : "שמור מנחתים ובתי חולים"}
+        {saving ? "שומר..." : "שמור מנחתים, בתי חולים ותדרים"}
       </button>
     </div>
   );
