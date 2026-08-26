@@ -318,6 +318,8 @@ export default function ShiftsView({
   const [location, setLocation] = useState("");
   const [note, setNote] = useState("");
   const [specialActivity, setSpecialActivity] = useState(false);
+  const [specialActivityImportText, setSpecialActivityImportText] =
+    useState("");
   const [dispatchTime, setDispatchTime] = useState("");
   const [specialActivityEndTime, setSpecialActivityEndTime] = useState("");
   const [specialForceCommanderName, setSpecialForceCommanderName] =
@@ -442,6 +444,143 @@ export default function ShiftsView({
     (ids || [])
       .map((id) => operationalResourceById.get(id))
       .filter((item): item is OperationalResourceConfig => Boolean(item));
+
+  const importSpecialActivityMessage = () => {
+    const source = specialActivityImportText.replace(/\r/g, "").trim();
+    if (!source) {
+      setMessage({ type: "error", text: "יש להדביק קודם את הודעת הפעילות." });
+      return;
+    }
+
+    const cleanText = (value: string) =>
+      value
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, "$1")
+        .replace(/[\*_`]/g, "")
+        .trim();
+    const normalizeName = (value: string) =>
+      cleanText(value)
+        .replace(/[^\p{L}\p{N}]+/gu, "")
+        .toLocaleLowerCase("he");
+    const firstPhone = (pattern: RegExp) => {
+      const match = source.match(pattern);
+      return match?.[1]?.replace(/[^\d+]/g, "") || "";
+    };
+    const extractSection = (start: RegExp, end: RegExp) => {
+      const startMatch = start.exec(source);
+      if (!startMatch || startMatch.index === undefined) return "";
+      const from = startMatch.index + startMatch[0].length;
+      const remainder = source.slice(from);
+      const endMatch = end.exec(remainder);
+      return remainder.slice(0, endMatch?.index ?? remainder.length).trim();
+    };
+    const firstUrl = (value: string) =>
+      value.match(/https?:\/\/[^\s)\]]+/)?.[0]?.replace(/\\_/g, "_") || "";
+
+    const personalPhone = firstPhone(/(?:📱\s*)?אישי[^\d+]*(\+?\d[\d\s-]{7,})/i);
+    const onCallPhone = firstPhone(/(?:☎️?\s*)?כוננות[^\d+]*(\+?\d[\d\s-]{7,})/i);
+    const eventManager = source.match(
+      /מנ[״"']?א\s*[-–:]\s*([^\d\n]+?)\s+(\+?\d[\d\s-]{7,})/i
+    );
+    const seniorCaregiver = source.match(
+      /מט[״"']?ב\s*[-–:]\s*([^\d\n]+?)\s+(\+?\d[\d\s-]{7,})/i
+    );
+
+    if (personalPhone) setMedicalDutyPersonalPhone(personalPhone);
+    if (onCallPhone) setMedicalDutyOnCallPhone(onCallPhone);
+    if (eventManager) {
+      setSpecialEventManagerName(cleanText(eventManager[1]));
+      setSpecialEventManagerPhone(eventManager[2].replace(/[^\d+]/g, ""));
+    }
+    if (seniorCaregiver) {
+      setSpecialSeniorCaregiverName(cleanText(seniorCaregiver[1]));
+      setSpecialSeniorCaregiverPhone(
+        seniorCaregiver[2].replace(/[^\d+]/g, "")
+      );
+    }
+
+    const pointsSection = extractSection(
+      /נקודות?\s+שחלוף[^\n]*\n?/i,
+      /(?:🚁|מנחתים|📡|תקשוב)/i
+    );
+    const pointLines = pointsSection
+      .split("\n")
+      .map(cleanText)
+      .filter((line) => line && !line.startsWith("http"));
+    const pointName = pointLines[0] || "";
+    const pointLink = firstUrl(pointsSection);
+    const matchedPoint = activeEvacuationPoints.find(
+      (item) =>
+        normalizeName(item.name) === normalizeName(pointName) ||
+        (pointName && normalizeName(item.name).includes(normalizeName(pointName)))
+    );
+    if (matchedPoint) {
+      setSelectedEvacuationPointIds([matchedPoint.id]);
+      setEvacuationPointName("");
+      setEvacuationPointLink("");
+    } else {
+      setEvacuationPointName(pointName);
+      setEvacuationPointLink(pointLink);
+    }
+
+    const helipadSection = extractSection(
+      /מנחתים[^\n]*\n?/i,
+      /(?:📡|תקשוב|\*\*?לשים\s+לב)/i
+    );
+    const helipadLines = helipadSection
+      .split("\n")
+      .map(cleanText)
+      .filter(
+        (line) =>
+          line &&
+          !line.startsWith("http") &&
+          !/^נ[.״"']?צ\s*[-:]/i.test(line)
+      );
+    const matchedHelipadIds = activeHelipads
+      .filter((item) =>
+        helipadLines.some((line) =>
+          normalizeName(line).includes(normalizeName(item.name))
+        )
+      )
+      .map((item) => item.id);
+    if (matchedHelipadIds.length) setSelectedHelipadIds(matchedHelipadIds);
+
+    const matchedFrequencyIds = activeFrequencies
+      .filter(
+        (item) =>
+          (item.frequency && source.includes(item.frequency)) ||
+          (item.callSign && normalizeName(source).includes(normalizeName(item.callSign))) ||
+          normalizeName(source).includes(normalizeName(item.name))
+      )
+      .map((item) => item.id);
+    if (matchedFrequencyIds.length) setSelectedFrequencyIds(matchedFrequencyIds);
+
+    const emphasisLine = source
+      .split("\n")
+      .map(cleanText)
+      .find((line) => /לשים\s+לב|דגש|חשוב/i.test(line));
+    if (emphasisLine) {
+      setNote((current) =>
+        current.includes(emphasisLine)
+          ? current
+          : [current.trim(), emphasisLine].filter(Boolean).join("\n")
+      );
+    }
+
+    const missingLists = [
+      pointName && !matchedPoint ? "נקודת השחלוף" : "",
+      helipadLines.length && !matchedHelipadIds.length ? "המנחת" : "",
+      /(?:📡|תקשוב)/i.test(source) && !matchedFrequencyIds.length
+        ? "התדרים"
+        : "",
+    ].filter(Boolean);
+
+    setMessage({
+      type: missingLists.length ? "error" : "success",
+      text: missingLists.length
+        ? `הפרטים חולצו. לא נמצאה התאמה בהגדרות עבור ${missingLists.join(", ")}; יש להוסיף או לבחור אותם ידנית.`
+        : "פרטי הפעילות חולצו. יש לבדוק את השדות לפני השמירה.",
+    });
+  };
 
   const medicalRoleNameById = useMemo(
     () =>
@@ -975,6 +1114,7 @@ export default function ShiftsView({
     setLocation("");
     setNote("");
     setSpecialActivity(false);
+    setSpecialActivityImportText("");
     setDispatchTime("");
     setSpecialActivityEndTime("");
     setSpecialForceCommanderName("");
@@ -4847,6 +4987,30 @@ export default function ShiftsView({
               </label>
               {specialActivity && (
                 <>
+                  <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 md:col-span-2">
+                    <div className="text-xs font-black text-sky-950">
+                      ייבוא פרטים מהודעת WhatsApp
+                    </div>
+                    <div className="mt-1 text-[10px] font-bold leading-5 text-sky-700">
+                      ניתן להדביק הודעה מכל קו. המערכת מאתרת את הכותרות והערכים המשתנים וממלאת את הטופס לבדיקה.
+                    </div>
+                    <textarea
+                      rows={6}
+                      value={specialActivityImportText}
+                      onChange={(event) =>
+                        setSpecialActivityImportText(event.target.value)
+                      }
+                      placeholder="הדבק כאן את הודעת הפעילות..."
+                      className="input mt-3 resize-y bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={importSpecialActivityMessage}
+                      className="mt-2 w-full rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-black text-white"
+                    >
+                      חלץ פרטים ומלא את הטופס
+                    </button>
+                  </div>
                   <Field label="שעת מוקי">
                     <input
                       type="time"
