@@ -189,13 +189,15 @@ export default function SystemSettingsManager({
   const [saving, setSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<
-    | "display"
+    | "general"
     | "notifications"
-    | "performance"
     | "modes"
     | "orders"
     | "whatsapp"
-  >("display");
+  >("general");
+  const [activeGeneralTab, setActiveGeneralTab] = useState<
+    "site" | "cards" | "navigation" | "performance"
+  >("site");
   const [newOrderTitle, setNewOrderTitle] = useState("");
   const [newOrderStartDate, setNewOrderStartDate] = useState("");
   const [newOrderEndDate, setNewOrderEndDate] = useState("");
@@ -780,11 +782,10 @@ export default function SystemSettingsManager({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
         {[
-          { id: "display" as const, label: "תצוגה וניווט", icon: MonitorCog },
+          { id: "general" as const, label: "הגדרות כלליות", icon: Settings },
           { id: "notifications" as const, label: "התראות", icon: Bell },
-          { id: "performance" as const, label: "ביצועים ורענון", icon: Database },
           { id: "modes" as const, label: "מצבי מערכת", icon: ShieldAlert },
           { id: "orders" as const, label: "ניהול צווים", icon: CalendarRange },
           { id: "whatsapp" as const, label: "קבוצות WhatsApp", icon: MessageCircle },
@@ -809,12 +810,45 @@ export default function SystemSettingsManager({
         })}
       </div>
 
-      <section className={`${activeSettingsTab === "display" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
+      <div className={`${activeSettingsTab === "general" ? "" : "hidden"} grid grid-cols-2 gap-2 rounded-2xl border border-violet-200 bg-violet-50/50 p-2 shadow-sm lg:grid-cols-4`}>
+        {[
+          { id: "site" as const, label: "הגדרות אתר", icon: MonitorCog },
+          { id: "cards" as const, label: "כרטיסיות", icon: Settings },
+          { id: "navigation" as const, label: "סדר מסכים", icon: ArrowUp },
+          { id: "performance" as const, label: "ביצועים ורענון", icon: Database },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const selected = activeGeneralTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveGeneralTab(tab.id)}
+              className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-xs font-black transition ${
+                selected
+                  ? "border-violet-600 bg-white text-violet-700 shadow-sm"
+                  : "border-transparent text-slate-600 hover:border-violet-200 hover:bg-white hover:text-violet-700"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <section className={`${activeSettingsTab === "general" && activeGeneralTab !== "performance" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
         <div className="mb-4 flex items-center gap-2">
           <MonitorCog className="h-5 w-5 text-violet-600" />
-          <h3 className="text-sm font-black text-slate-900">זהות ותצוגה</h3>
+          <h3 className="text-sm font-black text-slate-900">
+            {activeGeneralTab === "site"
+              ? "הגדרות אתר"
+              : activeGeneralTab === "cards"
+                ? "כרטיסיות לוח הבקרה"
+                : "סדר מסכים"}
+          </h3>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className={`${activeGeneralTab === "site" ? "" : "hidden"} grid grid-cols-1 gap-4 md:grid-cols-2`}>
           <Field label="שם המערכת">
             <input value={draft.systemName} onChange={(e) => update("systemName", e.target.value)} className="input" />
           </Field>
@@ -842,7 +876,7 @@ export default function SystemSettingsManager({
             </select>
           </Field>
         </div>
-        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+        <div className={`${activeGeneralTab === "cards" ? "" : "hidden"} mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4`}>
           <Toggle
             label="הסתר כרטיסים ריקים בלוח הבקרה"
             description="כרטיסי סיכום שהערך שלהם 0 לא יוצגו. כרטיסים שיש בהם נתונים יופיעו אוטומטית."
@@ -850,7 +884,7 @@ export default function SystemSettingsManager({
             onChange={(value) => update("hideEmptyDashboardCards", value)}
           />
         </div>
-        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+        <div className={`${activeGeneralTab === "cards" ? "" : "hidden"} mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4`}>
           <div className="text-sm font-black text-slate-900">
             חריגים לתצוגת כרטיסי לוח הבקרה
           </div>
@@ -887,7 +921,7 @@ export default function SystemSettingsManager({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className={`${activeGeneralTab === "navigation" ? "" : "hidden"} mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2`}>
           {[
             {
               title: "סדר הטאבים הראשיים",
@@ -1108,7 +1142,7 @@ export default function SystemSettingsManager({
         </div>
       </section>
 
-      <section className={`${activeSettingsTab === "performance" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
+      <section className={`${activeSettingsTab === "general" && activeGeneralTab === "performance" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
         <div className="mb-4 flex items-center gap-2">
           <Database className="h-5 w-5 text-sky-600" />
           <h3 className="text-sm font-black text-slate-900">ביצועים ורענון</h3>
