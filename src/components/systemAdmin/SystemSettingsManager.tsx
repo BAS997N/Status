@@ -40,6 +40,7 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   systemVersion: "1.0.0",
   timeZone: "Asia/Jerusalem",
   defaultStartScreen: "dashboard",
+  hideEmptyDashboardCards: true,
   notificationsEnabled: true,
   toastNotificationsEnabled: true,
   notificationSoundEnabled: false,
@@ -728,6 +729,14 @@ export default function SystemSettingsManager({
               <option value="reporter">דיווח נוכחות אישי</option>
             </select>
           </Field>
+        </div>
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+          <Toggle
+            label="הסתר כרטיסים ריקים בלוח הבקרה"
+            description="כרטיסי סיכום שהערך שלהם 0 לא יוצגו. כרטיסים שיש בהם נתונים יופיעו אוטומטית."
+            checked={draft.hideEmptyDashboardCards}
+            onChange={(value) => update("hideEmptyDashboardCards", value)}
+          />
         </div>
       </section>
 

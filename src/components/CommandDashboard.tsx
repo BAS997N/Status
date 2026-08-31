@@ -1313,14 +1313,8 @@ const activeReports = reports.filter(
   
   const unreportedCount = totalSoldiersCount - reportedTodayCount;
 
-  const todayDateKey = getTodayLocalDate();
-  const hasActiveOrder = (systemSettings?.orderEvents || []).some(
-    (order) => order.startDate <= todayDateKey && order.endDate >= todayDateKey
-  );
-  const hasActiveEmergency =
-    systemSettings?.systemMode === "emergency" &&
-    systemSettings?.emergencyEvent?.active === true;
-  const hideEmptyOperationalCards = hasActiveOrder || hasActiveEmergency;
+  const hideEmptyOperationalCards =
+    systemSettings?.hideEmptyDashboardCards !== false;
   const shouldShowSummaryCard = (count: number) =>
     !hideEmptyOperationalCards || count > 0;
 
@@ -5185,7 +5179,7 @@ const dates = getDateRange(startDate, endDate);
         </button>
         </>)}
 
-        {orderBenefitCount > 0 && (
+        {shouldShowSummaryCard(orderBenefitCount) && (
           <button
             type="button"
             onClick={openOrderBenefitDetails}

@@ -261,6 +261,7 @@ export interface SystemSettingsConfig {
   systemVersion: string;
   timeZone: string;
   defaultStartScreen: DefaultStartScreen;
+  hideEmptyDashboardCards: boolean;
   notificationsEnabled: boolean;
   toastNotificationsEnabled: boolean;
   notificationSoundEnabled: boolean;
