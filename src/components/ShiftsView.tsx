@@ -9,6 +9,7 @@ import {
   MessageCircle,
   LockKeyhole,
   Plus,
+  Printer,
   Search,
   Trash2,
   UserRoundCheck,
@@ -3476,6 +3477,18 @@ export default function ShiftsView({
           onPrint={openPrintOptions}
           onExport={exportShiftsCsv}
         />
+      )}
+      {!canManage && (
+        <div className="flex justify-end rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+          <button
+            type="button"
+            onClick={openPrintOptions}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-black text-indigo-700 hover:bg-indigo-100"
+          >
+            <Printer className="h-4 w-4" />
+            הדפסה / PDF
+          </button>
+        </div>
       )}
 
       {!canManage && shiftsOpenForSignup.length > 0 && (
