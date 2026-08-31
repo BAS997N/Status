@@ -3458,25 +3458,25 @@ export default function ShiftsView({
         </section>
       ) : (
         <>
-      <ShiftFilters
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        search={search}
-        onSearchChange={setSearch}
-        shiftTypeFilter={shiftTypeFilter}
-        onShiftTypeFilterChange={setShiftTypeFilter}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        showPast={showPast}
-        onShowPastChange={setShowPast}
-        shiftTypes={Array.from(
-          new Set<string>(shifts.map((shift) => String(shift.title || "")))
-        ).sort(
-          (a, b) => a.localeCompare(b, "he")
-        )}
-        onPrint={openPrintOptions}
-        onExport={exportShiftsCsv}
-      />
+      {canManage && (
+        <ShiftFilters
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          search={search}
+          onSearchChange={setSearch}
+          shiftTypeFilter={shiftTypeFilter}
+          onShiftTypeFilterChange={setShiftTypeFilter}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          showPast={showPast}
+          onShowPastChange={setShowPast}
+          shiftTypes={Array.from(
+            new Set<string>(shifts.map((shift) => String(shift.title || "")))
+          ).sort((a, b) => a.localeCompare(b, "he"))}
+          onPrint={openPrintOptions}
+          onExport={exportShiftsCsv}
+        />
+      )}
 
       {!canManage && shiftsOpenForSignup.length > 0 && (
         <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 shadow-sm">

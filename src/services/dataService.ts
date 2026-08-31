@@ -62,6 +62,7 @@ import {
   LineConstraint,
   LinePresencePlan,
   LinePlanCommanderNotes,
+  LineCycleBackup,
   ReportingClosedVisibleSection,
 } from "../types";
 
@@ -2032,6 +2033,11 @@ const BACKUP_SECTIONS: BackupSection[] = [
   "external_staff",
   "emergency_responses",
   "commander_messages",
+  "line_cycles",
+  "line_constraints",
+  "line_presence_plans",
+  "line_plan_commander_notes",
+  "line_cycle_backups",
 ];
 
 const LOCAL_BACKUP_KEYS: Record<BackupSection, string> = {
@@ -2046,6 +2052,11 @@ const LOCAL_BACKUP_KEYS: Record<BackupSection, string> = {
   external_staff: "idf_external_staff",
   emergency_responses: "idf_emergency_responses",
   commander_messages: "idf_commander_messages",
+  line_cycles: "idf_line_cycles",
+  line_constraints: "idf_line_constraints",
+  line_presence_plans: "idf_line_presence_plans",
+  line_plan_commander_notes: "idf_line_plan_commander_notes",
+  line_cycle_backups: "idf_line_cycle_backups",
 };
 
 const normalizeBackupDocument = (value: unknown, index: number) => {
@@ -2059,6 +2070,11 @@ const normalizeBackupDocument = (value: unknown, index: number) => {
       raw.responseId ||
       raw.messageId ||
       raw.logId ||
+      raw.cycleId ||
+      raw.constraintId ||
+      raw.planId ||
+      raw.noteId ||
+      raw.backupId ||
       `item_${index + 1}`
   );
   return { id, data: removeUndefinedValues({ ...raw }) };
@@ -5974,6 +5990,265 @@ const formattedDate =
       handleFirestoreError(error, OperationType.WRITE, path);
       throw error;
     }
+  },
+
+  async getLineCycleBackups(): Promise<LineCycleBackup[]> {
+    if (!isFirebaseActive()) {
+      const backups: LineCycleBackup[] = JSON.parse(
+        localStorage.getItem("idf_line_cycle_backups") || "[]"
+      );
+      return backups.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+    }
+
+    const path = "line_cycle_backups";
+    try {
+      const snapshot = await getDocs(
+        query(collection(db, path), orderBy("deletedAt", "desc"))
+      );
+      return snapshot.docs.map(
+        (item) => ({ backupId: item.id, ...item.data() } as LineCycleBackup)
+      );
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
+  async deleteLineCycleWithBackup(
+    cycle: LineCycle,
+    deletedBy: string,
+    deletedByName: string
+  ): Promise<LineCycleBackup> {
+    const backupId = `line_backup_${cycle.cycleId}_${Date.now()}`;
+    const deletedAt = new Date().toISOString();
+
+    if (!isFirebaseActive()) {
+      const constraints: LineConstraint[] = JSON.parse(
+        localStorage.getItem("idf_line_constraints") || "[]"
+      );
+      const plans: LinePresencePlan[] = JSON.parse(
+        localStorage.getItem("idf_line_presence_plans") || "[]"
+      );
+      const commanderNotes: LinePlanCommanderNotes[] = JSON.parse(
+        localStorage.getItem("idf_line_plan_commander_notes") || "[]"
+      );
+      const backup: LineCycleBackup = {
+        backupId,
+        cycleId: cycle.cycleId,
+        cycleTitle: cycle.title,
+        deletedAt,
+        deletedBy,
+        deletedByName,
+        cycle,
+        constraints: constraints.filter((item) => item.cycleId === cycle.cycleId),
+        plans: plans.filter((item) => item.cycleId === cycle.cycleId),
+        commanderNotes: commanderNotes.filter(
+          (item) => item.cycleId === cycle.cycleId
+        ),
+      };
+      const backups: LineCycleBackup[] = JSON.parse(
+        localStorage.getItem("idf_line_cycle_backups") || "[]"
+      );
+      localStorage.setItem(
+        "idf_line_cycle_backups",
+        JSON.stringify([backup, ...backups])
+      );
+      const cycles: LineCycle[] = JSON.parse(
+        localStorage.getItem("idf_line_cycles") || "[]"
+      );
+      localStorage.setItem(
+        "idf_line_cycles",
+        JSON.stringify(cycles.filter((item) => item.cycleId !== cycle.cycleId))
+      );
+      localStorage.setItem(
+        "idf_line_constraints",
+        JSON.stringify(constraints.filter((item) => item.cycleId !== cycle.cycleId))
+      );
+      localStorage.setItem(
+        "idf_line_presence_plans",
+        JSON.stringify(plans.filter((item) => item.cycleId !== cycle.cycleId))
+      );
+      localStorage.setItem(
+        "idf_line_plan_commander_notes",
+        JSON.stringify(
+          commanderNotes.filter((item) => item.cycleId !== cycle.cycleId)
+        )
+      );
+      await writeAuditLog({
+        action: "delete",
+        module: "line_planning",
+        targetId: cycle.cycleId,
+        targetLabel: cycle.title,
+        before: cycle,
+        after: { backupId, deletedAt },
+      });
+      return backup;
+    }
+
+    const path = `line_cycles/${cycle.cycleId}`;
+    try {
+      const [constraintSnapshot, planSnapshot, noteSnapshot] = await Promise.all([
+        getDocs(
+          query(
+            collection(db, "line_constraints"),
+            where("cycleId", "==", cycle.cycleId)
+          )
+        ),
+        getDocs(
+          query(
+            collection(db, "line_presence_plans"),
+            where("cycleId", "==", cycle.cycleId)
+          )
+        ),
+        getDocs(
+          query(
+            collection(db, "line_plan_commander_notes"),
+            where("cycleId", "==", cycle.cycleId)
+          )
+        ),
+      ]);
+      const backup: LineCycleBackup = {
+        backupId,
+        cycleId: cycle.cycleId,
+        cycleTitle: cycle.title,
+        deletedAt,
+        deletedBy,
+        deletedByName,
+        cycle,
+        constraints: constraintSnapshot.docs.map(
+          (item) => ({ constraintId: item.id, ...item.data() } as LineConstraint)
+        ),
+        plans: planSnapshot.docs.map(
+          (item) => ({ planId: item.id, ...item.data() } as LinePresencePlan)
+        ),
+        commanderNotes: noteSnapshot.docs.map(
+          (item) => ({ noteId: item.id, ...item.data() } as LinePlanCommanderNotes)
+        ),
+      };
+
+      await setDoc(
+        doc(db, "line_cycle_backups", backupId),
+        removeUndefinedValues(backup)
+      );
+
+      const batch = writeBatch(db);
+      constraintSnapshot.docs.forEach((item) => batch.delete(item.ref));
+      planSnapshot.docs.forEach((item) => batch.delete(item.ref));
+      noteSnapshot.docs.forEach((item) => batch.delete(item.ref));
+      batch.delete(doc(db, "line_cycles", cycle.cycleId));
+      await batch.commit();
+
+      await writeAuditLog({
+        action: "delete",
+        module: "line_planning",
+        targetId: cycle.cycleId,
+        targetLabel: cycle.title,
+        before: cycle,
+        after: {
+          backupId,
+          deletedAt,
+          constraintCount: backup.constraints.length,
+          planCount: backup.plans.length,
+          commanderNoteCount: backup.commanderNotes.length,
+        },
+      });
+      return backup;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
+      throw error;
+    }
+  },
+
+  async restoreLineCycleBackup(
+    backup: LineCycleBackup,
+    restoredBy: string
+  ): Promise<LineCycle> {
+    const restoredAt = new Date().toISOString();
+    const restoredCycle: LineCycle = {
+      ...backup.cycle,
+      status: "archived",
+      updatedAt: restoredAt,
+      updatedBy: restoredBy,
+    };
+
+    if (!isFirebaseActive()) {
+      const mergeById = <T extends Record<string, unknown>>(
+        storageKey: string,
+        items: T[],
+        idKey: keyof T
+      ) => {
+        const current: T[] = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        const restoredIds = new Set(items.map((item) => String(item[idKey])));
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify([
+            ...current.filter((item) => !restoredIds.has(String(item[idKey]))),
+            ...items,
+          ])
+        );
+      };
+      mergeById("idf_line_cycles", [restoredCycle], "cycleId");
+      mergeById("idf_line_constraints", backup.constraints, "constraintId");
+      mergeById("idf_line_presence_plans", backup.plans, "planId");
+      mergeById(
+        "idf_line_plan_commander_notes",
+        backup.commanderNotes,
+        "noteId"
+      );
+      const backups: LineCycleBackup[] = JSON.parse(
+        localStorage.getItem("idf_line_cycle_backups") || "[]"
+      );
+      localStorage.setItem(
+        "idf_line_cycle_backups",
+        JSON.stringify(
+          backups.map((item) =>
+            item.backupId === backup.backupId
+              ? { ...item, restoredAt, restoredBy }
+              : item
+          )
+        )
+      );
+    } else {
+      const batch = writeBatch(db);
+      batch.set(
+        doc(db, "line_cycles", restoredCycle.cycleId),
+        removeUndefinedValues(restoredCycle)
+      );
+      backup.constraints.forEach((item) =>
+        batch.set(
+          doc(db, "line_constraints", item.constraintId),
+          removeUndefinedValues(item)
+        )
+      );
+      backup.plans.forEach((item) =>
+        batch.set(
+          doc(db, "line_presence_plans", item.planId),
+          removeUndefinedValues(item)
+        )
+      );
+      backup.commanderNotes.forEach((item) =>
+        batch.set(
+          doc(db, "line_plan_commander_notes", item.noteId),
+          removeUndefinedValues(item)
+        )
+      );
+      batch.set(
+        doc(db, "line_cycle_backups", backup.backupId),
+        { restoredAt, restoredBy },
+        { merge: true }
+      );
+      await batch.commit();
+    }
+
+    await writeAuditLog({
+      action: "restore",
+      module: "line_planning",
+      targetId: restoredCycle.cycleId,
+      targetLabel: restoredCycle.title,
+      before: { backupId: backup.backupId, deletedAt: backup.deletedAt },
+      after: restoredCycle,
+    });
+    return restoredCycle;
   },
 
   async getLineConstraints(

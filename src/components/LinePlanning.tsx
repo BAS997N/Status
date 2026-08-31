@@ -25,6 +25,7 @@ import {
   LineConstraintPeriod,
   LineConstraintPriority,
   LineCycle,
+  LineCycleBackup,
   LineCycleStatus,
   LinePresencePlan,
   LinePresenceStatus,
@@ -276,6 +277,8 @@ export default function LinePlanning({
   const matrixHeaderScrollRef = useRef<HTMLDivElement>(null);
   const today = getLocalDate();
   const [cycles, setCycles] = useState<LineCycle[]>([]);
+  const [lineCycleBackups, setLineCycleBackups] = useState<LineCycleBackup[]>([]);
+  const [selectedBackupId, setSelectedBackupId] = useState("");
   const [selectedCycleId, setSelectedCycleId] = useState("");
   const [constraints, setConstraints] = useState<LineConstraint[]>([]);
   const [plans, setPlans] = useState<LinePresencePlan[]>([]);
@@ -322,7 +325,9 @@ export default function LinePlanning({
     () =>
       canManage
         ? cycles
-        : cycles.filter((cycle) => cycle.endDate >= today),
+        : cycles.filter(
+            (cycle) => cycle.status !== "archived" && cycle.endDate >= today
+          ),
     [canManage, cycles, today]
   );
   const selectedCycle =
@@ -618,7 +623,9 @@ export default function LinePlanning({
       setSelectedCycleId((current) => {
         const availableItems = canManage
           ? normalizedItems
-          : normalizedItems.filter((item) => item.endDate >= today);
+          : normalizedItems.filter(
+              (item) => item.status !== "archived" && item.endDate >= today
+            );
         if (
           current &&
           availableItems.some((item) => item.cycleId === current)
@@ -653,6 +660,16 @@ export default function LinePlanning({
   useEffect(() => {
     void loadCycles();
   }, []);
+
+  useEffect(() => {
+    if (!canEdit) return;
+    void dataService
+      .getLineCycleBackups()
+      .then((items) => setLineCycleBackups(items))
+      .catch(() =>
+        setMessage({ type: "error", text: "טעינת גיבויי הקווים שנמחקו נכשלה." })
+      );
+  }, [canEdit]);
 
   useEffect(() => {
     if (!selectedCycleId) {
@@ -874,6 +891,100 @@ export default function LinePlanning({
       });
     } catch {
       setMessage({ type: "error", text: "עדכון מצב הקו נכשל." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteSelectedCycle = async () => {
+    if (!selectedCycle || !canEdit) return;
+    const confirmed = await appDialog.confirm(
+      `מחיקת הקו „${selectedCycle.title}” תסיר אותו ואת כל האילוצים, התכנון והערות המפקדים שלו מהתצוגה הפעילה. לפני המחיקה יישמר גיבוי מלא באתר שניתן לשחזר ממנו. להמשיך?`,
+      {
+        title: "מחיקת קו",
+        confirmLabel: "מחק ושמור בגיבוי",
+        tone: "danger",
+      }
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const backup = await dataService.deleteLineCycleWithBackup(
+        selectedCycle,
+        currentUser.userId,
+        currentUser.fullName
+      );
+      const remaining = cycles.filter(
+        (item) => item.cycleId !== selectedCycle.cycleId
+      );
+      setCycles(remaining);
+      setLineCycleBackups((current) => [
+        backup,
+        ...current.filter((item) => item.backupId !== backup.backupId),
+      ]);
+      setSelectedCycleId(remaining[0]?.cycleId || "");
+      setConstraints([]);
+      setPlans([]);
+      setCommanderNotes([]);
+      setMessage({
+        type: "success",
+        text: "הקו נמחק מהמערכת הפעילה ונשמר בגיבויי הקווים לשחזור עתידי.",
+      });
+    } catch {
+      setMessage({
+        type: "error",
+        text: "מחיקת הקו נכשלה. הקו לא הוסר.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const restoreDeletedCycle = async () => {
+    const backup = lineCycleBackups.find(
+      (item) => item.backupId === selectedBackupId
+    );
+    if (!backup || !canEdit) return;
+    const confirmed = await appDialog.confirm(
+      `לשחזר את הקו „${backup.cycleTitle}” יחד עם כל האילוצים והתכנון שנשמרו בזמן המחיקה? הקו ישוחזר תחילה למצב ארכיון.`,
+      {
+        title: "שחזור קו שנמחק",
+        confirmLabel: "שחזר קו",
+      }
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const restored = await dataService.restoreLineCycleBackup(
+        backup,
+        currentUser.userId
+      );
+      setCycles((current) => [
+        restored,
+        ...current.filter((item) => item.cycleId !== restored.cycleId),
+      ]);
+      setLineCycleBackups((current) =>
+        current.map((item) =>
+          item.backupId === backup.backupId
+            ? {
+                ...item,
+                restoredAt: new Date().toISOString(),
+                restoredBy: currentUser.userId,
+              }
+            : item
+        )
+      );
+      setSelectedCycleId(restored.cycleId);
+      setMessage({
+        type: "success",
+        text: "הקו שוחזר במלואו למצב ארכיון. ניתן להוציא אותו מהארכיון באמצעות הכפתור ליד בחירת הקו.",
+      });
+    } catch {
+      setMessage({ type: "error", text: "שחזור הקו מהגיבוי נכשל." });
     } finally {
       setSaving(false);
     }
@@ -1359,7 +1470,8 @@ export default function LinePlanning({
                 <Pencil className="h-4 w-4" />
                 ערוך תאריכים
               </button>
-              {selectedCycle.status !== "open" && (
+              {selectedCycle.status !== "open" &&
+                selectedCycle.status !== "archived" && (
                 <button
                   type="button"
                   onClick={() => changeCycleStatus("open")}
@@ -1389,10 +1501,71 @@ export default function LinePlanning({
                   העבר לארכיון
                 </button>
               )}
+              {selectedCycle.status === "archived" && (
+                <button
+                  type="button"
+                  onClick={() => changeCycleStatus("closed")}
+                  disabled={saving}
+                  className="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-sky-700 disabled:opacity-50"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  הוצא מהארכיון
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={deleteSelectedCycle}
+                disabled={saving}
+                className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                מחק קו
+              </button>
             </div>
           )}
         </div>
+        {selectedCycle?.status === "archived" && canEdit && (
+          <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-bold leading-5 text-sky-800">
+            קו בארכיון נשמר במלואו ואינו מוצג לחיילים. ניתן להוציא אותו מהארכיון ללא אובדן אילוצים או תכנון.
+          </div>
+        )}
       </div>
+
+      {canEdit && lineCycleBackups.length > 0 && (
+        <details className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm">
+          <summary className="cursor-pointer text-sm font-black text-amber-900">
+            גיבויי קווים שנמחקו ({lineCycleBackups.length})
+          </summary>
+          <p className="mt-2 text-xs font-bold leading-5 text-amber-800">
+            לפני מחיקת קו נשמר כאן עותק מלא שלו, כולל אילוצים, תכנון והערות מפקדים.
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <select
+              value={selectedBackupId}
+              onChange={(event) => setSelectedBackupId(event.target.value)}
+              className="input flex-1 bg-white"
+            >
+              <option value="">בחר גיבוי לשחזור...</option>
+              {lineCycleBackups.map((backup) => (
+                <option key={backup.backupId} value={backup.backupId}>
+                  {backup.cycleTitle} · נמחק ב־
+                  {new Date(backup.deletedAt).toLocaleString("he-IL")}
+                  {backup.restoredAt ? " · שוחזר בעבר" : ""}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={restoreDeletedCycle}
+              disabled={!selectedBackupId || saving}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              <RefreshCw className="h-4 w-4" />
+              שחזר קו שנמחק
+            </button>
+          </div>
+        </details>
+      )}
 
       {canManage && selectedCycle && (
         <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">

@@ -230,6 +230,21 @@ export interface LinePlanCommanderNotes {
   updatedByName: string;
 }
 
+export interface LineCycleBackup {
+  backupId: string;
+  cycleId: string;
+  cycleTitle: string;
+  deletedAt: string;
+  deletedBy: string;
+  deletedByName: string;
+  cycle: LineCycle;
+  constraints: LineConstraint[];
+  plans: LinePresencePlan[];
+  commanderNotes: LinePlanCommanderNotes[];
+  restoredAt?: string;
+  restoredBy?: string;
+}
+
 export type ReportingClosedVisibleSection =
   | "shifts"
   | "planning"
@@ -396,7 +411,12 @@ export type BackupSection =
   | "shift_acknowledgements"
   | "external_staff"
   | "emergency_responses"
-  | "commander_messages";
+  | "commander_messages"
+  | "line_cycles"
+  | "line_constraints"
+  | "line_presence_plans"
+  | "line_plan_commander_notes"
+  | "line_cycle_backups";
 
 export interface BackupDocument {
   id: string;

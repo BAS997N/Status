@@ -36,6 +36,11 @@ const SECTION_LABELS: Record<BackupSection, string> = {
   external_staff: "אנשי צוות חיצוניים",
   emergency_responses: "תגובות והיסטוריית מרכז חירום",
   commander_messages: "הודעות מפקד ואישורי קריאה",
+  line_cycles: "קווים ותאריכי תכנון",
+  line_constraints: "אילוצי חיילים לקווים",
+  line_presence_plans: "תכנון נוכחות בקווים",
+  line_plan_commander_notes: "הערות מפקדים בתכנון קו",
+  line_cycle_backups: "גיבויי קווים שנמחקו",
 };
 
 const DEFAULT_SECTIONS: BackupSection[] = [
@@ -50,6 +55,11 @@ const DEFAULT_SECTIONS: BackupSection[] = [
   "external_staff",
   "emergency_responses",
   "commander_messages",
+  "line_cycles",
+  "line_constraints",
+  "line_presence_plans",
+  "line_plan_commander_notes",
+  "line_cycle_backups",
 ];
 
 const formatDate = (value?: string) =>

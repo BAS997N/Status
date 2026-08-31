@@ -321,6 +321,12 @@ service cloud.firestore {
       allow create, update, delete: if canManageLinePlanning();
     }
 
+    // Automatic snapshots created before deleting a line cycle. Only line
+    // planning managers may inspect or restore these records.
+    match /line_cycle_backups/{backupId} {
+      allow read, create, update, delete: if canManageLinePlanning();
+    }
+
     match /external_staff/{staffId} {
       allow read: if hasPermission("shifts.view") || hasPermission("system_admin.external_staff.manage");
       allow create, update, delete: if hasPermission("system_admin.external_staff.manage");
