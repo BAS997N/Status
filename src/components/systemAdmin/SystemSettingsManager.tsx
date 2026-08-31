@@ -46,6 +46,8 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   attendanceReminderEnabled: false,
   attendanceReminderTime: "09:00",
   registrationNotificationRecipientPersonalIds: ["5749199"],
+  attendanceReportPushEnabled: false,
+  attendanceReportPushRecipientPersonalIds: ["5749199"],
   cacheMinutes: 30,
   autoRefreshSeconds: 60,
   maintenanceMode: false,
@@ -269,6 +271,19 @@ export default function SystemSettingsManager({
       "registrationNotificationRecipientPersonalIds",
       nextRecipients.length > 0 ? nextRecipients : ["5749199"]
     );
+  };
+
+  const toggleAttendanceReportPushRecipient = (
+    personalId: string,
+    checked: boolean
+  ) => {
+    const currentRecipients =
+      draft.attendanceReportPushRecipientPersonalIds || ["5749199"];
+    const nextRecipients = checked
+      ? Array.from(new Set([...currentRecipients, personalId]))
+      : currentRecipients.filter((item) => item !== personalId);
+
+    update("attendanceReportPushRecipientPersonalIds", nextRecipients);
   };
 
   const toggleAllowedRole = (
@@ -788,6 +803,58 @@ export default function SystemSettingsManager({
                 );
               })}
             </div>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+            <Toggle
+              label="Push על דיווח נוכחות חדש"
+              description="שולח התראה אחת לאחר שחייל מגיש דיווח, גם כאשר ההגשה כוללת טווח תאריכים."
+              checked={draft.attendanceReportPushEnabled}
+              disabled={!draft.notificationsEnabled}
+              onChange={(value) => update("attendanceReportPushEnabled", value)}
+            />
+            <div className="mt-3 text-xs font-black text-slate-700">
+              מי יקבל את ההתראה
+            </div>
+            <div className="mt-2 grid max-h-56 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+              {registrationNotificationUsers.map((user) => {
+                const personalId = String(user.personalId || "").trim();
+                const checked = (
+                  draft.attendanceReportPushRecipientPersonalIds || ["5749199"]
+                ).includes(personalId);
+                return (
+                  <label
+                    key={user.userId}
+                    className={`flex items-center gap-3 rounded-xl border p-3 transition ${
+                      checked ? "border-emerald-400 bg-white" : "border-slate-200 bg-white/70"
+                    } ${draft.attendanceReportPushEnabled ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={!draft.attendanceReportPushEnabled}
+                      onChange={(event) =>
+                        toggleAttendanceReportPushRecipient(personalId, event.target.checked)
+                      }
+                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-black text-slate-900">
+                        {user.fullName}
+                      </span>
+                      <span className="block truncate text-[11px] font-medium text-slate-500">
+                        {user.personalId} · {user.medicalRole || user.unit || "משתמש מערכת"}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            {draft.attendanceReportPushEnabled &&
+              (draft.attendanceReportPushRecipientPersonalIds || []).length === 0 && (
+                <p className="mt-2 text-xs font-bold text-rose-600">
+                  יש לבחור לפחות מקבל אחד כדי שההתראות יישלחו.
+                </p>
+              )}
           </div>
           <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
             <Toggle

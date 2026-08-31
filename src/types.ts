@@ -267,6 +267,8 @@ export interface SystemSettingsConfig {
   attendanceReminderEnabled: boolean;
   attendanceReminderTime: string;
   registrationNotificationRecipientPersonalIds: string[];
+  attendanceReportPushEnabled: boolean;
+  attendanceReportPushRecipientPersonalIds: string[];
   cacheMinutes: number;
   autoRefreshSeconds: number;
   maintenanceMode: boolean;

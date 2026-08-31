@@ -2029,6 +2029,7 @@ setUserProfile(newProfile);
     !!cutOrderStartDate &&
     !!cutOrderEndDate &&
     ["cut_order", "base", "home"].includes(status);
+  let pushReportId = "";
 
   if (isRangeReport) {
     if (!cutOrderStartDate || !cutOrderEndDate) {
@@ -2065,6 +2066,7 @@ setUserProfile(newProfile);
       };
 
       const reportId = await dataService.createAttendanceReport(payload);
+      pushReportId = reportId;
 
       upsertReportInState({
         ...payload,
@@ -2083,6 +2085,7 @@ resetByName: undefined,
   } else {
     const payload = buildReportPayload(reportDate);
     const reportId = await dataService.createAttendanceReport(payload);
+    pushReportId = reportId;
 
     upsertReportInState({
       ...payload,
@@ -2098,6 +2101,30 @@ resetByName: undefined,
   }
 
   showAlertToast();
+
+  if (
+    systemSettings?.notificationsEnabled !== false &&
+    systemSettings?.attendanceReportPushEnabled === true &&
+    pushReportId &&
+    (systemSettings.attendanceReportPushRecipientPersonalIds || []).length > 0
+  ) {
+    const statusLabel = statusLabels[status]?.label || status;
+    const formatPushDate = (value?: string) =>
+      value ? value.split("-").reverse().join(".") : "";
+    const submittedDates = isRangeReport
+      ? `${formatPushDate(cutOrderStartDate)} עד ${formatPushDate(cutOrderEndDate)}`
+      : formatPushDate(getReportDate(reportDate));
+    void sendAutomaticPush({
+      kind: "attendance_report",
+      target: { type: "attendance_report_recipients" },
+      title: "דיווח נוכחות חדש",
+      body: `${userProfile.fullName} דיווח/ה ${statusLabel} לתאריך ${submittedDates}`,
+      url: "/Status/",
+      reportId: pushReportId,
+    }).catch((error) => {
+      console.error("Attendance report push failed:", error);
+    });
+  }
 
   refreshNotifications();
 };

@@ -4,6 +4,7 @@ const REQUIRED_PERMISSION_BY_KIND = {
   shift: "shifts.manage",
   attendance_reminder: "reports.manage",
   registration: null,
+  attendance_report: null,
 };
 
 const jsonResponse = (body, status, origin) =>
@@ -1171,6 +1172,7 @@ function matchesTarget(subscription, target, kind) {
     );
   }
   if (target.type === "registration_recipients") return false;
+  if (target.type === "attendance_report_recipients") return false;
   if (target.type === "unit") {
     return subscription.role === "soldier" && subscription.unit === target.unit;
   }
@@ -1406,15 +1408,42 @@ async function handlePush(request, env, origin) {
     Number.isFinite(registrationCreatedAt) &&
     registrationAgeMs >= 0 &&
     registrationAgeMs <= 15 * 60 * 1000;
+  let isAttendanceReportPush = false;
+  if (
+    input.kind === "attendance_report" &&
+    input.target?.type === "attendance_report_recipients" &&
+    typeof input.reportId === "string" &&
+    input.reportId.trim()
+  ) {
+    const submittedReport = await getOptionalFirestoreDocument(
+      projectId,
+      accessToken,
+      `attendance/${input.reportId.trim()}`
+    );
+    const reportTime = Date.parse(
+      String(submittedReport?.updatedAt || submittedReport?.timestamp || "")
+    );
+    const reportAgeMs = Date.now() - reportTime;
+    isAttendanceReportPush =
+      submittedReport?.userId === claims.sub &&
+      submittedReport?.createdBy === claims.sub &&
+      Number.isFinite(reportTime) &&
+      reportAgeMs >= 0 &&
+      reportAgeMs <= 15 * 60 * 1000;
+  }
   const authorized =
     isRegistrationPush ||
+    isAttendanceReportPush ||
     effectiveRole === "super_admin" ||
     (requiredPermission && permissionSettings.roleMap?.[effectiveRole]?.[requiredPermission] === true);
   if (!authorized) return jsonResponse({ error: "Permission denied" }, 403, origin);
 
   let registrationRecipientPersonalIds = ["5749199"];
-  if (input.kind === "registration") {
-    const systemSettings = await getOptionalFirestoreDocument(
+  let attendanceReportRecipientPersonalIds = [];
+  let attendanceReportPushEnabled = false;
+  let systemSettings = null;
+  if (input.kind === "registration" || input.kind === "attendance_report") {
+    systemSettings = await getOptionalFirestoreDocument(
       projectId,
       accessToken,
       "settings/system_settings"
@@ -1429,6 +1458,21 @@ async function handlePush(request, env, origin) {
     if (configuredRecipients.length > 0) {
       registrationRecipientPersonalIds = configuredRecipients;
     }
+    attendanceReportPushEnabled = systemSettings?.attendanceReportPushEnabled === true;
+    attendanceReportRecipientPersonalIds = Array.isArray(
+      systemSettings?.attendanceReportPushRecipientPersonalIds
+    )
+      ? systemSettings.attendanceReportPushRecipientPersonalIds
+          .map((value) => String(value || "").trim())
+          .filter(Boolean)
+      : [];
+  }
+
+  if (
+    input.kind === "attendance_report" &&
+    (!attendanceReportPushEnabled || systemSettings?.notificationsEnabled === false)
+  ) {
+    return jsonResponse({ ok: true, recipients: 0, sent: 0, failed: 0 }, 200, origin);
   }
 
   const subscriptions = await getPushSubscriptions(projectId, accessToken);
@@ -1438,6 +1482,15 @@ async function handlePush(request, env, origin) {
         subscription.token &&
         subscription.enabled !== false &&
         registrationRecipientPersonalIds.includes(
+          String(subscription.personalId || "").trim()
+        )
+      );
+    }
+    if (input.kind === "attendance_report") {
+      return (
+        subscription.token &&
+        subscription.enabled !== false &&
+        attendanceReportRecipientPersonalIds.includes(
           String(subscription.personalId || "").trim()
         )
       );

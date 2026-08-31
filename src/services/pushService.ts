@@ -6,17 +6,19 @@ export type PushTarget =
   | { type: "all" }
   | { type: "management" }
   | { type: "registration_recipients" }
+  | { type: "attendance_report_recipients" }
   | { type: "role"; role: "commander" | "soldier" | "adjutant_officer" }
   | { type: "unit"; unit: string }
   | { type: "user"; userId: string }
   | { type: "users"; userIds: string[] };
 
 export interface AutomaticPushRequest {
-  kind: "commander_message" | "emergency" | "shift" | "attendance_reminder" | "registration";
+  kind: "commander_message" | "emergency" | "shift" | "attendance_reminder" | "registration" | "attendance_report";
   target: PushTarget;
   title: string;
   body: string;
   url?: string;
+  reportId?: string;
 }
 
 export async function sendAutomaticPush(request: AutomaticPushRequest) {

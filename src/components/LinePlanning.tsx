@@ -318,8 +318,12 @@ export default function LinePlanning({
   >({});
   const [dirtyPlanUserIds, setDirtyPlanUserIds] = useState<string[]>([]);
 
+  const availableCycles = useMemo(
+    () => cycles.filter((cycle) => cycle.endDate >= today),
+    [cycles, today]
+  );
   const selectedCycle =
-    cycles.find((cycle) => cycle.cycleId === selectedCycleId) || null;
+    availableCycles.find((cycle) => cycle.cycleId === selectedCycleId) || null;
   const cycleDates = useMemo(
     () =>
       selectedCycle
@@ -609,15 +613,18 @@ export default function LinePlanning({
 
       setCycles(normalizedItems);
       setSelectedCycleId((current) => {
+        const availableItems = normalizedItems.filter(
+          (item) => item.endDate >= today
+        );
         if (
           current &&
-          normalizedItems.some((item) => item.cycleId === current)
+          availableItems.some((item) => item.cycleId === current)
         ) {
           return current;
         }
         return (
-          normalizedItems.find((item) => item.status === "open")?.cycleId ||
-          normalizedItems[0]?.cycleId ||
+          availableItems.find((item) => item.status === "open")?.cycleId ||
+          availableItems[0]?.cycleId ||
           ""
         );
       });
@@ -1322,7 +1329,7 @@ export default function LinePlanning({
               className="input mt-1"
             >
               <option value="">בחר קו...</option>
-              {cycles.map((cycle) => (
+              {availableCycles.map((cycle) => (
                 <option key={cycle.cycleId} value={cycle.cycleId}>
                   {cycle.title} · {formatDate(cycle.startDate, true)}–
                   {formatDate(cycle.endDate, true)} · {statusLabel[cycle.status]}

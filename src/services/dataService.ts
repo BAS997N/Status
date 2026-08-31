@@ -231,6 +231,8 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   attendanceReminderEnabled: false,
   attendanceReminderTime: "09:00",
   registrationNotificationRecipientPersonalIds: ["5749199"],
+  attendanceReportPushEnabled: false,
+  attendanceReportPushRecipientPersonalIds: ["5749199"],
   cacheMinutes: 30,
   autoRefreshSeconds: 60,
   maintenanceMode: false,
@@ -523,6 +525,18 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
       ? Array.from(
           new Set(
             raw.registrationNotificationRecipientPersonalIds
+              .map((value) => String(value || "").trim())
+              .filter((value) => /^\d{5,10}$/.test(value))
+          )
+        )
+      : ["5749199"],
+    attendanceReportPushEnabled: raw.attendanceReportPushEnabled === true,
+    attendanceReportPushRecipientPersonalIds: Array.isArray(
+      raw.attendanceReportPushRecipientPersonalIds
+    )
+      ? Array.from(
+          new Set(
+            raw.attendanceReportPushRecipientPersonalIds
               .map((value) => String(value || "").trim())
               .filter((value) => /^\d{5,10}$/.test(value))
           )
