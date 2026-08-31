@@ -262,6 +262,10 @@ export interface SystemSettingsConfig {
   timeZone: string;
   defaultStartScreen: DefaultStartScreen;
   hideEmptyDashboardCards: boolean;
+  dashboardCardVisibilityOverrides: Record<
+    string,
+    "auto" | "show" | "hide"
+  >;
   notificationsEnabled: boolean;
   toastNotificationsEnabled: boolean;
   notificationSoundEnabled: boolean;

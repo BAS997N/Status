@@ -226,6 +226,7 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   timeZone: "Asia/Jerusalem",
   defaultStartScreen: "dashboard",
   hideEmptyDashboardCards: true,
+  dashboardCardVisibilityOverrides: {},
   notificationsEnabled: true,
   toastNotificationsEnabled: true,
   notificationSoundEnabled: false,
@@ -260,6 +261,8 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
   whatsappGroups: [],
   adminTabOrder: [
     "users",
+    "app_status",
+    "system_roles",
     "permissions",
     "statuses",
     "roles",
@@ -267,12 +270,13 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettingsConfig = {
     "shift_roles",
     "shift_types",
     "external_staff",
+    "shift_resources",
     "sheets",
     "audit",
     "backups",
     "settings",
   ],
-  mainTabOrder: ["reporter", "dashboard", "shifts", "emergency", "system_admin"],
+  mainTabOrder: ["reporter", "dashboard", "shifts", "line_planning", "emergency", "system_admin"],
   operationalResources: [],
 };
 
@@ -512,6 +516,17 @@ const normalizeSystemSettings = (value: unknown): SystemSettingsConfig => {
     timeZone: typeof raw.timeZone === "string" && raw.timeZone.trim() ? raw.timeZone.trim() : DEFAULT_SYSTEM_SETTINGS.timeZone,
     defaultStartScreen: raw.defaultStartScreen === "reporter" ? "reporter" : "dashboard",
     hideEmptyDashboardCards: raw.hideEmptyDashboardCards !== false,
+    dashboardCardVisibilityOverrides:
+      raw.dashboardCardVisibilityOverrides &&
+      typeof raw.dashboardCardVisibilityOverrides === "object"
+        ? Object.fromEntries(
+            Object.entries(raw.dashboardCardVisibilityOverrides).filter(
+              ([key, value]) =>
+                Boolean(key) &&
+                (value === "auto" || value === "show" || value === "hide")
+            )
+          )
+        : {},
     notificationsEnabled: raw.notificationsEnabled !== false,
     toastNotificationsEnabled: raw.toastNotificationsEnabled !== false,
     notificationSoundEnabled: raw.notificationSoundEnabled === true,

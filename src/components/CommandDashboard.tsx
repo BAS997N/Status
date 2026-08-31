@@ -1315,8 +1315,13 @@ const activeReports = reports.filter(
 
   const hideEmptyOperationalCards =
     systemSettings?.hideEmptyDashboardCards !== false;
-  const shouldShowSummaryCard = (count: number) =>
-    !hideEmptyOperationalCards || count > 0;
+  const shouldShowSummaryCard = (cardId: string, count: number) => {
+    const override =
+      systemSettings?.dashboardCardVisibilityOverrides?.[cardId] || "auto";
+    if (override === "show") return true;
+    if (override === "hide") return false;
+    return !hideEmptyOperationalCards || count > 0;
+  };
 
   const returnToBaseTodayCount = reportedTodayList.filter(
   (s) => s.latestTodayReport?.dayMarker === "return_to_base"
@@ -5128,7 +5133,7 @@ const dates = getDateRange(startDate, endDate);
           </div>
         </div>
 
-        {shouldShowSummaryCard(availableForActivityDetails.length) && (<>
+        {shouldShowSummaryCard("available", availableForActivityDetails.length) && (<>
         {/* Available for activity — combined card */}
         <button
           type="button"
@@ -5155,7 +5160,7 @@ const dates = getDateRange(startDate, endDate);
         </button>
         </>)}
 
-        {shouldShowSummaryCard(disciplinaryRestrictionDetails.length) && (<>
+        {shouldShowSummaryCard("disciplinary", disciplinaryRestrictionDetails.length) && (<>
         {/* Disciplinary restriction / Ras\"ar duties */}
         <button
           type="button"
@@ -5179,7 +5184,7 @@ const dates = getDateRange(startDate, endDate);
         </button>
         </>)}
 
-        {shouldShowSummaryCard(orderBenefitCount) && (
+        {shouldShowSummaryCard("order_benefits", orderBenefitCount) && (
           <button
             type="button"
             onClick={openOrderBenefitDetails}
@@ -5211,7 +5216,7 @@ const dates = getDateRange(startDate, endDate);
         )}
 
         {additionalSummaryStatusCards.map(({ status, count, items }) =>
-          shouldShowSummaryCard(count) ? (
+          shouldShowSummaryCard(`status:${status.id}`, count) ? (
             <button
               key={status.id}
               type="button"
@@ -5261,7 +5266,7 @@ const dates = getDateRange(startDate, endDate);
           ) : null
         )}
 
-        {shouldShowSummaryCard(absentCount) && (<>
+        {shouldShowSummaryCard("outside_unit", absentCount) && (<>
         {/* Absent Status */}
         <button
           type="button"
@@ -5290,7 +5295,7 @@ const dates = getDateRange(startDate, endDate);
         </button>
         </>)}
 
-{shouldShowSummaryCard(statusStats.not_on_order || 0) && (<>
+{shouldShowSummaryCard("not_on_order", statusStats.not_on_order || 0) && (<>
 {/* Not On Order Status */}
 <button
   type="button"
@@ -5323,7 +5328,7 @@ const dates = getDateRange(startDate, endDate);
   </div>
 </button>
 </>)}
-              {shouldShowSummaryCard(statusStats.cut_order || 0) && (<>
+              {shouldShowSummaryCard("cut_order", statusStats.cut_order || 0) && (<>
               {/* Cut Order Status */}
 <button
   type="button"
@@ -5356,7 +5361,7 @@ const dates = getDateRange(startDate, endDate);
   </div>
 </button>
 </>)}
-              {shouldShowSummaryCard(returnToBaseTodayCount) && (<>
+              {shouldShowSummaryCard("return_to_base", returnToBaseTodayCount) && (<>
               {/* Return To Base Today */}
 <button
   type="button"
@@ -5387,7 +5392,7 @@ const dates = getDateRange(startDate, endDate);
 </button>
 </>)}
 
-{shouldShowSummaryCard(exitHomeTodayCount) && (<>
+{shouldShowSummaryCard("exit_home", exitHomeTodayCount) && (<>
 {/* Exit Home Today */}
 <button
   type="button"
@@ -5418,7 +5423,7 @@ const dates = getDateRange(startDate, endDate);
 </button>
 </>)}
               
-        {shouldShowSummaryCard(unreportedCount) && (<>
+        {shouldShowSummaryCard("unreported", unreportedCount) && (<>
         {/* Unreported Today */}
         <button
           type="button"

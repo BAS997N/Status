@@ -13,8 +13,11 @@ import {
   Star,
   Edit2,
   CalendarRange,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import {
+  AttendanceStatusConfig,
   SystemMode,
   SystemRole,
   SystemSettingsConfig,
@@ -29,9 +32,49 @@ import { playNotificationSound } from "../../services/notificationSoundService";
 interface SystemSettingsManagerProps {
   currentUser: UserProfile;
   users: UserProfile[];
+  attendanceStatuses: AttendanceStatusConfig[];
   settings: SystemSettingsConfig | null;
   onSettingsChanged: (settings: SystemSettingsConfig) => void;
 }
+
+const MAIN_TAB_OPTIONS = [
+  { id: "reporter", label: "דיווח נוכחות אישי" },
+  { id: "dashboard", label: "לוח בקרה מפקדים" },
+  { id: "shifts", label: "משמרות" },
+  { id: "line_planning", label: "תכנון קו ואילוצים" },
+  { id: "emergency", label: "מרכז חירום" },
+  { id: "system_admin", label: "ניהול מערכת" },
+] as const;
+
+const ADMIN_TAB_OPTIONS = [
+  { id: "users", label: "משתמשים ותפקידי מערכת" },
+  { id: "app_status", label: "התקנת אפליקציה והתראות" },
+  { id: "system_roles", label: "תפקידי ניהול" },
+  { id: "permissions", label: "הרשאות לפי תפקיד" },
+  { id: "statuses", label: "סטטוסי נוכחות" },
+  { id: "units", label: "יחידות ושיוכים" },
+  { id: "roles", label: "תפקידי רפואה" },
+  { id: "shift_types", label: "שמות וסוגי משמרות" },
+  { id: "shift_roles", label: "ניהול תפקידי משמרת" },
+  { id: "external_staff", label: "אנשי צוות חיצוניים" },
+  { id: "shift_resources", label: "משאבי פעילות מיוחדת" },
+  { id: "settings", label: "הגדרות מערכת" },
+  { id: "sheets", label: "Google Sheets" },
+  { id: "audit", label: "Audit — יומן ביקורת" },
+  { id: "backups", label: "גיבויים ושחזור" },
+] as const;
+
+const DASHBOARD_CARD_OPTIONS = [
+  { id: "available", label: "זמינים לפעילות" },
+  { id: "disciplinary", label: "בריתוק / עבודות רס״ר" },
+  { id: "order_benefits", label: "הטבות לאחר שירות" },
+  { id: "outside_unit", label: "מחוץ ליחידה" },
+  { id: "not_on_order", label: "לא בצו" },
+  { id: "cut_order", label: "חיתוך צו / משוחרר זמנית" },
+  { id: "return_to_base", label: "חוזרים לבסיס היום" },
+  { id: "exit_home", label: "יוצאים לבית היום" },
+  { id: "unreported", label: "טרם דיווחו היום" },
+] as const;
 
 const DEFAULT_SETTINGS: SystemSettingsConfig = {
   systemName: "מערכת נוכחות חיילים",
@@ -41,6 +84,7 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
   timeZone: "Asia/Jerusalem",
   defaultStartScreen: "dashboard",
   hideEmptyDashboardCards: true,
+  dashboardCardVisibilityOverrides: {},
   notificationsEnabled: true,
   toastNotificationsEnabled: true,
   notificationSoundEnabled: false,
@@ -73,8 +117,8 @@ const DEFAULT_SETTINGS: SystemSettingsConfig = {
     assemblyTime: "",
   },
   whatsappGroups: [],
-  adminTabOrder: [],
-  mainTabOrder: [],
+  adminTabOrder: ADMIN_TAB_OPTIONS.map((item) => item.id),
+  mainTabOrder: MAIN_TAB_OPTIONS.map((item) => item.id),
   operationalResources: [],
 };
 
@@ -135,6 +179,7 @@ const REPORTING_CLOSED_SECTION_OPTIONS: Array<{
 export default function SystemSettingsManager({
   currentUser,
   users,
+  attendanceStatuses,
   settings,
   onSettingsChanged,
 }: SystemSettingsManagerProps) {
@@ -257,6 +302,66 @@ export default function SystemSettingsManager({
     setIsDirty(true);
     setMessage(null);
   };
+
+  const getCompleteOrder = (
+    current: string[] | undefined,
+    options: ReadonlyArray<{ id: string }>
+  ) => {
+    const validIds = new Set(options.map((item) => item.id));
+    return [
+      ...(current || []).filter((id) => validIds.has(id)),
+      ...options.map((item) => item.id).filter((id) => !(current || []).includes(id)),
+    ];
+  };
+
+  const moveTab = (
+    key: "mainTabOrder" | "adminTabOrder",
+    id: string,
+    direction: -1 | 1,
+    options: ReadonlyArray<{ id: string }>
+  ) => {
+    const order = getCompleteOrder(draft[key], options);
+    const index = order.indexOf(id);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= order.length) return;
+    [order[index], order[nextIndex]] = [order[nextIndex], order[index]];
+    update(key, order);
+  };
+
+  const updateDashboardCardVisibility = (
+    cardId: string,
+    value: "auto" | "show" | "hide"
+  ) => {
+    update("dashboardCardVisibilityOverrides", {
+      ...(draft.dashboardCardVisibilityOverrides || {}),
+      [cardId]: value,
+    });
+  };
+
+  const dedicatedDashboardStatusIds = new Set([
+    "base",
+    "home",
+    "not_on_order",
+    "cut_order",
+    "processing_days",
+    "refresh_days",
+    "family_days",
+  ]);
+  const dashboardCardOptions = [
+    ...DASHBOARD_CARD_OPTIONS,
+    ...attendanceStatuses
+      .filter(
+        (status) =>
+          status.enabled &&
+          status.visibleToCommanders &&
+          !dedicatedDashboardStatusIds.has(status.id)
+      )
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((status) => ({
+        id: `status:${status.id}`,
+        label: status.label,
+      })),
+  ];
 
   const toggleRegistrationNotificationRecipient = (
     personalId: string,
@@ -737,6 +842,109 @@ export default function SystemSettingsManager({
             checked={draft.hideEmptyDashboardCards}
             onChange={(value) => update("hideEmptyDashboardCards", value)}
           />
+        </div>
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+          <div className="text-sm font-black text-slate-900">
+            חריגים לתצוגת כרטיסי לוח הבקרה
+          </div>
+          <p className="mt-1 text-xs font-medium leading-5 text-slate-500">
+            ניתן להכריח כרטיס מסוים להופיע או להסתתר, בלי קשר להגדרה הכללית של כרטיסים ריקים.
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {dashboardCardOptions.map((card) => (
+              <label
+                key={card.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3"
+              >
+                <span className="min-w-0 text-xs font-black text-slate-800">
+                  {card.label}
+                </span>
+                <select
+                  value={
+                    draft.dashboardCardVisibilityOverrides?.[card.id] || "auto"
+                  }
+                  onChange={(event) =>
+                    updateDashboardCardVisibility(
+                      card.id,
+                      event.target.value as "auto" | "show" | "hide"
+                    )
+                  }
+                  className="min-w-[9rem] rounded-lg border border-slate-300 bg-white px-2 py-2 text-[11px] font-bold text-slate-700"
+                >
+                  <option value="auto">לפי ההגדרה הכללית</option>
+                  <option value="show">תמיד להציג</option>
+                  <option value="hide">תמיד להסתיר</option>
+                </select>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+          {[
+            {
+              title: "סדר הטאבים הראשיים",
+              key: "mainTabOrder" as const,
+              options: MAIN_TAB_OPTIONS,
+            },
+            {
+              title: "סדר מסכי ניהול המערכת",
+              key: "adminTabOrder" as const,
+              options: ADMIN_TAB_OPTIONS,
+            },
+          ].map((list) => {
+            const order = getCompleteOrder(draft[list.key], list.options);
+            return (
+              <div
+                key={list.key}
+                className="rounded-xl border border-slate-200 bg-slate-50/70 p-4"
+              >
+                <div className="text-sm font-black text-slate-900">
+                  {list.title}
+                </div>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  השתמשו בחצים כדי לקבוע את סדר ההצגה במערכת.
+                </p>
+                <div className="mt-3 max-h-96 space-y-2 overflow-y-auto pl-1">
+                  {order.map((id, index) => {
+                    const option = list.options.find((item) => item.id === id);
+                    if (!option) return null;
+                    return (
+                      <div
+                        key={id}
+                        className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2"
+                      >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[11px] font-black text-slate-500">
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0 flex-1 text-xs font-black text-slate-800">
+                          {option.label}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => moveTab(list.key, id, -1, list.options)}
+                          disabled={index === 0}
+                          aria-label={`העבר את ${option.label} למעלה`}
+                          className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-30"
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveTab(list.key, id, 1, list.options)}
+                          disabled={index === order.length - 1}
+                          aria-label={`העבר את ${option.label} למטה`}
+                          className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-30"
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 

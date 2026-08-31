@@ -285,12 +285,32 @@ export default function SystemAdminPanel({
     shift_resources: "system_admin.shift_types.manage",
   };
 
+  const configuredAdminOrder = useMemo(() => {
+    const validIds = new Set(sections.map((section) => section.id));
+    const configured = (systemSettings?.adminTabOrder || []).filter((id) =>
+      validIds.has(id as AdminSection)
+    );
+    return [
+      ...configured,
+      ...sections
+        .map((section) => section.id)
+        .filter((id) => !configured.includes(id)),
+    ];
+  }, [systemSettings?.adminTabOrder]);
+
+  const getAdminOrder = (sectionId: AdminSection) => {
+    const index = configuredAdminOrder.indexOf(sectionId);
+    return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
+  };
+
   const visibleSections = useMemo(
     () =>
-      sections.filter((section) =>
-        hasPermission(permissions, sectionPermission[section.id])
-      ),
-    [permissions]
+      sections
+        .filter((section) =>
+          hasPermission(permissions, sectionPermission[section.id])
+        )
+        .sort((a, b) => getAdminOrder(a.id) - getAdminOrder(b.id)),
+    [permissions, configuredAdminOrder]
   );
 
   const visibleGroups = useMemo(
@@ -302,10 +322,16 @@ export default function SystemAdminPanel({
             .map((sectionId) =>
               visibleSections.find((section) => section.id === sectionId)
             )
-            .filter((section): section is (typeof sections)[number] => Boolean(section)),
+            .filter((section): section is (typeof sections)[number] => Boolean(section))
+            .sort((a, b) => getAdminOrder(a.id) - getAdminOrder(b.id)),
         }))
-        .filter((group) => group.visibleSections.length > 0),
-    [visibleSections]
+        .filter((group) => group.visibleSections.length > 0)
+        .sort(
+          (a, b) =>
+            Math.min(...a.visibleSections.map((section) => getAdminOrder(section.id))) -
+            Math.min(...b.visibleSections.map((section) => getAdminOrder(section.id)))
+        ),
+    [visibleSections, configuredAdminOrder]
   );
 
   const activeGroupSections = useMemo(
@@ -489,6 +515,7 @@ export default function SystemAdminPanel({
         <SystemSettingsManager
           currentUser={currentUser}
           users={users}
+          attendanceStatuses={attendanceStatuses}
           settings={systemSettings}
           onSettingsChanged={onSystemSettingsChanged}
         />

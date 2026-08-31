@@ -492,6 +492,26 @@ const [regPersonalCodeConfirm, setRegPersonalCodeConfirm] = useState("");
     permissions,
     "dashboard.notifications.view"
   );
+  const defaultMainTabOrder = [
+    "reporter",
+    "dashboard",
+    "shifts",
+    "line_planning",
+    "emergency",
+    "system_admin",
+  ];
+  const configuredMainTabOrder = [
+    ...(systemSettings?.mainTabOrder || []).filter((id) =>
+      defaultMainTabOrder.includes(id)
+    ),
+    ...defaultMainTabOrder.filter(
+      (id) => !(systemSettings?.mainTabOrder || []).includes(id)
+    ),
+  ];
+  const getMainTabOrder = (tabId: string) => {
+    const index = configuredMainTabOrder.indexOf(tabId);
+    return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
+  };
 
   // Access to the emergency center is controlled only by the dynamic
   // permission system. Activating emergency mode must not grant access to
@@ -3161,6 +3181,7 @@ const handleAdminBulkSaveReports = async (
             {canViewReporter && (
             <button
               onClick={() => setActiveTab("reporter")}
+              style={{ order: getMainTabOrder("reporter") }}
               className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "reporter"
                   ? effectiveSystemMode === "operational"
@@ -3179,6 +3200,7 @@ const handleAdminBulkSaveReports = async (
             {canViewDashboard && (
             <button
               onClick={() => setActiveTab("dashboard")}
+              style={{ order: getMainTabOrder("dashboard") }}
               className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "dashboard"
                   ? "border-military-600 text-military-800"
@@ -3193,6 +3215,7 @@ const handleAdminBulkSaveReports = async (
             {canViewShifts && (
               <button
                 onClick={() => setActiveTab("shifts")}
+                style={{ order: getMainTabOrder("shifts") }}
                 className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === "shifts"
                     ? effectiveSystemMode === "operational"
@@ -3211,6 +3234,7 @@ const handleAdminBulkSaveReports = async (
             {canViewLinePlanning && (
               <button
                 onClick={() => setActiveTab("line_planning")}
+                style={{ order: getMainTabOrder("line_planning") }}
                 className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === "line_planning"
                     ? "border-teal-600 text-teal-700"
@@ -3225,6 +3249,7 @@ const handleAdminBulkSaveReports = async (
             {shouldShowEmergencyTab && (
               <button
                 onClick={() => setActiveTab("emergency")}
+                style={{ order: getMainTabOrder("emergency") }}
                 className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === "emergency"
                     ? "border-red-600 text-red-700"
@@ -3239,6 +3264,7 @@ const handleAdminBulkSaveReports = async (
             {isSuperAdmin && (
               <button
                 onClick={() => setActiveTab("system_admin")}
+                style={{ order: getMainTabOrder("system_admin") }}
                 className={`shrink-0 whitespace-nowrap pb-3.5 px-3 font-bold text-xs sm:px-4 sm:text-sm transition-all duration-200 border-b-2 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === "system_admin"
                     ? "border-rose-600 text-rose-700"
