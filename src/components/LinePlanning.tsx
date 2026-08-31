@@ -319,8 +319,11 @@ export default function LinePlanning({
   const [dirtyPlanUserIds, setDirtyPlanUserIds] = useState<string[]>([]);
 
   const availableCycles = useMemo(
-    () => cycles.filter((cycle) => cycle.endDate >= today),
-    [cycles, today]
+    () =>
+      canManage
+        ? cycles
+        : cycles.filter((cycle) => cycle.endDate >= today),
+    [canManage, cycles, today]
   );
   const selectedCycle =
     availableCycles.find((cycle) => cycle.cycleId === selectedCycleId) || null;
@@ -613,9 +616,9 @@ export default function LinePlanning({
 
       setCycles(normalizedItems);
       setSelectedCycleId((current) => {
-        const availableItems = normalizedItems.filter(
-          (item) => item.endDate >= today
-        );
+        const availableItems = canManage
+          ? normalizedItems
+          : normalizedItems.filter((item) => item.endDate >= today);
         if (
           current &&
           availableItems.some((item) => item.cycleId === current)
