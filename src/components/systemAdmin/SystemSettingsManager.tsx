@@ -189,8 +189,13 @@ export default function SystemSettingsManager({
   const [saving, setSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<
-    "general" | "modes" | "orders" | "whatsapp"
-  >("general");
+    | "display"
+    | "notifications"
+    | "performance"
+    | "modes"
+    | "orders"
+    | "whatsapp"
+  >("display");
   const [newOrderTitle, setNewOrderTitle] = useState("");
   const [newOrderStartDate, setNewOrderStartDate] = useState("");
   const [newOrderEndDate, setNewOrderEndDate] = useState("");
@@ -775,9 +780,11 @@ export default function SystemSettingsManager({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {[
-          { id: "general" as const, label: "הגדרות כלליות", icon: Settings },
+          { id: "display" as const, label: "תצוגה וניווט", icon: MonitorCog },
+          { id: "notifications" as const, label: "התראות", icon: Bell },
+          { id: "performance" as const, label: "ביצועים ורענון", icon: Database },
           { id: "modes" as const, label: "מצבי מערכת", icon: ShieldAlert },
           { id: "orders" as const, label: "ניהול צווים", icon: CalendarRange },
           { id: "whatsapp" as const, label: "קבוצות WhatsApp", icon: MessageCircle },
@@ -802,7 +809,7 @@ export default function SystemSettingsManager({
         })}
       </div>
 
-      <section className={`${activeSettingsTab === "general" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
+      <section className={`${activeSettingsTab === "display" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
         <div className="mb-4 flex items-center gap-2">
           <MonitorCog className="h-5 w-5 text-violet-600" />
           <h3 className="text-sm font-black text-slate-900">זהות ותצוגה</h3>
@@ -948,7 +955,7 @@ export default function SystemSettingsManager({
         </div>
       </section>
 
-      <section className={`${activeSettingsTab === "general" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
+      <section className={`${activeSettingsTab === "notifications" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
         <div className="mb-4 flex items-center gap-2">
           <Bell className="h-5 w-5 text-amber-600" />
           <h3 className="text-sm font-black text-slate-900">התראות</h3>
@@ -1101,7 +1108,7 @@ export default function SystemSettingsManager({
         </div>
       </section>
 
-      <section className={`${activeSettingsTab === "general" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
+      <section className={`${activeSettingsTab === "performance" ? "" : "hidden"} rounded-2xl border border-slate-200 bg-white p-5 shadow-sm`}>
         <div className="mb-4 flex items-center gap-2">
           <Database className="h-5 w-5 text-sky-600" />
           <h3 className="text-sm font-black text-slate-900">ביצועים ורענון</h3>
